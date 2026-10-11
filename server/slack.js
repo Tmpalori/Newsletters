@@ -9,7 +9,7 @@
  *   sales     SLACK_SALES_WEBHOOK_URL     sponsor orders, refunds, disputes
  *   activity  SLACK_ACTIVITY_WEBHOOK_URL  submissions, messages, subscribers, publishing
  *   alerts    SLACK_ALERTS_WEBHOOK_URL    anything broken (every alert())
- *   hype      SLACK_HYPE_WEBHOOK_URL      wins only: new subscribers, new sponsors and Vic's Picks
+ *   hype      SLACK_HYPE_WEBHOOK_URL      wins only: every 5th subscriber (with the total), new sponsors and Vic's Picks
  *   inbox     SLACK_INBOX_WEBHOOK_URL     people talking to us: email replies, contact form, our replies
  * hype falls back to sales and inbox to activity (then SLACK_WEBHOOK_URL),
  * so nothing moves until those channels have their own webhook.

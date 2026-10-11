@@ -301,7 +301,7 @@ describe('welcome email', () => {
 });
 
 describe('signup flow', () => {
-  it('single opt-in: a new address is active at once and gets one welcome email and one Slack ping', async () => {
+  it('single opt-in: a new address is active at once and gets one welcome email', async () => {
     const pings = [];
     await startApp({ slack: { enabled: true, notify: async (m) => { pings.push(m); return true; }, alert: async () => {} } });
     expect((await post('/api/subscribe', { email: 'bad' })).status).toBe(400);
@@ -311,7 +311,6 @@ describe('signup flow', () => {
     expect((await store.countSubscribers()).active).toBe(1);
     await vi.waitFor(() => {
       expect(sent.single.some(m => m.subject === 'Welcome to The Vic 361')).toBe(true);
-      expect(pings.find(p => p.title.includes('New newsletter subscriber'))).toMatchObject({ channel: 'hype' });
     }, { timeout: 2000 });
     // Signing up again while active sends nothing more.
     await post('/api/subscribe', { email: 'new@example.com' });
@@ -324,7 +323,25 @@ describe('signup flow', () => {
     expect(welcome.html).toContain('Farmers Market');
     expect(welcome.html).toContain('Acme Tacos');
     expect(welcome.html).toContain('123 Main St, Victoria, TX 77901');
-    expect(pings.filter(p => p.title.includes('New newsletter subscriber'))).toHaveLength(1);
+    // One subscriber isn't a multiple of 5: no Slack ping.
+    expect(pings.filter(p => p.title.includes('newsletter subscribers'))).toHaveLength(0);
+  });
+
+  it('Slack pings once every 5 subscribers, with the total', async () => {
+    const pings = [];
+    await startApp({ slack: { enabled: true, notify: async (m) => { pings.push(m); return true; }, alert: async () => {} } });
+    const subs = () => pings.filter(p => p.title.includes('newsletter subscribers'));
+    for (let i = 1; i <= 4; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
+    await new Promise(r => setTimeout(r, 50));
+    expect(subs()).toHaveLength(0);
+    await post('/api/subscribe', { email: 'fan5@example.com' });
+    await vi.waitFor(() => expect(subs()).toHaveLength(1), { timeout: 2000 });
+    expect(subs()[0]).toMatchObject({ channel: 'hype', title: '📬 5 newsletter subscribers' });
+    expect(subs()[0].fields).toContainEqual(['Total subscribers', 5]);
+    expect(subs()[0].fields).toContainEqual(['Newest', 'fan5@example.com']);
+    for (let i = 6; i <= 10; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
+    await vi.waitFor(() => expect(subs()).toHaveLength(2), { timeout: 2000 });
+    expect(subs()[1].title).toBe('📬 10 newsletter subscribers');
   });
 
   it('a comeback must confirm from its own inbox: confirmation email, GET shows a button, POST activates', async () => {

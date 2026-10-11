@@ -1194,9 +1194,28 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     }
   });
 
+  // Slack hears about subscribers in batches: one ping each time the active
+  // count lands on a multiple of SUBSCRIBER_PING_EVERY, with the total. A
+  // dip and climb back (25 → 24 → 25) doesn't ping the same total twice
+  // while this process runs.
+  const SUBSCRIBER_PING_EVERY = 5;
+  let lastSubscriberPing = 0;
+  async function subscriberPing(sub) {
+    if (!slack) return;
+    try {
+      const total = (await store.countSubscribers()).active;
+      if (!total || total % SUBSCRIBER_PING_EVERY !== 0 || total <= lastSubscriberPing) return;
+      lastSubscriberPing = total;
+      slack.notify({ channel: 'hype', title: `📬 ${total} newsletter subscribers`, fields: [['Total subscribers', total],
+        ['Newest', sub.email], ...(sub.source ? [['From', sub.source]] : []),
+        ...(sub.referred_by ? [['Referred by', sub.referred_by]] : [])] });
+    } catch (err) {
+      console.warn('[newsletter] subscriber count for Slack failed:', err.message);
+    }
+  }
+
   async function welcome(sub) {
-    if (slack) slack.notify({ channel: 'hype', title: '📬 New newsletter subscriber', fields: [['Email', sub.email], ...(sub.source ? [['From', sub.source]] : []),
-      ...(sub.referred_by ? [['Referred by', sub.referred_by]] : [])] });
+    subscriberPing(sub);
     if (!config.enabled || !config.address) return; // never send without the required mailing address
     try {
       const payload = await getPublicPayload();
