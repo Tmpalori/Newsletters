@@ -995,6 +995,26 @@ class FileStore {
     });
   }
 
+  // ─── Owner inbox (server/inbox.js) ───
+  // Everything that pinged the owner, kept for HQ to read (GET /api/hq/inbox).
+  async addInboxEvent(evt) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!Array.isArray(data.inbox_events)) data.inbox_events = [];
+      const id = data.inbox_events.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+      const row = { id, created_at: evt.created_at || nowIso(), channel: evt.channel, severity: evt.severity, kind: evt.kind, title: evt.title, payload: evt.payload || {} };
+      data.inbox_events.push(row);
+      if (data.inbox_events.length > 2000) data.inbox_events = data.inbox_events.slice(-2000);
+      await this._write(data);
+      return row;
+    });
+  }
+
+  async listInboxEvents(sinceId = 0, limit = 200) {
+    const data = await this._read();
+    return (data.inbox_events || []).filter(e => e.id > sinceId).sort((a, b) => a.id - b.id).slice(0, limit);
+  }
+
   // ─── Personal data (server/privacy.js) ───
   // Retention: submissions created before `submissionsBefore` lose the
   // submitter's IP address and user agent; contact messages created before
@@ -1012,7 +1032,9 @@ class FileStore {
       const keep = msgs.filter(m => !(String(m.created_at || '') < contactBefore));
       const contact = msgs.length - keep.length;
       if (contact) data.contact_messages = keep;
-      if (submissions || contact) await this._write(data);
+      const inboxBefore = Array.isArray(data.inbox_events) ? data.inbox_events.length : 0;
+      if (inboxBefore) data.inbox_events = data.inbox_events.filter(e => !(String(e.created_at || '') < contactBefore));
+      if (submissions || contact || (inboxBefore && inboxBefore !== data.inbox_events.length)) await this._write(data);
       return { submissions, contact_messages: contact };
     });
   }
@@ -1043,6 +1065,11 @@ class FileStore {
         const before = data.contact_messages.length;
         data.contact_messages = data.contact_messages.filter(m => !same(m.email));
         out.contact_messages = before - data.contact_messages.length;
+      }
+      if (Array.isArray(data.inbox_events)) {
+        const before = data.inbox_events.length;
+        data.inbox_events = data.inbox_events.filter(e => !JSON.stringify(e).toLowerCase().includes(email));
+        if (before !== data.inbox_events.length) out.inbox_events = before - data.inbox_events.length;
       }
       for (const o of data.sponsor_orders) if (same(o.email)) { o.email = masked; out.sponsor_orders++; }
       for (const r of data.referral_rewards) {
@@ -1398,6 +1425,18 @@ class PgStore {
           CREATE TABLE IF NOT EXISTS contact_messages (
             id TEXT PRIMARY KEY,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            payload JSONB NOT NULL
+          );
+        `);
+        // The owner inbox (server/inbox.js): every owner ping, for HQ.
+        await this.pool.query(`
+          CREATE TABLE IF NOT EXISTS inbox_events (
+            id BIGSERIAL PRIMARY KEY,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            channel TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            title TEXT NOT NULL,
             payload JSONB NOT NULL
           );
         `);
@@ -2086,6 +2125,21 @@ class PgStore {
     return r.rowCount > 0;
   }
 
+  // See FileStore.addInboxEvent.
+  async addInboxEvent(evt) {
+    await this.ready();
+    const r = await this.pool.query(
+      'INSERT INTO inbox_events (created_at, channel, severity, kind, title, payload) VALUES (COALESCE($1::timestamptz, NOW()), $2, $3, $4, $5, $6::jsonb) RETURNING *',
+      [evt.created_at || null, evt.channel, evt.severity, evt.kind, evt.title, JSON.stringify(evt.payload || {})]);
+    return r.rows[0];
+  }
+
+  async listInboxEvents(sinceId = 0, limit = 200) {
+    await this.ready();
+    const r = await this.pool.query('SELECT * FROM inbox_events WHERE id > $1 ORDER BY id LIMIT $2', [sinceId, limit]);
+    return r.rows.map(row => ({ ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at }));
+  }
+
   // See FileStore.purgePersonalData.
   async purgePersonalData({ submissionsBefore, contactBefore }) {
     await this.ready();
@@ -2093,6 +2147,7 @@ class PgStore {
       `UPDATE event_submissions SET submitter_ip = NULL, user_agent = NULL
        WHERE created_at < $1::timestamptz AND (submitter_ip IS NOT NULL OR user_agent IS NOT NULL)`, [submissionsBefore]);
     const msgs = await this.pool.query('DELETE FROM contact_messages WHERE created_at < $1::timestamptz', [contactBefore]);
+    await this.pool.query('DELETE FROM inbox_events WHERE created_at < $1::timestamptz', [contactBefore]);
     return { submissions: subs.rowCount || 0, contact_messages: msgs.rowCount || 0 };
   }
 
@@ -2114,6 +2169,8 @@ class PgStore {
         `UPDATE event_submissions SET submitter_email = NULL, submitter_name = NULL, submitter_ip = NULL, user_agent = NULL,
            payload = payload || $2::jsonb, updated_at = NOW() WHERE lower(submitter_email) = $1`, [email, toJsonb(BLANK_SUBMITTER)]));
       out.contact_messages = n(await db.query("DELETE FROM contact_messages WHERE lower(payload->>'email') = $1", [email]));
+      const inboxGone = n(await db.query("DELETE FROM inbox_events WHERE strpos(lower(title || ' ' || payload::text), $1) > 0", [email]));
+      if (inboxGone) out.inbox_events = inboxGone;
       out.sponsor_orders = n(await db.query(
         `UPDATE sponsor_orders SET payload = jsonb_set(payload, '{email}', to_jsonb($2::text)), updated_at = NOW()
          WHERE lower(payload->>'email') = $1`, [email, masked]));
