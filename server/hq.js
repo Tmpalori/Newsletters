@@ -5,7 +5,8 @@
  * exist (the site's own 404). With it, only `Authorization: Bearer
  * <HQ_API_KEY>` gets in; an admin session never does, and the key opens no
  * admin route (requireAdmin doesn't know it). Read-only, counts and dates
- * only: no names, emails or addresses. Rate limited and cached 60 s, so a
+ * only: no names, emails or addresses. GET /api/hq/inbox (same key) is the
+ * exception: the owner's own messages, for HQ to pass on (server/inbox.js). Rate limited and cached 60 s, so a
  * busy HQ can't load the database.
  */
 
@@ -135,7 +136,24 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   };
 }
 
-export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, clientKey = req => req.ip }) {
+export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, clientKey = req => req.ip }) {
+  // The owner inbox (server/inbox.js): what pinged the owner since `since`
+  // (an event id), oldest first, at most 200. Unlike the summary this has
+  // people's names, emails and messages: it's for HQ to tell the owner.
+  if (inbox) app.get('/api/hq/inbox', async (req, res, next) => {
+    if (!key) return next();
+    if (!limiter.check(`hq:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
+    if (!keyOk(req.get('authorization'), key)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    res.set('Cache-Control', 'no-store');
+    const since = /^\d{1,15}$/.test(String(req.query.since || '')) ? Number(req.query.since) : 0;
+    try {
+      const events = await inbox(since, 200);
+      res.json({ ok: true, since, next: events.length ? events[events.length - 1].id : since, more: events.length === 200, events });
+    } catch (err) {
+      console.error('[hq] inbox failed:', err.message);
+      res.status(500).json({ ok: false, error: 'inbox-failed' });
+    }
+  });
   let cache = null;
   app.get('/api/hq/summary', async (req, res, next) => {
     if (!key) return next();

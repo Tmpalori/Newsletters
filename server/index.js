@@ -35,6 +35,7 @@ import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary } from './hq.js';
+import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
@@ -167,7 +168,10 @@ export async function createApp(opts = {}) {
   // Where a Turnstile token may have been solved (server/turnstile.js).
   const turnstileHosts = opts.turnstileHostnames ?? [...new Set([...turnstileHostnames(siteUrl, process.env.RAILWAY_PUBLIC_DOMAIN), ...turnstileHostnames(town.siteUrl)])];
   // Owner pings in Slack (server/slack.js); a no-op until SLACK_WEBHOOK_URL is set.
-  const slack = opts.slack || createSlack(slackConfig(process.env, opts));
+  // Every ping is also kept in the owner inbox for HQ (server/inbox.js).
+  let inboxStore = null;
+  const rawSlack = opts.slack || createSlack(slackConfig(process.env, opts));
+  const slack = withInbox(rawSlack, () => inboxStore);
   const canonicalHost = new URL(siteUrl).host;
   const apexHost = canonicalHost.replace(/^www\./, '');
   app.use((req, res, next) => {
@@ -287,6 +291,7 @@ export async function createApp(opts = {}) {
       `${err.message}\nThe site is up on the bundled events.json and retries the database on the next request.`)
   });
   const store = storeBundle.store;
+  inboxStore = store;
   // An injected Postgres store (tests) gets the same hook.
   if (store && 'onTablesCreated' in store && !store.onTablesCreated) store.onTablesCreated = onTablesCreated;
   // Production on the JSON file store means DATABASE_URL resolved empty (a
@@ -2488,6 +2493,7 @@ export async function createApp(opts = {}) {
     limiter: opts.hqLimiter || createRateLimiter({ windowMs: 60 * 1000, max: 30 }),
     nowFn: () => (opts.now || (() => new Date()))(),
     clientKey,
+    inbox: (since, limit) => (typeof store.listInboxEvents === 'function' ? store.listInboxEvents(since, limit) : []),
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),
@@ -2614,7 +2620,7 @@ export async function createApp(opts = {}) {
   });
 
   await archiveReady;
-  return { app, store, storeBundle, slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
+  return { app, store, storeBundle, slack: rawSlack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
 }
 
 // Start the server when invoked directly. Importing this module (e.g. from
