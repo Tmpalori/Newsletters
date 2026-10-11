@@ -92,8 +92,11 @@ def push(message, site):
     if not topic:
         return
     down = message.startswith("🚨")
+    # Same [Town] tag as the Slack post, so a push says which town is down.
+    tag = slack_notify.town_tag()
+    body = f"[{tag}] {message}" if tag else message
     req = urllib.request.Request(
-        f"https://ntfy.sh/{topic}", data=message.encode(),
+        f"https://ntfy.sh/{topic}", data=body.encode(),
         headers={"Title": TOWN["domain"], "Priority": "urgent" if down else "default",
                  "Click": site, "Tags": "rotating_light" if down else "white_check_mark"})
     try:

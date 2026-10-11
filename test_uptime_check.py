@@ -75,3 +75,24 @@ def test_corrupt_state_is_treated_as_up(tmp_path):
     assert uc.load(str(p)) == {}
     p.write_text("[1]")
     assert uc.load(str(p)) == {}
+
+
+def test_push_carries_the_town_tag(monkeypatch):
+    # The phone push says which town, like the Slack post.
+    sent = []
+
+    class _Ok:
+        def read(self):
+            return b"ok"
+
+    def fake_urlopen(req, timeout=None):
+        sent.append((req.data.decode(), req.get_header("Priority")))
+        return _Ok()
+    monkeypatch.setenv("NTFY_TOPIC", "t")
+    monkeypatch.delenv("SLACK_TOWN_TAG", raising=False)
+    monkeypatch.delenv("TOWN", raising=False)
+    monkeypatch.setattr(uc.urllib.request, "urlopen", fake_urlopen)
+    uc.push("🚨 Site down", "https://www.thevic361.com")
+    monkeypatch.setenv("SLACK_TOWN_TAG", "Kearney")
+    uc.push("✅ Site back up", "https://www.thecrane308.com")
+    assert sent == [("[Victoria] 🚨 Site down", "urgent"), ("[Kearney] ✅ Site back up", "default")]
