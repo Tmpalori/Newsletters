@@ -34,6 +34,7 @@ describe('Vic\'s Pick line under a day', () => {
     const line = pickPromptHtml('2026-10-09', [ev('2026-10-09')], today);
     expect(line).toContain('Have an event Friday?');
     expect(line).toContain('/advertise/checkout?package=featured&amp;date=2026-10-09');
+    expect(line).toContain('Give it the Vic’s Pick badge');
     expect(line).not.toContain('$');
   });
 

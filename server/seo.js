@@ -812,7 +812,8 @@ export function dayClass(dateStr) {
 // venue reading its own day sees it can stand out there. Counts the paid
 // picks already live; checkout still checks the real cap (holds included),
 // so a day that just sold out can't be oversold from here. Not today: a
-// pick bought the same evening buys almost nothing. docs/app.js keeps the
+// pick bought the same evening buys almost nothing. "Give it the <name>
+// badge" reads right for every town's pick name ("Featured" too). docs/app.js keeps the
 // server's line when it redraws the week.
 export function pickPromptHtml(dateStr, list, today) {
   if (!(dateStr > today)) return '';
@@ -820,7 +821,7 @@ export function pickPromptHtml(dateStr, list, today) {
   const kind = dow === 5 || dow === 6 || dow === 0 ? 'weekend' : 'weekday';
   if (list.filter(isPaidPick).length >= town.business.pickCap[kind]) return '';
   return `<p class="pick-prompt" data-date="${dateStr}">Have an event ${formatDay(dateStr, { weekday: 'long' })}? ` +
-    `<a href="/advertise/checkout?package=featured&amp;date=${dateStr}">Make it a ${town.pickName}</a>.</p>`;
+    `<a href="/advertise/checkout?package=featured&amp;date=${dateStr}">Give it the ${town.pickName} badge</a>.</p>`;
 }
 
 function renderDay(dateStr, list, idx, today, fold = null, prompt = '') {
@@ -1052,7 +1053,7 @@ export function houseAdHtml() {
     '<div class="sponsor-label">Your business here</div>' +
     `<div class="sponsor-name">Feature your business on ${town.siteName}</div>` +
     '<div class="sponsor-text">One business a week gets this spot on every page and in the newsletter. ' +
-    `Have an event coming up? Make it a ${town.pickName}.</div>` +
+    `Have an event coming up? Give it the ${town.pickName} badge.</div>` +
     '<a href="/advertise" class="btn btn--primary house-cta">See how it works</a></div></section>';
 }
 

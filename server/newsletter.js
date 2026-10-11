@@ -389,13 +389,13 @@ function houseAdHtml(siteUrl) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#fff;border:3px dashed ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px;">
 <span style="display:inline-block;font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:.5px;background:${C.sunLight};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:1px 10px;">YOUR BUSINESS HERE</span>
 <div style="font-family:${DISPLAY};font-size:18px;font-weight:bold;margin:6px 0 2px;">Feature your business in ${escHtml(town.siteName)}</div>
-<div style="font-size:14px;">One business a week gets the top of this newsletter and every page of ${escHtml(town.domain)}. Have an event coming up? Make it a ${town.pickName}.</div>
+<div style="font-size:14px;">One business a week gets the top of this newsletter and every page of ${escHtml(town.domain)}. Have an event coming up? Give it the ${town.pickName} badge.</div>
 <a href="${siteUrl}/advertise" style="display:inline-block;margin-top:10px;background:#fff;color:${C.ink};font-family:${DISPLAY};font-weight:bold;padding:6px 14px;border:2px solid ${C.ink};border-radius:999px;text-decoration:none;">See how it works →</a>
 </td></tr></table>`;
 }
 
 function houseAdText(siteUrl) {
-  return `FEATURE YOUR BUSINESS: one business a week gets the top of this newsletter, or make your event a ${town.pickNamePlain}. ${siteUrl}/advertise`;
+  return `FEATURE YOUR BUSINESS: one business a week gets the top of this newsletter, or give your event the ${town.pickNamePlain} badge. ${siteUrl}/advertise`;
 }
 
 // What each package looks like inside the newsletter, for /advertise: the
