@@ -2068,6 +2068,19 @@ export async function createApp(opts = {}) {
   // Personal data: delete one address on request, export subscribers (server/privacy.js).
   registerPrivacy(app, { store, requireAdmin, slack, nowFn: () => nowFn() });
   inbound.registerReply(app, { requireAdmin, resend: nlResend, from: newsletter.from, normalizeEmail });
+  // Replies approved through HQ, sent as news@ (server/inbound.js). Off
+  // unless HQ_REPLY_KEY is set, at least MIN_SSO_SECRET long and unlike
+  // every other secret (the read-only HQ_API_KEY must never send).
+  const hqReplyKey = String(opts.hqReplyKey ?? process.env.HQ_REPLY_KEY ?? '').trim();
+  const replyClash = [['HQ_API_KEY', opts.hqApiKey ?? process.env.HQ_API_KEY], ['HQ_SSO_SECRET', ssoSecret], ['ADMIN_SESSION_SECRET', opts.adminSessionSecret ?? process.env.ADMIN_SESSION_SECRET],
+    ['ADMIN_PASSWORD', opts.adminPassword ?? process.env.ADMIN_PASSWORD], ['ADMIN_TOKEN', adminToken]]
+    .filter(([, v]) => hqReplyKey && v && String(v).trim() === hqReplyKey).map(([k]) => k);
+  const hqReplyOn = hqReplyKey.length >= MIN_SSO_SECRET && !replyClash.length;
+  if (hqReplyKey && !hqReplyOn) {
+    console.warn(`[inbound] HQ replies are off: HQ_REPLY_KEY ${replyClash.length ? `is the same as ${replyClash.join(', ')}` : `is shorter than ${MIN_SSO_SECRET} characters`}; give it its own value`);
+  }
+  inbound.registerHqReply(app, { key: hqReplyOn ? hqReplyKey : '', resend: nlResend, from: newsletter.from, clientKey,
+    limiter: opts.hqReplyLimiter || createRateLimiter({ windowMs: 60 * 1000, max: 10 }) });
 
   sponsors.registerRoutes(app, { requireAdmin, createRateLimiter, sendHtml, verifyHuman, analyticsSecret });
 

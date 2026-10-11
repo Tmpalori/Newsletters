@@ -119,6 +119,62 @@ describe('GET /api/hq/inbox', () => {
   });
 });
 
+describe('POST /api/hq/reply', () => {
+  const REPLY = 'hq-reply-key-0123456789-0123456789-abc';
+  let sends;
+  const startReply = (extra = {}) => {
+    sends = [];
+    return start({ hqReplyKey: REPLY, resendApiKey: 're_test', newsletterAddress: '1 Main',
+      resend: { send: async (m) => { sends.push(m); return { id: 'e1' }; }, batch: async () => ({ data: [] }) }, ...extra });
+  };
+  const post = (body, auth = `Bearer ${REPLY}`) => fetch(base + '/api/hq/reply', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: auth } : {}) }, body: JSON.stringify(body) });
+  const contact = async () => {
+    await fetch(base + '/contact', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ topic: 'general', name: 'Pat Lee', email: 'pat@acme.example', business: 'Acme', message: 'Hi there' }).toString() });
+    await settle();
+    return (await store.listInboxEvents(0)).find(e => /Website message/.test(e.title));
+  };
+
+  it('sends an approved reply as news@ to whoever wrote in, once', async () => {
+    await startReply();
+    const evt = await contact();
+    expect((await post({ event_id: evt.id, draft: 7, subject: 'Re: hi', text: 'Thanks!' }, null)).status).toBe(401);
+    expect((await post({ event_id: evt.id, draft: 7, subject: 'Re: hi', text: 'Thanks!' }, `Bearer ${KEY}`)).status).toBe(401);   // the read-only key can't send
+    const r = await post({ event_id: evt.id, draft: 7, subject: 'Re: hi', text: 'Thanks!', to: 'someone@else.example' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, to: 'pat@acme.example' });
+    expect(sends).toHaveLength(1);
+    expect(sends[0].to).toEqual(['pat@acme.example']);          // never a recipient HQ names
+    expect((await post({ event_id: evt.id, draft: 7, subject: 'Re: hi', text: 'Thanks!' })).status).toBe(409);
+    expect(sends).toHaveLength(1);
+    await settle();
+    expect(notes.some(n => /↩️ Replied to pat@acme.example/.test(n.title))).toBe(true);
+  });
+
+  it('only answers messages from people, and only recent ones', async () => {
+    await startReply();
+    const alert = await store.addInboxEvent({ channel: 'alerts', severity: 'urgent', kind: 'alert', title: '🚨 x',
+      payload: { link: 'https://www.thevic361.com/admin.html#reply?to=x%40y.example' } });
+    expect((await post({ event_id: alert.id, draft: 1, subject: 's', text: 'hello' })).status).toBe(422);
+    const old = await store.addInboxEvent({ channel: 'inbox', severity: 'today', kind: 'email', title: '📬 Email from x@y.example', created_at: '2026-07-01T00:00:00.000Z',
+      payload: { link: 'https://www.thevic361.com/admin.html#reply?to=x%40y.example&subject=Re%3A+a' } });
+    expect((await post({ event_id: old.id, draft: 2, subject: 's', text: 'hello' })).status).toBe(422);
+    expect((await post({ event_id: 999, draft: 3, subject: 's', text: 'hello' })).status).toBe(422);
+    expect(sends).toHaveLength(0);
+  });
+
+  it("doesn't exist without its own key", async () => {
+    await startReply({ hqReplyKey: '' });
+    expect((await post({ event_id: 1, draft: 1, subject: 's', text: 'hello' })).status).toBe(404);
+    if (server) await new Promise(r => server.close(r));
+    if (tmpDir) await fs.rm(tmpDir, { recursive: true, force: true });
+    server = null; tmpDir = null;
+    await startReply({ hqReplyKey: KEY + 'x'.repeat(20), hqApiKey: KEY + 'x'.repeat(20) });     // same as the read-only key: off
+    expect((await post({ event_id: 1, draft: 1, subject: 's', text: 'hello' }, `Bearer ${KEY + 'x'.repeat(20)}`)).status).toBe(404);
+  });
+});
+
 describe('privacy', () => {
   it('forgetting an email removes its inbox items; the retention purge drops old ones', async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-inbox-'));

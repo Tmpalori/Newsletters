@@ -238,6 +238,13 @@ README covers its variables. What this repo's towns need:
   session. Without the pair the button is a plain link to the town's own
   login. Anyone who can sign in to HQ can open every town that has a
   secret, so HQ's password is the one that matters.
+- **Replies as news@ from HQ (optional).** A fresh `HQ_REPLY_KEY`
+  (`openssl rand -hex 32`, different from every other secret), with HQ
+  holding the same value as `"reply"` in the town's `HQ_TOWN_<SLUG>` or
+  `HQ_TOWNS` entry. HQ then sends replies Tristen approved (through his
+  assistant) to `POST /api/hq/reply`, which sends them as news@. The town
+  picks the recipient from the message's own reply link (someone who wrote
+  in, within 60 days), 30 a day at most. Unset, the route is a 404.
 
 `server/sso.js` here and `src/sso.js` in tristen-hq are the same file:
 change both together. A change to the summary's shape (`server/hq.js`)

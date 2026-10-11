@@ -22,6 +22,7 @@
 import { town, VICTORIA, otherTownDomains } from './town.js';
 import crypto from 'node:crypto';
 import express from 'express';
+import { keyOk } from './hq.js';
 
 const RESEND_API = 'https://api.resend.com';
 const TOLERANCE_S = 5 * 60;      // Svix timestamps older/newer than this are refused
@@ -259,5 +260,65 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
     });
   }
 
-  return { register, registerReply, handle };
+  // POST /api/hq/reply {event_id, draft, subject, text}: a reply the owner
+  // approved through HQ (tmpalori/tristen-hq; his assistant asks him, HQ
+  // records his OK), sent as news@ like the admin's reply box. Off (404)
+  // without HQ_REPLY_KEY, its own key: the read-only HQ_API_KEY can't send.
+  // HQ can't name a recipient: the town takes it from that message's own
+  // "Reply as news@" link, so it only answers someone who wrote in, within
+  // 60 days. At most `limit` a day, and each HQ draft once.
+  function registerHqReply(app, { key = '', resend, from, limiter = null, clientKey = req => req.ip, limit = 30 }) {
+    if (!key) return;
+    const sentDrafts = new Set();
+    let day = '', count = 0;
+    app.post('/api/hq/reply', express.json({ limit: '32kb' }), async (req, res) => {
+      if (limiter && !limiter.check(`hq-reply:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
+      if (!keyOk(req.get('authorization'), key)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+      res.set('Cache-Control', 'no-store');
+      const b = req.body || {};
+      const draft = /^\d{1,15}$/.test(String(b.draft || '')) ? String(b.draft) : '';
+      const subject = String(b.subject || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
+      const text = String(b.text || '').slice(0, 10000);
+      if (!draft || !subject || text.trim().length < 2) return res.status(400).json({ ok: false, error: 'bad-request' });
+      if (sentDrafts.has(draft)) return res.status(409).json({ ok: false, error: 'already-sent' });
+      const event = /^\d{1,15}$/.test(String(b.event_id || '')) && store && typeof store.getInboxEvent === 'function'
+        ? await store.getInboxEvent(Number(b.event_id)).catch(() => null) : null;
+      const target = event && replyTarget(event, siteUrl, nowFn());
+      if (!target) return res.status(422).json({ ok: false, error: 'not-replyable', message: 'Only a message someone sent in the last 60 days can be answered.' });
+      if (!apiKey) return res.status(503).json({ ok: false, error: 'not-configured' });
+      const today = new Date(nowFn()).toISOString().slice(0, 10);
+      if (today !== day) { day = today; count = 0; }
+      if (count >= limit) return res.status(429).json({ ok: false, error: 'daily-limit' });
+      count++;
+      sentDrafts.add(draft);
+      const mail = renderReply(text, siteUrl);
+      try {
+        await resend.send({ from, to: [target.to], subject, html: mail.html, text: mail.text,
+          ...(target.ref ? { headers: { 'In-Reply-To': target.ref, References: target.ref } } : {}) });
+      } catch (err) {
+        sentDrafts.delete(draft); count--;
+        console.warn('[inbound] HQ reply failed:', err.message);
+        return res.status(502).json({ ok: false, error: 'send-failed' });
+      }
+      if (slack) slack.notify({ title: `↩️ Replied to ${target.to}`, fields: [['Subject', subject], ['Approved', 'by Tristen, through HQ']], text: text.slice(0, 600), channel: 'inbox' });
+      res.json({ ok: true, to: target.to });
+    });
+  }
+
+  return { register, registerReply, registerHqReply, handle };
+}
+
+// Who a saved inbox event (server/inbox.js) can be answered at: the `to`
+// and Message-ID of its own "Reply as news@" link, for a message from a
+// person (an email to news@ or the contact form) at most 60 days old.
+export function replyTarget(event, siteUrl, now = Date.now()) {
+  const link = String((event && event.payload && event.payload.link) || '');
+  const prefix = `${siteUrl}/admin.html#reply?`;
+  if (!event || event.channel !== 'inbox' || !link.startsWith(prefix) || /^↩️/u.test(String(event.title || ''))) return null;
+  if (!(now - Date.parse(event.created_at) <= 60 * 86400000)) return null;
+  const q = new URLSearchParams(link.slice(prefix.length));
+  const to = String(q.get('to') || '').trim().toLowerCase();
+  if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/.test(to)) return null;
+  const ref = String(q.get('ref') || '');
+  return { to, ref: /^<[^<>\s]{3,300}>$/.test(ref) ? ref : '' };
 }
