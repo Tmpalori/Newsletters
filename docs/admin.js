@@ -1202,6 +1202,13 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       frame.srcdoc = await res.text();
       frame.hidden = false;
+      // The upcoming issue (next Monday or Thursday), not the current week's.
+      const day = res.headers.get('X-Issue-Date');
+      const subject = res.headers.get('X-Issue-Subject');
+      if (day) {
+        const label = new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'short', day: 'numeric' });
+        emailNlMsg('Previewing the ' + label + ' issue' + (subject ? ': ' + decodeURIComponent(subject) : '') + '. Send test sends this same issue.');
+      }
     } catch (err) {
       emailNlMsg('Preview failed: ' + (err.message || err), 'error');
     }

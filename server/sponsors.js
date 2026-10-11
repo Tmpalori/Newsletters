@@ -1129,7 +1129,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   // recorded as sent. Strict reads the orders fresh, tries once more after
   // a short pause, then throws, so the send fails and the scheduler retries
   // it (5, 15, 30 minutes, then an alert).
-  async function apply(payload, { strict = false } = {}) {
+  async function apply(payload, { strict = false, now } = {}) {
+    const at = now || nowFn();
     if (strict) {
       let list;
       try { list = await freshOrders(); } catch (err) {
@@ -1137,11 +1138,11 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         await new Promise(r => setTimeout(r, STRICT_RETRY_MS));
         list = await freshOrders();
       }
-      return applyPlacements(payload, list, { now: nowFn(), venues: getVenues(), pins: await pins(list) });
+      return applyPlacements(payload, list, { now: at, venues: getVenues(), pins: await pins(list) });
     }
     try {
       const list = await orders();
-      return applyPlacements(payload, list, { now: nowFn(), venues: getVenues(), pins: await pins(list) });
+      return applyPlacements(payload, list, { now: at, venues: getVenues(), pins: await pins(list) });
     } catch (err) {
       console.warn('[sponsors] placements skipped:', err.message);
       return payload;
