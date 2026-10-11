@@ -820,7 +820,7 @@ export function pickPromptHtml(dateStr, list, today) {
   const kind = dow === 5 || dow === 6 || dow === 0 ? 'weekend' : 'weekday';
   if (list.filter(isPaidPick).length >= town.business.pickCap[kind]) return '';
   return `<p class="pick-prompt" data-date="${dateStr}">Have an event ${formatDay(dateStr, { weekday: 'long' })}? ` +
-    `<a href="/advertise/checkout?package=featured&amp;date=${dateStr}">Make it a ${town.pickName}</a> for ${dollars(town.business.pickAmount[kind])}.</p>`;
+    `<a href="/advertise/checkout?package=featured&amp;date=${dateStr}">Make it a ${town.pickName}</a>.</p>`;
 }
 
 function renderDay(dateStr, list, idx, today, fold = null, prompt = '') {
@@ -1041,6 +1041,8 @@ export function sponsorLinkUrl(url, medium = 'sponsor') {
 export const SAMPLE_LOGO = '/sample-logo.svg';
 export const isSponsorLogo = l => /^\/sponsor-logo\/[A-Za-z0-9-]{8,64}$/.test(l || '') || l === SAMPLE_LOGO;
 
+// Prices stay on the sponsor pages (/advertise and checkout), never in
+// these prompts: the owner's call.
 // A week nobody has booked shows this in the sponsor slot instead of
 // leaving it out, so the businesses reading the site see the spot is for
 // sale. Booking the week replaces it. Not .sponsor-cta: track.js counts its
@@ -1049,8 +1051,8 @@ export function houseAdHtml() {
   return '<section class="sponsor-section"><div class="sponsor-block sponsor-block--house">' +
     '<div class="sponsor-label">Your business here</div>' +
     `<div class="sponsor-name">Feature your business on ${town.siteName}</div>` +
-    `<div class="sponsor-text">One business a week gets this spot on every page and in the newsletter for ${dollars(town.business.weeklyAmount)}. ` +
-    `Have an event coming up? Make it a ${town.pickName} from ${dollars(town.business.pickAmount.weekday)}.</div>` +
+    '<div class="sponsor-text">One business a week gets this spot on every page and in the newsletter. ' +
+    `Have an event coming up? Make it a ${town.pickName}.</div>` +
     '<a href="/advertise" class="btn btn--primary house-cta">See how it works</a></div></section>';
 }
 

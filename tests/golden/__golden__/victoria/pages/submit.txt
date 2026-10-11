@@ -53,7 +53,7 @@
         Free submissions aren't guaranteed a spot on the list. Want it
         <strong>guaranteed and highlighted on its day</strong>?
         <a href="/advertise/checkout?package=featured">Make it a Vic&rsquo;s Pick</a>
-        ($49 Mon&ndash;Thu, $89 Fri&ndash;Sun; you'll see a preview before paying).
+        (you'll see a preview before paying).
       </p>
 
       <form id="submit-form" class="submit-form" novalidate>

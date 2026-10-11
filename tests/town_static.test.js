@@ -58,7 +58,7 @@ describe('localizeHtml', () => {
     expect(home).toContain('happening this week in the 979.');
     const form = localizeHtml(submit, t);
     expect(form).toContain('Make it a Bay&rsquo;s Best');
-    expect(form).toContain('($29.50 Mon&ndash;Thu, $59 Fri&ndash;Sun;');
+    expect(form).not.toMatch(/\$\d/); // prices stay on the sponsor pages
     expect(form).toContain('placeholder="(979) 555-0123"');
     expect(form).toContain('placeholder="123 Main St, Bay City, TX"');
   });

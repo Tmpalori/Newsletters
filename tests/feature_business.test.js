@@ -18,8 +18,7 @@ describe('house ad in the sponsor slot', () => {
   it('fills an unsold week and gives way to a paid sponsor', () => {
     expect(sponsorHtml(null)).toBe(houseAdHtml());
     expect(houseAdHtml()).toContain('href="/advertise"');
-    expect(houseAdHtml()).toContain('$300');
-    expect(houseAdHtml()).toContain('$49');
+    expect(houseAdHtml()).not.toContain('$'); // prices stay on the sponsor pages
     const paidBlock = sponsorHtml(sponsor);
     expect(paidBlock).toContain('Acme Tacos');
     expect(paidBlock).not.toContain('sponsor-block--house');
@@ -35,8 +34,7 @@ describe('Vic\'s Pick line under a day', () => {
     const line = pickPromptHtml('2026-10-09', [ev('2026-10-09')], today);
     expect(line).toContain('Have an event Friday?');
     expect(line).toContain('/advertise/checkout?package=featured&amp;date=2026-10-09');
-    expect(line).toContain('$89');
-    expect(pickPromptHtml('2026-10-08', [], today)).toContain('$49');
+    expect(line).not.toContain('$');
   });
 
   it('skips today and past days', () => {
@@ -73,6 +71,8 @@ describe('newsletter', () => {
     expect(issue.html).toContain('YOUR BUSINESS HERE');
     expect(issue.html.indexOf('YOUR BUSINESS HERE')).toBeGreaterThan(issue.html.indexOf('See the full list'));
     expect(issue.text).toContain('FEATURE YOUR BUSINESS');
+    expect(issue.html.slice(issue.html.indexOf('YOUR BUSINESS HERE'))).not.toMatch(/\$\d/);
+    expect(issue.text).not.toMatch(/FEATURE YOUR BUSINESS[^\n]*\$\d/);
   });
 
   it('a sponsored week has no house ad', () => {

@@ -12,14 +12,13 @@
  * utm_source), which app.js reads instead of Victoria's defaults.
  */
 
-import { town as currentTown, VICTORIA, dollars } from './town.js';
+import { town as currentTown, VICTORIA } from './town.js';
 
 const GA_SNIPPET_RE = /<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=G-52YHD3X3C2"><\/script>\n<script>window\.dataLayer[^\n]*<\/script>\n?/g;
 const html = s => String(s).replace(/’/g, '&rsquo;');
 
 function table(t) {
   const v = VICTORIA;
-  const pick = t.business.pickAmount;
   return [
     ['https://www.thevic361.com', t.siteUrl],
     [v.siteNameHtml, t.siteNameHtml],
@@ -29,7 +28,6 @@ function table(t) {
     [v.cityStateLong, t.cityStateLong],
     [v.cityState, t.cityState],
     [html(v.pickName), html(t.pickName)],
-    ['$49 Mon&ndash;Thu, $89 Fri&ndash;Sun', `${dollars(pick.weekday)} Mon&ndash;Thu, ${dollars(pick.weekend)} Fri&ndash;Sun`],
     ['in the 361', t.areaCode ? `in the ${t.areaCode}` : `in ${t.city}`],
     ['(361) 555-0123', `(${t.areaCode || '555'}) 555-0123`],
     [/\bVictoria\b/g, t.city]
