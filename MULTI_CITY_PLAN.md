@@ -254,7 +254,8 @@ These matter the moment a second town exists. All keep Victoria's values.
       change. Turn it on for new towns first; turn it on for Victoria last,
       as an owner-approved change to message wording. All towns post to the
       same channels: #hype-train, #inbox, #sales, #alerts (activity can map
-      to #inbox or its own channel). (Code done; Victoria's stays unset.)
+      to #inbox or its own channel). (Done: Victoria is tagged too, by
+      its Railway SLACK_TOWN_TAG and, in the workflows, its city.)
 
 ## Phase 5: launching a town
 

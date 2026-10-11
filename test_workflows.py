@@ -413,7 +413,8 @@ def test_newsletter_refuses_another_towns_dispatch():
 @pytest.mark.parametrize("name", TOWN_WORKFLOWS)
 def test_town_slack_tag_is_empty_for_victoria(name):
     # Another town's Slack posts carry vars.SLACK_TOWN_TAG (slack_notify.py
-    # falls back to its city); scheduled and Victoria runs pass "" as before.
+    # falls back to its city, Victoria's included); scheduled and Victoria
+    # runs pass "" so Victoria is tagged with its city.
     wf = load(name)
     if name in MATRIX_JOBS:
         assert wf["jobs"][MATRIX_JOBS[name]]["env"]["SLACK_TOWN_TAG"] == \

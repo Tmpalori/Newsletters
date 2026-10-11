@@ -34,12 +34,12 @@ def escape(text):
 
 def town_tag(env=None):
     """SLACK_TOWN_TAG when set (the workflows pass vars.SLACK_TOWN_TAG for
-    another town). Another town without one is tagged with its city, so its
-    posts in shared channels never read as Victoria's. Victoria: none."""
+    another town). Without one every town, Victoria included, is tagged
+    with its city, so posts in the shared channels always say which town."""
     env = os.environ if env is None else env
     tag = env.get("SLACK_TOWN_TAG", "").strip()
     slug = env.get("TOWN", "").strip().lower()
-    if tag or slug in ("", "victoria"):
+    if tag:
         return tag
     try:
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -62,8 +62,8 @@ def main(argv):
         del args[i:i + 2]
     text = " ".join(args).strip() or "(no message)"
     # SLACK_TOWN_TAG: "[Bay City] " first, so towns can share channels
-    # (MULTI_CITY_PLAN.md 4.3, same as server/slack.js). Unset: no change
-    # for Victoria; another town falls back to its city (town_tag).
+    # (MULTI_CITY_PLAN.md 4.3, same as server/slack.js). Unset: the town's
+    # city (town_tag).
     tag = town_tag()
     if tag:
         text = f"[{escape(tag)}] {text}"

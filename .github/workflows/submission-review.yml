@@ -42,7 +42,7 @@ concurrency:
 env:
   TOWN: ${{ inputs.town || 'victoria' }}
   # Another town's Slack posts carry its [tag] (scripts/slack_notify.py;
-  # vars.SLACK_TOWN_TAG, or its city when unset). Victoria: none, as before.
+  # vars.SLACK_TOWN_TAG, or its city when unset; Victoria's is its city).
   SLACK_TOWN_TAG: ${{ inputs.town && inputs.town != 'victoria' && vars.SLACK_TOWN_TAG || '' }}
 
 jobs:
