@@ -36,7 +36,7 @@ export function sponsorCounts(orders, today) {
   };
 }
 
-function keyOk(header, key) {
+export function keyOk(header, key) {
   const m = /^Bearer (.+)$/.exec(String(header || ''));
   if (!m || !key) return false;
   const a = crypto.createHash('sha256').update(m[1]).digest();

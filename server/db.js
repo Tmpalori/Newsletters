@@ -1015,6 +1015,11 @@ class FileStore {
     return (data.inbox_events || []).filter(e => e.id > sinceId).sort((a, b) => a.id - b.id).slice(0, limit);
   }
 
+  async getInboxEvent(id) {
+    const data = await this._read();
+    return (data.inbox_events || []).find(e => e.id === Number(id)) || null;
+  }
+
   // ─── Personal data (server/privacy.js) ───
   // Retention: submissions created before `submissionsBefore` lose the
   // submitter's IP address and user agent; contact messages created before
@@ -2138,6 +2143,13 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT * FROM inbox_events WHERE id > $1 ORDER BY id LIMIT $2', [sinceId, limit]);
     return r.rows.map(row => ({ ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at }));
+  }
+
+  async getInboxEvent(id) {
+    await this.ready();
+    const r = await this.pool.query('SELECT * FROM inbox_events WHERE id = $1', [id]);
+    const row = r.rows[0];
+    return row ? { ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at } : null;
   }
 
   // See FileStore.purgePersonalData.
