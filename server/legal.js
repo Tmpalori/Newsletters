@@ -239,7 +239,7 @@ export function renderAdvertisingTermsPage({ siteUrl }) {
   const d = CANCEL_NOTICE_DAYS;
   const body = `
     <h1 class="page-title">Advertising terms</h1>
-    <p class="page-lead">What you get when you sponsor ${town.siteName} or make your event a ${town.pickName}, what we expect from you, and how cancellations and refunds work.</p>
+    <p class="page-lead">What you get when you sponsor ${town.siteName} or give your event the ${town.pickName} badge, what we expect from you, and how cancellations and refunds work.</p>
     ${updatedLine(ADVERTISING_TERMS_VERSION)}
     ${section('who', '1. Who we are', `<p>${operatorSentence()} "We" and "us" mean ${op}; "you" means the person or business buying a placement. These terms, together with your order (the package, dates and price shown at checkout and in your confirmation email), are our agreement. You accept them by ticking the box at checkout. If you buy for a business, you confirm you're allowed to accept them for it.</p>`)}
     ${section('what', '2. What you\'re buying', `<p><strong>${escHtml(weekly.name)}</strong> (${escHtml(weekly.price)}): one Monday-to-Sunday week. It includes:</p>${points(weekly)}

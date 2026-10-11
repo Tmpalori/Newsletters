@@ -272,7 +272,7 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
         eventsForDay.map(renderEvent).join('') +
       '</ul>';
     }
-    // The server's "Make it a Vic's Pick" line for this day, if it drew one.
+    // The server's "Give it the Vic's Pick badge" line for this day, if it drew one.
     bodyHtml += prompt || '';
 
     // Phones show "Oct 7" so the day, date and count fit on one row.

@@ -52,7 +52,7 @@
       <p class="submit-promo">
         Free submissions aren't guaranteed a spot on the list. Want it
         <strong>guaranteed and highlighted on its day</strong>?
-        <a href="/advertise/checkout?package=featured">Make it a Vic&rsquo;s Pick</a>
+        <a href="/advertise/checkout?package=featured">Give it the Vic&rsquo;s Pick badge</a>
         (you'll see a preview before paying).
       </p>
 
@@ -247,7 +247,7 @@
       </p>
       <p class="submit-promo" id="thanks-promo">
         Want it guaranteed, highlighted on its day, and starred in the
-        newsletter? <a id="thanks-promo-link" href="/advertise/checkout?package=featured">Make it a Vic&rsquo;s Pick &rarr;</a>
+        newsletter? <a id="thanks-promo-link" href="/advertise/checkout?package=featured">Give it the Vic&rsquo;s Pick badge &rarr;</a>
         Your details are already filled in, with a preview before you pay.
       </p>
       <div class="submit-actions">

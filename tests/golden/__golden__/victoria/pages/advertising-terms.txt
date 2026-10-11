@@ -61,7 +61,7 @@
   <div class="container container--narrow">
 
     <h1 class="page-title">Advertising terms</h1>
-    <p class="page-lead">What you get when you sponsor The Vic 361 or make your event a Vic’s Pick, what we expect from you, and how cancellations and refunds work.</p>
+    <p class="page-lead">What you get when you sponsor The Vic 361 or give your event the Vic’s Pick badge, what we expect from you, and how cancellations and refunds work.</p>
     <p class="legal-version">Last updated October 10, 2026 · Version 2026-10-10</p>
     <h2 class="section-heading" id="who">1. Who we are</h2>
 <p>The Vic 361 runs thevic361.com and its newsletter. "We" and "us" mean The Vic 361; "you" means the person or business buying a placement. These terms, together with your order (the package, dates and price shown at checkout and in your confirmation email), are our agreement. You accept them by ticking the box at checkout. If you buy for a business, you confirm you're allowed to accept them for it.</p>
