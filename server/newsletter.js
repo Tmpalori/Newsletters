@@ -1195,9 +1195,10 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
   });
 
   // Slack hears about subscribers in batches: one ping each time the active
-  // count lands on a multiple of SUBSCRIBER_PING_EVERY, with the total. A
-  // dip and climb back (25 → 24 → 25) doesn't ping the same total twice
-  // while this process runs.
+  // count lands on a multiple of SUBSCRIBER_PING_EVERY, naming the newsletter,
+  // the total and the newest subscribers' emails (the batch). A dip and climb
+  // back (25 → 24 → 25) doesn't ping the same total twice while this process
+  // runs.
   const SUBSCRIBER_PING_EVERY = 5;
   let lastSubscriberPing = 0;
   async function subscriberPing(sub) {
@@ -1206,9 +1207,14 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
       const total = (await store.countSubscribers()).active;
       if (!total || total % SUBSCRIBER_PING_EVERY !== 0 || total <= lastSubscriberPing) return;
       lastSubscriberPing = total;
-      slack.notify({ channel: 'hype', title: `📬 ${total} newsletter subscribers`, fields: [['Total subscribers', total],
-        ['Newest', sub.email], ...(sub.source ? [['From', sub.source]] : []),
-        ...(sub.referred_by ? [['Referred by', sub.referred_by]] : [])] });
+      // Oldest first from the store, so the batch is the tail; the one who
+      // just joined is always in it.
+      const active = await store.listSubscribers({ status: 'active' });
+      const batch = active.slice(-SUBSCRIBER_PING_EVERY).map(x => x.email);
+      if (!batch.includes(sub.email)) { batch.shift(); batch.push(sub.email); }
+      slack.notify({ channel: 'hype', title: `📬 ${town.siteName}: ${total} subscribers`,
+        fields: [['Newsletter', town.siteName], ['Total subscribers', total]],
+        text: `Newest ${batch.length}:\n${batch.reverse().join('\n')}` });
     } catch (err) {
       console.warn('[newsletter] subscriber count for Slack failed:', err.message);
     }
