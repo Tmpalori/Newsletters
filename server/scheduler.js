@@ -1,10 +1,13 @@
 /* server/scheduler.js — The always-on Railway server is the clock.
  *
  * GitHub's cron runs hours late on this repo (Monday's 12:43 UTC newsletter
- * ran at 20:47; the 13:47 social kit at 21:13; "hourly" uptime every 3–6h),
- * so the time-critical jobs are started from here instead, in Central time
- * (Intl does the DST switch):
+ * ran at 20:47; the 13:47 social kit at 21:13; "hourly" uptime every 3–6h)
+ * or not at all (Sunday collects on Oct 4 and Oct 11), so the time-critical
+ * jobs are started from here instead, in Central time (Intl does the DST
+ * switch):
  *
+ *   weekly-collect     Sun 3:23 PM   dispatch weekly-collect.yml (the week's events)
+ *   weekly-collect-midweek Wed 3:23 PM the same, midweek
  *   event-check        Mon 6:43 AM   dispatch event-check.yml (before the send)
  *   event-check-weekend Thu 6:00 AM  the same, before the weekend issue
  *   newsletter         Mon 7:43 AM   sendWeekly() in-process; retried on failure
@@ -66,6 +69,9 @@ function prevDate(ymd, days) {
 const dowOf = ymd => new Date(ymd + 'T12:00:00Z').getUTCDay();
 
 export const JOBS = [
+  // Until 9 PM: a collect started later still lands the same evening.
+  { name: 'weekly-collect', dow: 0, at: '15:23', until: '21:00', workflow: 'weekly-collect.yml' },
+  { name: 'weekly-collect-midweek', dow: 3, at: '15:23', until: '21:00', workflow: 'weekly-collect.yml' },
   { name: 'event-check', dow: 1, at: '06:43', until: '12:00', workflow: 'event-check.yml' },
   // And before Thursday's weekend issue.
   { name: 'event-check-weekend', dow: 4, at: '06:00', until: '12:00', workflow: 'event-check.yml' },
@@ -135,6 +141,39 @@ export function lastSlot(job, now) {
   return null;
 }
 
+// The instant a daily/weekly job's slot starts: its time on `ymd` in the
+// town's timezone.
+export function slotStart(job, ymd) {
+  const target = Date.parse(`${ymd}T00:00:00Z`) / MIN + hm(startOf(job));
+  let t = target * MIN;
+  for (let i = 0; i < 3; i++) {
+    const p = localParts(new Date(t));
+    const diff = Date.parse(`${p.date}T00:00:00Z`) / MIN + p.minutes - target;
+    if (!diff) break;
+    t -= diff * MIN;
+  }
+  return new Date(t);
+}
+
+export const COLLECT_JOBS = ['weekly-collect', 'weekly-collect-midweek'];
+
+// The latest collect slot that started `hours` ago or more with nothing
+// collected since (`collectedAt`: when the published candidates were
+// collected), or null. For the hourly health check.
+export function missedCollect(collectedAt, now, { hours = 3, jobs = JOBS } = {}) {
+  const got = Date.parse(collectedAt || '');
+  let worst = null;
+  for (const job of jobs.filter(j => COLLECT_JOBS.includes(j.name))) {
+    const slot = lastSlot(job, now);
+    if (!slot) continue;
+    const start = slotStart(job, slot);
+    if (now.getTime() - start.getTime() < hours * 60 * MIN) continue;
+    if (Number.isFinite(got) && got >= start.getTime()) continue;
+    if (!worst || start > worst.start) worst = { job: job.name, slot, start };
+  }
+  return worst;
+}
+
 export function schedulerEnabled(env = process.env) {
   return env.RAILWAY_ENVIRONMENT_NAME === 'production' && env.SCHEDULER !== '0';
 }
@@ -165,7 +204,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
     } catch { /* alert anyway */ }
     if (first && slack) {
       slack.alert('scheduler-dispatch', "The site can't start GitHub workflows on time",
-        `GitHub answered ${err.status}: ${err.detail || err.message}. Social posts, the event check, the ads report and the AI submission review fall back to GitHub's own schedule, which runs hours late. ` +
+        `GitHub answered ${err.status}: ${err.detail || err.message}. The event collect, social posts, the event check, the ads report and the AI submission review fall back to GitHub's own schedule, which runs hours late. ` +
         'Fix: give GITHUB_TOKEN in Railway Actions: write on this repo (fine-grained token).', `${siteUrl}/admin.html`);
     }
   }

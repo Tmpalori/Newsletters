@@ -7,10 +7,9 @@
  *   - last successful collection run timestamp (file mtime fallback)
  *   - next scheduled auto-pull time, computed from the Weekly Collect cron
  *
- * The crons in `.github/workflows/weekly-collect.yml` are `23 20 * * 0` and
- * `23 20 * * 3` — Sunday and Wednesday at 20:23 UTC. That's 3:23 PM CDT
- * (Mar–Nov, UTC-5) or 2:23 PM CST (Nov–Mar, UTC-6); the workflow file
- * documents that DST drift as intentional.
+ * The site starts the collect Sunday and Wednesday at 3:23 PM Central
+ * (server/scheduler.js); the crons in `.github/workflows/weekly-collect.yml`
+ * (`23 20 * * 0` and `23 20 * * 3`, UTC) are only its late fallback.
  *
  * If `collection_metadata.json` is missing (e.g. the workflow hasn't run yet
  * after this code shipped), the response falls back to "unknown" but still
@@ -18,6 +17,7 @@
  */
 
 import { promises as fsp } from 'node:fs';
+import { JOBS, COLLECT_JOBS, localParts, slotStart } from './scheduler.js';
 
 // Source list expected from collect_events.py. Used to render placeholder
 // rows when collection_metadata.json doesn't yet exist (e.g. between the
@@ -43,18 +43,22 @@ const KNOWN_SOURCES = [
 
 const KNOWN_BY_NAME = new Map(KNOWN_SOURCES.map(s => [s.name, s]));
 
-// Next scheduled collect strictly AFTER `now`: weekly-collect.yml runs at
-// 20:23 UTC on Sunday (`23 20 * * 0`) and Wednesday (`23 20 * * 3`). The
-// Central-time equivalent shifts an hour around DST but the UTC instant is
-// exact. (GitHub may start a scheduled run some minutes late.)
-const RUN_DAYS = [0, 3];
-const RUN_HOUR_UTC = 20;
-const RUN_MINUTE_UTC = 23;
+// Next scheduled collect strictly AFTER `now`: the site starts it Sunday
+// and Wednesday at 3:23 PM in the town's time (server/scheduler.js,
+// weekly-collect and weekly-collect-midweek), which is 20:23 UTC in summer
+// and 21:23 UTC in winter. weekly-collect.yml's crons are only the fallback.
 export function nextWeeklyRunUtc(now) {
   const ref = now ? new Date(now.getTime()) : new Date();
-  for (let add = 0; add <= 7; add++) {
-    const t = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + add, RUN_HOUR_UTC, RUN_MINUTE_UTC, 0, 0));
-    if (RUN_DAYS.includes(t.getUTCDay()) && t.getTime() > ref.getTime()) return t;
+  const today = localParts(ref).date;
+  const jobs = JOBS.filter(j => COLLECT_JOBS.includes(j.name));
+  for (let add = 0; add <= 8; add++) {
+    const d = new Date(today + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + add);
+    const ymd = d.toISOString().slice(0, 10);
+    for (const job of jobs.filter(j => j.dow === d.getUTCDay())) {
+      const t = slotStart(job, ymd);
+      if (t.getTime() > ref.getTime()) return t;
+    }
   }
   return null;
 }

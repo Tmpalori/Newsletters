@@ -3,13 +3,13 @@
 The full agent guide lives in AGENTS.md. Read it before making changes.
 
 ## Project in one paragraph
-The Vic 361 is a weekly community-events website for Victoria, TX. It runs a Python collector (collect_events.py, 3.3k LOC monolith) Sunday and Wednesday at 20:23 UTC that writes candidates.json and collection_metadata.json; the commit redeploys the site, which auto-publishes the new candidates (server/autopublish.js). An Express server in server/ (flat layout, not server/routes/) serves the static site under docs/ and exposes /api/admin/* for the owner to fix exceptions. Live data is in Railway Postgres (table published_events, single row id=1), written by auto-publish, admin Save & Publish, the event check's hide/restore and submission un-approval. The repo is Tmpalori/thevic361. Live site is www.thevic361.com on Railway.
+The Vic 361 is a weekly community-events website for Victoria, TX. It runs a Python collector (collect_events.py, 3.3k LOC monolith) Sunday and Wednesday at 3:23 PM Central (the site's scheduler starts it; the 20:23 UTC crons are the fallback) that writes candidates.json and collection_metadata.json; the commit redeploys the site, which auto-publishes the new candidates (server/autopublish.js). An Express server in server/ (flat layout, not server/routes/) serves the static site under docs/ and exposes /api/admin/* for the owner to fix exceptions. Live data is in Railway Postgres (table published_events, single row id=1), written by auto-publish, admin Save & Publish, the event check's hide/restore and submission un-approval. The repo is Tmpalori/thevic361. Live site is www.thevic361.com on Railway.
 
 ## Hard rules
 1. The weekly workflow runs `collect_events.py --candidates-only`. CI must NEVER overwrite docs/events.json. test_collect_events_safety.py pins this — do not break it.
 2. docs/events.json is a curated bundled FALLBACK, not the source of truth. Only the admin Save & Publish flow may write it.
 3. The legacy ADMIN_TOKEN fallback in server/index.js stays. The browser-side GitHub PAT path in docs/admin.js stays. Both are documented bypasses.
-4. weekly-collect.yml's `23 20 * * 0` / `23 20 * * 3` crons drift 1 hour with US DST. That drift is intentional and documented in the workflow header. Do not "fix" it. Keep server/sources.js in sync if the time changes.
+4. weekly-collect.yml's `23 20 * * 0` / `23 20 * * 3` crons are only the fallback for the site's 3:23 PM Central dispatch (server/scheduler.js); their 1-hour DST drift is intentional (the gate stands down in winter). Do not "fix" it. Keep server/sources.js in sync if the time changes.
 5. server/auth.js uses a custom HMAC-SHA256 token format with no `alg` header. Don't replace with a JWT library.
 
 ## Conventions

@@ -485,6 +485,77 @@ def test_scheduled_towns_survives_a_broken_index(tmp_path):
     assert warnings and "unreadable" in warnings[0]
 
 
+def _collect_skip(tmp_path, event, towns, ran=(), schedule="23 20 * * 0", ran_later=(), towns_dir=None):
+    """weekly-collect's fallback gate: drops towns whose site already started
+    this slot's collect. curl answers ran:true for sites in `ran` (and, after
+    the one sleep, `ran_later`); every URL asked is recorded."""
+    import json
+    import shutil
+    work = tmp_path / "work"
+    work.mkdir(parents=True)
+    shutil.copy(os.path.join(os.path.dirname(WF), "..", "town.py"), work / "town.py")
+    if towns_dir:
+        shutil.copytree(towns_dir, work / "towns")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (tmp_path / "ran").write_text("\n".join(ran) + "\n")
+    (tmp_path / "ran_later").write_text("\n".join(ran_later) + "\n")
+    # curl -fsS --max-time 20 <url>: the URL is the last argument.
+    _exe(bin_dir / "curl", '#!/bin/sh\nfor u; do :; done\necho "$u" >> "$STATE/asked"\n'
+         'host=$(echo "$u" | sed -E "s#https://([^/]+)/.*#\\1#")\n'
+         'if grep -qx "$host" "$STATE/ran" || { [ -f "$STATE/slept" ] && grep -qx "$host" "$STATE/ran_later"; }; then '
+         'echo \'{"ok":true,"ran":true}\'; else echo \'{"ok":true,"ran":false}\'; fi\n')
+    _exe(bin_dir / "sleep", '#!/bin/sh\ntouch "$STATE/slept"\n')
+    g = next(s for s in load("weekly-collect.yml")["jobs"]["towns"]["steps"] if s.get("id") == "s")
+    out = tmp_path / "out"
+    env = {k: v for k, v in os.environ.items() if k not in ("TOWN", "TOWNS_DIR", "SITE_URL")}
+    env.update(PATH=f"{bin_dir}:{os.environ['PATH']}", GITHUB_OUTPUT=str(out), STATE=str(tmp_path), EVENT=event,
+               SCHEDULE=schedule if event == "schedule" else "", LIST=json.dumps(towns),
+               VICTORIA_SITE="https://www.thevic361.com")
+    r = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", g["run"]], cwd=work, env=env,
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    asked = (tmp_path / "asked").read_text().split() if (tmp_path / "asked").exists() else []
+    return json.loads(out.read_text().strip().split("=", 1)[1]), asked, (tmp_path / "slept").exists()
+
+
+def test_late_cron_skips_a_collect_the_site_already_started(tmp_path):
+    # GitHub skipped or delayed the Sunday cron for hours (Oct 4, Oct 11);
+    # the site starts the collect at 3:23 PM and the late cron stands down.
+    towns, asked, slept = _collect_skip(tmp_path, "schedule", ["victoria"], ran=["www.thevic361.com"])
+    assert towns == []
+    assert asked == ["https://www.thevic361.com/api/scheduler/ran?job=weekly-collect"]
+    assert not slept
+    assert load("weekly-collect.yml")["jobs"]["collect"]["if"] == "needs.towns.outputs.list != '[]'"
+
+
+def test_cron_collects_when_the_site_did_not(tmp_path):
+    # The site down or its dispatch refused: the cron is the fallback, after
+    # one more look (a cron on time races the site's 3:23 tick).
+    towns, asked, slept = _collect_skip(tmp_path, "schedule", ["victoria"])
+    assert towns == ["victoria"] and slept and len(asked) == 2
+
+
+def test_on_time_cron_waits_for_the_sites_tick(tmp_path):
+    towns, _, slept = _collect_skip(tmp_path, "schedule", ["victoria"], ran_later=["www.thevic361.com"])
+    assert towns == [] and slept
+
+
+def test_midweek_cron_asks_about_the_midweek_slot_per_town(tmp_path):
+    (tmp_path / "t").mkdir()
+    towns_dir = _ready_towns(tmp_path / "t", {"bay": True})
+    towns, asked, _ = _collect_skip(tmp_path, "schedule", ["victoria", "bay"], ran=["www.thevic361.com"],
+                                    schedule="23 20 * * 3", towns_dir=towns_dir)
+    assert towns == ["bay"]
+    assert asked[0] == "https://www.thevic361.com/api/scheduler/ran?job=weekly-collect-midweek"
+    assert "https://www.bay979.com/api/scheduler/ran?job=weekly-collect-midweek" in asked
+
+
+def test_manual_and_site_started_collects_never_ask(tmp_path):
+    towns, asked, slept = _collect_skip(tmp_path, "workflow_dispatch", ["bay"])
+    assert towns == ["bay"] and asked == [] and not slept
+
+
 def _check_gate(tmp_path, jobs, conclusion="success", gh_fails=False):
     """event-check's gate after a Weekly Collect run whose jobs are `jobs`."""
     import json

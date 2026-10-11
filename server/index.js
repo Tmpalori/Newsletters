@@ -47,7 +47,7 @@ import { registerContact } from './contact.js';
 import { renderEventCard, eventCardVersion } from './ogImage.js';
 import { capDays, pickDays, shown } from './scoring.js';
 import { createAutoPublish, unpublishEvent, replacePublishedEvent, forgetRemoved } from './autopublish.js';
-import { createScheduler, schedulerEnabled, startLabel, checkTownSchedule } from './scheduler.js';
+import { createScheduler, schedulerEnabled, startLabel, checkTownSchedule, missedCollect } from './scheduler.js';
 import * as sponsorsModule from './sponsors.js';
 import crypto from 'node:crypto';
 import { verifyPass, MIN_SSO_SECRET } from './sso.js';
@@ -73,6 +73,8 @@ const WEEKLY_COLLECT_WORKFLOW = 'weekly-collect.yml';
 // new collect in this many days (it runs Sunday and Wednesday), alerts.
 const MIN_UPCOMING = 10;
 const STALE_COLLECT_DAYS = 8;
+// The hourly check says so when a collect hasn't landed this long after its slot.
+const COLLECT_LATE_HOURS = 3;
 
 const BASE_CSP = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'";
 
@@ -2370,6 +2372,14 @@ export async function createApp(opts = {}) {
       if (age != null && age >= STALE_COLLECT_DAYS) {
         problems.stale = `No new events collected in ${age} days. The collector or auto-publish may be broken: check the Weekly Collect workflow.`;
       }
+      // A collect that should have landed hours ago (GitHub skipped or
+      // queued it, the run failed, or the deploy didn't publish it).
+      const missed = missedCollect(pub.auto_publish && pub.auto_publish.from, now, { hours: COLLECT_LATE_HOURS });
+      if (missed) {
+        const day = missed.job === 'weekly-collect' ? 'Sunday' : 'Wednesday';
+        problems.collect = `${day}'s event collect (${startLabel(missed.job)}) hasn't come in after ${COLLECT_LATE_HOURS} hours, so the site still shows the last collect's events. ` +
+          `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`;
+      }
     }
     // A list that sent to people last time and now has nobody active: the
     // database was replaced or wiped (Monday's issue would quietly go to 0
@@ -2449,7 +2459,7 @@ export async function createApp(opts = {}) {
       { key: 'reply_to', label: 'Email replies reach you', ok: Boolean(newsletter.replyTo || newsletter.inbound), level: 'recommended',
         fix: `Replies to news@ go to Slack once Resend receives for ${town.domain}: in Resend, turn on receiving for the domain and add its MX record; add a webhook (event email.received) to ` + siteUrl +
           '/api/email/inbound and put its signing secret in Railway as RESEND_WEBHOOK_SECRET. (Or set NEWSLETTER_REPLY_TO to an inbox you read.)' },
-      { key: 'scheduler', label: 'Social posts, event check, ads report and AI review start on time',
+      { key: 'scheduler', label: 'Event collect, social posts, event check, ads report and AI review start on time',
         ok: github.isConfigured() && !scheduler.state.dispatchBlocked, level: 'recommended',
         fix: scheduler.state.dispatchBlocked
           ? `GitHub refused the token (HTTP ${scheduler.state.dispatchBlocked.status}). Give GITHUB_TOKEN in Railway Actions: write (and Contents: write) on this repo.`

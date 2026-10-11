@@ -1,5 +1,7 @@
 # ─── The Vic 361 — Weekly Event Collection ───────────────────────────────────
-# Runs Sunday and Wednesday afternoons to refresh candidates.json. This job
+# Runs Sunday and Wednesday afternoons to refresh candidates.json: the site
+# starts it at 3:23 PM Central (server/scheduler.js), and the crons below are
+# the fallback, as GitHub runs them hours late or skips them. This job
 # publishes nothing itself: its commit redeploys Railway, and on boot the
 # server auto-publishes the candidates into the `published_events` row
 # (server/autopublish.js). docs/events.json in this repo is a curated
@@ -75,11 +77,15 @@ jobs:
   # covers Victoria plus every town whose town.json has "workflows": true
   # (set with its GitHub Environment, 3.3); a manual run, the one town asked
   # for. If this lookup fails, Victoria still collects.
+  # Each town's site starts its own collect on time (server/scheduler.js,
+  # weekly-collect and weekly-collect-midweek at 3:23 PM Central), since
+  # this cron runs hours late or not at all; a scheduled run is the fallback
+  # and drops every town whose site already started this slot's collect.
   towns:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 6
     outputs:
-      list: ${{ steps.t.outputs.list }}
+      list: ${{ steps.s.outputs.list }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -98,10 +104,41 @@ jobs:
           fi
           echo "Towns: $list"
           echo "list=$list" >> "$GITHUB_OUTPUT"
+      - id: s
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          LIST: ${{ steps.t.outputs.list }}
+          VICTORIA_SITE: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+        run: |
+          keep="$LIST"
+          if [ "$EVENT" = "schedule" ]; then
+            case "$SCHEDULE" in *" 3") job=weekly-collect-midweek ;; *) job=weekly-collect ;; esac
+            # Did each town's site start this slot's collect? The site ticks
+            # each minute from 3:23, so a cron on time gets one more look.
+            started() {
+              if [ "$1" = victoria ]; then site="$VICTORIA_SITE"
+              else site=$(TOWN="$1" python3 -c 'import town; print(town.town_config()["site_url"])') || return 1; fi
+              curl -fsS --max-time 20 "${site%/}/api/scheduler/ran?job=$job" | grep -q '"ran":true'
+            }
+            keep=$(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' "$LIST")
+            out=""
+            for t in $keep; do started "$t" && echo "$t: the site already started this collect; skipping this late cron run." || out="$out $t"; done
+            if [ -n "$out" ]; then
+              sleep 120
+              left=""
+              for t in $out; do started "$t" && echo "$t: the site started this collect; skipping." || left="$left $t"; done
+              out="$left"
+            fi
+            keep=$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1:]))' $out)
+          fi
+          echo "Collecting: $keep"
+          echo "list=$keep" >> "$GITHUB_OUTPUT"
 
   collect:
     name: collect ${{ matrix.town }}
     needs: towns
+    if: needs.towns.outputs.list != '[]'
     strategy:
       # One town failing must not cancel another's collect (Victoria's above all).
       fail-fast: false
