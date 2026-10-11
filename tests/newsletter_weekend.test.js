@@ -10,7 +10,7 @@ import http from 'node:http';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { withPages } from '../server/seo.js';
-import { renderWeekly, editionOf, EDITIONS, renderSubscribePage } from '../server/newsletter.js';
+import { renderWeekly, editionOf, EDITIONS, renderSubscribePage, upcomingIssueDay } from '../server/newsletter.js';
 import { newsletterCovers, weekendCovers, pickWhere } from '../server/notify.js';
 import { dueSlot, JOBS } from '../server/scheduler.js';
 
@@ -135,8 +135,15 @@ describe('weekend issue sending', () => {
     const h = await auth();
     const d = await (await fetch(baseUrl + '/api/admin/newsletter', { headers: h })).json();
     expect(d.weekend).toMatchObject({ enabled: true, opted_out: 1, sent: false, next: { events: 3 } });
-    const prev = await (await fetch(baseUrl + '/api/admin/newsletter/preview?edition=weekend', { headers: h })).text();
-    expect(prev).toContain('This weekend in Victoria');
+    const prevRes = await fetch(baseUrl + '/api/admin/newsletter/preview?edition=weekend', { headers: h });
+    expect(prevRes.headers.get('x-issue-date')).toBe('2026-10-08');
+    expect(await prevRes.text()).toContain('This weekend in Victoria');
+    // On a Thursday the Monday preview is next Monday's issue, not this week's.
+    const monRes = await fetch(baseUrl + '/api/admin/newsletter/preview?edition=weekly', { headers: h });
+    expect(monRes.headers.get('x-issue-date')).toBe('2026-10-12');
+    const mon = await monRes.text();
+    expect(mon).toContain('Next Monday');
+    expect(mon).not.toContain('Thursday Bingo');
     const t = await post('/api/admin/newsletter/test', { email: 'me@example.com', edition: 'weekend' }, h);
     expect(t.status).toBe(200);
     expect(sent.single[0].subject).toMatch(/^\[Test\] This weekend in Victoria/);
@@ -146,6 +153,19 @@ describe('weekend issue sending', () => {
     expect(after.weekend.sent).toBe(true);
     expect(after.this_week_sent).toBe(false);
     expect(after.sends.map(x => x.edition)).toEqual(['weekend']);
+    // Once today's issue is out, the preview moves on to next Thursday's.
+    const next = await fetch(baseUrl + '/api/admin/newsletter/preview?edition=weekend', { headers: h });
+    expect(next.headers.get('x-issue-date')).toBe('2026-10-15');
+  });
+
+  it('the preview is of the upcoming Monday and Thursday', () => {
+    // Sunday Oct 11: tomorrow's Monday issue, and Thursday's after it.
+    expect(upcomingIssueDay('weekly', '2026-10-11')).toBe('2026-10-12');
+    expect(upcomingIssueDay('weekend', '2026-10-11')).toBe('2026-10-15');
+    // On the day: that day's issue until it's sent, then next week's.
+    expect(upcomingIssueDay('weekly', '2026-10-12')).toBe('2026-10-12');
+    expect(upcomingIssueDay('weekly', '2026-10-12', true)).toBe('2026-10-19');
+    expect(upcomingIssueDay('weekend', '2026-10-09')).toBe('2026-10-15');
   });
 });
 

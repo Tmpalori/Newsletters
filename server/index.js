@@ -1573,8 +1573,10 @@ export async function createApp(opts = {}) {
   // lists below leave those out (shownPayload), while event pages, guides
   // and the sitemap keep them.
   // strict: paid placements must be read, or this throws (the newsletter).
-  async function getPublicPayload({ strict = false } = {}) {
-    const payload = await sponsors.apply(await loadPublicPayload(), { strict });
+  // now: whose week's sponsor to apply (the newsletter preview of next
+  // Monday's issue shows next week's sponsor); defaults to the clock.
+  async function getPublicPayload({ strict = false, now } = {}) {
+    const payload = await sponsors.apply(await loadPublicPayload(), { strict, now });
     // `kept`: events the admin chose to show anyway (POST
     // /api/admin/keep-event), by key; they skip the daily limit.
     const kept = new Set(Array.isArray(payload.kept) ? payload.kept : []);

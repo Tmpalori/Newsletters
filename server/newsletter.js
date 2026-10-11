@@ -100,6 +100,13 @@ export const EDITIONS = {
   weekly: { key: today => currentWeek(today)[0], days: today => currentWeek(today).filter(d => d >= today) },
   weekend: { key: today => currentWeek(today)[3], days: today => currentWeek(today).slice(4).filter(d => d >= today) }
 };
+// The issue the admin previews and test-sends: the next one to go out,
+// today's if today is its day and it hasn't gone yet, else the coming
+// Monday or Thursday (on a Sunday, tomorrow's, not last Monday's).
+export function upcomingIssueDay(edition, today, sentToday = false) {
+  const key = (EDITIONS[edition] || EDITIONS.weekly).key(today);
+  return key > today || (key === today && !sentToday) ? key : addDays(key, 7);
+}
 // Which issue a send was, from its key's weekday (Thursday is the weekend one).
 export function editionOf(weekKey) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(weekKey || '')) && new Date(`${weekKey}T12:00:00Z`).getUTCDay() === 4 ? 'weekend' : 'weekly';
@@ -1464,11 +1471,30 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
   });
 
   const editionParam = v => (v === 'weekend' ? 'weekend' : 'weekly');
+  // The clock the preview and test render with: the upcoming issue's day
+  // (upcomingIssueDay), so the admin checks what will go out next.
+  async function upcomingNow(edition) {
+    const now = nowFn();
+    const today = localDateStr(now);
+    let sentToday = false;
+    if (EDITIONS[edition].key(today) === today) {
+      try {
+        const r = await store.getNewsletterSend(today);
+        sentToday = Boolean(r) && !failedCount(r);
+      } catch (err) { console.warn('[newsletter] reading today\'s send failed:', err.message); }
+    }
+    const day = upcomingIssueDay(edition, today, sentToday);
+    // Noon UTC is the same date in every US timezone.
+    return { day, now: day === today ? now : new Date(`${day}T12:00:00Z`) };
+  }
+
   app.get('/api/admin/newsletter/preview', requireAdmin, async (req, res) => {
-    const payload = await getPublicPayload();
-    const issue = renderWeekly(payload.events, { siteUrl, now: nowFn(), sponsor: payload.sponsor, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-      edition: editionParam(req.query.edition), prefsUrl: config.weekend ? '#' : '' });
-    res.type('html').send(issue.html);
+    const edition = editionParam(req.query.edition);
+    const { day, now } = await upcomingNow(edition);
+    const payload = await getPublicPayload({ now });
+    const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
+      edition, prefsUrl: config.weekend ? '#' : '' });
+    res.set('X-Issue-Date', day).set('X-Issue-Subject', encodeURIComponent(issue.subject)).type('html').send(issue.html);
   });
 
   app.post('/api/admin/newsletter/test', requireAdmin, async (req, res) => {
@@ -1476,9 +1502,11 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     const to = normalizeEmail((req.body || {}).email) || normalizeEmail(config.testTo);
     if (!to) return res.status(400).json({ ok: false, error: 'no-test-address', message: 'Enter an address to send the test to.' });
     try {
-      const payload = await getPublicPayload();
-      const issue = renderWeekly(payload.events, { siteUrl, now: nowFn(), sponsor: payload.sponsor, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-        edition: editionParam((req.body || {}).edition), prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
+      const edition = editionParam((req.body || {}).edition);
+      const { now } = await upcomingNow(edition);
+      const payload = await getPublicPayload({ now });
+      const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
+        edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
       await resend.send({ from: config.from, to: [to], subject: `[Test] ${issue.subject}`, html: issue.html, text: issue.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}) });
       res.json({ ok: true, to });
     } catch (err) {
