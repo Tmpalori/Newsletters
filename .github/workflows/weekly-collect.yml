@@ -120,7 +120,7 @@ jobs:
       # The town this job is for (MULTI_CITY_PLAN.md 3.1); town.py reads TOWN.
       TOWN: ${{ matrix.town }}
       # Another town's Slack posts carry its [tag] (scripts/slack_notify.py;
-      # vars.SLACK_TOWN_TAG, or its city when unset). Victoria: none, as before.
+      # vars.SLACK_TOWN_TAG, or its city when unset; Victoria's is its city).
       SLACK_TOWN_TAG: ${{ matrix.town != 'victoria' && vars.SLACK_TOWN_TAG || '' }}
       # Force line-buffered stdout for every Python step so progress logs
       # appear in real time. The Apr-29 cancellation showed nothing between
