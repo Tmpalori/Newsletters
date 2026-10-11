@@ -808,11 +808,26 @@ export function dayClass(dateStr) {
   return /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') && !isNaN(dow) ? ` day--d${(dow + 6) % 7}` : '';
 }
 
-function renderDay(dateStr, list, idx, today, fold = null) {
+// A line under each day still ahead that has paid Pick spots left, so a
+// venue reading its own day sees it can stand out there. Counts the paid
+// picks already live; checkout still checks the real cap (holds included),
+// so a day that just sold out can't be oversold from here. Not today: a
+// pick bought the same evening buys almost nothing. docs/app.js keeps the
+// server's line when it redraws the week.
+export function pickPromptHtml(dateStr, list, today) {
+  if (!(dateStr > today)) return '';
+  const dow = new Date(dateStr + 'T12:00:00Z').getUTCDay();
+  const kind = dow === 5 || dow === 6 || dow === 0 ? 'weekend' : 'weekday';
+  if (list.filter(isPaidPick).length >= town.business.pickCap[kind]) return '';
+  return `<p class="pick-prompt" data-date="${dateStr}">Have an event ${formatDay(dateStr, { weekday: 'long' })}? ` +
+    `<a href="/advertise/checkout?package=featured&amp;date=${dateStr}">Make it a ${town.pickName}</a> for ${dollars(town.business.pickAmount[kind])}.</p>`;
+}
+
+function renderDay(dateStr, list, idx, today, fold = null, prompt = '') {
   const badge = dateStr === today ? ' <span class="today-badge">Today</span>' : '';
-  const body = list.length
+  const body = (list.length
     ? `<ul class="event-list" role="list">${list.map(renderEventItem).join('')}</ul>`
-    : '<div class="empty-state">Nothing listed yet — know something happening? <a href="/submit">Submit an event.</a></div>';
+    : '<div class="empty-state">Nothing listed yet — know something happening? <a href="/submit">Submit an event.</a></div>') + prompt;
   const head = `<h2 class="day-name">${formatDay(dateStr, { weekday: 'long' })}${badge}</h2>` +
     `<span class="day-date">${formatDay(dateStr, { month: 'long', day: 'numeric' })}</span>`;
   if (fold) {
@@ -840,7 +855,10 @@ export function openDay(dates, today) {
 // day folded but the one openDay picks (see renderDay).
 export function renderDays(dates, events, today) {
   const open = openDay(dates, today);
-  return dates.map((d, i) => renderDay(d, sortEvents(events.filter(ev => ev.date === d)), i, today, d === open ? 'open' : 'closed')).join('');
+  return dates.map((d, i) => {
+    const list = sortEvents(events.filter(ev => ev.date === d));
+    return renderDay(d, list, i, today, d === open ? 'open' : 'closed', pickPromptHtml(d, list, today));
+  }).join('');
 }
 
 // Day sections only for dates that have events (intent pages).
@@ -866,7 +884,10 @@ export function fillSeasonalNav(html, seasons, current) {
 export function navHtml(current) {
   const links = HUB_PAGES.filter(p => !p.hidden).map(p =>
     `<a href="${p.path}"${p.path === current ? ' aria-current="page"' : ''}>${escHtml(p.nav)}</a>`);
-  return `<nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner">${SEASONAL_NAV_SLOT}${links.join('')}</div></nav>`;
+  // Last, after the reader's links: where a business finds the sponsor and
+  // Pick offers without hunting through the footer.
+  const biz = `<a class="browse-biz" href="/advertise"${current === '/advertise' ? ' aria-current="page"' : ''}>Feature your business</a>`;
+  return `<nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner">${SEASONAL_NAV_SLOT}${links.join('')}${biz}</div></nav>`;
 }
 
 function headerHtml() {
@@ -1020,8 +1041,21 @@ export function sponsorLinkUrl(url, medium = 'sponsor') {
 export const SAMPLE_LOGO = '/sample-logo.svg';
 export const isSponsorLogo = l => /^\/sponsor-logo\/[A-Za-z0-9-]{8,64}$/.test(l || '') || l === SAMPLE_LOGO;
 
+// A week nobody has booked shows this in the sponsor slot instead of
+// leaving it out, so the businesses reading the site see the spot is for
+// sale. Booking the week replaces it. Not .sponsor-cta: track.js counts its
+// /advertise link as an advertise click, not a sponsor click.
+export function houseAdHtml() {
+  return '<section class="sponsor-section"><div class="sponsor-block sponsor-block--house">' +
+    '<div class="sponsor-label">Your business here</div>' +
+    `<div class="sponsor-name">Feature your business on ${town.siteName}</div>` +
+    `<div class="sponsor-text">One business a week gets this spot on every page and in the newsletter for ${dollars(town.business.weeklyAmount)}. ` +
+    `Have an event coming up? Make it a ${town.pickName} from ${dollars(town.business.pickAmount.weekday)}.</div>` +
+    '<a href="/advertise" class="btn btn--primary house-cta">See how it works</a></div></section>';
+}
+
 export function sponsorHtml(sponsor) {
-  if (!sponsor || !sponsor.name) return '';
+  if (!sponsor || !sponsor.name) return houseAdHtml();
   const href = sponsorLinkUrl(sponsor.url);
   const cta = sponsor.cta
     ? (href
@@ -1426,7 +1460,7 @@ export function renderComingUp(events, today) {
       </section>`;
 }
 
-export function renderHome(template, events, { siteUrl, now, signupHtml = null }) {
+export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null }) {
   const today = localDateStr(now);
   const week = currentWeek(today);
   const weekEvents = events.filter(ev => ev.date >= week[0] && ev.date <= week[6]);
@@ -1448,6 +1482,9 @@ export function renderHome(template, events, { siteUrl, now, signupHtml = null }
     // string replacement would expand into chunks of the page.
     .replace('<p class="loading-message">Loading events...</p>', () => renderDays(week, events, today))
     .replace('<!--COMING_UP-->', () => renderComingUp(events, today))
+    // The week's sponsor, or the house ad when the week is unsold (docs/app.js
+    // only redraws it for a paid sponsor).
+    .replace(/(<section id="sponsor-section">)\s*<!-- rendered by JS -->/, (m, open) => open + sponsorHtml(sponsor))
     // A long week pushes "Coming up" far down; this jumps there.
     .replace('<!--COMING_UP_LINK-->', () => comingUpEvents(events, today).length
       ? '<a class="btn btn--outline" href="#coming-up">Coming up ↓</a>' : '')

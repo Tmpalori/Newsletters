@@ -50,7 +50,7 @@
  *     (onCron, server/sponsors.js).
  */
 
-import { town } from './town.js';
+import { town, dollars } from './town.js';
 import crypto from 'node:crypto';
 import { emailKey } from './db.js';
 import { honeypotTripped } from './honeypot.js';
@@ -379,6 +379,24 @@ ${safeUrl(sponsor.url) && sponsor.cta ? `<a href="${escHtml(sponsorHref(sponsor,
 </td></tr></table>` : '';
 }
 
+// An issue with no sponsor that week says the spot is open, under the list
+// rather than in the sponsor's place at the top: readers get the events
+// first, and the businesses among them see where to go. Booking the week
+// puts the paid block back at the top and this goes away.
+function houseAdHtml(siteUrl) {
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#fff;border:3px dashed ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px;">
+<span style="display:inline-block;font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:.5px;background:${C.sunLight};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:1px 10px;">YOUR BUSINESS HERE</span>
+<div style="font-family:${DISPLAY};font-size:18px;font-weight:bold;margin:6px 0 2px;">Feature your business in ${escHtml(town.siteName)}</div>
+<div style="font-size:14px;">One business a week gets the top of this newsletter and every page of ${escHtml(town.domain)} for ${dollars(town.business.weeklyAmount)}. Have an event coming up? Make it a ${town.pickName} from ${dollars(town.business.pickAmount.weekday)}.</div>
+<a href="${siteUrl}/advertise" style="display:inline-block;margin-top:10px;background:#fff;color:${C.ink};font-family:${DISPLAY};font-weight:bold;padding:6px 14px;border:2px solid ${C.ink};border-radius:999px;text-decoration:none;">See how it works →</a>
+</td></tr></table>`;
+}
+
+function houseAdText(siteUrl) {
+  return `FEATURE YOUR BUSINESS: one business a week gets the top of this newsletter for ${dollars(town.business.weeklyAmount)}, or make your event a ${town.pickNamePlain} from ${dollars(town.business.pickAmount.weekday)}. ${siteUrl}/advertise`;
+}
+
 // What each package looks like inside the newsletter, for /advertise: the
 // real sponsor block, and a Saturday with a starred Vic's Pick among its
 // neighbors (same renderers as the issue).
@@ -507,7 +525,7 @@ ${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a hr
 <p style="margin:16px 0 4px;font-size:16px;">${total ? `Here's what's happening in ${town.cityState} ${weekend ? 'this weekend' : 'this week'}: <strong>${total} ${total === 1 ? 'event' : 'events'}</strong>.` : `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}.`}</p>
 <div>${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
 ${sponsorBlock}${topHtml}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sponsorBlock ? '' : houseAdHtml(siteUrl)}
 ${replyAsk ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
@@ -522,7 +540,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
+    `Full list: ${siteUrl}${listPath}`, '', ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`
   ].join('\n');
