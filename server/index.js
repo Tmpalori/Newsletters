@@ -2242,6 +2242,13 @@ export async function createApp(opts = {}) {
   if (autoOnBoot) {
     const t = setTimeout(() => {
       runAutoPublish().then(r => {
+        // A town whose workflows aren't on yet has never collected, so it has
+        // no candidates.json: expected until launch, not an alert (it fired
+        // on every deploy of main). Victoria is always ready.
+        if (r && !r.ok && r.error === 'no-candidates' && !townWorkflowsReady()) {
+          console.log('[auto-publish] no candidates yet; this town has not collected (TOWN_WORKFLOWS is off)');
+          return;
+        }
         // e.g. candidates.json unreadable: run() reports it rather than throwing.
         if (r && !r.ok) {
           autoFailed = true;
@@ -2333,7 +2340,10 @@ export async function createApp(opts = {}) {
     } catch (err) {
       problems.db = `The database is unreachable (${err.message}); the site is serving the old bundled event list.`;
     }
-    if (pub) {
+    // A town that can't collect yet (TOWN_WORKFLOWS off) has no events by
+    // design, so "only 0 upcoming" and "stale" would alert every day until
+    // launch. The other checks (database, Slack, subscribers) still run.
+    if (pub && townWorkflowsReady()) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
