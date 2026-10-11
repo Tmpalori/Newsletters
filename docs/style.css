@@ -662,6 +662,23 @@
   margin-bottom: var(--space-3);
 }
 
+/* An unsold week's slot (houseAdHtml in server/seo.js): dashed, so it
+   reads as an open spot rather than someone's ad. */
+.sponsor-block--house {
+  border: 2px dashed var(--color-primary);
+  background: var(--color-primary-light);
+}
+.sponsor-block--house .sponsor-text { color: var(--color-text); }
+
+/* "Make it a Vic's Pick" under a day with spots left (pickPromptHtml). */
+.pick-prompt {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  text-align: center;
+}
+.pick-prompt a { color: var(--color-primary); font-weight: 600; }
+
 /* ─── FOOTER ─── */
 .site-footer {
   background: var(--color-surface);
@@ -890,6 +907,8 @@ a.logo-group { color: inherit; text-decoration: none; }
   white-space: nowrap;
 }
 .browse-nav a:hover { border-color: var(--color-primary); color: var(--color-primary); }
+/* The business link reads as the odd one out, not another event filter. */
+.browse-nav a.browse-biz { border-style: dashed; color: var(--color-primary); font-weight: 600; }
 .browse-nav a[aria-current="page"] {
   background: var(--color-primary);
   border-color: var(--color-primary);

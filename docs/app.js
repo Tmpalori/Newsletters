@@ -243,7 +243,7 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
   }
 
   // ─── RENDER DAY SECTION ───
-  function renderDaySection(dateStr, events, idx, openDate) {
+  function renderDaySection(dateStr, events, idx, openDate, prompt) {
     var today = isToday(dateStr);
     var dayName = formatDayName(dateStr);
     var monthDay = formatMonthDay(dateStr);
@@ -272,6 +272,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
         eventsForDay.map(renderEvent).join('') +
       '</ul>';
     }
+    // The server's "Make it a Vic's Pick" line for this day, if it drew one.
+    bodyHtml += prompt || '';
 
     // Phones show "Oct 7" so the day, date and count fit on one row.
     var shortDay = dayAt(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -502,8 +504,16 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
         // (openDay in server/seo.js).
         var openDate = days.indexOf(todayStr) !== -1 ? todayStr
           : (days.filter(function (d) { return d >= todayStr; })[0] || null);
+        // Keep the server's Pick lines (pickPromptHtml in server/seo.js):
+        // it knows the town's caps and prices, this page doesn't.
+        var prompts = {};
+        if (container) {
+          container.querySelectorAll('.pick-prompt[data-date]').forEach(function (el) {
+            prompts[el.getAttribute('data-date')] = el.outerHTML;
+          });
+        }
         var html = days.map(function (date, idx) {
-          return renderDaySection(date, data.events || [], idx, openDate);
+          return renderDaySection(date, data.events || [], idx, openDate, prompts[date]);
         }).join('');
 
         container.innerHTML = html;
@@ -547,7 +557,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
         }
 
         // Sponsor
-        if (sponsorSection) {
+        // Only a paid sponsor: with none, the server's house ad stays put.
+        if (sponsorSection && data.sponsor && data.sponsor.name) {
           sponsorSection.innerHTML = renderSponsor(data.sponsor);
         }
       })
