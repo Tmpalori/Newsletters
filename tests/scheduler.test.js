@@ -6,7 +6,8 @@
 // GitHub, Slack and email are fakes.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { createScheduler, dueSlot, lastSlot, localParts, JOBS, schedulerEnabled } from '../server/scheduler.js';
+import { createScheduler, dueSlot, lastSlot, localParts, JOBS, schedulerEnabled, slotStart, missedCollect } from '../server/scheduler.js';
+import { nextWeeklyRunUtc } from '../server/sources.js';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { promises as fs } from 'node:fs';
@@ -208,6 +209,62 @@ describe('createScheduler', () => {
   });
 });
 
+describe('weekly collect from the site', () => {
+  // GitHub's cron skipped Sunday collects (Oct 4, Oct 11) and ran others
+  // ~4 hours late, so the site starts them at 3:23 PM Central.
+  it('dispatches weekly-collect.yml Sunday and Wednesday at 3:23 PM Central, once a slot', async () => {
+    const store = await freshStore();
+    const github = fakeGithub();
+    const s = createScheduler({ store, github, log: quiet });
+    await s.tick(new Date('2026-10-11T20:22:00Z')); // Sun 3:22 PM CDT: not yet
+    expect(github.calls.filter(c => c.file === 'weekly-collect.yml')).toEqual([]);
+    await s.tick(new Date('2026-10-11T20:23:00Z'));
+    await s.tick(new Date('2026-10-11T20:40:00Z'));
+    await s.tick(new Date('2026-10-14T20:24:00Z')); // Wed
+    await s.tick(new Date('2026-10-12T20:24:00Z')); // Mon: none
+    // Winter: 3:23 PM CST is 21:23 UTC.
+    await s.tick(new Date('2026-11-15T20:30:00Z'));
+    await s.tick(new Date('2026-11-15T21:23:00Z'));
+    const collects = github.calls.filter(c => c.file === 'weekly-collect.yml');
+    expect(collects).toHaveLength(3);
+    expect(collects[0].inputs).toBeFalsy(); // Victoria: the workflow's default town
+    expect(await s.ran('weekly-collect', new Date('2026-10-11T22:00:00Z'))).toMatchObject({ slot: '2026-10-11', ran: true });
+    expect(await s.ran('weekly-collect-midweek', new Date('2026-10-14T22:00:00Z'))).toMatchObject({ slot: '2026-10-14', ran: true });
+  });
+
+  it('gives up for the day at 9 PM, leaving it to the fallback and the alert', () => {
+    expect(dueSlot(job('weekly-collect'), new Date('2026-10-12T01:59:00Z'))).toBe('2026-10-11'); // 8:59 PM
+    expect(dueSlot(job('weekly-collect'), new Date('2026-10-12T02:01:00Z'))).toBe(null);
+  });
+
+  it('slotStart is the slot time in Central across DST', () => {
+    expect(slotStart(job('weekly-collect'), '2026-10-11').toISOString()).toBe('2026-10-11T20:23:00.000Z');
+    expect(slotStart(job('weekly-collect'), '2026-11-15').toISOString()).toBe('2026-11-15T21:23:00.000Z');
+    expect(slotStart(job('weekly-collect'), '2026-11-01').toISOString()).toBe('2026-11-01T21:23:00.000Z'); // DST ends that morning
+    expect(slotStart(job('weekly-collect'), '2026-03-08').toISOString()).toBe('2026-03-08T20:23:00.000Z'); // and starts
+  });
+
+  it('missedCollect: a slot 3+ hours old with nothing collected since', () => {
+    const wedCollect = '2026-10-08T00:50:13+00:00';
+    // Oct 11 (Sunday's run never started): flagged from 6:23 PM.
+    expect(missedCollect(wedCollect, new Date('2026-10-11T23:22:00Z'))).toBe(null);
+    expect(missedCollect(wedCollect, new Date('2026-10-11T23:35:00Z'))).toMatchObject({ job: 'weekly-collect', slot: '2026-10-11' });
+    // A collect that landed after the slot clears it, a late one too.
+    expect(missedCollect('2026-10-11T20:58:00Z', new Date('2026-10-12T03:00:00Z'))).toBe(null);
+    expect(missedCollect('2026-10-12T01:10:00Z', new Date('2026-10-12T03:00:00Z'))).toBe(null);
+    // Sunday's arrived, Wednesday's didn't.
+    expect(missedCollect('2026-10-11T20:58:00Z', new Date('2026-10-15T00:00:00Z'))).toMatchObject({ job: 'weekly-collect-midweek', slot: '2026-10-14' });
+    // Nothing ever collected.
+    expect(missedCollect(null, new Date('2026-10-11T23:35:00Z'))).toMatchObject({ job: 'weekly-collect' });
+  });
+
+  it("the admin's next collect follows the site's 3:23 PM, winter too", () => {
+    expect(nextWeeklyRunUtc(new Date('2026-10-10T12:00:00Z')).toISOString()).toBe('2026-10-11T20:23:00.000Z');
+    expect(nextWeeklyRunUtc(new Date('2026-11-12T12:00:00Z')).toISOString()).toBe('2026-11-15T21:23:00.000Z');
+    expect(nextWeeklyRunUtc(new Date('2026-11-15T21:24:00Z')).toISOString()).toBe('2026-11-18T21:23:00.000Z');
+  });
+});
+
 describe('scheduler in the app', () => {
   let server;
   afterEach(async () => { if (server) await new Promise(r => server.close(r)); server = null; });
@@ -252,5 +309,26 @@ describe('scheduler in the app', () => {
     now = new Date('2026-10-07T18:05:00Z');
     await scheduler.tick(now);
     expect(slack.alerts.some(a => a.d.includes('No new events collected in 8 days'))).toBe(true);
+  });
+
+  it("alerts (Slack #alerts, so the owner inbox too) when a collect hasn't come in 3 hours after its slot", async () => {
+    const store = await freshStore();
+    const events = Array.from({ length: 12 }, (_, i) => ({ date: '2026-10-13', name: `E${i}`, venue: 'V' }));
+    await store.setPublished({ last_updated: '2026-10-08T00:51:00Z', events, auto_publish: { from: '2026-10-08T00:50:13+00:00' } });
+    let now = new Date('2026-10-11T22:05:00Z'); // Sun 5:05 PM: under 3 hours
+    const { scheduler, slack } = await start(store, { now: () => now });
+    await scheduler.tick(now);
+    expect(slack.alerts.filter(a => a.d.includes('event collect'))).toEqual([]);
+    now = new Date('2026-10-11T23:35:00Z');
+    await scheduler.tick(now);
+    const late = slack.alerts.filter(a => a.d.includes('event collect'));
+    expect(late).toHaveLength(1);
+    expect(late[0].d).toContain("Sunday's event collect (3:23 PM) hasn't come in after 3 hours");
+    expect(late[0].d).toContain('Run workflow');
+    // The collect lands: cleared.
+    await store.setPublished({ last_updated: '2026-10-12T00:30:00Z', events, auto_publish: { from: '2026-10-12T00:20:00Z' } });
+    now = new Date('2026-10-12T00:35:00Z');
+    await scheduler.tick(now);
+    expect(slack.notes.some(n => n.title.includes('back to normal') && n.text.includes('collect'))).toBe(true);
   });
 });
