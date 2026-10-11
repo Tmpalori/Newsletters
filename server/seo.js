@@ -1227,7 +1227,7 @@ export const AD_PACKAGES = [
   {
     key: 'featured',
     get name() { return town.pickName; },
-    get cta() { return `Make my event a ${town.pickName}`; },
+    get cta() { return `Give my event the ${town.pickName} badge`; },
     get price() { const a = town.business.pickAmount; return `${dollars(a.weekday)} Mon–Thu · ${dollars(a.weekend)} Fri–Sun`; },
     get amount() { return town.business.pickAmount.weekday; },
     get blurb() { return `Tell us about your event. Once it's listed, it's highlighted on its day with the ${town.pickName} badge.`; },
@@ -1362,7 +1362,7 @@ export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, 
   return layout({
     siteUrl, path: '/advertise', wide: true,
     title: `Advertise | ${town.siteName}`,
-    description: `Sponsor ${town.siteName} for a week or make your event a ${town.pickName} to reach people looking for things to do in ${town.cityState}.`,
+    description: `Sponsor ${town.siteName} for a week or give your event the ${town.pickName} badge to reach people looking for things to do in ${town.cityState}.`,
     body
   });
 }

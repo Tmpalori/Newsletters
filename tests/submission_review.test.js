@@ -343,7 +343,7 @@ describe('paid Vic\'s Picks in the review', () => {
     expect(feed.events).toEqual([expect.objectContaining({ name: 'FALL CRAFT FAIR!!!', featured: true })]);
     expect(sent).toHaveLength(1);
     expect(sent[0].subject).toBe("Your Vic's Pick is live: FALL CRAFT FAIR!!!");
-    expect(sent[0].html).not.toContain('Make it a Vic’s Pick');
+    expect(sent[0].html).not.toContain('Give it the Vic’s Pick badge');
     expect(notes.at(-1).text).toMatch(/paid Vic’s Pick/);
   });
 
@@ -399,7 +399,7 @@ describe('paid Vic\'s Picks in the review', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].subject).not.toMatch(/Vic's Pick/);
     expect(sent[0].text).not.toMatch(/pinned|starred/i);
-    expect(sent[0].html).not.toContain('Make it a Vic’s Pick');
+    expect(sent[0].html).not.toContain('Give it the Vic’s Pick badge');
   });
 
   it('reminds the owner in Slack when a paid pick close to its date is still unpublished, at most every few hours', async () => {

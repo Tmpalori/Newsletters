@@ -1,8 +1,8 @@
 // @vitest-environment node
 //
 // Where a business finds the sponsor and Vic's Pick offers: the house ad in
-// an unsold week's sponsor slot (site and newsletter), the "Make it a Vic's
-// Pick" line under days with spots left, and the menu link.
+// an unsold week's sponsor slot (site and newsletter), the "Give it the Vic's
+// Pick badge" line under days with spots left, and the menu link.
 
 import { describe, it, expect } from 'vitest';
 import { sponsorHtml, houseAdHtml, pickPromptHtml, navHtml, renderDays, withPages } from '../server/seo.js';

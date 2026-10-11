@@ -519,7 +519,7 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     expect(html).not.toContain('Where it shows:'); // the checklist and the "Where your ad goes" diagram say it
     expect((html.match(/ad-package__preview/g) || []).length).toBe(2);
     expect(html).toContain('Book your sponsor week →');
-    expect(html).toContain('Make my event a Vic’s Pick →');
+    expect(html).toContain('Give my event the Vic’s Pick badge →');
     expect(html).toContain('See a live preview before you pay');
   });
 });

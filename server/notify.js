@@ -462,7 +462,7 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
     statsTable(rows) +
     whereHtml(stats.where) +
     p(escHtml(COUNTER_NOTE), `color:${C.muted};font-size:13px;`) +
-    box(`<strong>Got another event coming up?</strong> Make it stand out on its day too.<br><br>${btn(`${siteUrl}/advertise/checkout?package=featured`, `Make it a ${town.pickName}`)}`);
+    box(`<strong>Got another event coming up?</strong> Make it stand out on its day too.<br><br>${btn(`${siteUrl}/advertise/checkout?package=featured`, `Give it the ${town.pickName} badge`)}`);
   return {
     subject: `Your ${town.pickNamePlain} report: ${name}`,
     html: emailShell({ title: `Your ${town.pickName} report`, preheader: headline, bodyHtml, siteUrl,
@@ -472,7 +472,7 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
       ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
       ...whereText(stats.where),
       COUNTER_NOTE, '',
-      `Got another event coming up? Make it a ${town.pickNamePlain}: ${siteUrl}/advertise/checkout?package=featured`,
+      `Got another event coming up? Give it the ${town.pickNamePlain} badge: ${siteUrl}/advertise/checkout?package=featured`,
       contactText(siteUrl)
     ].join('\n')
   };
