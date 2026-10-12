@@ -182,9 +182,12 @@
   }
 
   function collectForm() {
+    // Scoped to the form: the page head has <meta name="description">, and an
+    // unscoped [name="description"] lookup read that tag (no .value), so every
+    // submission came back "Description is required."
     const get = name => {
-      const el = document.querySelector(`[name="${name}"]`);
-      return el ? el.value : '';
+      const el = document.querySelector(`#submit-form [name="${name}"]`);
+      return el && el.value != null ? el.value : '';
     };
     // No default: a paid show sent with an untouched "Free" would be listed
     // as free (and marked free in Google's event data). null = not chosen.
