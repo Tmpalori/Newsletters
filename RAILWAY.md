@@ -245,6 +245,10 @@ README covers its variables. What this repo's towns need:
   assistant) to `POST /api/hq/reply`, which sends them as news@. The town
   picks the recipient from the message's own reply link (someone who wrote
   in, within 60 days), 30 a day at most. Unset, the route is a 404.
+  The same key lets HQ review submissions: `GET /api/hq/submissions`
+  (pending, in full), and `POST /api/hq/submissions/:id` to edit
+  (`payload`) or decide (`status`: approved, rejected, duplicate,
+  pending), exactly like the admin Submissions tab.
 
 `server/sso.js` here and `src/sso.js` in tristen-hq are the same file:
 change both together. A change to the summary's shape (`server/hq.js`)

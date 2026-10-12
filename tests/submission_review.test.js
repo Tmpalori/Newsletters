@@ -593,3 +593,47 @@ describe('live retries: refused addresses and Resend hangs', () => {
     expect((await store.get('s1')).ai_review).toMatchObject({ live_pending: null, live: true });
   });
 });
+
+describe('submissions through HQ (HQ_REPLY_KEY)', () => {
+  const HQK = 'hq-reply-key-0123456789-0123456789-abc';
+  const hq = (method, p, body, key = HQK) => fetch(baseUrl + p, { method,
+    headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}) });
+
+  it('lists pending submissions in full, without IP or browser', async () => {
+    await startApp({ hqReplyKey: HQK, hqApiKey: 'hq-read-only-key-0123456789' });
+    await store.insert(row('s1'));
+    await store.insert(row('s2', { status: 'rejected' }));
+    expect((await hq('GET', '/api/hq/submissions', null, '')).status).toBe(401);
+    expect((await hq('GET', '/api/hq/submissions', null, 'hq-read-only-key-0123456789')).status).toBe(401);   // the read-only key can't
+    const body = await (await hq('GET', '/api/hq/submissions')).json();
+    expect(body.submissions.map(s => s.id)).toEqual(['s1']);
+    expect(body.submissions[0]).toMatchObject({ submitter_email: 'pat@example.com', payload: { name: 'FALL CRAFT FAIR!!!', venue: 'Community Center' } });
+    expect(JSON.stringify(body)).not.toContain('1.2.3.4');
+    expect((await (await hq('GET', '/api/hq/submissions/s1')).json()).submission.id).toBe('s1');
+    expect((await hq('GET', '/api/hq/submissions/nope')).status).toBe(404);
+  });
+
+  it('edits, then approves: published and the submitter emailed', async () => {
+    await startApp({ hqReplyKey: HQK });
+    await store.insert(row('s1'));
+    const bad = await hq('POST', '/api/hq/submissions/s1', { payload: { ...PAYLOAD, date: 'soon' } });
+    expect(bad.status).toBe(400);
+    const edit = await hq('POST', '/api/hq/submissions/s1', { payload: { ...PAYLOAD, name: 'Fall Craft Fair' } });
+    expect(edit.status).toBe(200);
+    expect((await store.get('s1')).status).toBe('pending');
+    const r = await hq('POST', '/api/hq/submissions/s1', { status: 'approved', note: 'looks good' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, live: true, submission: { status: 'approved' } });
+    const saved = await store.get('s1');
+    expect(saved.review_history.slice(-1)[0]).toMatchObject({ action: 'status:approved', via: 'hq', note: 'looks good' });
+    const feed = await (await fetch(baseUrl + '/events.json')).json();
+    expect(feed.events.some(e => e.name === 'Fall Craft Fair')).toBe(true);
+    expect(sent.some(m => (m.to || []).includes('pat@example.com'))).toBe(true);
+  });
+
+  it("doesn't exist without HQ_REPLY_KEY", async () => {
+    await startApp({ hqReplyKey: '' });
+    expect((await hq('GET', '/api/hq/submissions')).status).toBe(404);
+  });
+});
