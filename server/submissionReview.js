@@ -15,8 +15,9 @@
  * The AI may only rewrite the name, description and icons. Date, time,
  * venue, address, link and the submitter's details always stay as sent.
  * Each submission is reviewed once (`ai_review` on the row); an admin edit
- * or decision always wins. SUBMISSION_AUTOAPPROVE=0 turns approvals into
- * flags.
+ * or decision always wins. Free submissions the review would approve wait
+ * for the owner (flagged "ready for your OK") unless SUBMISSION_AUTOAPPROVE=1;
+ * paid picks go live on their own either way.
  *
  * Paid Vic's Picks go through the same review, so a clean one goes live
  * without waiting for the owner, but the buyer's words are kept (they saw
@@ -322,7 +323,13 @@ export function registerSubmissionReview(app, { store, secret, nowFn, autoApprov
         } else if (paid && decision === 'duplicate') {
           decision = 'approve';
         }
-        if (decision === 'approve' && !autoApprove) decision = 'flag';
+        // Free submissions wait for the owner's OK unless he turned
+        // auto-approval on (SUBMISSION_AUTOAPPROVE=1); a paid pick is
+        // someone's purchase and still goes live on its own.
+        if (decision === 'approve' && !autoApprove && !paid) {
+          decision = 'flag';
+          reasonNote = `passed the review; ready for your OK${reason ? ` (${reason})` : ''}`;
+        }
         // Auto-publish only lists upcoming events, so a past date can't go live.
         if (decision === 'approve' && String((row.payload || {}).date || '') < localDateStr(nowFn())) {
           decision = 'flag';

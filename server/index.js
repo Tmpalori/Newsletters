@@ -2293,7 +2293,8 @@ export async function createApp(opts = {}) {
     store, slack, siteUrl,
     nowFn: () => (opts.now || (() => new Date()))(),
     secret: submissionReviewSecret,
-    autoApprove: opts.submissionAutoApprove ?? process.env.SUBMISSION_AUTOAPPROVE !== '0',
+    // Free submissions wait for the owner unless SUBMISSION_AUTOAPPROVE=1.
+    autoApprove: opts.submissionAutoApprove ?? process.env.SUBMISSION_AUTOAPPROVE === '1',
     publish: () => autoPublish.run({ force: true, quiet: true, submissionsOnly: true }),
     onApproved: notifyLive,
     // The review runs every 15 minutes, server-side and authenticated: the
