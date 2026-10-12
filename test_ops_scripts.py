@@ -120,3 +120,76 @@ def test_slack_town_tag_defaults_to_another_towns_city(tmp_path):
     assert slack_notify.town_tag({"TOWN": "bay", "TOWNS_DIR": str(tmp_path), "SLACK_TOWN_TAG": ""}) == "Bay City"
     assert slack_notify.town_tag({"TOWN": "bay", "TOWNS_DIR": str(tmp_path), "SLACK_TOWN_TAG": "Bay"}) == "Bay"
     assert slack_notify.town_tag({"TOWN": "nowhere", "TOWNS_DIR": str(tmp_path)}) == "nowhere"   # still tagged
+
+
+def _notify_with_site(monkeypatch, slack_code=None, env=None):
+    """slack_notify.main with a fake Slack (None: ok) and a fake site; returns
+    (exit code, what the site got, or None)."""
+    import io
+    import json as _json
+    import urllib.error
+    import slack_notify
+    got = {}
+
+    class _Ok:
+        def read(self):
+            return b"ok"
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.startswith("https://hooks.slack.com/"):
+            if slack_code:
+                raise urllib.error.HTTPError(req.full_url, slack_code, "x", {}, io.BytesIO(b"no_service"))
+            return _Ok()
+        got["url"] = req.full_url
+        got["secret"] = req.get_header("X-ops-secret")
+        got["body"] = _json.loads(req.data)
+        return _Ok()
+    for k in ("OPS_REPORT_URL", "OPS_REPORT_SECRET", "OPS_ALREADY_IN_SLACK", "SLACK_WEBHOOK_URL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("SLACK_TOWN_TAG", "Victoria")
+    for k, v in (env or {}).items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(slack_notify.urllib.request, "urlopen", fake_urlopen)
+    rc = slack_notify.main(["🚨 Weekly event collect failed", "--link", "https://github.com/x/y/actions/runs/1"])
+    return rc, (got or None)
+
+
+SITE_ENV = {"OPS_REPORT_URL": "https://www.thevic361.com/", "OPS_REPORT_SECRET": "s3cret"}
+
+
+def test_alerts_also_reach_the_site_inbox(monkeypatch):
+    # The owner's assistant reads the site's inbox (via HQ); a workflow's
+    # alert that only went to Slack never reached it.
+    rc, site = _notify_with_site(monkeypatch, env={"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/T/B/x", **SITE_ENV})
+    assert rc == 0
+    assert site["url"] == "https://www.thevic361.com/api/ops/report"
+    assert site["secret"] == "s3cret"
+    assert site["body"] == {"title": "🚨 Weekly event collect failed", "text": "",
+                            "link": "https://github.com/x/y/actions/runs/1", "slack_delivered": True}
+
+
+def test_without_slack_the_site_is_told_it_wasnt_delivered(monkeypatch):
+    rc, site = _notify_with_site(monkeypatch, env=SITE_ENV)                       # no webhook
+    assert rc == 0 and site["body"]["slack_delivered"] is False
+    rc, site = _notify_with_site(monkeypatch, slack_code=410,                       # refused
+                                 env={"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/T/B/x", **SITE_ENV})
+    assert rc == 2 and site["body"]["slack_delivered"] is False
+    rc, site = _notify_with_site(monkeypatch, env={"OPS_ALREADY_IN_SLACK": "1", **SITE_ENV})
+    assert site["body"]["slack_delivered"] is True
+
+
+def test_only_alert_steps_report_to_the_site(monkeypatch):
+    rc, site = _notify_with_site(monkeypatch, env={"SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/T/B/x"})
+    assert rc == 0 and site is None
+    rc, site = _notify_with_site(monkeypatch, env={"OPS_REPORT_URL": "http://insecure.example", "OPS_REPORT_SECRET": "s"})
+    assert site is None
+
+
+def test_a_site_thats_down_never_fails_the_alert(monkeypatch, capsys):
+    import slack_notify
+
+    def boom(req, timeout=None):
+        raise OSError("connection refused")
+    monkeypatch.setattr(slack_notify.urllib.request, "urlopen", boom)
+    assert slack_notify.report_to_site("🚨 x", None, True, env=SITE_ENV) is False
+    assert "Couldn't report to the site" in capsys.readouterr().out

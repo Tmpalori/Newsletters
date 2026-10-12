@@ -1098,7 +1098,7 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     }
     if (slack) {
       const name = weekend ? 'Weekend newsletter' : 'Newsletter';
-      if (failures.length) slack.alert(`newsletter-failed-${key}`, `${name} send partly failed`, `${sent} sent, ${record.failed} failed.\n${failures[0]}`, `${siteUrl}/admin.html`);
+      if (failures.length) slack.alert(`newsletter-failed-${key}`, sent ? `${name} send partly failed` : `${name} send failed`, `${sent} sent, ${record.failed} failed.\n${failures[0]}`, `${siteUrl}/admin.html`);
       else slack.notify({ title: `📧 ${name} sent`, fields: [['Recipients', sent], ['Subject', probe.subject], ['Events', probe.total]] });
     }
     // Referral rewards, once Monday's issue is out (never throws).
@@ -1208,7 +1208,7 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
         await resend.send({ from: config.from, to: [email], subject: mail.subject, html: mail.html, text: mail.text });
       } catch (err) {
         console.error('[newsletter] confirmation email failed:', err.message);
-        if (slack) slack.alert('newsletter-subscribe-failed', 'Newsletter confirmation emails are failing', err.message, `${siteUrl}/admin.html`);
+        if (slack) slack.alert('newsletter-confirm-failed', 'Newsletter confirmation emails are failing', err.message, `${siteUrl}/admin.html`);
       }
       res.json(done);
     } catch (err) {

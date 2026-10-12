@@ -136,7 +136,7 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   };
 }
 
-export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, clientKey = req => req.ip }) {
+export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, clientKey = req => req.ip }) {
   // The owner inbox (server/inbox.js): what pinged the owner since `since`
   // (an event id), oldest first, at most 200. Unlike the summary this has
   // people's names, emails and messages: it's for HQ to tell the owner.
@@ -148,7 +148,11 @@ export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), b
     const since = /^\d{1,15}$/.test(String(req.query.since || '')) ? Number(req.query.since) : 0;
     try {
       const events = await inbox(since, 200);
-      res.json({ ok: true, since, next: events.length ? events[events.length - 1].id : since, more: events.length === 200, events });
+      // latest: the newest id there is; below HQ's cursor means the
+      // database was reset and HQ starts over.
+      const latest = latestInbox ? await latestInbox() : null;
+      res.json({ ok: true, since, next: events.length ? events[events.length - 1].id : since, more: events.length === 200,
+        ...(latest == null ? {} : { latest }), events });
     } catch (err) {
       console.error('[hq] inbox failed:', err.message);
       res.status(500).json({ ok: false, error: 'inbox-failed' });

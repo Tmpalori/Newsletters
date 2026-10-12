@@ -17,11 +17,17 @@ const SALESY = /💰|sponsor|advertis|partner/i;
 
 export function classify({ channel = 'activity', title = '' }) {
   const t = String(title);
-  if (channel === 'alerts') return t.startsWith('✅') ? { severity: 'fyi', kind: 'recovered' } : { severity: 'urgent', kind: 'alert' };
+  if (channel === 'alerts') {
+    if (t.startsWith('✅')) return { severity: 'fyi', kind: 'recovered' };
+    // A workflow's warning (a collector source failed, the run went on).
+    if (/^⚠️/u.test(t)) return { severity: 'today', kind: 'warning' };
+    return { severity: 'urgent', kind: 'alert' };
+  }
   if (channel === 'sales') {
     if (/^(📊|✅)/u.test(t)) return { severity: 'fyi', kind: 'sales' };
     if (/^👋/u.test(t)) return { severity: 'today', kind: 'sales' };
-    if (/^(⚠️|↩️|🚨)/u.test(t) || /fraud|disput|refund|declined|didn.t go through/i.test(t)) return { severity: 'urgent', kind: 'money' };
+    // ⏰: a paid Pick still not on the site (paid for, not delivered).
+    if (/^(⚠️|↩️|🚨|⏰)/u.test(t) || /fraud|disput|refund|declined|didn.t go through/i.test(t)) return { severity: 'urgent', kind: 'money' };
     return { severity: 'today', kind: 'sales' };
   }
   if (channel === 'inbox') {
@@ -32,11 +38,16 @@ export function classify({ channel = 'activity', title = '' }) {
   }
   if (channel === 'hype') return /sponsor|pick/i.test(t) && !/subscriber/i.test(t) ? { severity: 'today', kind: 'sponsor' } : { severity: 'fyi', kind: 'growth' };
   // activity
-  if (/for you to look at|^⚠️|^⏰/u.test(t)) return { severity: 'today', kind: 'review' };
+  // A submitter who wasn't told their event is live needs reaching too.
+  if (/for you to look at|^⚠️|^⏰|^✉️ “You’re live” email refused/u.test(t)) return { severity: 'today', kind: 'review' };
   if (/submitted/i.test(t)) return { severity: 'fyi', kind: 'submission' };
   if (/^✉️ Website message/u.test(t)) return { severity: SALESY.test(t) ? 'urgent' : 'today', kind: SALESY.test(t) ? 'lead' : 'message' };
   return { severity: 'fyi', kind: 'activity' };
 }
+
+// Pings that couldn't be saved yet (no store during boot, the database
+// down) wait here, newest kept, and go in with the next save or flush().
+const PENDING_MAX = 200;
 
 // `store`: the store, or a function returning it (the app creates its
 // store after its Slack notifier).
@@ -44,16 +55,39 @@ export function withInbox(slack, store, { nowFn = () => Date.now() } = {}) {
   if (!slack || !store) return slack;
   const storeNow = () => (typeof store === 'function' ? store() : store);
   const lastAlert = new Map();
+  let pending = [];
+  let flushing = null;
+  const add = (s, ev) => Promise.resolve().then(() => s.addInboxEvent(ev));
+  // Saves what's waiting, oldest first; stops at the first failure.
+  function flush() {
+    if (flushing) return flushing;
+    const s = storeNow();
+    if (!pending.length || !s || typeof s.addInboxEvent !== 'function') return Promise.resolve(false);
+    flushing = (async () => {
+      while (pending.length) {
+        try { await add(s, pending[0]); } catch (err) { console.warn('[inbox] still not saved:', err.message); return false; }
+        pending.shift();
+      }
+      return true;
+    })().finally(() => { flushing = null; });
+    return flushing;
+  }
   const save = (channel, { title, fields = [], text = '', link = null }) => {
     const { severity, kind } = classify({ channel, title });
     const payload = {
       fields: (fields || []).filter(([, v]) => v != null && v !== '').slice(0, 12).map(([k, v]) => [String(k), String(v).slice(0, 1000)]),
       text: String(text || '').slice(0, 4000), link: link || null
     };
+    const ev = { channel, severity, kind, title: String(title).slice(0, 300), payload };
     const s = storeNow();
-    if (!s || typeof s.addInboxEvent !== 'function') return;
-    Promise.resolve().then(() => s.addInboxEvent({ channel, severity, kind, title: String(title).slice(0, 300), payload }))
-      .catch(err => console.warn('[inbox] not saved:', err.message));
+    const keep = err => {
+      if (err) console.warn('[inbox] not saved, will retry:', err.message);
+      pending.push(ev);
+      if (pending.length > PENDING_MAX) pending = pending.slice(-PENDING_MAX);
+    };
+    if (!s || typeof s.addInboxEvent !== 'function') { keep(); return Promise.resolve(false); }
+    return flush().then(() => (pending.length ? keep() : add(s, ev).then(() => true, err => { keep(err); return false; })))
+      .catch(err => { console.warn('[inbox] not saved:', err.message); return false; });
   };
   return {
     ...slack,
@@ -62,13 +96,22 @@ export function withInbox(slack, store, { nowFn = () => Date.now() } = {}) {
       return slack.notify(msg);
     },
     // Same window as Slack's own de-duplication, so a crash loop is one item.
+    // Resolves once both the save and the Slack post are done, so a caller
+    // about to exit (a crash) can wait for it.
     alert(key, title, detail = '', link = null) {
       const now = nowFn(), last = lastAlert.get(key);
+      let saved = Promise.resolve(false);
       if (last === undefined || now - last >= ALERT_WINDOW_MS) {
         lastAlert.set(key, now);
-        save('alerts', { title: `🚨 ${title}`, text: detail, link });
+        saved = save('alerts', { title: `🚨 ${title}`, text: detail, link });
       }
-      return slack.alert(key, title, detail, link);
-    }
+      const posted = slack.alert(key, title, detail, link);
+      return Promise.all([saved, posted]).then(([, r]) => r);
+    },
+    // Into the inbox only (something already posted to Slack elsewhere,
+    // e.g. a GitHub workflow's own alert).
+    record(channel, msg) { return save(channel, msg); },
+    flushInbox: flush,
+    pendingInbox: () => pending.length
   };
 }

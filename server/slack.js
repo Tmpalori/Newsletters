@@ -28,6 +28,9 @@ export const slackEscape = (s) => String(s == null ? '' : s)
 
 export const SLACK_CHANNELS = ['sales', 'activity', 'alerts', 'hype', 'inbox'];
 const FALLBACK = { hype: 'sales', inbox: 'activity' };
+// Alerts never vanish because only some channels are set up: with neither
+// their own webhook nor SLACK_WEBHOOK_URL they go to activity.
+const LAST_RESORT = { alerts: 'activity' };
 const isHook = (u) => /^https:\/\/hooks\.slack\.com\//.test(u || '');
 
 export function slackConfig(env = process.env, overrides = {}) {
@@ -37,7 +40,8 @@ export function slackConfig(env = process.env, overrides = {}) {
   for (const ch of SLACK_CHANNELS) {
     const own = ownUrl(ch);
     const fb = FALLBACK[ch] ? ownUrl(FALLBACK[ch]) : '';
-    urls[ch] = isHook(own) ? own : isHook(fb) ? fb : isHook(url) ? url : '';
+    const last = LAST_RESORT[ch] ? ownUrl(LAST_RESORT[ch]) : '';
+    urls[ch] = isHook(own) ? own : isHook(fb) ? fb : isHook(url) ? url : isHook(last) ? last : '';
   }
   return {
     url,
@@ -128,5 +132,6 @@ export function createSlack(config, { fetchImpl = globalThis.fetch, nowFn = () =
   // Channels whose webhook Slack refused, most recent first.
   const refused = () => [...refusals.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
 
-  return { enabled: config.enabled, notify, alert, post, refused };
+  // Whether an alert has a webhook to go to (the setup checklist).
+  return { enabled: config.enabled, alertsRouted: config.enabled && Boolean(urlFor('alerts')), notify, alert, post, refused };
 }

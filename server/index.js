@@ -35,8 +35,9 @@ import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary } from './hq.js';
+import { registerOpsReport } from './opsReport.js';
 import { withInbox } from './inbox.js';
-import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews } from './newsletter.js';
+import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
@@ -47,7 +48,7 @@ import { registerContact } from './contact.js';
 import { renderEventCard, eventCardVersion } from './ogImage.js';
 import { capDays, pickDays, shown } from './scoring.js';
 import { createAutoPublish, unpublishEvent, replacePublishedEvent, forgetRemoved } from './autopublish.js';
-import { createScheduler, schedulerEnabled, startLabel, checkTownSchedule, missedCollect } from './scheduler.js';
+import { createScheduler, schedulerEnabled, startLabel, checkTownSchedule, missedCollect, slotStart, JOBS } from './scheduler.js';
 import * as sponsorsModule from './sponsors.js';
 import crypto from 'node:crypto';
 import { verifyPass, MIN_SSO_SECRET } from './sso.js';
@@ -294,6 +295,11 @@ export async function createApp(opts = {}) {
   });
   const store = storeBundle.store;
   inboxStore = store;
+  // Pings from before the store existed (a database alert at boot), and any
+  // a database outage held back, go in now and every 2 minutes after.
+  slack.flushInbox();
+  const inboxRetry = setInterval(() => { if (slack.pendingInbox()) slack.flushInbox(); }, 2 * 60 * 1000);
+  if (inboxRetry.unref) inboxRetry.unref();
   // An injected Postgres store (tests) gets the same hook.
   if (store && 'onTablesCreated' in store && !store.onTablesCreated) store.onTablesCreated = onTablesCreated;
   // Production on the JSON file store means DATABASE_URL resolved empty (a
@@ -1812,6 +1818,13 @@ export async function createApp(opts = {}) {
     getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : [])
   });
 
+  // GitHub workflows' alerts into the owner inbox (server/opsReport.js).
+  registerOpsReport(app, {
+    secret: opts.opsReportSecret ?? (process.env.OPS_REPORT_SECRET || submissionReviewSecret),
+    slack, json: smallJson, siteUrl, clientKey,
+    limiter: opts.opsLimiter || createRateLimiter({ windowMs: 60 * 60 * 1000, max: 120 })
+  });
+
   // ─── Newsletter (Resend; see server/newsletter.js) ───
   // Event check (server/eventcheck.js): hide what the weekly check is sure
   // about, restore from admin Home.
@@ -2396,6 +2409,29 @@ export async function createApp(opts = {}) {
         console.warn('[health] subscriber check failed:', err.message);
       }
     }
+    // An issue that hasn't gone out by its noon cutoff: the scheduler never
+    // ran (the server was down), its retries ran out, or Resend isn't set
+    // up. Only with readers waiting and automatic sending on.
+    if (pub && newsletter.autosend && typeof store.getNewsletterSend === 'function' && typeof store.countSubscribers === 'function') {
+      try {
+        const active = Number((await store.countSubscribers() || {}).active) || 0;
+        const today = localDateStr(now);
+        for (const [edition, job, day] of [['weekly', 'newsletter', 'Monday'], ['weekend', 'newsletter-weekend', 'Thursday']]) {
+          if (!active || (edition === 'weekend' && !newsletter.weekend)) continue;
+          const key = EDITIONS[edition].key(today);
+          const j = JOBS.find(x => x.name === job);
+          const cutoff = slotStart({ name: job, at: j.until }, key);
+          // Said for three days after the cutoff; by then the next issue is the one that matters.
+          if (key > today || now < cutoff || now - cutoff > 3 * 86400000) continue;
+          if (await store.getNewsletterSend(key)) continue;
+          problems[`issue-${edition}`] = `${day}'s newsletter (${key}) hasn't gone out, and its ${startLabel(job)} send is past its noon cutoff. ` +
+            (newsletter.enabled ? 'Check #alerts for the send error, then send it from admin → Newsletter.'
+              : 'RESEND_API_KEY isn\'t set in Railway, so nothing can send; set it, then send from admin → Newsletter.');
+        }
+      } catch (err) {
+        console.warn('[health] newsletter check failed:', err.message);
+      }
+    }
     const t = now.getTime();
     for (const [key, text] of Object.entries(problems)) {
       const last = healthState.get(key);
@@ -2443,7 +2479,7 @@ export async function createApp(opts = {}) {
         fix: SHORT_PASSWORD_FIX },
       { key: 'auto_publish', label: 'Auto-publish events', ok: env.AUTO_PUBLISH !== '0', level: 'required',
         fix: 'Remove AUTO_PUBLISH=0 from Railway.' },
-      { key: 'slack', label: 'Slack alerts', ok: slack.enabled && !slackRefusedText(), level: 'recommended',
+      { key: 'slack', label: 'Slack alerts', ok: slack.enabled && slack.alertsRouted !== false && !slackRefusedText(), level: 'recommended',
         fix: slackRefusedText() || 'Set SLACK_WEBHOOK_URL in Railway (and as a GitHub secret) to get pings for breakage, sponsors and submissions. Optional: SLACK_SALES_WEBHOOK_URL, SLACK_ACTIVITY_WEBHOOK_URL, SLACK_ALERTS_WEBHOOK_URL, SLACK_HYPE_WEBHOOK_URL (new subscribers and sponsors) and SLACK_INBOX_WEBHOOK_URL (replies and contact messages) send each kind to its own channel.' },
       { key: 'newsletter', label: 'Email newsletter (Resend)', ok: newsletter.enabled && Boolean(newsletter.address), level: 'recommended',
         fix: newsletter.enabled ? 'Set NEWSLETTER_ADDRESS (a mailing address is required by law in every email).' : 'Set RESEND_API_KEY and NEWSLETTER_ADDRESS in Railway.' },
@@ -2529,6 +2565,7 @@ export async function createApp(opts = {}) {
     nowFn: () => (opts.now || (() => new Date()))(),
     clientKey,
     inbox: (since, limit) => (typeof store.listInboxEvents === 'function' ? store.listInboxEvents(since, limit) : []),
+    latestInbox: () => (typeof store.latestInboxId === 'function' ? store.latestInboxId() : null),
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),
@@ -2655,7 +2692,7 @@ export async function createApp(opts = {}) {
   });
 
   await archiveReady;
-  return { app, store, storeBundle, slack: rawSlack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
+  return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
 }
 
 // Start the server when invoked directly. Importing this module (e.g. from
@@ -2678,17 +2715,23 @@ if (isMain) {
   const port = Number(process.env.PORT) || 3000;
   const cfg = slackConfig();
   const bootSlack = createSlack(cfg);
+  // Once the app is up, its notifier (the owner inbox too) says it.
+  let live = null;
+  const alerts = () => live || bootSlack;
   // A crash takes the site down until Railway restarts it; say so first.
   process.on('uncaughtException', err => {
     console.error('[thevic361] uncaught:', err);
-    bootSlack.alert('crash', 'Server crashed and is restarting', err && err.stack ? err.stack.slice(0, 1500) : String(err))
+    // A hung database or Slack mustn't keep a crashed process alive.
+    Promise.race([alerts().alert('crash', 'Server crashed and is restarting', err && err.stack ? err.stack.slice(0, 1500) : String(err)),
+      new Promise(r => { setTimeout(r, 9000).unref(); })])
       .finally(() => process.exit(1));
   });
   process.on('unhandledRejection', err => {
     console.error('[thevic361] unhandled rejection:', err);
-    bootSlack.alert(`rejection:${err && err.message}`, 'Unhandled error in the server', (err && err.message) || String(err));
+    alerts().alert(`rejection:${err && err.message}`, 'Unhandled error in the server', (err && err.message) || String(err));
   });
-  createApp().then(({ app, storeBundle }) => {
+  createApp().then(({ app, storeBundle, alerts: appAlerts }) => {
+    live = appAlerts;
     // No "deployed" ping: every merge redeploys, so it was noise. A failed
     // boot or a crash still alerts (below and above).
     const server = app.listen(port, () => {

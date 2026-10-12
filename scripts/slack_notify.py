@@ -49,18 +49,50 @@ def town_tag(env=None):
         return slug
 
 
+def report_to_site(text, link, slack_delivered, env=None):
+    """Also tell the site, so the alert lands in the owner inbox (HQ and the
+    owner's assistant read it; server/opsReport.js). Only steps that send an
+    alert set OPS_REPORT_URL (the site) and OPS_REPORT_SECRET. When Slack
+    didn't take the message, the site posts it there too. Best effort: the
+    site may be the thing that's down (HQ notices that on its own)."""
+    env = os.environ if env is None else env
+    site = env.get("OPS_REPORT_URL", "").strip().rstrip("/")
+    secret = env.get("OPS_REPORT_SECRET", "").strip()
+    if not site.startswith("https://") or not secret:
+        return False
+    first, _, rest = text.partition("\n")
+    # OPS_ALREADY_IN_SLACK: the step showed it in Slack another way.
+    delivered = bool(slack_delivered) or env.get("OPS_ALREADY_IN_SLACK") == "1"
+    body = {"title": first[:200], "text": rest[:2000], "link": link, "slack_delivered": delivered}
+    req = urllib.request.Request(f"{site}/api/ops/report", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "X-Ops-Secret": secret})
+    try:
+        urllib.request.urlopen(req, timeout=15).read()
+        return True
+    except Exception as e:  # noqa: BLE001 - best effort by design
+        print(f"Couldn't report to the site ({site}): {e}")
+        return False
+
+
 def main(argv):
-    url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
-    if not url.startswith("https://hooks.slack.com/"):
-        print("SLACK_WEBHOOK_URL not set; skipping Slack notification.")
-        return 0
     args = list(argv)
     link = None
     if "--link" in args:
         i = args.index("--link")
         link = args[i + 1] if i + 1 < len(args) else None
         del args[i:i + 2]
-    text = " ".join(args).strip() or "(no message)"
+    raw = " ".join(args).strip() or "(no message)"
+    rc, delivered = post_to_slack(raw, link)
+    report_to_site(raw, link, delivered)
+    return rc
+
+
+def post_to_slack(text, link):
+    """(exit code, whether Slack took it)."""
+    url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+    if not url.startswith("https://hooks.slack.com/"):
+        print("SLACK_WEBHOOK_URL not set; skipping Slack notification.")
+        return 0, False
     # SLACK_TOWN_TAG: "[Bay City] " first, so towns can share channels
     # (MULTI_CITY_PLAN.md 4.3, same as server/slack.js). Unset: the town's
     # city (town_tag).
@@ -73,6 +105,7 @@ def main(argv):
                                  headers={"Content-Type": "application/json"})
     try:
         urllib.request.urlopen(req, timeout=15).read()
+        return 0, True
     except urllib.error.HTTPError as e:
         try:
             error = e.read().decode("utf-8", "replace").strip()[:100]
@@ -82,11 +115,11 @@ def main(argv):
             print(f"::error::Slack refused the webhook (HTTP {e.code} {error}). The channel may be archived "
                   "or the Slack app removed; alerts are not arriving. Make a new incoming webhook and "
                   "update the SLACK_*_WEBHOOK_URL secret.")
-            return 2
+            return 2, False
         print(f"Slack notification failed: HTTP {e.code} {error}")
     except Exception as e:  # noqa: BLE001 - best effort by design
         print(f"Slack notification failed: {e}")
-    return 0
+    return 0, False
 
 
 if __name__ == "__main__":

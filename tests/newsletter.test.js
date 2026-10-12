@@ -212,7 +212,7 @@ describe('review fixes: signups and privacy', () => {
       const r = await post('/api/subscribe', { email: 'x@example.com' });
       expect(r.status).toBe(200);
       expect((await r.json()).message).toBe("You're on the list! Check your inbox.");
-      expect(alerts).toEqual([{ key: 'newsletter-subscribe-failed', title: 'Newsletter confirmation emails are failing' }]);
+      expect(alerts).toEqual([{ key: 'newsletter-confirm-failed', title: 'Newsletter confirmation emails are failing' }]);
     } finally { err.mockRestore(); }
   });
 

@@ -70,7 +70,7 @@ def test_newsletter_does_not_retry_a_wrong_secret(tmp_path):
 def test_newsletter_job_timeout_fits_the_retries():
     job = load("newsletter.yml")["jobs"]["send"]
     assert job["timeout-minutes"] >= 25
-    assert step(job, "Tell Slack it failed")["if"] == "failure()"
+    assert step(job, "Tell Slack it failed")["if"] == "failure() || cancelled()"
 
 
 def test_social_kit_fits_its_worst_case_and_alerts_on_cancel():
@@ -619,3 +619,35 @@ def test_town_workflows_sparse_checkout_includes_towns(name):
             sparse = (st.get("with") or {}).get("sparse-checkout")
             if sparse is not None:
                 assert "towns" in str(sparse).split(), f"{name}: sparse checkout without towns/"
+
+
+def test_every_alert_step_also_reports_to_the_site():
+    # Each step that posts to the alerts webhook also gives slack_notify.py
+    # the site and secret, so the alert lands in the owner inbox (HQ, the
+    # owner's assistant). Same secret fallback as server/opsReport.js.
+    import glob
+    want_secret = ("${{ secrets.OPS_REPORT_SECRET || secrets.SUBMISSION_REVIEW_SECRET || "
+                   "secrets.EVENT_CHECK_SECRET || secrets.NEWSLETTER_CRON_SECRET }}")
+    alert_hook = "${{ secrets.SLACK_ALERTS_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}"
+    found = 0
+    for path in glob.glob(os.path.join(WF, "*.yml")):
+        wf = load(os.path.basename(path))
+        for job in wf["jobs"].values():
+            for st in job.get("steps", []):
+                env = st.get("env") or {}
+                if env.get("SLACK_WEBHOOK_URL") == alert_hook:
+                    found += 1
+                    assert env.get("OPS_REPORT_SECRET") == want_secret, (path, st.get("name"))
+                    assert env.get("OPS_REPORT_URL", "").startswith("${{ vars.SITE_URL"), (path, st.get("name"))
+    assert found >= 12
+
+
+def test_failure_alerts_cover_timeouts_and_cancels():
+    # A job-level timeout is a cancellation, which failure() alone misses.
+    # (Not tests.yml: a newer push cancels those runs on purpose.)
+    import glob
+    for path in glob.glob(os.path.join(WF, "*.yml")):
+        if path.endswith("tests.yml"):
+            continue
+        text = open(path).read()
+        assert "if: failure()\n" not in text, path

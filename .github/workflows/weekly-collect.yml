@@ -294,6 +294,9 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ACTIVITY_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
           SLACK_ALERTS_URL: ${{ secrets.SLACK_ALERTS_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          # Warnings also go to the owner inbox (scripts/slack_notify.py → server/opsReport.js).
+          SITE: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+          OPS_SECRET: ${{ secrets.OPS_REPORT_SECRET || secrets.SUBMISSION_REVIEW_SECRET || secrets.EVENT_CHECK_SECRET || secrets.NEWSLETTER_CRON_SECRET }}
         run: |
           # Next 14 days only: hand-added events run 90 days ahead.
           n=$(python3 -c "import json,os,datetime as d;e=json.load(open(os.environ['TOWN_CANDIDATES']));e=e.get('events',e) if isinstance(e,dict) else e;end=(d.date.today()+d.timedelta(days=14)).isoformat();print(sum(1 for x in e if x.get('date','')<=end))" 2>/dev/null || echo "?")
@@ -304,11 +307,19 @@ jobs:
           run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           python3 scripts/slack_notify.py "🗓️ Collect done: $n events in the next two weeks. They'll publish automatically in a minute; edit or remove any in admin.${w:+ ⚠️ $w}" --link "${{ vars.SITE_URL || 'https://www.thevic361.com' }}/admin.html"
           if [ -n "$w" ] && [ "$SLACK_ALERTS_URL" != "$SLACK_WEBHOOK_URL" ]; then
-            SLACK_WEBHOOK_URL="$SLACK_ALERTS_URL" python3 scripts/slack_notify.py "⚠️ Weekly collect: $w" --link "$run_url"
+            SLACK_WEBHOOK_URL="$SLACK_ALERTS_URL" OPS_REPORT_URL="$SITE" OPS_REPORT_SECRET="$OPS_SECRET" \
+              python3 scripts/slack_notify.py "⚠️ Weekly collect: $w" --link "$run_url"
+          elif [ -n "$w" ]; then
+            # One channel: the message above already showed them in Slack.
+            SLACK_WEBHOOK_URL= OPS_REPORT_URL="$SITE" OPS_REPORT_SECRET="$OPS_SECRET" OPS_ALREADY_IN_SLACK=1 \
+              python3 scripts/slack_notify.py "⚠️ Weekly collect: $w" --link "$run_url"
           fi
 
       - name: Tell Slack it failed
-        if: failure()
+        if: failure() || cancelled()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERTS_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          # The alert also goes to the owner inbox (scripts/slack_notify.py → server/opsReport.js).
+          OPS_REPORT_URL: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+          OPS_REPORT_SECRET: ${{ secrets.OPS_REPORT_SECRET || secrets.SUBMISSION_REVIEW_SECRET || secrets.EVENT_CHECK_SECRET || secrets.NEWSLETTER_CRON_SECRET }}
         run: python3 scripts/slack_notify.py "🚨 Weekly event collect failed" --link "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
