@@ -92,7 +92,7 @@ describe('admin.html static structure', () => {
   it('has seven sidebar pages (Overview first) and sub-pages for Events and Analytics', () => {
     bootDom();
     const tabs = Array.from(document.querySelectorAll('.tab-btn'));
-    expect(tabs.map(t => t.dataset.tab)).toEqual(['home', 'attention', 'picker', 'newsletter', 'sponsors', 'growth', 'settings']);
+    expect(tabs.map(t => t.dataset.tab)).toEqual(['home', 'attention', 'inbox', 'picker', 'newsletter', 'sponsors', 'growth', 'settings']);
     const subs = Array.from(document.querySelectorAll('.subtab-btn')).map(b => b.dataset.in + ':' + b.dataset.goto);
     expect(subs).toEqual(['picker:picker', 'picker:submissions', 'picker:sources', 'picker:preview', 'growth:growth', 'growth:traffic']);
     // Every page and sub-page has its panel.
@@ -741,6 +741,34 @@ describe('Settings, Overview and Needs attention', () => {
     document.querySelector('#attention-filters [data-filter="Messages"]').click();
     expect(list.textContent).toContain('Sponsor week?');
     expect(list.textContent).not.toContain('Chili Cookoff');
+  });
+
+  it('Inbox shows each item with its full text, a reply button for people who wrote in, and marks the answered ones', async () => {
+    const api = bootDom();
+    const now = new Date().toISOString();
+    const link = 'https://www.thevic361.com/admin.html#reply?to=rob%40example.com&subject=Re%3A+Welcome&ref=%3Cm1%40x%3E';
+    const events = [
+      { id: 4, created_at: now, channel: 'alerts', severity: 'urgent', kind: 'alert', title: '🚨 Database down', payload: { fields: [], text: 'ECONNREFUSED', link: null } },
+      { id: 3, created_at: now, channel: 'inbox', severity: 'fyi', kind: 'reply', title: '↩️ Replied to ann@example.com', payload: { fields: [['Subject', 'Re: Hi']], text: 'Thanks!', link: null } },
+      { id: 2, created_at: now, channel: 'inbox', severity: 'today', kind: 'email', title: '📬 Email from rob@example.com', payload: { fields: [['Subject', 'Re: Welcome']], text: 'Love it <b>', link } },
+      { id: 1, created_at: now, channel: 'inbox', severity: 'today', kind: 'email', title: '📬 Email from ann@example.com', payload: { fields: [], text: 'Hi', link: link.replace('rob%40', 'ann%40') } }
+    ];
+    window.fetch = vi.fn(async (url) => (String(url).includes('/api/admin/inbox') ? json({ ok: true, events, more: true }) : json({ ok: true })));
+    api._state.session = 'tok';
+    await api.loadInbox();
+    const list = document.getElementById('inbox-list');
+    const items = [...list.querySelectorAll('.att-item')];
+    expect(items).toHaveLength(4);
+    expect(items[2].textContent).toContain('Love it <b>');                   // escaped, shown as text
+    expect(list.innerHTML).not.toContain('<b>');
+    expect(items[2].querySelector('a.btn').getAttribute('href')).toBe('#reply?to=rob%40example.com&subject=Re%3A+Welcome&ref=%3Cm1%40x%3E');
+    expect(items[2].textContent).not.toContain('Replied');
+    expect(items[3].textContent).toContain('Replied');                       // answered by the later ↩️ item
+    expect(items[1].querySelector('a.btn')).toBeNull();                      // our own reply has nothing to answer
+    expect(document.getElementById('inbox-more').hidden).toBe(false);
+    document.querySelector('#inbox-filters [data-filter="People"]').click();
+    expect(list.querySelectorAll('.att-item')).toHaveLength(2);
+    expect(list.textContent).not.toContain('Database down');
   });
 
   it('Overview shows the headline numbers, both charts and the attention banner', async () => {

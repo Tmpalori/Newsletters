@@ -85,6 +85,7 @@
       <nav class="admin-tabs" role="tablist" aria-label="Admin pages">
         <button class="tab-btn is-active" data-tab="home" role="tab"><span class="tab-btn__icon" aria-hidden="true">◧</span><span class="tab-btn__label">Overview</span></button>
         <button class="tab-btn" data-tab="attention" role="tab"><span class="tab-btn__icon" aria-hidden="true">⚑</span><span class="tab-btn__label">Needs attention</span><span id="attention-badge" class="tab-badge" hidden>0</span></button>
+        <button class="tab-btn" data-tab="inbox" role="tab"><span class="tab-btn__icon" aria-hidden="true">⇩</span><span class="tab-btn__label">Inbox</span></button>
         <button class="tab-btn" data-tab="picker" data-group="picker submissions sources preview" role="tab"><span class="tab-btn__icon" aria-hidden="true">▦</span><span class="tab-btn__label">Events</span></button>
         <button class="tab-btn" data-tab="newsletter" role="tab"><span class="tab-btn__icon" aria-hidden="true">✉</span><span class="tab-btn__label">Newsletter</span></button>
         <button class="tab-btn" data-tab="sponsors" role="tab"><span class="tab-btn__icon" aria-hidden="true">$</span><span class="tab-btn__label">Sponsors</span></button>
@@ -151,6 +152,18 @@
       <div id="attention-filters" class="chips" role="group" aria-label="Filter"></div>
       <div id="attention-error" class="empty-state empty-state--error" hidden></div>
       <div id="attention-list"></div>
+    </section>
+
+    <!-- ─── INBOX ─── -->
+    <section id="tab-inbox" class="tab-panel" role="tabpanel" hidden>
+      <header class="page-head">
+        <h1 class="page-title">Inbox</h1>
+        <p class="page-sub">Every email reply, message, sale and alert, newest first: the same items HQ and Slack get, with the full text.</p>
+      </header>
+      <div id="inbox-filters" class="chips" role="group" aria-label="Filter"></div>
+      <div id="inbox-error" class="empty-state empty-state--error" hidden></div>
+      <div id="inbox-list"></div>
+      <button type="button" id="inbox-more" class="btn btn--outline" hidden>Load older</button>
     </section>
 
     <!-- ─── SETTINGS ─── -->

@@ -2163,6 +2163,84 @@
     });
   }
 
+  // ─── INBOX ───
+  // Every owner ping the server saved (server/inbox.js, GET /api/admin/inbox),
+  // newest first: the email replies and messages HQ drafts answers to, with
+  // their full text, so their context is here and not only in Slack.
+  const INBOX_GROUPS = [
+    ['People', e => ['email', 'message', 'lead'].includes(e.kind)],
+    ['Money', e => e.channel === 'sales'],
+    ['Alerts', e => e.channel === 'alerts'],
+    ['Replies sent', e => e.kind === 'reply'],
+    ['Activity', () => true]
+  ];
+  const inboxGroup = e => INBOX_GROUPS.find(([, test]) => test(e))[0];
+  const SEVERITY_PILL = { urgent: '<span class="pill pill--bad">Urgent</span>', today: '<span class="pill pill--warn">Today</span>' };
+  // "Reply as news@" links (server/inbound.js replyLink) point at this page;
+  // only the #reply?… part is needed to open the reply box.
+  const replyHashOf = link => { const m = /#reply\?.*$/.exec(String(link || '')); return m ? m[0] : ''; };
+  const replyToOf = link => { const h = replyHashOf(link); return h ? (parseReplyHash(h).to || '').toLowerCase() : ''; };
+
+  async function loadInbox(opts) {
+    const list = document.getElementById('inbox-list');
+    const chips = document.getElementById('inbox-filters');
+    const err = document.getElementById('inbox-error');
+    const more = document.getElementById('inbox-more');
+    if (!list || publishMode() !== 'server') return;
+    const o = opts || {};
+    if (o.filter) state.inboxFilter = o.filter;
+    else {
+      const before = o.older && state.inbox && state.inbox.length ? state.inbox[state.inbox.length - 1].id : 0;
+      if (!before) list.innerHTML = '<p class="empty-state">Loading…</p>';
+      if (more) more.disabled = true;
+      const json = await getJson('/api/admin/inbox' + (before ? '?before=' + before : ''));
+      if (more) more.disabled = false;
+      if (!json) {
+        err.hidden = false;
+        err.textContent = 'Couldn’t load the inbox. Try again in a minute.';
+        if (!before) list.innerHTML = '';
+        return;
+      }
+      err.hidden = true;
+      state.inbox = (before ? state.inbox : []).concat(json.events || []);
+      state.inboxMore = !!json.more;
+      state.inboxFilter = state.inboxFilter || 'All';
+    }
+    const events = state.inbox || [];
+    if (more) more.hidden = !state.inboxMore;
+    const counts = {};
+    events.forEach(e => { const g = inboxGroup(e); counts[g] = (counts[g] || 0) + 1; });
+    const f = state.inboxFilter === 'All' || counts[state.inboxFilter] ? state.inboxFilter : 'All';
+    chips.innerHTML = ['All', ...INBOX_GROUPS.map(([g]) => g).filter(g => counts[g])].map(g =>
+      '<button type="button" class="chip' + (g === f ? ' is-active' : '') + '" data-filter="' + escapeHtml(g) + '">' + escapeHtml(g) + ' ' + (g === 'All' ? events.length : counts[g]) + '</button>').join('');
+    chips.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => loadInbox({ filter: b.dataset.filter })));
+    // Addresses answered since: a later "↩️ Replied to <addr>" item.
+    const repliedAt = {};
+    events.forEach(e => {
+      const m = e.kind === 'reply' && /^↩️ Replied to (\S+)/u.exec(e.title || '');
+      if (m && !repliedAt[m[1].toLowerCase()]) repliedAt[m[1].toLowerCase()] = e.id;
+    });
+    const shown = events.filter(e => f === 'All' || inboxGroup(e) === f);
+    if (!shown.length) { list.innerHTML = '<p class="empty-state">Nothing here yet.</p>'; return; }
+    list.innerHTML = shown.map(e => {
+      const p = e.payload || {};
+      const hash = e.kind === 'reply' ? '' : replyHashOf(p.link);
+      const to = hash ? replyToOf(p.link) : '';
+      const answered = to && repliedAt[to] > e.id;
+      const fields = (p.fields || []).filter(x => Array.isArray(x) && x.length === 2);
+      const link = !hash && /^https?:\/\//i.test(String(p.link || '')) ? p.link : '';
+      return '<article class="att-item' + (e.severity === 'fyi' ? ' inbox-item--fyi' : '') + '">' +
+        '<div class="att-item__body"><strong>' + escapeHtml(e.title) + ' ' + (SEVERITY_PILL[e.severity] || '') + (answered ? ' <span class="pill pill--ok">Replied</span>' : '') + '</strong>' +
+        '<div class="inbox-item__meta" title="' + escapeHtml(e.created_at || '') + '">' + escapeHtml(ago(e.created_at)) + '</div>' +
+        (fields.length ? '<dl class="inbox-item__fields">' + fields.map(([k, v]) => '<dt>' + escapeHtml(k) + '</dt><dd>' + escapeHtml(v) + '</dd>').join('') + '</dl>' : '') +
+        (p.text ? '<p class="inbox-item__text">' + escapeHtml(p.text) + '</p>' : '') + '</div>' +
+        ((hash || link) ? '<div class="att-item__acts">' +
+          (hash ? '<a class="btn btn--primary" href="' + escapeHtml(hash) + '">Reply as news@</a>' : '') +
+          (link ? '<a class="btn btn--outline" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">Open ↗</a>' : '') + '</div>' : '') +
+        '</article>';
+    }).join('');
+  }
+
   // ─── SETTINGS ───
   // The setup checklist: what still needs doing first, finished ones folded.
   async function loadSettings() {
@@ -2321,7 +2399,7 @@
   // Pages in the sidebar; Events and Analytics have sub-pages (data-group on
   // their sidebar button), switched by the sub-tab bar. A page that's open
   // keeps its sidebar button lit.
-  const PANELS = ['home', 'attention', 'growth', 'traffic', 'picker', 'submissions', 'preview', 'newsletter', 'sources', 'sponsors', 'settings'];
+  const PANELS = ['home', 'attention', 'inbox', 'growth', 'traffic', 'picker', 'submissions', 'preview', 'newsletter', 'sources', 'sponsors', 'settings'];
   function pageOf(name) {
     const btn = [...document.querySelectorAll('.tab-btn')].find(t => t.dataset.tab === name ||
       (t.dataset.group || '').split(' ').includes(name));
@@ -2355,6 +2433,7 @@
     if (counts) counts.hidden = name !== 'picker' && name !== 'preview';
     if (name === 'home') loadHome();
     if (name === 'attention') loadAttention();
+    if (name === 'inbox') loadInbox();
     if (name === 'settings') loadSettings();
     if (name === 'growth') loadGrowth();
     if (name === 'preview') refreshPreview();
@@ -3163,6 +3242,8 @@
       });
       window.addEventListener('hashchange', openReplyFromHash);
     }
+    const inboxMore = document.getElementById('inbox-more');
+    if (inboxMore) inboxMore.addEventListener('click', () => loadInbox({ older: true }));
     const authForm = document.getElementById('auth-form');
     if (authForm) {
       authForm.addEventListener('submit', async (e) => {
@@ -3463,7 +3544,7 @@
     utf8ToBase64,
     buildEventsPayload, buildPreviewSrc, writePreviewToStorage,
     getMondayOfWeek, getWeekRange, inWeekBucket, toLocalDateStr, town, repo, applyTownLabels,
-    pruneStalePastSelections, loadCandidates, loadHome, loadAttention, collectAttention, loadSettings, lineChart, barChart, activateTab, publish,
+    pruneStalePastSelections, loadCandidates, loadHome, loadAttention, collectAttention, loadInbox, loadSettings, lineChart, barChart, activateTab, publish,
     inferSource, sourceLabel, mergeCandidateEvents, stripPrivateFields,
     publishMode,
     getStoredTheme, setStoredTheme, effectiveTheme, applyTheme, toggleTheme,

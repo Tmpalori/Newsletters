@@ -1015,6 +1015,12 @@ class FileStore {
     return (data.inbox_events || []).filter(e => e.id > sinceId).sort((a, b) => a.id - b.id).slice(0, limit);
   }
 
+  // Newest first, below `beforeId` (0: from the top), for the admin Inbox page.
+  async listRecentInboxEvents(beforeId = 0, limit = 50) {
+    const data = await this._read();
+    return (data.inbox_events || []).filter(e => !beforeId || e.id < beforeId).sort((a, b) => b.id - a.id).slice(0, limit);
+  }
+
   // The newest inbox event id (0 when empty): HQ compares it with its
   // cursor to notice a database that was reset.
   async latestInboxId() {
@@ -2149,6 +2155,15 @@ class PgStore {
   async listInboxEvents(sinceId = 0, limit = 200) {
     await this.ready();
     const r = await this.pool.query('SELECT * FROM inbox_events WHERE id > $1 ORDER BY id LIMIT $2', [sinceId, limit]);
+    return r.rows.map(row => ({ ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at }));
+  }
+
+  // See FileStore.listRecentInboxEvents.
+  async listRecentInboxEvents(beforeId = 0, limit = 50) {
+    await this.ready();
+    const r = beforeId
+      ? await this.pool.query('SELECT * FROM inbox_events WHERE id < $1 ORDER BY id DESC LIMIT $2', [beforeId, limit])
+      : await this.pool.query('SELECT * FROM inbox_events ORDER BY id DESC LIMIT $1', [limit]);
     return r.rows.map(row => ({ ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at }));
   }
 

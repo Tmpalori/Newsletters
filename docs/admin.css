@@ -1501,6 +1501,13 @@ code {
 .att-item__acts { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
 .att-item__acts .btn { font-size: 0.82rem; padding: 0.4rem 0.75rem; }
 .att-item__clamp { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.inbox-item__meta { color: var(--admin-muted); font-size: 0.8rem; margin-top: 0.15rem; }
+.inbox-item__fields { margin: 0.4rem 0 0; font-size: 0.84rem; display: grid; grid-template-columns: max-content 1fr; gap: 0.1rem 0.6rem; }
+.inbox-item__fields dt { color: var(--admin-muted); }
+.inbox-item__fields dd { margin: 0; overflow-wrap: anywhere; }
+.att-item__body .inbox-item__text { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--admin-border); color: var(--admin-text); white-space: pre-wrap; }
+.inbox-item--fyi { box-shadow: none; }
+.att-item__acts a.btn { text-decoration: none; }
 .all-clear { color: var(--admin-success); font-weight: 700; padding: 1rem 0; }
 .settings-done { margin-top: 1rem; }
 .settings-done summary { cursor: pointer; font-weight: 700; color: var(--admin-muted); padding: 0.5rem 0; }
