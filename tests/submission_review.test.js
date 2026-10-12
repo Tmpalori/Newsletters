@@ -47,7 +47,9 @@ async function startApp(extra = {}) {
   bundle = await createApp({
     storeBundle: { kind: 'file', store }, eventsFile, candidatesFile, trustProxy: false, now: () => NOW,
     siteUrl: 'https://www.thevic361.com', submissionReviewSecret: 'review-secret', autoPublish: false,
-    resendApiKey: 're_test', resend, adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c', ...extra
+    resendApiKey: 're_test', resend, adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c',
+    // Most tests here exercise auto-approval; the default (off) has its own test.
+    submissionAutoApprove: true, ...extra
   });
   server = http.createServer(bundle.app);
   await new Promise(r => server.listen(0, r));
@@ -162,12 +164,37 @@ describe('submission review: endpoints', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('SUBMISSION_AUTOAPPROVE=0 turns approvals into flags', async () => {
+  it('without auto-approval a free approval waits for the owner; a paid pick still goes live', async () => {
     await startApp({ submissionAutoApprove: false });
     await store.insert(row('s1'));
-    const body = await (await review([{ id: 's1', decision: 'approve', cleaned: CLEAN }])).json();
-    expect(body.done[0].decision).toBe('flag');
-    expect((await store.get('s1')).status).toBe('pending');
+    await store.insert(row('s2', { source: 'paid-feature', payload: { ...PAYLOAD, name: 'Paid Pick Night' } }));
+    const body = await (await review([{ id: 's1', decision: 'approve', cleaned: CLEAN },
+      { id: 's2', decision: 'approve', cleaned: {} }])).json();
+    expect(body.done.map(d => [d.id, d.decision])).toEqual([['s1', 'flag'], ['s2', 'approve']]);
+    const s1 = await store.get('s1');
+    expect(s1.status).toBe('pending');
+    expect(s1.admin_notes).toMatch(/ready for your OK/);
+    expect(s1.payload.name).toBe('FALL CRAFT FAIR!!!');            // the tidy-up is a suggestion until he approves
+    expect(s1.admin_notes).toMatch(/Suggested: name “Fall Craft Fair”/);
+    expect((await store.get('s2')).status).toBe('approved');
+  });
+
+  it('auto-approval is off unless SUBMISSION_AUTOAPPROVE=1', async () => {
+    const saved = process.env.SUBMISSION_AUTOAPPROVE;
+    try {
+      for (const [val, want] of [[undefined, false], ['0', false], ['1', true]]) {
+        if (val === undefined) delete process.env.SUBMISSION_AUTOAPPROVE; else process.env.SUBMISSION_AUTOAPPROVE = val;
+        await startApp({ submissionAutoApprove: undefined });
+        const r = await fetch(baseUrl + '/api/submission-review/pending', { headers: H() });
+        expect((await r.json()).auto_approve).toBe(want);
+        await bundle.submissionReview.idle();
+        await new Promise(res => server.close(res));
+        await fs.rm(tmpDir, { recursive: true, force: true });
+        server = null; tmpDir = null;
+      }
+    } finally {
+      if (saved === undefined) delete process.env.SUBMISSION_AUTOAPPROVE; else process.env.SUBMISSION_AUTOAPPROVE = saved;
+    }
   });
 
   it('an invalid cleanup is flagged instead of approved', async () => {

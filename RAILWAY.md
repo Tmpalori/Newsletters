@@ -15,8 +15,9 @@ Wednesday at 20:23 UTC with `--candidates-only` and commits `candidates.json`
 (never `docs/events.json`); that commit redeploys the service, and on boot in
 production `server/autopublish.js` publishes the upcoming candidates plus
 approved submissions into the `published_events` row. Free public
-submissions are reviewed by the AI review (`submission-review.yml`) and the
-good ones publish automatically unless `SUBMISSION_AUTOAPPROVE=0`.
+submissions are reviewed by the AI review (`submission-review.yml`); the
+good ones wait for the owner's OK unless `SUBMISSION_AUTOAPPROVE=1` (paid
+picks publish on their own).
 
 ## One-time setup
 
