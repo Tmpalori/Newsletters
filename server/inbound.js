@@ -19,6 +19,7 @@
  * Unset, the endpoint answers 503 and the reply ask stays off (newsletter.js).
  */
 
+import { burst } from './burst.js';
 import { town, VICTORIA, otherTownDomains } from './town.js';
 import crypto from 'node:crypto';
 import express from 'express';
@@ -160,6 +161,13 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
   // A hard bounce or a spam complaint about one of our emails. The `from`
   // is ours, so it says which town sent it (one Resend account can send for
   // several towns, and each town's webhook sees every event).
+  // Many in a day means a bad list or a deliverability problem (Resend can
+  // pause an account over it); a run of bad signatures, a wrong
+  // RESEND_WEBHOOK_SECRET losing every reply, bounce and complaint.
+  const bounces = burst(10, 24 * 3600 * 1000);
+  const complaints = burst(3, 24 * 3600 * 1000);
+  const badSignatures = burst(3, 3600 * 1000);
+
   async function handleDeliveryEvent(event) {
     const d = event.data || {};
     if (!isForTown([d.from].filter(Boolean), town, others)) return 'other-town';
@@ -170,6 +178,9 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
       if (typeof store.markSubscribersBounced !== 'function') return 'ignored';
       const n = await store.markSubscribersBounced(to);
       if (n) console.log(`[inbound] marked ${n} subscriber(s) bounced (hard bounce)`);
+      const many = bounces(nowFn());
+      if (many && slack) slack.alert('email-bounces', `${many} emails hard-bounced in a day`,
+        'Those addresses are off the list, but this many points at a bad import or a sending problem: check Resend → Emails for the bounce reasons.');
       return 'bounced';
     }
     if (typeof store.unsubscribeByEmail !== 'function') return 'ignored';
@@ -177,6 +188,9 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
     if (n && slack) {
       slack.notify({ title: '🚫 Spam complaint: unsubscribed', fields: [['Email', to.join(', ')], ['Subject', String(d.subject || '')]],
         text: 'They marked one of our emails as spam, so they get no more issues.' });
+      const many = complaints(nowFn());
+      if (many) slack.alert('email-complaints', `${many} spam complaints in a day`,
+        'Each one is unsubscribed. This many can get the Resend account paused: look at what went out and who it went to.');
     }
     return 'complained';
   }
@@ -216,7 +230,12 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
       const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
       const ok = verifySvix(raw, { id: req.get('svix-id'), timestamp: req.get('svix-timestamp'), signature: req.get('svix-signature') },
         config.secret, Math.floor(nowFn() / 1000));
-      if (!ok) return res.status(400).json({ ok: false, error: 'bad-signature' });
+      if (!ok) {
+        const many = badSignatures(nowFn());
+        if (many && slack) slack.alert('inbound-bad-signature', 'Resend webhooks are being refused (bad signature)',
+          `${many} in the last hour. If RESEND_WEBHOOK_SECRET in Railway doesn't match the webhook's signing secret in Resend, every email reply, bounce and complaint is lost: copy it again from Resend → Webhooks. (If nothing changed, someone may just be poking at the URL.)`);
+        return res.status(400).json({ ok: false, error: 'bad-signature' });
+      }
       let event;
       try { event = JSON.parse(raw); } catch (_) { return res.status(400).json({ ok: false, error: 'bad-json' }); }
       try {

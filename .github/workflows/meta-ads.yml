@@ -138,9 +138,12 @@ jobs:
         run: python3 scripts/meta_ads.py "$COMMAND" "$TARGET" "$AMOUNT" $FORCE $SCHEDULED
 
       - name: Tell Slack it failed
-        if: failure() && (github.event_name == 'schedule' || inputs.scheduled)
+        if: (failure() || cancelled()) && (github.event_name == 'schedule' || inputs.scheduled)
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERTS_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          # The alert also goes to the owner inbox (scripts/slack_notify.py → server/opsReport.js).
+          OPS_REPORT_URL: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+          OPS_REPORT_SECRET: ${{ secrets.OPS_REPORT_SECRET || secrets.SUBMISSION_REVIEW_SECRET || secrets.EVENT_CHECK_SECRET || secrets.NEWSLETTER_CRON_SECRET }}
           # Set by meta_ads.py when Meta refused the API version, so the
           # alert names the version instead of blaming the token.
           ALERT: ${{ steps.ads.outputs.alert }}

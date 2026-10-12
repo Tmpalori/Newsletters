@@ -48,6 +48,7 @@
 import { town, dollars, VICTORIA } from './town.js';
 import crypto from 'node:crypto';
 import { ipKey } from './rateLimit.js';
+import { burst } from './burst.js';
 import express from 'express';
 import {
   AD_PACKAGES, escHtml, safeUrl, localDateStr, currentWeek, addDays, formatDay, layout,
@@ -1986,11 +1987,24 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   }
 
   // Must be registered before express.json: the signature covers raw bytes.
+  // A run of refused webhooks: a wrong STRIPE_WEBHOOK_SECRET loses every
+  // payment event (Stripe retries for days, then gives up).
+  const refusedHooks = burst(3, 3600 * 1000);
+  function hookRefused(why) {
+    const many = refusedHooks(+nowFn());
+    if (many && slack) slack.alert('stripe-webhook-refused', `Stripe webhooks are being refused (${why})`,
+      `${many} in the last hour. Payments still go through, but the site doesn't hear about them (no confirmation, no Pick on the site). ` +
+      'Check STRIPE_WEBHOOK_SECRET in Railway against the webhook\'s signing secret in Stripe → Developers → Webhooks. (If nothing changed, someone may just be poking at the URL.)', `${siteUrl}/admin.html`);
+  }
   function registerWebhook(app) {
     app.post('/api/stripe/webhook', express.raw({ type: '*/*', limit: '256kb' }), async (req, res) => {
-      if (!config.webhookSecret) return res.status(503).json({ ok: false, error: 'not-configured' });
+      if (!config.webhookSecret) {
+        hookRefused('STRIPE_WEBHOOK_SECRET not set');
+        return res.status(503).json({ ok: false, error: 'not-configured' });
+      }
       const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
       if (!verifyStripeSignature(raw, req.get('stripe-signature'), config.webhookSecret)) {
+        hookRefused('bad signature');
         return res.status(400).json({ ok: false, error: 'bad-signature' });
       }
       let event;

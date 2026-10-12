@@ -1015,6 +1015,13 @@ class FileStore {
     return (data.inbox_events || []).filter(e => e.id > sinceId).sort((a, b) => a.id - b.id).slice(0, limit);
   }
 
+  // The newest inbox event id (0 when empty): HQ compares it with its
+  // cursor to notice a database that was reset.
+  async latestInboxId() {
+    const data = await this._read();
+    return (data.inbox_events || []).reduce((m, e) => Math.max(m, e.id), 0);
+  }
+
   async getInboxEvent(id) {
     const data = await this._read();
     return (data.inbox_events || []).find(e => e.id === Number(id)) || null;
@@ -2143,6 +2150,13 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT * FROM inbox_events WHERE id > $1 ORDER BY id LIMIT $2', [sinceId, limit]);
     return r.rows.map(row => ({ ...row, id: Number(row.id), created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at }));
+  }
+
+  // See FileStore.latestInboxId.
+  async latestInboxId() {
+    await this.ready();
+    const r = await this.pool.query('SELECT COALESCE(MAX(id), 0) AS id FROM inbox_events');
+    return Number(r.rows[0].id);
   }
 
   async getInboxEvent(id) {

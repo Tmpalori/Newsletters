@@ -64,7 +64,10 @@ jobs:
             --all-days
 
       - name: Tell Slack it failed
-        if: failure()
+        if: failure() || cancelled()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_ALERTS_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
+          # The alert also goes to the owner inbox (scripts/slack_notify.py → server/opsReport.js).
+          OPS_REPORT_URL: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+          OPS_REPORT_SECRET: ${{ secrets.OPS_REPORT_SECRET || secrets.SUBMISSION_REVIEW_SECRET || secrets.EVENT_CHECK_SECRET || secrets.NEWSLETTER_CRON_SECRET }}
         run: python3 scripts/slack_notify.py "🚨 Weekly digest email failed" --link "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

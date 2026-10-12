@@ -187,6 +187,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
   checkTownSchedule(jobs);
   const memory = new Map(); // job → last in-memory slot
   const busy = new Set();
+  const failStreak = new Map(); // repeating job → failed runs in a row
   const state = { dispatchBlocked: null, lastTick: null };
   let timer = null;
 
@@ -284,6 +285,17 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
           memory.set(job.name, slot);
           const out = await runJob(job, now);
           if (!out.ok) log.warn(`[scheduler] ${job.name} ${slot}:`, out.message || out.error || '');
+          // Failing an hour straight (4 runs of a 15-minute job) is broken,
+          // not a blip: once, and a note when it works again.
+          const n = out.ok ? 0 : (failStreak.get(job.name) || 0) + 1;
+          const was = failStreak.get(job.name) || 0;
+          failStreak.set(job.name, n);
+          if (slack && !out.final && n === Math.max(2, Math.ceil(60 / job.every))) {
+            slack.alert(`scheduler-${job.name}-streak`, `Scheduled ${job.name} keeps failing`,
+              `${n} runs in a row: ${String(out.message || out.error || 'unknown error')}`, `${siteUrl}/admin.html`);
+          } else if (slack && out.ok && was >= Math.max(2, Math.ceil(60 / job.every))) {
+            slack.notify({ title: `✅ Scheduled ${job.name} working again`, text: `After ${was} failed runs.`, channel: 'alerts' });
+          }
         }
       } catch (err) {
         log.warn(`[scheduler] ${job.name} failed:`, err.message);
