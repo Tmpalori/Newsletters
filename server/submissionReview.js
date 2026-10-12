@@ -214,6 +214,32 @@ export function applyCleanup(payload, cleaned) {
   return { payload: out, changes };
 }
 
+// The review script's research (scripts/review_submissions.py
+// research_one): suggested address, end time and link for what the
+// submitter left out, with https sources. Anything malformed is dropped;
+// null when nothing is left.
+const HTTPS = /^https:\/\/[^\s/]+\.[^\s]+$/;
+export function cleanResearch(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+  const out = {};
+  const addr = String(r.address || '').replace(/\s+/g, ' ').trim();
+  if (addr.length >= 5 && addr.length <= 200) out.address = addr;
+  const end = String(r.end_time || '').trim();
+  if (/^(1[0-2]|0?[1-9]):[0-5]\d (AM|PM)$/.test(end)) out.end_time = end;
+  const url = String(r.url || '').trim();
+  if (HTTPS.test(url) && url.length <= 500) out.url = url;
+  if (!Object.keys(out).length) return null;
+  out.sources = (Array.isArray(r.sources) ? r.sources : []).map(u => String(u || '').trim())
+    .filter(u => HTTPS.test(u) && u.length <= 500).slice(0, 5);
+  const note = String(r.note || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (note) out.note = note;
+  return out;
+}
+export function researchLine(r) {
+  return [r.address && `address “${r.address}”`, r.end_time && `ends ${r.end_time}`, r.url && `link ${r.url}`]
+    .filter(Boolean).join('; ') + (r.sources.length ? ` (sources: ${r.sources.join(', ')})` : '');
+}
+
 // onRun: called (not awaited) on each authenticated pending fetch; the
 // server hangs the sponsor reports on it, since this is its 15-minute cron.
 // Returns { idle } (the upkeep run in flight, for tests).
@@ -328,11 +354,16 @@ export function registerSubmissionReview(app, { store, secret, nowFn, autoApprov
         const at = nowFn().toISOString();
         const history = [...(Array.isArray(row.review_history) ? row.review_history : []),
           { at, action: STATUS[decision] ? `status:${STATUS[decision]}` : 'ai-flag', note: `AI review: ${note || LABEL[decision]}`.slice(0, 500) }];
-        const aiNote = `AI review (${LABEL[decision].toLowerCase()}): ${note || 'no notes'}`;
+        // Web research's suggestions for missing details: kept for the
+        // owner (and HQ), never applied here.
+        const research = decision === 'reject' || decision === 'duplicate' ? null : cleanResearch(ask.research);
+        const aiNote = `AI review (${LABEL[decision].toLowerCase()}): ${note || 'no notes'}` +
+          (research ? `\nResearch suggests: ${researchLine(research)}` : '');
         const patch = {
           review_history: history,
           admin_notes: [row.admin_notes, aiNote].filter(Boolean).join('\n').slice(0, 2000),
-          ai_review: { at, decision, reason: note, changes, original: changes.length ? row.payload : null }
+          ai_review: { at, decision, reason: note, changes, original: changes.length ? row.payload : null,
+            ...(research ? { research } : {}) }
         };
         if (STATUS[decision]) patch.status = STATUS[decision];
         if (decision === 'approve') patch.payload = payload;
