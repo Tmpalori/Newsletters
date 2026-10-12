@@ -52,3 +52,25 @@ describe('GitHub API timeouts', () => {
     expect(out.code).toBe('timeout');
   });
 });
+
+describe('which repo', () => {
+  const KEYS = ['GITHUB_OWNER', 'GITHUB_REPO', 'RAILWAY_GIT_REPO_OWNER', 'RAILWAY_GIT_REPO_NAME'];
+  const withEnv = (env, fn) => {
+    const saved = Object.fromEntries(KEYS.map(k => [k, process.env[k]]));
+    for (const k of KEYS) delete process.env[k];
+    Object.assign(process.env, env);
+    try { return fn(); } finally { for (const k of KEYS) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } }
+  };
+
+  it('follows the repo Railway deployed from, so a rename needs no variable', () => {
+    const gh = withEnv({ RAILWAY_GIT_REPO_OWNER: 'Tmpalori', RAILWAY_GIT_REPO_NAME: 'newsletters' }, () => createGithub({ token: 't' }));
+    expect([gh.owner, gh.repo]).toEqual(['Tmpalori', 'newsletters']);
+  });
+
+  it('GITHUB_* still win, and without either it is Tmpalori/thevic361', () => {
+    const set = withEnv({ GITHUB_REPO: 'other', RAILWAY_GIT_REPO_NAME: 'newsletters', RAILWAY_GIT_REPO_OWNER: '' }, () => createGithub({ token: 't' }));
+    expect([set.owner, set.repo]).toEqual(['Tmpalori', 'other']);
+    const none = withEnv({}, () => createGithub({ token: 't' }));
+    expect([none.owner, none.repo]).toEqual(['Tmpalori', 'thevic361']);
+  });
+});
