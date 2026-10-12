@@ -256,3 +256,26 @@ describe('submit form: live preview and site icons', () => {
   });
 });
 
+
+// The real page has <meta name="description"> in <head>. bootDom() above only
+// loads <body>, which hid a bug where collectForm() read the meta tag instead
+// of the textarea and every submission failed "Description is required."
+describe('submit.js with the real <head> in the page', () => {
+  it('reads the description textarea, not <meta name="description">', () => {
+    const headMatch = HTML.match(/<head>([\s\S]*?)<\/head>/);
+    const api = bootDom();
+    document.head.innerHTML = (headMatch ? headMatch[1] : '').replace(/<script[\s\S]*?<\/script>/g, '');
+    expect(document.querySelector('meta[name="description"]')).not.toBeNull();
+    api.populateTimeSelects();
+    const set = (n, v) => { document.querySelector(`#submit-form [name="${n}"]`).value = v; };
+    set('name', 'Early Voting'); set('date', '2026-10-20'); set('time', '8:00 AM');
+    set('venue', 'Victoria County Courthouse'); set('address', '101 N Bridge St');
+    set('description', 'Early voting for the November election.');
+    set('submitter_first_name', 'Pat'); set('submitter_last_name', 'Lee');
+    set('submitter_email', 'pat@example.com'); set('submitter_phone', '(361) 555-0123');
+    document.querySelector('input[name="free"][value="true"]').checked = true;
+    const out = api.collectForm();
+    expect(out.description).toBe('Early voting for the November election.');
+    expect(api.checkForm(out)).toEqual({});
+  });
+});
