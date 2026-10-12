@@ -1,237 +1,208 @@
 {
- "2026-10-07|comedy night in victoria w crux crawford|moonshine drinkery": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-07|country|starlight dance studio": {
-  "checked": "2026-10-07",
+ "2026-10-11|champagne sundaze hallo queen drag loteria 2026|moonshine drinkery": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Starlight Dance Studio is hosting a Country dance event on Wednesday, October 7th."
+   "description": "Grab your friends & some cash for a Sunday of joy, drag, and loteria! Come enjoy a special Hallo-queen drag brunch featuring loteria! Individual tickets are $30 each including your brunch."
   }
  },
- "2026-10-07|create a fall cryptid|crossroads art house": {
-  "checked": "2026-10-07",
+ "2026-10-11|champagne sundaze halloqueeen drag brunch|moonshine drinkery": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Create a Fall Cryptid at Crossroads Art House. This event is happening on Wednesday, October 7th."
+   "description": "Champagne Sundaze HalloQUEEEN Drag Brunch will be held at Moonshine Drinkery, featuring drag performances, loteria, and a Jamaican brunch. Tickets are $30 per person, including brunch, with table and couch section opt…"
   }
  },
- "2026-10-07|elizabeth payne paintings 1972 2026 roy fridge curious arts and other whittlings|five points museum of contemporary art": {
-  "checked": "2026-10-07",
+ "2026-10-11|coming out shouldn t be spooky celebration|mitchell event annex": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-11|cuero turkeyfest|downtown cuero": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-11|live band karaoke|moonshine drinkery": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-11|open pickleball|victoria recreation center": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-11|sunday brunch at j welch farms|j welch farms": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Two solo exhibitions, 'Elizabeth Payne: Paintings, 1972-2026' and 'Roy Fridge: Curious Arts and Other Whittlings', are on display at the Five Points Museum of Contemporary Art. The exhibitions run from August 29 to Oc…",
-   "url": "https://www.fivepointsmuseum.com/"
+   "description": "Sunday brunch at the farm. Reservations: 361-412-7677."
   }
  },
- "2026-10-07|karaoke cantina night|la cantina tacos tequila": {
-  "checked": "2026-10-07",
+ "2026-10-11|sunday brunch|the pumphouse riverside restaurant bar": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|midweek market|victoria farmers market": {
-  "checked": "2026-10-07",
+ "2026-10-11|terror on tate road|outlaw pass family fun center": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|super mario galaxy fire prevention show|victoria fine arts center": {
-  "checked": "2026-10-07",
+ "2026-10-12|early dine|texas roadhouse": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|varra wednesday night run|riverside stadium parking lot": {
-  "checked": "2026-10-07",
+ "2026-10-12|victoria texas historic mystery|deleon city plaza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-15|henry emiliano live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-15|story strolls audiobook walking group|riverside park": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-15|vida caf market x 1824 club pumpkin event|vida caf market": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-16|jessica coleman music live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|caturday halloween month|petsmart": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|chess club|victoria public library": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|halloween havoc|": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|melissa ann live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|riverside oaks trunk or treat|riverside oaks": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|trunk or treat by denny s la quinta|parking lot between denny s and la quinta": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-19|kids night at texas roadhouse|texas roadhouse": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-21|froggy s trivia night halloween edition|froggy s grub pub": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-22|austin attilio live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-22|story strolls audiobook walking group|riverside park": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-23|mercy house trunk or treat|mercy house": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-23|vpd navarro walmart trunk or treat|walmart n navarro": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "The Victoria Area Road Runners Association (VARRA) holds a Wednesday night group run/walk at 6:30 PM at the Riverside Stadium Parking Lot. This is a free event open to all levels.",
-   "url": "https://runsignup.com/MemberOrg/VictoriaAreaRoadRunnersAssociation",
-   "time": "6:30 PM"
+   "description": "Furniture Hutt invites the community to its 5th Annual Trunk-or-Treat, a free evening of Halloween fun featuring candy, decorated trunks, a bounce house, music, and costumes. Local businesses and organizations are inv…"
   }
  },
- "2026-10-07|victoria farmers market|victoria farmers market": {
-  "checked": "2026-10-07",
+ "2026-10-23|zachary grant live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|wednesday market|victoria farmers market": {
-  "checked": "2026-10-07",
+ "2026-10-24|bella moo s spooktacular cookie decorating class|bella moo s": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|weekly karaoke|casa jalisco": {
-  "checked": "2026-10-07",
+ "2026-10-24|breckenridge spooktacular carnival|breckenridge": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|well appointed wednesdays|": {
-  "checked": "2026-10-07",
+ "2026-10-24|caturday halloween month|petsmart": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-07|wildcard wednesdays|weber brewing": {
-  "checked": "2026-10-07",
+ "2026-10-24|chess club|victoria public library": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|ballroom|starlight dance studio": {
-  "checked": "2026-10-07",
+ "2026-10-24|first united methodist church pumpkin fest|first united methodist church": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|dine to donate for the calhoun high school band|texas roadhouse": {
-  "checked": "2026-10-07",
+ "2026-10-24|goliad scare on the square|goliad courthouse square": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|elizabeth payne paintings 1972 2026 roy fridge curious arts and other whittlings|five points museum of contemporary art": {
-  "checked": "2026-10-07",
+ "2026-10-24|holy mountain baptist church fall festival|holy mountain baptist church": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|finding nemo jr|leo j welder center for the performing arts": {
-  "checked": "2026-10-07",
+ "2026-10-24|jessica coleman music live|evan s fire brick oven pizza": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-24|magic tejano 95 5 trunk or treat|pattie dodson health center parking lot": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-24|mccoy s kids craft trick or treat bucket|mccoy s building supply": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-24|mid coast family costume day|victoria mall": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-24|night at the witches grove the awakening|": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-24|trick or treat bag workshop|flocking fabulous iggy s": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-31|boo fest|downtown port lavaca": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-31|d a de los muertos community event|the nave museum": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Theatre Victoria Youth Troupe presents Disney's Finding Nemo JR., a joyful, family-friendly musical that follows Marlin and his adventurous son Nemo on a journey across the ocean. Tickets are available for purchase, w…"
+   "description": "Spend a fun, free community afternoon at The Nave Museum. Everyone is invited to make six different Día arts and crafts, like skull masks and sugar skull decorations. Live entertainment and dancers from Ballet Folklor…"
   }
  },
- "2026-10-08|henry emiliano live|evan s fire brick oven pizza": {
-  "checked": "2026-10-07",
+ "2026-10-31|victoria malloween|victoria mall": {
+  "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-11-07|hasta los huesos fest|deleon plaza": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Henry Emiliano will perform live music at Evan's Fire Brick Oven Pizza."
+   "description": "Hasta Los Huesos is a celebration of Hispanic culture with a Dia De Los Muertos theme, featuring local artists and vendors, and music by DJ Guero. More details are coming soon."
   }
  },
- "2026-10-08|once upon a plant mixer with scenic root|moonshine drinkery": {
-  "checked": "2026-10-07",
+ "2026-11-14|christmas at the crossroads vendor market|": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|open mic|weber brewing": {
-  "checked": "2026-10-07",
+ "2026-12-04|port lavaca christmas parade|downtown port lavaca": {
+  "checked": "2026-10-11",
   "found": {}
  },
- "2026-10-08|open studio|crossroads art house": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|plant and sip with scenic root|moonshine drinkery": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|pre k race visd|victoria public library": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|scream by munch study|crossroads art house": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|story strolls audiobook walking group|riverside park": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|the scream by edvard munch study|crossroads art house": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-08|weekly karaoke|dodge city saloon": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|aaron boultinghouse music|weber brewing": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|aaron boultinghouse|weber brewing": {
-  "checked": "2026-10-07",
+ "2027-01-09|victoria fan fest|victoria community center": {
+  "checked": "2026-10-11",
   "found": {
-   "description": "Aaron Boultinghouse Music is scheduled to perform at Weber Brewing on Friday, October 9th."
+   "description": "Victoria Fan Fest is a weekend of Anime, Comics, Sci-Fi, Gaming, and Cosplay, offering fun for the whole family."
   }
- },
- "2026-10-09|cuero turkeyfest|downtown cuero": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "Cuero's 53rd Annual Turkeyfest is a three-day event from October 9th to 11th, 2026, featuring live music, a carnival, a parade, and the Great Gobbler Gallop turkey race. On Thursday, October 9th, the carnival opens fr…",
-   "url": "https://turkeyfest.org/",
-   "time": "5:00 PM – 10:00 PM"
-  }
- },
- "2026-10-09|finding nemo jr|leo j welder center for the performing arts": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "Live theatre: Theatre Victoria presents Disney's Finding Nemo Jr. with performance dates from October 8-10, 2026. Tickets can be purchased at theatrevictoria.org.",
-   "url": "https://theatrevictoria.org/season/2027season/nemo.htm",
-   "time": "7:30 PM",
-   "address": "214 N. Main St., Victoria, TX"
-  }
- },
- "2026-10-09|friday happy hour|evan s fire brick oven pizza": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|i want to talk about you the art of stella alesi|the nave museum": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|i want to talk about you|the nave museum": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "The Nave Museum presents the exhibition 'I want to talk about you,' which will be showing from October 9th to December 1st."
-  }
- },
- "2026-10-09|jessica coleman music live|evan s fire brick oven pizza": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|live band karaoke|moonshine drinkery": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "Moonshine Drinkery hosts Live Band Karaoke, a fan-favorite event with the All Request Piano crew. The event is scheduled for Friday, October 9th."
-  }
- },
- "2026-10-09|open studio|crossroads art house": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|practice party|starlight dance studio": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-09|terror on tate road|outlaw pass family fun center": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "Terror on Tate Road is a brand-new haunted house and haunted hayride at Outlaw Pass Family Fun Center, running Fridays, Saturdays, and Sundays through October 2026. Gates open at 7:00 PM, with the last tickets sold at…",
-   "url": "https://terrorontate.com/",
-   "time": "7:00 PM – 11:00 PM",
-   "address": "78 Tate Rd., Victoria, TX 77904"
-  }
- },
- "2026-10-10|caturday spooktacular|petsmart": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|cuero turkeyfest|downtown cuero": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|delphine s dream|palapa": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|jcpenney kids craft|jcpenney": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "Free kids craft event at JCPenney's Kids Zone to create a Dalmatian Fireman. Kids receive a free craft, ID badge, lanyard, and collector's pin, and parents get a 10% off coupon.",
-   "url": "https://www.jcpenney.com/dotcom/store-details/TX/Victoria/8106-N-NAVARRO-ST-1740.html"
-  }
- },
- "2026-10-10|legacy of hope fundraising banquet|texas a m university victoria": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|spooky starry night|crossroads art house": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|terror on tate road|outlaw pass family fun center": {
-  "checked": "2026-10-07",
-  "found": {
-   "description": "A brand-new haunted house and haunted hayride at Outlaw Pass Family Fun Center. It runs Fridays, Saturdays, and Sundays through October 2026. Tickets can be purchased online or in person at the ticket booth.",
-   "url": "https://terrorontate.com/",
-   "time": "7:00 PM – 11:00 PM",
-   "address": "78 Tate Rd., Victoria, TX"
-  }
- },
- "2026-10-10|train rides|the texas zoo": {
-  "checked": "2026-10-07",
-  "found": {}
- },
- "2026-10-10|world teachers day|children s discovery museum": {
-  "checked": "2026-10-07",
-  "found": {}
  }
 }
