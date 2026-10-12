@@ -188,3 +188,23 @@ describe('privacy', () => {
     expect((await store.listInboxEvents(0)).map(e => e.title)).toEqual(['y']);
   });
 });
+
+describe('GET /api/admin/inbox', () => {
+  it('lists the inbox newest first for a signed-in admin, paging back with ?before', async () => {
+    await start();
+    for (let i = 1; i <= 52; i++) await store.addInboxEvent({ channel: 'inbox', severity: 'today', kind: 'email', title: `📬 Email from r${i}@example.com`, payload: { fields: [], text: `hi ${i}`, link: null } });
+    expect((await get('/api/admin/inbox')).status).toBe(401);
+    expect((await get('/api/admin/inbox', `Bearer ${KEY}`)).status).toBe(401);          // the HQ key isn't an admin session
+    const login = await (await fetch(base + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'a', password: 'b' }) })).json();
+    const first = await (await get('/api/admin/inbox', `Bearer ${login.token}`)).json();
+    expect(first.ok).toBe(true);
+    expect(first.more).toBe(true);
+    expect(first.events).toHaveLength(50);
+    expect(first.events[0].payload.text).toBe('hi 52');
+    const last = first.events[first.events.length - 1].id;
+    const older = await (await get(`/api/admin/inbox?before=${last}`, `Bearer ${login.token}`)).json();
+    expect(older.more).toBe(false);
+    expect(older.events.map(e => e.payload.text)).toEqual(['hi 2', 'hi 1']);
+  });
+});

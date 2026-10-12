@@ -2607,6 +2607,18 @@ export async function createApp(opts = {}) {
     res.json({ ok: true, checks, status, site_url: siteUrl });
   });
 
+  // The admin Inbox page: every owner ping (server/inbox.js), newest first,
+  // so an email reply or an alert is readable here and not only in Slack or HQ.
+  // ?before=<id> pages back.
+  app.get('/api/admin/inbox', requireAdmin, async (req, res, next) => {
+    try {
+      const before = /^\d{1,15}$/.test(String(req.query.before || '')) ? Number(req.query.before) : 0;
+      const limit = 50;
+      const events = typeof store.listRecentInboxEvents === 'function' ? await store.listRecentInboxEvents(before, limit + 1) : [];
+      res.set('Cache-Control', 'no-store').json({ ok: true, events: events.slice(0, limit), more: events.length > limit });
+    } catch (err) { next(err); }
+  });
+
   // HQ dashboard feed (server/hq.js): off (404) unless HQ_API_KEY is set.
   registerHq(app, {
     key: opts.hqApiKey ?? (process.env.HQ_API_KEY || '').trim(),
