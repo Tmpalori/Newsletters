@@ -58,7 +58,7 @@ describe('pieces', () => {
     expect(replyLink('https://www.thevic361.com', { to: 'a@b.com', subject: 'Hello', ref: '<x@y>' }))
       .toBe('https://www.thevic361.com/admin.html#reply?to=a%40b.com&subject=Re%3A+Hello&ref=%3Cx%40y%3E');
     const r = renderReply('Thanks!\n\nSee you there <3', 'https://www.thevic361.com');
-    expect(r.text).toBe('Thanks!\n\nSee you there <3\n\n— The Vic 361\nwww.thevic361.com');
+    expect(r.text).toBe('Thanks!\n\nSee you there <3\n\nTristen\nThe Vic 361 · www.thevic361.com');
     expect(r.html).toContain('See you there &lt;3');
   });
 
@@ -209,7 +209,7 @@ describe('the endpoints', () => {
     expect(sends).toHaveLength(1);
     expect(sends[0]).toMatchObject({ from: 'The Vic 361 <news@thevic361.com>', to: ['mary@gmail.com'], subject: 'Re: This week Bcc: x',
       headers: { 'In-Reply-To': '<abc@mail.gmail.com>', References: '<abc@mail.gmail.com>' } });
-    expect(sends[0].text).toContain('We’ll add more music!\n\n— The Vic 361');
+    expect(sends[0].text).toContain('We’ll add more music!\n\nTristen\nThe Vic 361');
     expect(pings.at(-1).title).toBe('↩️ Replied to mary@gmail.com');
   });
 

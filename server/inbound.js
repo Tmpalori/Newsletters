@@ -97,14 +97,18 @@ export function replyLink(siteUrl, { to, subject = '', ref = '' }) {
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // A personal reply: plain text and a plain HTML twin (no newsletter
-// design, so it reads like a person wrote it), signed The Vic 361.
+// design, so it reads like a person wrote it), signed with Tristen's first
+// name only and the town: he approves every reply, from the admin reply box
+// or through HQ.
+export const REPLY_SIGNER = 'Tristen';
+
 export function renderReply(text, siteUrl) {
   const body = String(text).replace(/\r\n/g, '\n').trim();
-  const sig = `${town.siteName}\n${siteUrl.replace(/^https?:\/\//, '')}`;
+  const host = siteUrl.replace(/^https?:\/\//, '');
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1F1A3D;">` +
     body.split(/\n{2,}/).map(par => `<p style="margin:0 0 12px;">${escHtml(par).replace(/\n/g, '<br>')}</p>`).join('') +
-    `<p style="margin:16px 0 0;color:#5B5675;">— ${town.siteName}<br><a href="${escHtml(siteUrl)}" style="color:#4B3FD1;">${escHtml(siteUrl.replace(/^https?:\/\//, ''))}</a></p></div>`;
-  return { html, text: `${body}\n\n— ${sig}` };
+    `<p style="margin:16px 0 0;color:#5B5675;">${REPLY_SIGNER}<br>${escHtml(town.siteName)} · <a href="${escHtml(siteUrl)}" style="color:#4B3FD1;">${escHtml(host)}</a></p></div>`;
+  return { html, text: `${body}\n\n${REPLY_SIGNER}\n${town.siteName} · ${host}` };
 }
 
 // Replies about money (Vic's Picks, sponsor weeks, refunds) get a 💰. The

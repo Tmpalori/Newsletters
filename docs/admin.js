@@ -167,7 +167,7 @@
     const reply = document.getElementById('reply-title');
     if (reply) reply.textContent = 'Reply as news@' + t.domain;
     const hint = document.querySelector('#reply-modal .event-edit-form__hint');
-    if (hint && /^Signed /.test(hint.textContent)) hint.textContent = 'Signed “— ' + t.siteName + '”. Their answer comes back to Slack.';
+    if (hint && /^Signed /.test(hint.textContent)) hint.textContent = 'Signed “Tristen, ' + t.siteName + '”. Their answer comes back to Slack.';
   }
 
   // Midnight (local clock) of today's date in the town, whatever zone the
