@@ -34,7 +34,7 @@ describe('Victoria (config without a town)', () => {
     expect(api.repo()).toEqual({ owner: 'Tmpalori', name: 'thevic361', branch: 'main', eventsPath: 'docs/events.json', candidatesPath: 'candidates.json' });
     expect(document.title).toBe('Admin — The Vic 361');
     expect(document.getElementById('reply-title').textContent).toBe('Reply as news@thevic361.com');
-    expect(document.querySelector('#reply-modal .event-edit-form__hint').textContent).toBe('Signed “— The Vic 361”. Their answer comes back to Slack.');
+    expect(document.querySelector('#reply-modal .event-edit-form__hint').textContent).toBe('Signed “Tristen, The Vic 361”. Their answer comes back to Slack.');
   });
 });
 
@@ -49,7 +49,7 @@ describe('another town', () => {
     expect(api.repo()).toEqual({ owner: 'Tmpalori', name: 'thebay979', branch: 'live', eventsPath: 'towns/bay/public/events.json', candidatesPath: 'towns/bay/candidates.json' });
     expect(document.title).toBe('Admin — The Bay 979');
     expect(document.getElementById('reply-title').textContent).toBe('Reply as news@thebay979.com');
-    expect(document.querySelector('#reply-modal .event-edit-form__hint').textContent).toContain('— The Bay 979');
+    expect(document.querySelector('#reply-modal .event-edit-form__hint').textContent).toContain('Tristen, The Bay 979');
     const ev = { name: 'Fish Fry', date: '2026-05-08', time: '6:00 PM', venue: 'Hall' };
     api._state.candidates = [ev];
     api._state.selected = new Set([api.eventKey(ev)]);

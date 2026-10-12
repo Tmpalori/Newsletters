@@ -158,7 +158,7 @@ describe('a second town', () => {
       expect(all).toMatch(/The Bay 979|thebay979\.com/);
     }
     expect(leaks(renderReferralRules({ siteUrl: site }))).toEqual([]);
-    expect(renderReply('Thanks!', site).text).toBe('Thanks!\n\n— The Bay 979\nwww.thebay979.com');
+    expect(renderReply('Thanks!', site).text).toBe('Thanks!\n\nTristen\nThe Bay 979 · www.thebay979.com');
   });
 });
 
