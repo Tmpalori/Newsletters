@@ -34,7 +34,7 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary } from './hq.js';
+import { registerHq, buildSummary, keyOk } from './hq.js';
 import { registerOpsReport } from './opsReport.js';
 import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
@@ -751,16 +751,21 @@ export async function createApp(opts = {}) {
   // can include in the next publish (the existing GitHub-API publish flow on
   // docs/admin.html still owns the actual events.json write).
   app.post('/api/admin/submissions/:id', requireAdmin, wrap(async (req, res) => {
-    const row = await store.get(req.params.id);
-    if (!row) return res.status(404).json({ ok: false, error: 'not-found' });
+    const out = await decideSubmission(req.params.id, req.body || {});
+    res.status(out.code).json(out.json);
+  }));
 
-    const body = req.body || {};
+  // The admin's edit/decision on one submission, shared with HQ's
+  // POST /api/hq/submissions/:id (`via: 'hq'`, recorded in the history).
+  // Answers { code, json } for the route to send.
+  async function decideSubmission(id, body, { via = '' } = {}) {
+    const row = await store.get(id);
+    if (!row) return { code: 404, json: { ok: false, error: 'not-found' } };
+
     const patch = {};
     const ALLOWED = new Set(['pending', 'approved', 'rejected', 'duplicate']);
     if (body.status !== undefined) {
-      if (!ALLOWED.has(body.status)) {
-        return res.status(400).json({ ok: false, error: 'bad-status' });
-      }
+      if (!ALLOWED.has(body.status)) return { code: 400, json: { ok: false, error: 'bad-status' } };
       patch.status = body.status;
     }
     if (body.payload !== undefined) {
@@ -772,7 +777,7 @@ export async function createApp(opts = {}) {
       // when a value is present. The row-level submitter_email and
       // submitter_name are preserved by leaving them out of the patch.
       const v = validateSubmission(body.payload, { adminEdit: true });
-      if (!v.ok) return res.status(400).json({ ok: false, errors: v.errors });
+      if (!v.ok) return { code: 400, json: { ok: false, errors: v.errors } };
       patch.payload = normalizePayload(v.data.payload);
     }
     if (typeof body.admin_notes === 'string') {
@@ -785,6 +790,7 @@ export async function createApp(opts = {}) {
       at: nowIso(),
       action: patch.status ? ('status:' + patch.status) : 'edit',
       note: typeof body.note === 'string' ? body.note.slice(0, 500) : '',
+      ...(via ? { via } : {}),
       // The key it had before this edit, so a later un-approve can still
       // find the live event if it kept the old one.
       ...(rekeyed ? { prev_key: oldKey } : {})
@@ -794,7 +800,7 @@ export async function createApp(opts = {}) {
     const now = (opts.now || (() => new Date()))();
     const wasApproved = row.status === 'approved';
     const isApproved = (patch.status || row.status) === 'approved';
-    const updated = await store.update(req.params.id, patch);
+    const updated = await store.update(id, patch);
     const result = { ok: true, submission: updated, unpublished: false };
 
     // Editing an approved (live) submission updates the live event too.
@@ -862,8 +868,8 @@ export async function createApp(opts = {}) {
       result.published = res2.published;
       result.live = res2.live[0];
     }
-    res.json(result);
-  }));
+    return { code: 200, json: result };
+  }
 
   // ─── Admin: candidates fetch ──────────────────────────────────────────
   // Tries GitHub first (so the editor sees the latest candidates.json), then
@@ -2098,6 +2104,48 @@ export async function createApp(opts = {}) {
   }
   inbound.registerHqReply(app, { key: hqReplyOn ? hqReplyKey : '', resend: nlResend, from: newsletter.from, clientKey,
     limiter: opts.hqReplyLimiter || createRateLimiter({ windowMs: 60 * 1000, max: 10 }) });
+
+  // Submissions through HQ, with the same key: the owner's assistant reads
+  // them in full, edits them and decides them like the admin Submissions
+  // tab (decideSubmission: approving publishes and emails the submitter).
+  // Nothing else in the admin opens with this key. Off with HQ_REPLY_KEY.
+  if (hqReplyOn) {
+    const hqSubLimiter = opts.hqSubmissionsLimiter || createRateLimiter({ windowMs: 60 * 1000, max: 30 });
+    const hqGate = (req, res, next) => {
+      if (!hqSubLimiter.check(`hq-sub:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
+      if (!keyOk(req.get('authorization'), hqReplyKey)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+      res.set('Cache-Control', 'no-store');
+      next();
+    };
+    // The row as the admin sees it, minus what only spam checks need.
+    const forHq = r => {
+      const { submitter_ip, user_agent, ...rest } = r;
+      return rest;
+    };
+    app.get('/api/hq/submissions', hqGate, wrap(async (req, res) => {
+      const status = typeof req.query.status === 'string' && req.query.status ? req.query.status : 'pending';
+      const rows = status === 'all' ? await store.list({}) : await store.list({ status });
+      res.json({ ok: true, status, submissions: rows.slice(0, 100).map(forHq) });
+    }));
+    app.get('/api/hq/submissions/:id', hqGate, wrap(async (req, res) => {
+      const row = await store.get(req.params.id);
+      if (!row) return res.status(404).json({ ok: false, error: 'not-found' });
+      res.json({ ok: true, submission: forHq(row) });
+    }));
+    // Body: { status?, payload?, note? }, as in the admin route.
+    app.post('/api/hq/submissions/:id', hqGate, wrap(async (req, res) => {
+      const body = req.body || {};
+      const out = await decideSubmission(req.params.id, { status: body.status, payload: body.payload, note: body.note }, { via: 'hq' });
+      if (out.code === 200 && out.json.submission) {
+        out.json.submission = forHq(out.json.submission);
+        const name = (out.json.submission.payload || {}).name || 'a submission';
+        slack.notify({ channel: 'activity', title: body.status ? `📋 ${name} marked ${body.status} through HQ` : `📋 ${name} edited through HQ`,
+          ...(out.json.live === undefined ? {} : { text: out.json.live ? 'It is live on the site.' : 'It is not on the site yet.' }),
+          link: `${siteUrl}/admin.html` });
+      }
+      res.status(out.code).json(out.json);
+    }));
+  }
 
   sponsors.registerRoutes(app, { requireAdmin, createRateLimiter, sendHtml, verifyHuman, analyticsSecret });
 
