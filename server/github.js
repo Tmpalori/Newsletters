@@ -10,8 +10,11 @@
  * Configured by env (defaults match the existing Tmpalori/thevic361 setup):
  *
  *   GITHUB_TOKEN | GITHUB_PAT   Token with contents:write on the repo.
- *   GITHUB_OWNER                Default: "Tmpalori"
- *   GITHUB_REPO                 Default: "thevic361"
+ *   GITHUB_OWNER                Default: the repo Railway deployed from
+ *                               (RAILWAY_GIT_REPO_OWNER), else "Tmpalori"
+ *   GITHUB_REPO                 Default: the repo Railway deployed from
+ *                               (RAILWAY_GIT_REPO_NAME), else "thevic361",
+ *                               so renaming the repo needs no variable
  *   GITHUB_BRANCH               Default: "main"
  *
  * If no token is configured, isConfigured() returns false and route handlers
@@ -29,8 +32,8 @@ export const GITHUB_TIMEOUT_MS = 15000;
 
 export function createGithub(opts = {}) {
   const token = opts.token ?? process.env.GITHUB_TOKEN ?? process.env.GITHUB_PAT ?? null;
-  const owner = opts.owner ?? process.env.GITHUB_OWNER ?? DEFAULT_OWNER;
-  const repo = opts.repo ?? process.env.GITHUB_REPO ?? DEFAULT_REPO;
+  const owner = opts.owner ?? process.env.GITHUB_OWNER ?? (process.env.RAILWAY_GIT_REPO_OWNER || DEFAULT_OWNER);
+  const repo = opts.repo ?? process.env.GITHUB_REPO ?? (process.env.RAILWAY_GIT_REPO_NAME || DEFAULT_REPO);
   const branch = opts.branch ?? process.env.GITHUB_BRANCH ?? DEFAULT_BRANCH;
   const rawFetch = opts.fetch || globalThis.fetch;
   const timeoutMs = opts.timeoutMs ?? GITHUB_TIMEOUT_MS;

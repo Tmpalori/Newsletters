@@ -425,8 +425,8 @@ These tables are the full reference (`RAILWAY.md` covers Railway setup and smoke
 | `ADMIN_TOKEN` | — | Legacy bearer token; kept working alongside login |
 | `ADMIN_SESSION_TTL_HOURS` | `12` | Session length |
 | `GITHUB_TOKEN` / `GITHUB_PAT` | — | Enables `/api/admin/publish-events` to commit `docs/events.json`, `/api/admin/trigger-collect`, and the scheduler's on-time workflow dispatches (needs Actions: write). Set on production (`/api/config` reports `github_publish_enabled: true`). |
-| `GITHUB_OWNER` | `Tmpalori` | |
-| `GITHUB_REPO` | `thevic361` | |
+| `GITHUB_OWNER` | the repo Railway deployed from (`RAILWAY_GIT_REPO_OWNER`), else `Tmpalori` | |
+| `GITHUB_REPO` | the repo Railway deployed from (`RAILWAY_GIT_REPO_NAME`), else `thevic361` | Renaming the repo needs no change here |
 | `GITHUB_BRANCH` | `main` | |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY` | — | Required in production (setup checklist). When set, `/api/submissions` requires a Turnstile token and a newsletter signup that passes it joins at once; unset, every newsletter signup confirms by email |
 | `FB_POSTS_ENABLED`, `IG_POSTS_ENABLED` | — | Repo Variables (not secrets); `=1` to enable post-scrape pipelines in CI |
