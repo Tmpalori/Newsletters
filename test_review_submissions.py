@@ -4,6 +4,8 @@ import os
 import sys
 from unittest.mock import patch
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
 import review_submissions as rs  # noqa: E402
 
@@ -11,6 +13,13 @@ import review_submissions as rs  # noqa: E402
 def ev(name, date="2026-10-10", venue="Community Center", description="Crafts and food vendors.", **extra):
     return {"name": name, "date": date, "time": "9:00 AM", "venue": venue, "address": "2905 E North St, Victoria, TX",
             "description": description, "icons": [], "free": False, **extra}
+
+
+@pytest.fixture(autouse=True)
+def no_web_research(monkeypatch):
+    # No test reaches OpenAI's web search; the research tests below pass
+    # their own researcher.
+    monkeypatch.setattr(rs, "research_one", lambda ev, key, missing: {})
 
 
 def sub(i, event):
@@ -420,3 +429,72 @@ def test_main_keeps_attempt_counts_between_runs_and_flags_on_the_fourth(monkeypa
     # Once the submission is no longer pending its count is forgotten.
     _run_main(monkeypatch, [], pending=[sub(2, ev("Pumpkin Patch"))])
     assert "s1" not in json.loads(path.read_text())
+
+
+def test_missing_details_are_researched_as_suggestions_and_the_submission_waits_for_the_owner():
+    asked = []
+
+    def researcher(event, missing):
+        asked.append((event["name"], missing))
+        return {"address": "1234 N Navarro St, Victoria, TX", "sources": ["https://moradaseniorliving.com/east"]}
+
+    bare = ev("Free Fall Festival", venue="Morada East", address="")
+    with patch.object(rs.ce, "_openai_chat", return_value=json.dumps(answer(name="Free Fall Festival"))):
+        reviews, _ = rs.decide([sub(1, bare)], [], "key", known=set(), researcher=researcher)
+    assert asked == [("Free Fall Festival", ["address", "end_time", "url"])]
+    r = reviews[0]
+    assert r["decision"] == "flag"                                   # an approval waits for the owner
+    assert r["research"]["address"] == "1234 N Navarro St, Victoria, TX"
+    assert "research found address 1234 N Navarro St" in r["reason"]
+    assert r["cleaned"]["name"] == "Free Fall Festival"              # the research is never applied
+
+
+def test_nothing_found_or_nothing_missing_changes_nothing():
+    complete = ev("Fall Craft Fair", end_time="2:00 PM", url="https://example.org/fair")
+    called = []
+    with patch.object(rs.ce, "_openai_chat", return_value=json.dumps(answer())):
+        reviews, _ = rs.decide([sub(1, complete)], [], "key", known={"example.org"},
+                               researcher=lambda e, m: called.append(m) or {})
+    assert called == [] and reviews[0]["decision"] == "approve" and "research" not in reviews[0]
+    with patch.object(rs.ce, "_openai_chat", return_value=json.dumps(answer())):
+        reviews, _ = rs.decide([sub(1, ev("Fall Craft Fair"))], [], "key", known=set(), researcher=lambda e, m: {})
+    assert reviews[0]["decision"] == "approve" and "research" not in reviews[0]
+
+
+def test_research_keeps_only_well_formed_missing_fields():
+    got = rs.clean_research({"address": "1234 N Navarro St, Victoria, TX", "end_time": "7:00pm", "url": "javascript:alert(1)",
+                             "sources": ["http://plain.example", "https://a.example/x"], "note": "Found on the venue page."},
+                            ["address", "end_time", "url"], ["https://b.example/y"])
+    assert got == {"address": "1234 N Navarro St, Victoria, TX", "end_time": "7:00 PM",
+                   "sources": ["https://a.example/x", "https://b.example/y"], "note": "Found on the venue page."}
+    assert rs.clean_research({"address": "1234 N Navarro St"}, ["url"]) == {}   # not asked for
+    assert rs.clean_research({"address": "", "url": ""}, ["address", "url"]) == {}
+    assert rs.clean_research("nope", ["address"]) == {}
+
+
+def test_research_reads_the_answer_and_its_citations(monkeypatch):
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"output": [{"type": "web_search_call"}, {"type": "message", "content": [{"type": "output_text",
+                    "text": '{"address": "1234 N Navarro St, Victoria, TX", "end_time": "", "url": "", "sources": []}',
+                    "annotations": [{"type": "url_citation", "url": "https://moradaseniorliving.com/east"}]}]}]}
+    sent = {}
+    monkeypatch.setattr(rs.requests, "post", lambda url, **kw: sent.update(url=url, **kw) or R())
+    monkeypatch.undo()  # research_one itself, not the autouse stub
+    monkeypatch.setattr(rs.requests, "post", lambda url, **kw: sent.update(url=url, **kw) or R())
+    got = rs.research_one(ev("Free Fall Festival", venue="Morada East", address=""), "key", ["address"])
+    assert got == {"address": "1234 N Navarro St, Victoria, TX", "sources": ["https://moradaseniorliving.com/east"]}
+    assert sent["url"] == rs.OPENAI_RESPONSES_URL and sent["json"]["tools"] == [{"type": "web_search"}]
+    assert "untrusted" in sent["json"]["input"]
+
+
+def test_a_failed_search_is_just_no_suggestions(monkeypatch):
+    monkeypatch.undo()
+
+    def boom(*a, **kw):
+        raise rs.requests.ConnectionError("down")
+    monkeypatch.setattr(rs.requests, "post", boom)
+    assert rs.research_one(ev("Free Fall Festival", address=""), "key", ["address"]) == {}

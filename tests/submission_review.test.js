@@ -637,3 +637,24 @@ describe('submissions through HQ (HQ_REPLY_KEY)', () => {
     expect((await hq('GET', '/api/hq/submissions')).status).toBe(404);
   });
 });
+
+describe('research suggestions', () => {
+  it('are kept on the row and in the notes, never applied; junk is dropped', async () => {
+    await startApp();
+    await store.insert(row('s1', { payload: { ...PAYLOAD, address: '' } }));
+    await store.insert(row('s2'));
+    const r = await review([
+      { id: 's1', decision: 'flag', reason: 'research found address', cleaned: CLEAN,
+        research: { address: '501 E Larkspur St, Victoria, TX', end_time: '6:30 PM', url: 'javascript:alert(1)',
+          sources: ['https://moradaseniorliving.com/east', 'http://plain.example'], note: 'From the venue page.' } },
+      { id: 's2', decision: 'flag', reason: 'x', cleaned: CLEAN, research: { address: '', url: 'nope' } }
+    ]);
+    expect(r.status).toBe(200);
+    const s1 = await store.get('s1');
+    expect(s1.payload.address).toBe('');                          // a suggestion, not an edit
+    expect(s1.ai_review.research).toEqual({ address: '501 E Larkspur St, Victoria, TX', end_time: '6:30 PM',
+      sources: ['https://moradaseniorliving.com/east'], note: 'From the venue page.' });
+    expect(s1.admin_notes).toMatch(/Research suggests: address “501 E Larkspur St, Victoria, TX”; ends 6:30 PM/);
+    expect((await store.get('s2')).ai_review.research).toBeUndefined();
+  });
+});
