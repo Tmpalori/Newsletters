@@ -659,6 +659,39 @@ describe('submissions through HQ (HQ_REPLY_KEY)', () => {
     expect(sent.some(m => (m.to || []).includes('pat@example.com'))).toBe(true);
   });
 
+  it('adds an event the owner found: published, no submitter email, and duplicates refused', async () => {
+    await startApp({ hqReplyKey: HQK, hqApiKey: 'hq-read-only-key-0123456789' });
+    const EV = { name: 'Harvest Moon Fest', date: '2099-10-25', time: '6:00 PM', venue: 'De Leon Plaza', address: '101 N Main St, Victoria, TX', description: 'Live music and food trucks.', url: 'example.com/moon' };
+    expect((await hq('POST', '/api/hq/submissions', { event: EV }, 'hq-read-only-key-0123456789')).status).toBe(401);
+    expect((await hq('POST', '/api/hq/submissions', { event: { ...EV, venue: '' } })).status).toBe(400);
+    expect((await hq('POST', '/api/hq/submissions', { event: { ...EV, date: '2000-01-01' } })).status).toBe(400);
+    const r = await hq('POST', '/api/hq/submissions', { event: EV, note: 'found on Facebook' });
+    expect(r.status).toBe(201);
+    const body = await r.json();
+    expect(body).toMatchObject({ ok: true, live: true, submission: { status: 'approved', source: 'hq', payload: { url: 'https://example.com/moon' } } });
+    const saved = await store.get(body.submission.id);
+    expect(saved.review_history[0]).toMatchObject({ action: 'submitted', via: 'hq', note: 'found on Facebook' });
+    const feed = await (await fetch(baseUrl + '/events.json')).json();
+    expect(feed.events.some(e => e.name === 'Harvest Moon Fest')).toBe(true);
+    expect(sent).toHaveLength(0);                                       // nobody to email
+    // The same event again, worded differently: refused, with what matched.
+    const again = await hq('POST', '/api/hq/submissions', { event: { ...EV, name: 'Harvest Moon Fest at De Leon Plaza' } });
+    expect(again.status).toBe(409);
+    expect((await again.json()).error).toMatch(/duplicate|already-listed/);
+  });
+
+  it('adds without publishing when asked, and refuses one already in the queue', async () => {
+    await startApp({ hqReplyKey: HQK });
+    await store.insert(row('s1'));
+    const q = await hq('POST', '/api/hq/submissions', { event: { ...PAYLOAD, name: 'Fall Craft Fair' } });
+    expect(q.status).toBe(409);
+    expect(await q.json()).toMatchObject({ error: 'duplicate', submission: { id: 's1' } });
+    const r = await hq('POST', '/api/hq/submissions', { event: { ...PAYLOAD, name: 'Pumpkin Patch Opening', venue: 'Riverside Park' }, publish: false });
+    expect(r.status).toBe(201);
+    const body = await r.json();
+    expect(body).toMatchObject({ live: false, submission: { status: 'pending' } });
+  });
+
   it("doesn't exist without HQ_REPLY_KEY", async () => {
     await startApp({ hqReplyKey: '' });
     expect((await hq('GET', '/api/hq/submissions')).status).toBe(404);

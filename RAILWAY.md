@@ -249,7 +249,9 @@ README covers its variables. What this repo's towns need:
   The same key lets HQ review submissions: `GET /api/hq/submissions`
   (pending, in full), and `POST /api/hq/submissions/:id` to edit
   (`payload`) or decide (`status`: approved, rejected, duplicate,
-  pending), exactly like the admin Submissions tab.
+  pending), exactly like the admin Submissions tab. `POST /api/hq/submissions`
+  with `{event, publish?}` adds a new event (published unless `publish` is
+  false); one already in the queue or on the site answers 409.
 
 `server/sso.js` here and `src/sso.js` in tristen-hq are the same file:
 change both together. A change to the summary's shape (`server/hq.js`)
