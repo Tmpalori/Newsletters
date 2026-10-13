@@ -250,8 +250,22 @@ README covers its variables. What this repo's towns need:
   (pending, in full), and `POST /api/hq/submissions/:id` to edit
   (`payload`) or decide (`status`: approved, rejected, duplicate,
   pending), exactly like the admin Submissions tab. `POST /api/hq/submissions`
-  with `{event, publish?}` adds a new event (published unless `publish` is
-  false); one already in the queue or on the site answers 409.
+  with `{event, submitter?, publish?}` adds a new event (published unless
+  `publish` is false); `submitter` (`{name, email}`) credits someone who
+  sent it in another way, so approving it emails them that it's live. One
+  already in the queue or on the site answers 409.
+  The key also reads the admin's Needs attention, Newsletter, Sponsors and
+  Analytics data at `/api/hq/admin/...` (the same handlers as
+  `/api/admin/...`: `setup`, `sources`, `hidden`, `messages`, `newsletter`,
+  `newsletter/preview`, `sponsors`, `sponsors/:id/report`, `growth`,
+  `traffic`, `event-stats`), and takes a few of its actions for the owner:
+  restore or dismiss a hidden event, dismiss a message, a sponsor's
+  `hide` / `restore` / `mark-test` / `unmark-test`, a test issue (to the
+  town's own test address only) and the issue itself
+  (`server/hqAdmin.js`). It never opens `/api/admin/...`, and gift-card
+  rewards, imports, data deletion and sponsor edits stay admin-only.
+  `/submit?name=…&date=…&time=…&venue=…&address=…&url=…&description=…`
+  prefills the form (event fields only), for replies pointing someone there.
 
 `server/sso.js` here and `src/sso.js` in tristen-hq are the same file:
 change both together. A change to the summary's shape (`server/hq.js`)

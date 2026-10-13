@@ -279,3 +279,26 @@ describe('submit.js with the real <head> in the page', () => {
     expect(api.checkForm(out)).toEqual({});
   });
 });
+
+describe('a link can prefill the event (a reply to someone who emailed it in)', () => {
+  it('fills event fields from the query, as values; skips bad dates, unknown times and contact fields', () => {
+    window.history.replaceState(null, '', '/submit?' + new URLSearchParams({
+      name: 'Fall Festival <b>x</b>', date: '2099-10-26', time: '10:00 AM', end_time: '25:00 PM', venue: 'St. Mary\'s Hall',
+      description: 'Games\nand food', submitter_email: 'pat@example.com' }));
+    bootDom();
+    const v = id => document.getElementById(id).value;
+    expect(v('f-name')).toBe('Fall Festival <b>x</b>');
+    expect(document.querySelector('#f-name').parentElement.querySelector('b')).toBeNull();
+    expect(v('f-date')).toBe('2099-10-26');
+    expect(v('f-time')).toBe('10:00 AM');
+    expect(v('f-end')).toBe('');
+    expect(v('f-venue')).toBe('St. Mary\'s Hall');
+    expect(v('f-desc')).toBe('Games\nand food');
+    expect(document.querySelector('#submit-form [name="submitter_email"]').value).toBe('');
+    window.history.replaceState(null, '', '/submit?date=next-week');
+    bootDom();
+    expect(v('f-date')).not.toBe('next-week');
+    window.history.replaceState(null, '', '/');
+  });
+});
+

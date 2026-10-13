@@ -31,6 +31,7 @@
  */
 
 import crypto from 'node:crypto';
+import { hqPaths } from './hqAdmin.js';
 import { localDateStr, withPages, addDays } from './seo.js';
 import { eventKeyOf, applyEventEdits, withPublishedLock } from './db.js';
 
@@ -99,7 +100,7 @@ function secretOk(given, want) {
 // stored list, so without this the guard below never sees one, and only
 // the script's own copy of /events.json (which drops placements when the
 // order read fails, and misses a pick sold after it fetched) protects it.
-export function registerEventCheck(app, { store, requireAdmin, nowFn, secret, loadVisibleKeyed, placements = null }) {
+export function registerEventCheck(app, { store, requireAdmin, adminOrHq = null, nowFn, secret, loadVisibleKeyed, placements = null }) {
   app.post('/api/event-check/hide', async (req, res) => {
     if (!secretOk(req.get('x-cron-secret'), secret)) return res.status(401).json({ ok: false, error: 'unauthorized' });
     const asks = Array.isArray(req.body && req.body.hide) ? req.body.hide : null;
@@ -158,7 +159,9 @@ export function registerEventCheck(app, { store, requireAdmin, nowFn, secret, lo
     }
   });
 
-  app.get('/api/admin/hidden', requireAdmin, async (req, res) => {
+  const gate = adminOrHq || requireAdmin;
+  const paths = p => (adminOrHq ? hqPaths(p) : p);
+  app.get(paths('/api/admin/hidden'), gate, async (req, res) => {
     const published = (await store.getPublished()) || {};
     const today = localDateStr(nowFn());
     res.set('Cache-Control', 'no-store');
@@ -168,7 +171,7 @@ export function registerEventCheck(app, { store, requireAdmin, nowFn, secret, lo
 
   // "Leave it hidden": the admin agrees with the check. The event stays off
   // the site; only the Home list forgets it.
-  app.post('/api/admin/hidden/dismiss', requireAdmin, async (req, res) => {
+  app.post(paths('/api/admin/hidden/dismiss'), gate, async (req, res) => {
     const key = String(req.body && req.body.key || '');
     const done = await withPublishedLock(store, async () => {
       const published = await store.getPublished();
@@ -180,7 +183,7 @@ export function registerEventCheck(app, { store, requireAdmin, nowFn, secret, lo
     res.json({ ok: true, dismissed: key });
   });
 
-  app.post('/api/admin/hidden/restore', requireAdmin, async (req, res) => {
+  app.post(paths('/api/admin/hidden/restore'), gate, async (req, res) => {
     const key = String(req.body && req.body.key || '');
     const restored = await withPublishedLock(store, async () => {
       const published = await store.getPublished();

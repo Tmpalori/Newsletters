@@ -35,6 +35,7 @@ import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary, keyOk } from './hq.js';
+import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
@@ -730,6 +731,21 @@ export async function createApp(opts = {}) {
     next();
   }
 
+  // The admin's own routes that the owner's assistant also reaches through
+  // HQ (server/hqAdmin.js): requireAdmin at /api/admin/..., HQ_REPLY_KEY at
+  // /api/hq/admin/... (and nothing else there). Without a usable reply key
+  // the /api/hq/ paths don't exist. hqReplyOn is set further down.
+  const hqAdminLimiter = opts.hqAdminLimiter || createRateLimiter({ windowMs: 60 * 1000, max: 60 });
+  function adminOrHq(req, res, next) {
+    if (!req.path.startsWith('/api/hq/')) return requireAdmin(req, res, next);
+    if (!hqReplyOn) return res.status(404).json({ ok: false, error: 'not-found' });
+    if (!hqAdminLimiter.check(`hq-admin:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
+    if (!keyOk(req.get('authorization'), hqReplyKey)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    res.set('Cache-Control', 'no-store');
+    req.admin = { kind: 'hq', sub: 'hq' };
+    next();
+  }
+
   // ─── Admin: list ───
   app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => {
     const status = typeof req.query.status === 'string' ? req.query.status : null;
@@ -1357,7 +1373,7 @@ export async function createApp(opts = {}) {
   }
 
   const metadataFile = opts.collectionMetadataFile || COLLECTION_METADATA_FILE;
-  app.get('/api/admin/sources', requireAdmin, async (req, res) => {
+  app.get(hqPaths('/api/admin/sources'), adminOrHq, async (req, res) => {
     try {
       const read = await readMetadataFile(metadataFile);
       const payload = buildSourcesPayload({
@@ -1519,7 +1535,7 @@ export async function createApp(opts = {}) {
     res.type('application/javascript').set('Cache-Control', 'public, max-age=300').send(metaPixelScript);
   });
 
-  app.get('/api/admin/traffic', requireAdmin, async (req, res) => {
+  app.get(hqPaths('/api/admin/traffic'), adminOrHq, async (req, res) => {
     const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
     if (typeof store.listTraffic !== 'function') return res.json({ ok: false, error: 'not-supported' });
     try {
@@ -1537,7 +1553,7 @@ export async function createApp(opts = {}) {
   // Every event's week, for pitching venues a Vic's Pick (admin Traffic →
   // Event stats). ?week=<Monday>; default last week. Live and archived
   // events listed that week, plus the week's newsletter reach.
-  app.get('/api/admin/event-stats', requireAdmin, async (req, res) => {
+  app.get(hqPaths('/api/admin/event-stats'), adminOrHq, async (req, res) => {
     if (typeof store.listTraffic !== 'function') return res.json({ ok: false, error: 'not-supported' });
     try {
       const thisMonday = currentWeek(localDateStr(nowFn()))[0];
@@ -1819,7 +1835,7 @@ export async function createApp(opts = {}) {
   // secret (meta-ads.yml sends the same fallback); it can only add numbers.
   const adsSpendSecret = opts.adsSpendSecret ?? (process.env.ADS_SPEND_SECRET || submissionReviewSecret);
   registerGrowth(app, {
-    store, requireAdmin, nowFn: () => (opts.now || (() => new Date()))(), secret: adsSpendSecret,
+    store, requireAdmin, adminOrHq, nowFn: () => (opts.now || (() => new Date()))(), secret: adsSpendSecret,
     getEvents: async () => [...(((await getPublicPayload()) || {}).events || []), ...(await listArchived().catch(() => []))],
     getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : [])
   });
@@ -1835,14 +1851,14 @@ export async function createApp(opts = {}) {
   // Event check (server/eventcheck.js): hide what the weekly check is sure
   // about, restore from admin Home.
   registerEventCheck(app, {
-    store, requireAdmin, nowFn: () => (opts.now || (() => new Date()))(),
+    store, requireAdmin, adminOrHq, nowFn: () => (opts.now || (() => new Date()))(),
     secret: eventCheckSecret,
     loadVisibleKeyed: async () => visibleFrom((await store.getPublished()) || {}),
     placements: payload => sponsors.apply(payload, { strict: true })
   });
 
   const newsletterApi = registerNewsletter(app, {
-    store, requireAdmin, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
+    store, requireAdmin, adminOrHq, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
     // The newsletter is a day-by-day list: only events that made their day.
     getPublicPayload: shownPayload, createRateLimiter, config: newsletter, resend: nlResend, slack, verifyHuman, tremendous,
     // No secret, no check: signups then confirm by email (newsletter.js).
@@ -2087,7 +2103,7 @@ export async function createApp(opts = {}) {
   }));
 
   // Contact form → Slack; replaces publishing an email address.
-  registerContact(app, { siteUrl, slack, store, requireAdmin, createRateLimiter, sendHtml, verifyHuman });
+  registerContact(app, { siteUrl, slack, store, requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman });
   // Personal data: delete one address on request, export subscribers (server/privacy.js).
   registerPrivacy(app, { store, requireAdmin, slack, nowFn: () => nowFn() });
   inbound.registerReply(app, { requireAdmin, resend: nlResend, from: newsletter.from, normalizeEmail });
@@ -2134,7 +2150,7 @@ export async function createApp(opts = {}) {
     }));
     // A new event from the owner, e.g. one he found and handed his assistant:
     // { event: { name, date, time, end_time?, venue, address, description,
-    // url?, icons?, free? }, publish?, note? }. Saved as a submission
+    // url?, icons?, free? }, submitter?, publish?, note? }. Saved as a submission
     // (source 'hq') so it has the same history and edits as any other, then
     // approved, which publishes it, unless publish is false. Already listed
     // (on the site or in the queue) answers 409 with what matched.
@@ -2153,10 +2169,17 @@ export async function createApp(opts = {}) {
       const listed = (((await getPublicPayload()) || {}).events || []).find(e => sameEvent(e, ev));
       if (listed) return res.status(409).json({ ok: false, error: 'already-listed', event: { name: listed.name, date: listed.date, time: listed.time || '', venue: listed.venue || '' } });
       const note = typeof body.note === 'string' ? body.note.slice(0, 500) : '';
+      // submitter: { name?, email? }, the person who sent the event in some
+      // other way (an email, say). Credited like a form submitter, so
+      // approving it emails them that it's live. Optional; checked like the form.
+      const sub = body.submitter && typeof body.submitter === 'object' ? body.submitter : {};
+      const subEmail = String(sub.email || '').trim().toLowerCase().slice(0, 254);
+      if (subEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subEmail)) return res.status(400).json({ ok: false, errors: { submitter: 'That email doesn\'t look right.' } });
+      const subName = String(sub.name || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 100);
       const now = nowIso();
       const row = {
         id: newId(), created_at: now, updated_at: now, status: 'pending', source: 'hq',
-        submitter_kind: 'other', submitter_name: '', submitter_email: '', submitter_ip: null, user_agent: '',
+        submitter_kind: 'other', submitter_name: subName, submitter_email: subEmail, submitter_ip: null, user_agent: '',
         payload: ev, admin_notes: '',
         review_history: [{ at: now, action: 'submitted', note: note || 'Added by the owner through HQ', via: 'hq' }]
       };
@@ -2186,7 +2209,7 @@ export async function createApp(opts = {}) {
     }));
   }
 
-  sponsors.registerRoutes(app, { requireAdmin, createRateLimiter, sendHtml, verifyHuman, analyticsSecret });
+  sponsors.registerRoutes(app, { requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, analyticsSecret });
 
   app.get('/about', pageHandler(async (req, res, payload, ctx) => {
     sendHtml(res, renderAboutPage(ctx));
@@ -2640,7 +2663,7 @@ export async function createApp(opts = {}) {
     return { checks, status };
   }
 
-  app.get('/api/admin/setup', requireAdmin, async (req, res) => {
+  app.get(hqPaths('/api/admin/setup'), adminOrHq, async (req, res) => {
     const { checks, status } = await setupReport();
     res.set('Cache-Control', 'no-store');
     res.json({ ok: true, checks, status, site_url: siteUrl });

@@ -51,6 +51,7 @@
  */
 
 import { town } from './town.js';
+import { hqPaths, viaHq } from './hqAdmin.js';
 import crypto from 'node:crypto';
 import { emailKey } from './db.js';
 import { honeypotTripped } from './honeypot.js';
@@ -817,7 +818,7 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
-export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null }) {
+export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null }) {
   const rewards = createReferralRewards({ store, slack, tremendous, nowFn, localDate: localDateStr });
   const subscribeLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
   const confirmLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
@@ -1410,7 +1411,11 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     res.type('html').send(prefsPage(sub, token, sub.weekend_optout ? 'Done: just Mondays from now on.' : 'Done: you\'ll get the weekend issue on Thursdays too.'));
   });
 
-  app.get('/api/admin/newsletter', requireAdmin, async (req, res) => {
+  // Read, previewed and sent (or tested) through HQ too; a test from HQ goes
+  // only to the town's own test address, never one the assistant names.
+  const gate = adminOrHq || requireAdmin;
+  const paths = p => (adminOrHq ? hqPaths(p) : p);
+  app.get(paths('/api/admin/newsletter'), gate, async (req, res) => {
     if (!supported) return res.json({ ok: false, error: 'not-supported' });
     const counts = await store.countSubscribers();
     // Two issues a week: 16 is the last eight weeks.
@@ -1488,7 +1493,7 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     return { day, now: day === today ? now : new Date(`${day}T12:00:00Z`) };
   }
 
-  app.get('/api/admin/newsletter/preview', requireAdmin, async (req, res) => {
+  app.get(paths('/api/admin/newsletter/preview'), gate, async (req, res) => {
     const edition = editionParam(req.query.edition);
     const { day, now } = await upcomingNow(edition);
     const payload = await getPublicPayload({ now });
@@ -1497,9 +1502,9 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     res.set('X-Issue-Date', day).set('X-Issue-Subject', encodeURIComponent(issue.subject)).type('html').send(issue.html);
   });
 
-  app.post('/api/admin/newsletter/test', requireAdmin, async (req, res) => {
+  app.post(paths('/api/admin/newsletter/test'), gate, async (req, res) => {
     if (!config.enabled) return res.status(503).json({ ok: false, error: 'not-configured' });
-    const to = normalizeEmail((req.body || {}).email) || normalizeEmail(config.testTo);
+    const to = (viaHq(req) ? '' : normalizeEmail((req.body || {}).email)) || normalizeEmail(config.testTo);
     if (!to) return res.status(400).json({ ok: false, error: 'no-test-address', message: 'Enter an address to send the test to.' });
     try {
       const edition = editionParam((req.body || {}).edition);
@@ -1527,7 +1532,7 @@ export function registerNewsletter(app, { store, requireAdmin, siteUrl, nowFn, g
     }
   });
 
-  app.post('/api/admin/newsletter/send', requireAdmin, async (req, res) => {
+  app.post(paths('/api/admin/newsletter/send'), gate, async (req, res) => {
     try {
       const b = req.body || {};
       // resend_unknown: the admin's explicit "Resend unconfirmed", after the
