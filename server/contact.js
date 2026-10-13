@@ -10,6 +10,7 @@
  */
 
 import { town } from './town.js';
+import { hqPaths } from './hqAdmin.js';
 import { escHtml, layout } from './seo.js';
 import { replyLink } from './inbound.js';
 import { normalizeEmail } from './newsletter.js';
@@ -54,10 +55,12 @@ export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = fa
   });
 }
 
-export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, createRateLimiter, sendHtml, verifyHuman = async () => true }) {
+export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true }) {
   // Admin Home lists recent messages, so a lead never lives only in Slack.
   if (requireAdmin) {
-    app.get('/api/admin/messages', requireAdmin, async (req, res, next) => {
+    const gate = adminOrHq || requireAdmin;
+    const paths = p => (adminOrHq ? hqPaths(p) : p);
+    app.get(paths('/api/admin/messages'), gate, async (req, res, next) => {
       try {
         // Dismissed ones are dealt with: read past them so they don't
         // crowd newer ones out of the 50.
@@ -66,7 +69,7 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
         res.set('Cache-Control', 'no-store').json({ ok: true, messages });
       } catch (err) { next(err); }
     });
-    app.post('/api/admin/messages/:id/dismiss', requireAdmin, async (req, res, next) => {
+    app.post(paths('/api/admin/messages/:id/dismiss'), gate, async (req, res, next) => {
       try {
         if (!store || typeof store.dismissContactMessage !== 'function') return res.status(501).json({ ok: false, error: 'unsupported' });
         const ok = await store.dismissContactMessage(String(req.params.id || '').slice(0, 64));

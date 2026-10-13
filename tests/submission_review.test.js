@@ -692,9 +692,47 @@ describe('submissions through HQ (HQ_REPLY_KEY)', () => {
     expect(body).toMatchObject({ live: false, submission: { status: 'pending' } });
   });
 
+  it('credits the person who sent it in; approving emails them that it is live', async () => {
+    await startApp({ hqReplyKey: HQK });
+    const EV = { name: 'Church Fall Festival', date: '2099-10-26', time: '10:00 AM', venue: 'St. Mary Hall', address: '101 Main St, Victoria, TX', description: 'Games and food.' };
+    expect((await hq('POST', '/api/hq/submissions', { event: EV, submitter: { email: 'not-an-email' } })).status).toBe(400);
+    const r = await hq('POST', '/api/hq/submissions', { event: EV, submitter: { name: 'Roberto\nOlvera', email: 'Robert@Example.com' }, note: 'emailed news@' });
+    expect(r.status).toBe(201);
+    const body = await r.json();
+    expect(body.submission).toMatchObject({ submitter_name: 'Roberto Olvera', submitter_email: 'robert@example.com', status: 'approved' });
+    expect(sent.some(m => (m.to || []).includes('robert@example.com'))).toBe(true);
+  });
+
   it("doesn't exist without HQ_REPLY_KEY", async () => {
     await startApp({ hqReplyKey: '' });
     expect((await hq('GET', '/api/hq/submissions')).status).toBe(404);
+    expect((await hq('GET', '/api/hq/admin/newsletter')).status).toBe(404);
+  });
+
+  it("opens the admin's attention, newsletter, sponsor and analytics data to the reply key only", async () => {
+    await startApp({ hqReplyKey: HQK, hqApiKey: 'hq-read-only-key-0123456789' });
+    for (const p of ['setup', 'sources', 'hidden', 'messages', 'newsletter', 'sponsors', 'growth?days=7', 'traffic?days=7', 'event-stats']) {
+      expect((await hq('GET', `/api/hq/admin/${p}`)).status, p).toBe(200);
+      expect((await hq('GET', `/api/hq/admin/${p}`, null, 'hq-read-only-key-0123456789')).status, p).toBe(401);
+      expect((await hq('GET', `/api/hq/admin/${p}`, null, '')).status, p).toBe(401);
+      expect((await hq('GET', `/api/admin/${p}`)).status, p).toBe(401);           // the key never opens the admin's own paths
+    }
+    expect((await hq('GET', '/api/hq/admin/subscribers.csv')).status).toBe(404);   // not every admin route
+    expect((await hq('POST', '/api/hq/admin/newsletter/import', { emails: 'a@b.co' })).status).toBe(404);
+    expect((await hq('POST', '/api/hq/admin/newsletter/rewards/r1/approve', {})).status).toBe(404);
+  });
+
+  it('through HQ: only some sponsor actions, and a test issue only to the town\'s own address', async () => {
+    await startApp({ hqReplyKey: HQK });
+    for (const action of ['edit', 'remove-logo']) {
+      expect((await hq('POST', '/api/hq/admin/sponsors/x1', { action })).status).toBe(403);
+    }
+    expect((await hq('POST', '/api/hq/admin/sponsors/x1', { action: 'hide' })).status).toBe(404);   // allowed; no such order
+    const t = await hq('POST', '/api/hq/admin/newsletter/test', { email: 'stranger@example.com' });
+    expect(sent.some(m => (m.to || []).includes('stranger@example.com'))).toBe(false);
+    expect([400, 503]).toContain(t.status);                                     // no test address set here
+    expect((await hq('POST', '/api/hq/admin/hidden/restore', { key: 'nope' })).status).toBe(404);
+    expect((await hq('POST', '/api/hq/admin/messages/nope/dismiss', {})).status).toBe(404);
   });
 });
 

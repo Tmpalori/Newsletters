@@ -24,6 +24,7 @@
  *   weeks, and this month's sponsor revenue against $10,000.
  */
 import crypto from 'node:crypto';
+import { hqPaths } from './hqAdmin.js';
 import { localDateStr, addDays, currentWeek } from './seo.js';
 import { editionOf } from './newsletter.js';
 
@@ -212,7 +213,7 @@ export function goals(subs, daily, revenue, today) {
   };
 }
 
-export function registerGrowth(app, { store, requireAdmin, nowFn = () => new Date(), secret = '', getEvents = async () => [], getOrders = async () => [] }) {
+export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, nowFn = () => new Date(), secret = '', getEvents = async () => [], getOrders = async () => [] }) {
   // Meta's daily results: [{ day, spend, impressions, clicks, leads }].
   // Answers with the site's own count for yesterday, so the Slack report
   // can say what a subscriber really cost.
@@ -239,7 +240,7 @@ export function registerGrowth(app, { store, requireAdmin, nowFn = () => new Dat
     }
   });
 
-  app.get('/api/admin/growth', requireAdmin, async (req, res) => {
+  app.get(adminOrHq ? hqPaths('/api/admin/growth') : '/api/admin/growth', adminOrHq || requireAdmin, async (req, res) => {
     if (typeof store.listSubscriberStats !== 'function') return res.json({ ok: false, error: 'not-supported' });
     const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
     try {

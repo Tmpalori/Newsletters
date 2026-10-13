@@ -46,6 +46,7 @@
  */
 
 import { town, dollars, VICTORIA } from './town.js';
+import { hqPaths, viaHq } from './hqAdmin.js';
 import crypto from 'node:crypto';
 import { ipKey } from './rateLimit.js';
 import { burst } from './burst.js';
@@ -2021,7 +2022,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     });
   }
 
-  function registerRoutes(app, { requireAdmin, createRateLimiter, sendHtml, verifyHuman = async () => true, analyticsSecret = '' }) {
+  function registerRoutes(app, { requireAdmin, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, analyticsSecret = '' }) {
     const limiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
 
     // The weekly sponsor's button in our emails (server/newsletter.js
@@ -2317,7 +2318,11 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       } catch (err) { next(err); }
     });
 
-    app.get('/api/admin/sponsors', requireAdmin, async (req, res, next) => {
+    // Through HQ too (the owner's assistant): the list, a report, and only
+    // hide, restore and test marks; no edits, no logo removal.
+    const gate = adminOrHq || requireAdmin;
+    const paths = p => (adminOrHq ? hqPaths(p) : p);
+    app.get(paths('/api/admin/sponsors'), gate, async (req, res, next) => {
       try {
         cache = null;
         // Read the store directly: orders() falls back to an empty list on a
@@ -2351,7 +2356,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
 
     // Live report numbers for a paid weekly or Vic's Pick order (the
     // Sponsors tab's Report button): what its email says, so far.
-    app.get('/api/admin/sponsors/:id/report', requireAdmin, async (req, res, next) => {
+    app.get(paths('/api/admin/sponsors/:id/report'), gate, async (req, res, next) => {
       try {
         cache = null;
         const list = supported ? await store.listSponsorOrders() : [];
@@ -2381,9 +2386,10 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     // logo and keeps the rest of the placement. Edit changes a weekly
     // sponsor's wording, link, logo or week (sponsors are told to reply
     // with changes; a double-booked one can be moved to an open week).
-    app.post('/api/admin/sponsors/:id', requireAdmin, async (req, res, next) => {
+    app.post(paths('/api/admin/sponsors/:id'), gate, async (req, res, next) => {
       try {
         const action = req.body && req.body.action;
+        if (viaHq(req) && !['hide', 'restore', 'mark-test', 'unmark-test'].includes(action)) return res.status(403).json({ ok: false, error: 'not-through-hq' });
         cache = null;
         const list = supported ? await store.listSponsorOrders() : [];
         const order = list.find(o => o.id === req.params.id);

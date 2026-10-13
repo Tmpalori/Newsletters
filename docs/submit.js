@@ -351,6 +351,24 @@
     }
   }
 
+  // A link from us (a reply to someone who emailed an event in) can carry
+  // the details they already sent: /submit?name=…&date=…&venue=… . Event
+  // fields only: their name and email never go in a link. Set as values
+  // (never markup); the time selects take only one of their own options.
+  const PREFILL = ['name', 'date', 'time', 'end_time', 'venue', 'address', 'url', 'description'];
+  function prefillFromLink() {
+    let q;
+    try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    PREFILL.forEach(k => {
+      const v = (q.get(k) || '').slice(0, k === 'description' ? 2000 : 300);
+      const el = document.querySelector(`#submit-form [name="${k}"]`);
+      if (!v || !el) return;
+      if (k === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+      if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === v)) return;
+      el.value = v;
+    });
+  }
+
   // Pre-fill date with today (local) so users don't have to pick a year first.
   function setDefaultDate() {
     const dateEl = $('#f-date');
@@ -385,6 +403,7 @@
     }
     wireResetForAnother();
 
+    prefillFromLink();
     setDefaultDate();
 
     const cfg = await loadConfig();
