@@ -1,14 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="The Crane 308">
+  <!-- Simplified logo.svg for tab-sized icons: the crane's head and neck (red crown, long bill) against the sun. -->
   <defs><clipPath id="f"><circle cx="32" cy="32" r="29"/></clipPath></defs>
   <circle cx="32" cy="32" r="29" fill="#A6DAF4"/>
   <g clip-path="url(#f)" stroke="#232A35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
-    <circle cx="40" cy="38" r="19" fill="#FFCF4D" stroke-width="3"/>
-    <path d="M29 66C30 52 36 42 34 30L47 29C49 42 45 54 49 66Z" fill="#7A8B99"/>
-    <path d="M21 25C21 15 33 10 42 14C49 18 49 27 47 32C40 36 28 34 21 29Z" fill="#7A8B99"/>
-    <path d="M30 29C36 31 42 31 47 29C45 34 36 35 30 32Z" fill="#FFFFFF" stroke="none"/>
-    <path d="M23 21C25 14 33 12 38 15L35 25C30 26 26 24 23 21Z" fill="#C8323C" stroke-width="2.5"/>
-    <circle cx="31" cy="21" r="2" fill="#232A35" stroke="none"/>
-    <path d="M22 21L3 28L22 29Z" fill="#4A5462" stroke-width="2.5"/>
+    <circle cx="42" cy="40" r="17" fill="#FFCF4D" stroke-width="3"/>
+    <path d="M46 68C42 54 30 46 34 30" fill="none" stroke-width="14"/>
+    <path d="M46 68C42 54 30 46 34 30" fill="none" stroke="#7A8B99" stroke-width="7"/>
+    <path d="M22 24C22 15 29 10 37 11C45 12 48 19 46 26C44 32 37 34 31 33C25 32 22 29 22 24Z" fill="#7A8B99"/>
+    <path d="M32 29C37 31 42 30 45 27" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+    <path d="M23 21L3 27L23 27Z" fill="#3E4856" stroke-width="3"/>
+    <path d="M22.5 22C23 16 28 12 34 12.5C37 13 38 16 37 18.5C35 23 27 25 22.5 22Z" fill="#C8323C" stroke-width="2.5"/>
+    <circle cx="30" cy="20" r="2.5" fill="#FFFFFF" stroke-width="1.8"/>
   </g>
   <circle cx="32" cy="32" r="29" fill="none" stroke="#232A35" stroke-width="4"/>
 </svg>

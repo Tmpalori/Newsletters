@@ -1,20 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="The Crane 308">
+  <!-- A sandhill crane standing in the prairie in front of the sun, as a round sticker. Same crane as skyline.svg. -->
   <defs><clipPath id="c"><circle cx="64" cy="64" r="57"/></clipPath></defs>
   <circle cx="64" cy="64" r="57" fill="#A6DAF4"/>
   <g clip-path="url(#c)" stroke="#232A35" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
-    <circle cx="64" cy="84" r="34" fill="#FFCF4D"/>
-    <path d="M-4 102Q64 88 132 102V132H-4Z" fill="#E09A2C"/>
-    <path d="M20 108l4-10 4 10M42 102l4-10 4 10M80 102l4-10 4 10M100 108l4-10 4 10" fill="none" stroke-width="3"/>
-    <g transform="translate(0 10) scale(1.0)">
-      <path d="M60 57C56 42 50 30 40 18L37 24L33 21L34 29L29 28L33 35C40 44 46 52 52 59Z" fill="#5A6B79" stroke-width="4"/>
-      <path d="M90 66L116 70M90 68L113 76" fill="none" stroke-width="3.5"/>
-      <path d="M13 54C16 48 25 47 28 53L44 58C56 51 78 52 92 62L98 66C82 73 58 73 46 67L28 62C24 63 18 63 14 59Z" fill="#7A8B99" stroke-width="4"/>
-      <path d="M15 57L4 60" fill="none" stroke-width="3.5"/>
-      <path d="M14 53C16 48 22 47 25 50L20 55Z" fill="#C8323C" stroke="none"/>
-      <circle cx="22" cy="54" r="1.8" fill="#232A35" stroke="none"/>
-      <path d="M52 58C58 38 72 22 92 8L95 14L100 12L97 20L103 20L96 26L101 28L92 32C86 42 82 50 80 59Z" fill="#B4C2CD" stroke-width="4"/>
-      <path d="M64 50Q72 36 86 24" fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.7"/>
+    <!-- sun -->
+    <circle cx="86" cy="60" r="27" fill="#FFCF4D" stroke-width="4.5"/>
+    <g transform="translate(8 10)">
+      <!-- legs -->
+      <path d="M58 80L55 95L57 112M68 80L72 95L70 112" fill="none" stroke-width="3.5"/>
+      <!-- bustle: the drooping tail feathers -->
+      <path d="M68 60C84 56 98 64 102 80C97 78 95 82 91 80C89 86 83 84 81 82C75 86 68 80 68 74Z" fill="#5A6B79" stroke-width="4.5"/>
+      <!-- body -->
+      <path d="M40 60C46 52 62 52 74 58C84 63 84 75 74 79C62 83 48 78 43 70C41 67 39 63 40 60Z" fill="#7A8B99" stroke-width="4.5"/>
+      <path d="M56 62Q68 62 76 70" fill="none" stroke-width="3"/>
+      <!-- neck: an ink tube with a slate core -->
+      <path d="M45 62C39 55 41 46 39 39C38 35 37 31 39 27" fill="none" stroke-width="11"/>
+      <path d="M45 62C39 55 41 46 39 39C38 35 37 31 39 27" fill="none" stroke="#7A8B99" stroke-width="4.5"/>
+      <!-- head -->
+      <path d="M32 26C32 20 37 16 42 17C47 18 49 22 48 27C47 31 43 32 39 32C35 31 32 29 32 26Z" fill="#7A8B99" stroke-width="4"/>
+      <path d="M39 29C42 30.5 45 30 47 28" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>
+      <!-- bill -->
+      <path d="M33 23L10 29L33 28Z" fill="#3E4856" stroke-width="3.5"/>
+      <!-- red crown -->
+      <path d="M32.5 23C33 18 37 15.5 42 16.5C44 17 45 19 44.5 21C43 25 36 26 32.5 23Z" fill="#C8323C" stroke-width="3"/>
+      <circle cx="39" cy="21.5" r="2" fill="#FFFFFF" stroke="#232A35" stroke-width="1.5"/>
     </g>
+    <!-- prairie -->
+    <path d="M-4 110Q64 98 132 110V132H-4Z" fill="#F4B63A"/>
+    <path d="M18 114l3-8 3 8M30 118l3-8 3 8M96 112l3-8 3 8" fill="none" stroke="#E09A2C" stroke-width="3"/>
   </g>
   <circle cx="64" cy="64" r="57" fill="none" stroke="#232A35" stroke-width="6"/>
 </svg>

@@ -4,7 +4,7 @@ Starter assets for **The Crane 308**. They are drawn in the same cartoon family 
 
 ## Concept
 
-A sandhill crane in flight (slate gray, red crown) crossing a golden sun over prairie gold, after the city mark. The favicon is the crane's head (red crown, long bill) against the sun, which stays readable at 16 to 32px. The skyline sits on a red-brick street: a spheroid water tower marked 308, a concrete grain elevator, brick Central Avenue storefronts, a theater blade sign and marquee, an old brick hotel, and a V of cranes passing the sun. Out of town: cranes standing in the Platte shallows, a farm windmill, prairie tufts, and the Archway spanning the interstate (as a motif only). The red is the accent and the gold is the paid label, so UNK blue and gold never lead.
+A sandhill crane standing in the prairie (slate gray, red crown, long dark bill, drooping bustle) in front of a golden sun, the same way The Vic's sticker shows its water tower. The favicon is the same crane's head and neck (red crown, long bill) against the sun, which stays readable at 16 to 32px. The skyline sits on a red-brick street: a spheroid water tower marked 308, a concrete grain elevator, brick Central Avenue storefronts, a theater blade sign and marquee, an old brick hotel, and a V of cranes in flight (necks out, legs trailing) passing the sun. Out of town: three cranes (the logo's crane) standing in the Platte shallows, a farm windmill, prairie tufts, and the Great Platte River Road Archway: a log-sided span with a sunburst between two stone towers, over I-80 (a road with a car and an I-80 shield). The red is the accent and the gold is the paid label, so UNK blue and gold never lead.
 
 Header wordmark (two-tone, for `siteNameHtml` in town.json): `The Crane <span>308</span>`. The span is the tilted badge, filled with the `highlight` color.
 
@@ -74,4 +74,4 @@ Not overridden, because they are shared and generic: `icons.svg` and the `email/
 ## Notes
 
 - Lettering in every SVG (the sign and tank lettering in the skylines) is outlined to paths from `server/fonts/Fredoka-Bold.ttf`, so it renders the same in an `<img>`, in resvg share cards and in email, with no font loading.
-- The PNGs were rasterized from the SVGs with Playwright (Chromium), and the `.ico` was built from the 16, 32 and 48px renders.
+- The PNGs were rasterized from the SVGs with Playwright (Chromium), and the `.ico` was built from the 16, 32 and 48px renders. The share card (`og-image.png`) is the logo, the wordmark in Fredoka and the town part (x 0 to 1200) of the day skyline on a sky-to-paper gradient; `email/skyline.png` is that same skyline crop on `#DCEFFA`.
