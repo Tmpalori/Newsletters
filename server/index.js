@@ -2132,6 +2132,45 @@ export async function createApp(opts = {}) {
       if (!row) return res.status(404).json({ ok: false, error: 'not-found' });
       res.json({ ok: true, submission: forHq(row) });
     }));
+    // A new event from the owner, e.g. one he found and handed his assistant:
+    // { event: { name, date, time, end_time?, venue, address, description,
+    // url?, icons?, free? }, publish?, note? }. Saved as a submission
+    // (source 'hq') so it has the same history and edits as any other, then
+    // approved, which publishes it, unless publish is false. Already listed
+    // (on the site or in the queue) answers 409 with what matched.
+    app.post('/api/hq/submissions', hqGate, wrap(async (req, res) => {
+      const body = req.body || {};
+      const v = validateSubmission(body.event, { adminEdit: true });
+      if (!v.ok) return res.status(400).json({ ok: false, errors: v.errors });
+      const ev = normalizePayload(v.data.payload);
+      if (ev.date < localDateStr(nowFn())) return res.status(400).json({ ok: false, errors: { date: 'That date has passed.' } });
+      // Duplicates by the same loose match the Picks use (same day, same
+      // place, a clearly matching name), not just an exact name: the
+      // assistant finds events on other sites, worded their way.
+      const dup = await store.findDuplicate({ date: ev.date, name: ev.name, venue: ev.venue }) ||
+        (await store.list({ fromDate: ev.date })).find(r => r.status !== 'rejected' && sameEvent(r.payload || {}, ev));
+      if (dup) return res.status(409).json({ ok: false, error: 'duplicate', submission: forHq(dup) });
+      const listed = (((await getPublicPayload()) || {}).events || []).find(e => sameEvent(e, ev));
+      if (listed) return res.status(409).json({ ok: false, error: 'already-listed', event: { name: listed.name, date: listed.date, time: listed.time || '', venue: listed.venue || '' } });
+      const note = typeof body.note === 'string' ? body.note.slice(0, 500) : '';
+      const now = nowIso();
+      const row = {
+        id: newId(), created_at: now, updated_at: now, status: 'pending', source: 'hq',
+        submitter_kind: 'other', submitter_name: '', submitter_email: '', submitter_ip: null, user_agent: '',
+        payload: ev, admin_notes: '',
+        review_history: [{ at: now, action: 'submitted', note: note || 'Added by the owner through HQ', via: 'hq' }]
+      };
+      await store.insert(row);
+      if (body.publish === false) {
+        slack.notify({ channel: 'activity', title: `📋 ${ev.name} added through HQ`, text: 'Waiting in Submissions, not on the site yet.', link: `${siteUrl}/admin.html` });
+        return res.status(201).json({ ok: true, submission: forHq(row), live: false });
+      }
+      const out = await decideSubmission(row.id, { status: 'approved', note: 'Approved by the owner through HQ' }, { via: 'hq' });
+      if (out.json.submission) out.json.submission = forHq(out.json.submission);
+      slack.notify({ channel: 'activity', title: `📋 ${ev.name} added through HQ`,
+        text: out.json.live ? 'It is live on the site.' : 'It is approved but not on the site yet.', link: `${siteUrl}/admin.html` });
+      res.status(out.code === 200 ? 201 : out.code).json(out.json);
+    }));
     // Body: { status?, payload?, note? }, as in the admin route.
     app.post('/api/hq/submissions/:id', hqGate, wrap(async (req, res) => {
       const body = req.body || {};
