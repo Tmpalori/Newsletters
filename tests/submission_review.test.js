@@ -711,7 +711,7 @@ describe('submissions through HQ (HQ_REPLY_KEY)', () => {
 
   it("opens the admin's attention, newsletter, sponsor and analytics data to the reply key only", async () => {
     await startApp({ hqReplyKey: HQK, hqApiKey: 'hq-read-only-key-0123456789' });
-    for (const p of ['setup', 'sources', 'hidden', 'messages', 'newsletter', 'sponsors', 'growth?days=7', 'traffic?days=7', 'event-stats']) {
+    for (const p of ['setup', 'sources', 'hidden', 'messages', 'newsletter', 'sponsors', 'growth?days=7', 'traffic?days=7', 'event-stats', 'activity?days=7']) {
       expect((await hq('GET', `/api/hq/admin/${p}`)).status, p).toBe(200);
       expect((await hq('GET', `/api/hq/admin/${p}`, null, 'hq-read-only-key-0123456789')).status, p).toBe(401);
       expect((await hq('GET', `/api/hq/admin/${p}`, null, '')).status, p).toBe(401);

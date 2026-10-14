@@ -108,6 +108,7 @@ thevic361/
 │   ├── github.js                 # GitHub Contents API + workflow_dispatch
 │   ├── rateLimit.js              # in-memory sliding-window limiter
 │   ├── analytics.js              # first-party visitor stats for the admin Traffic tab
+│   ├── activity.js               # /api/admin/activity (and /api/hq/admin/activity): views, clicks, shares, calendar adds, opens per day and per event, for the owner's assistant
 │   ├── metaPixel.js              # /pixel.js — Meta Pixel for ads, off until META_PIXEL_ID is set
 │   ├── seo.js                    # server-rendered pages: home, intent pages, /events/:slug, /about, sitemap.xml, llms.txt
 │   ├── legal.js                  # business identity + /privacy, /terms, /advertising-terms (/refunds), /accessibility and their versions

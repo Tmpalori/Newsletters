@@ -123,7 +123,7 @@ export const CLICK_TYPES = new Set([
   'add_to_calendar', 'share_native', 'share_from_list', 'share_facebook', 'share_x', 'share_text', 'filter'
 ]);
 
-const CLICK_LABELS = {
+export const CLICK_LABELS = {
   event_click: 'Event links', sponsor_click: 'Sponsor clicks', subscribe_click: 'Subscribe clicks',
   advertise_click: 'Advertise page clicks', add_to_calendar: 'Added to calendar',
   share_native: 'Shares (sent or copied)', share_from_list: 'Shares from the event list', share_facebook: 'Shares to Facebook',
