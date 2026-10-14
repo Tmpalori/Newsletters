@@ -57,7 +57,7 @@ import { verifyPass, MIN_SSO_SECRET } from './sso.js';
 import {
   HUB_PAGES, localDateStr, renderHome, renderHubPage, renderEventPage,
   renderAboutPage, renderAdvertisePage, advertiseStats, renderNotFoundPage, renderSitemap, renderLlmsTxt
-  , fillSeasonalNav, currentWeek, addDays, shiftToWeek
+  , fillSeasonalNav, fillReach, setReach, currentWeek, addDays, shiftToWeek
 } from './seo.js';
 import {
   businessConfig, useBusiness, hasLegalName, hasContactEmail, mailingAddress,
@@ -1923,8 +1923,41 @@ export async function createApp(opts = {}) {
     return html.replace(/(href|src)="(\/|\.\/)(base\.css|style\.css|app\.js)"/g, `$1="$2$3?v=${assetVersion}"`);
   }
 
+  // The newsletter's reach under every page's signup (server/seo.js
+  // reachHtml): active subscribers and the past week's readers (the Traffic
+  // tab's 7-day visitors). Counted at most every 10 minutes, in the
+  // background, so no page waits on the database for it; a failed count
+  // keeps the last one.
+  const REACH_MS = 10 * 60 * 1000;
+  let reach = null, reachAt = 0, reachBusy = null;
+  function refreshReach() {
+    if (reachBusy) return reachBusy;
+    reachBusy = (async () => {
+      const now = nowFn();
+      try {
+        const [subscribers, rows] = await Promise.all([
+          typeof store.countSubscribers === 'function' ? store.countSubscribers().then(c => (c && c.active) || 0) : 0,
+          typeof store.listTraffic === 'function' ? store.listTraffic(addDays(localDateStr(now), -8)) : []
+        ]);
+        reach = { subscribers, readers: summarize(rows, { now, days: 7 }).totals.week.visitors };
+        setReach(reach);
+      } catch (err) {
+        console.warn('[reach] count failed:', err.message);
+      } finally {
+        reachAt = now.getTime();
+        reachBusy = null;
+      }
+    })();
+    return reachBusy;
+  }
+  function reachNow() {
+    if (nowFn().getTime() - reachAt > REACH_MS) refreshReach();
+    return reach;
+  }
+
   function sendHtml(res, html, status = 200, cacheControl = null) {
-    html = versionAssets(fillSeasonalNav(html, res.locals.seasons || [], res.req.path));
+    reachNow();   // refreshes the footer's count when it's due
+    html = fillReach(versionAssets(fillSeasonalNav(html, res.locals.seasons || [], res.req.path)));
     // Short public cache: a new publish shows up within minutes, and a
     // burst of crawler traffic doesn't hit Postgres on every request.
     // A page built from a fallback list (database down) isn't cached:
@@ -2124,7 +2157,7 @@ export async function createApp(opts = {}) {
     let subscribers = 0;
     try { subscribers = typeof store.countSubscribers === 'function' ? (await store.countSubscribers()).active || 0 : 0; } catch (_) { /* numbers are a bonus */ }
     sendHtml(res, renderAdvertisePage({ ...ctx, checkout: stripeCfg.enabled, previews: samplePreviews(),
-      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers) }));
+      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers, (reachNow() || {}).readers || 0) }));
   }));
 
   // Contact form → Slack; replaces publishing an email address.
@@ -2840,6 +2873,7 @@ export async function createApp(opts = {}) {
   });
 
   await archiveReady;
+  await refreshReach();
   return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
 }
 

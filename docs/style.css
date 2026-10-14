@@ -1534,6 +1534,8 @@ h1, h2, h3, .day-name, .section-heading, .page-title, .site-title, .sponsor-name
 .footer-section h2, .footer-section h3 { color: #fff; font-weight: 700; }
 .footer-section p, .footer-links a { color: #D6CFFF; font-weight: 600; }
 .footer-links a:hover { color: var(--sun); }
+/* The newsletter's reach under the signup (server/seo.js reachHtml). */
+.footer-section .site-reach { color: var(--sun); font-weight: 800; font-size: var(--text-base); margin: calc(-1 * var(--space-2)) 0 var(--space-4); }
 .footer-bottom { color: #B8AEEF; font-weight: 700; }
 .site-footer .btn--outline { background: var(--sun); color: var(--ink); }
 .site-footer .btn--outline:hover { background: #fff; }
@@ -1903,10 +1905,11 @@ a.notable-name { color: inherit; text-decoration: underline; text-decoration-thi
 .ad-package__preview .day-section, .co-preview .day-section { margin: 0; }
 /* Live numbers under the lead: chunky sticker tiles. */
 .ad-stats { list-style: none; padding: 0; margin: var(--space-4) 0 var(--space-6); display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--space-3); }
-@media (max-width: 480px) { .ad-stats { gap: var(--space-2); } .ad-stats li { padding: var(--space-2); } .ad-stats strong { font-size: 1.4rem; } .ad-stats span { font-size: 0.8rem; } }
 .ad-stats li { background: var(--sun-light); color: var(--ink); border: 3px solid var(--ink); border-radius: 16px; box-shadow: 3px 3px 0 var(--ink); padding: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
 .ad-stats strong { font-family: var(--font-display); font-size: 1.8rem; line-height: 1; }
 .ad-stats span { font-size: var(--text-sm); font-weight: 700; }
+/* After the rules above, so it wins on phones: two tiles a row, smaller type. */
+@media (max-width: 480px) { .ad-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); } .ad-stats li { padding: var(--space-2); } .ad-stats strong { font-size: 1.4rem; } .ad-stats span { font-size: 0.8rem; } }
 /* Each package shows "On the site" and "In the newsletter". The email
    sample keeps the email's own light colors, so it sits on a light card
    in dark mode too, and its links don't go anywhere. */

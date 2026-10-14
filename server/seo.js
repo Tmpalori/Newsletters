@@ -873,6 +873,36 @@ export function renderGrouped(list, today) {
 // between concurrent requests.
 export const SEASONAL_NAV_SLOT = '<!--SEASONAL_NAV-->';
 
+// The newsletter's reach under every page's signup: subscribers and the
+// past week's readers, each only once it's a crowd (a small number reads as
+// empty) and rounded down, so it never claims more than is true. The site
+// keeps the latest count here (server/index.js setReach, refreshed every
+// 10 minutes); every page's footer reads it, and the homepage template's
+// slot is filled by fillReach. No count, no line.
+export const REACH_SLOT = '<!--REACH-->';
+let reachCounts = null;
+export function setReach(counts) { reachCounts = counts || null; }
+const roundDown = n => (n >= 1000 ? Math.floor(n / 100) * 100 : Math.floor(n / 10) * 10);
+export function reachNumbers({ subscribers = 0, readers = 0 } = {}) {
+  return {
+    subscribers: subscribers >= town.business.showSubscribersFrom ? roundDown(subscribers) : null,
+    readers: readers >= town.business.showReadersFrom ? roundDown(readers) : null
+  };
+}
+export function reachHtml(counts) {
+  const { subscribers, readers } = reachNumbers(counts || {});
+  const parts = [
+    subscribers ? `Join ${subscribers.toLocaleString('en-US')}+ ${escHtml(town.city)} locals` : null,
+    readers ? `${readers.toLocaleString('en-US')} readers this week` : null
+  ].filter(Boolean);
+  return parts.length ? `<p class="site-reach">${parts.join(' · ')}</p>` : '';
+}
+export function fillReach(html, counts = reachCounts) {
+  const line = reachHtml(counts);
+  // No line: the slot goes with its indent, leaving the page as it was.
+  return line ? html.split(REACH_SLOT).join(line) : html.replace(/\n[ \t]*<!--REACH-->/g, '').split(REACH_SLOT).join('');
+}
+
 export function seasonalNavLinks(seasons, current) {
   return (seasons || []).map(p =>
     `<a href="${p.path}"${p.path === current ? ' aria-current="page"' : ''}>${escHtml(p.nav)}</a>`).join('');
@@ -920,7 +950,7 @@ function footerHtml() {
       <div class="footer-grid footer-grid--4">
         <div class="footer-section">
           <h2>Stay in the loop</h2>
-          <p>Get ${town.city}'s best events in your inbox every Monday and Thursday.</p>
+          <p>Get ${town.city}'s best events in your inbox every Monday and Thursday.</p>${reachHtml(reachCounts) && `\n          ${reachHtml(reachCounts)}`}
           <a href="/subscribe" class="btn btn--primary">Subscribe free</a>
         </div>
         <div class="footer-section">
@@ -1249,14 +1279,15 @@ export const AD_PACKAGES = [
 // Live, true-today numbers for /advertise: this week's listed events, the
 // venues and nearby towns they cover, and subscribers once there's a real
 // crowd (the same 100 the subscribe page waits for).
-export function advertiseStats(events, now, subscriberCount = 0) {
+export function advertiseStats(events, now, subscriberCount = 0, readers = 0) {
   const week = currentWeek(localDateStr(now));
   const list = (events || []).filter(ev => ev.date >= week[0] && ev.date <= week[6]);
   const venues = new Set(list.map(ev => String(ev.venue || '').trim().toLowerCase()).filter(Boolean));
   const towns = new Set(list.map(ev => String(ev.town || '').trim()).filter(Boolean));
   return {
     events: list.length, venues: venues.size, towns: towns.size,
-    subscribers: subscriberCount >= town.business.showSubscribersFrom ? Math.floor(subscriberCount / 10) * 10 : null
+    subscribers: subscriberCount >= town.business.showSubscribersFrom ? Math.floor(subscriberCount / 10) * 10 : null,
+    readers: reachNumbers({ readers }).readers
   };
 }
 
@@ -1325,7 +1356,8 @@ export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, 
     ['2', 'newsletters a week (Mon & Thu)'],
     // The town plus at least two nearby towns, or it undersells.
     stats.towns >= 2 ? [stats.towns + 1, `towns: ${town.city} and nearby`] : null,
-    stats.subscribers ? [`${stats.subscribers}+`, 'local subscribers'] : null
+    stats.subscribers ? [`${stats.subscribers}+`, 'local subscribers'] : null,
+    stats.readers ? [stats.readers.toLocaleString('en-US'), 'readers on the site this past week'] : null
   ].filter(Boolean) : [];
   const body = `
     <h1 class="page-title">Advertise on ${town.siteName}</h1>
