@@ -1113,7 +1113,7 @@ describe('selling it on /advertise', () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
     expect(html).toContain('class="ad-stats"');
-    expect(html).toContain('newsletters a week (Mon &amp; Thu)');
+    expect(html).not.toContain('newsletters a week');   // a small number on a sales page undersells
     expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(2);
     expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(2);
     expect(html).toContain('THIS WEEK\'S SPONSOR');

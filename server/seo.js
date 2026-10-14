@@ -1353,7 +1353,6 @@ export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, 
   const statItems = stats ? [
     stats.events ? [stats.events, 'events listed this week'] : null,
     stats.venues ? [stats.venues, 'venues this week'] : null,
-    ['2', 'newsletters a week (Mon & Thu)'],
     // The town plus at least two nearby towns, or it undersells.
     stats.towns >= 2 ? [stats.towns + 1, `towns: ${town.city} and nearby`] : null,
     stats.subscribers ? [`${stats.subscribers}+`, 'local subscribers'] : null,
