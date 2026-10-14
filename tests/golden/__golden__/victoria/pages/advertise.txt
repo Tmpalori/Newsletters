@@ -62,7 +62,7 @@
 
     <h1 class="page-title">Advertise on The Vic 361</h1>
     <p class="page-lead">Reach people in Victoria, TX who are actively looking for something to do this week. Here’s exactly what each option gets you and where it shows.</p>
-    <ul class="ad-stats" role="list"><li><strong>11</strong><span>events listed this week</span></li><li><strong>10</strong><span>venues this week</span></li><li><strong>2</strong><span>newsletters a week (Mon &amp; Thu)</span></li></ul>
+    <ul class="ad-stats" role="list"><li><strong>11</strong><span>events listed this week</span></li><li><strong>10</strong><span>venues this week</span></li></ul>
     <section class="ad-flow" aria-label="Where your ad goes">
       <h2 class="section-heading">Where your ad goes</h2>
       <div class="ad-flow__grid">

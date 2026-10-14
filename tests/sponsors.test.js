@@ -1113,7 +1113,7 @@ describe('selling it on /advertise', () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
     expect(html).toContain('class="ad-stats"');
-    expect(html).toContain('newsletters a week (Mon &amp; Thu)');
+    expect(html).not.toContain('newsletters a week');   // a small number on a sales page undersells
     expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(2);
     expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(2);
     expect(html).toContain('THIS WEEK\'S SPONSOR');
@@ -1137,7 +1137,9 @@ describe('selling it on /advertise', () => {
       { date: '2026-10-09', venue: 'Club' }, { date: '2026-10-10', venue: 'club ' }, { date: '2026-10-11', venue: 'Park', town: 'Cuero' },
       { date: '2026-10-12', venue: 'Next Week' }, { date: '2026-10-04', venue: 'Last Week' }
     ];
-    expect(advertiseStats(evs, now, 99)).toEqual({ events: 3, venues: 2, towns: 1, subscribers: null });
+    expect(advertiseStats(evs, now, 99)).toEqual({ events: 3, venues: 2, towns: 1, subscribers: null, readers: null });
+    expect(advertiseStats(evs, now, 0, 499).readers).toBeNull();
+    expect(advertiseStats(evs, now, 0, 3260).readers).toBe(3200);
     expect(advertiseStats(evs, now, 247).subscribers).toBe(240);
   });
 });
