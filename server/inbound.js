@@ -14,6 +14,10 @@
  * (subscribe it to both in Resend): a hard bounce marks the subscriber
  * bounced and a spam complaint unsubscribes them, so neither gets another
  * issue nor counts toward referral rewards or a sponsor's copies sent.
+ * A soft bounce (a full mailbox) is only counted: a run of them over a
+ * week or more marks the address bounced too (SOFT_BOUNCE in db.js). Also
+ * subscribe it to `email.delivered`, which ends a run; without it a run
+ * ends after 30 days with no soft bounce.
  *
  * Setup (Railway): RESEND_WEBHOOK_SECRET, the webhook's signing secret.
  * Unset, the endpoint answers 503 and the reply ask stays off (newsletter.js).
@@ -26,6 +30,7 @@ import express from 'express';
 import { keyOk } from './hq.js';
 
 const RESEND_API = 'https://api.resend.com';
+const DELIVERY_EVENTS = new Set(['email.bounced', 'email.complained', 'email.delivered']);
 const TOLERANCE_S = 5 * 60;      // Svix timestamps older/newer than this are refused
 const MAX_TEXT = 1500;           // characters of the reply shown in Slack
 const SEEN_MAX = 500;            // webhook ids remembered (Resend retries)
@@ -177,8 +182,18 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
     if (!isForTown([d.from].filter(Boolean), town, others)) return 'other-town';
     const to = recipientAddresses(d.to);
     if (!to.length || !store) return 'ignored';
+    if (event.type === 'email.delivered') {
+      if (typeof store.clearSoftBounces === 'function') await store.clearSoftBounces(to);
+      return 'delivered';
+    }
     if (event.type === 'email.bounced') {
-      if (!isHardBounce(d)) return 'soft-bounce';
+      if (!isHardBounce(d)) {
+        if (typeof store.recordSoftBounce !== 'function') return 'soft-bounce';
+        const gone = await store.recordSoftBounce(to, new Date(nowFn()));
+        if (!gone.length) return 'soft-bounce';
+        console.log(`[inbound] marked ${gone.length} subscriber(s) bounced (repeated soft bounces)`);
+        return 'bounced';
+      }
       if (typeof store.markSubscribersBounced !== 'function') return 'ignored';
       const n = await store.markSubscribersBounced(to);
       if (n) console.log(`[inbound] marked ${n} subscriber(s) bounced (hard bounce)`);
@@ -200,7 +215,7 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
   }
 
   async function handle(event) {
-    if (event && (event.type === 'email.bounced' || event.type === 'email.complained') && event.data) return handleDeliveryEvent(event);
+    if (event && DELIVERY_EVENTS.has(event.type) && event.data) return handleDeliveryEvent(event);
     if (!event || event.type !== 'email.received' || !event.data || !event.data.email_id) return 'ignored';
     const id = event.data.email_id;
     if (!isForTown([...(event.data.to || []), ...(event.data.cc || [])], town, others)) return 'other-town';

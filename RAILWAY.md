@@ -59,8 +59,11 @@ picks publish on their own).
 6. **Resend webhook.** In Resend → Webhooks, add one endpoint at
    `$SITE/api/email/inbound` and subscribe it to **`email.received`**
    (replies to news@ post to Slack), **`email.bounced`** (a hard bounce
-   marks the subscriber bounced) and **`email.complained`** (a spam
-   complaint unsubscribes them). Put its signing secret in Railway as
+   marks the subscriber bounced; soft ones are counted, and a week-plus
+   run of them does the same), **`email.complained`** (a spam complaint
+   unsubscribes them) and **`email.delivered`** (a delivery ends a run of
+   soft bounces; without it a run ends after 30 quiet days, so a mailbox
+   that's only sometimes full can still be dropped). Put its signing secret in Railway as
    `RESEND_WEBHOOK_SECRET`. Without the last two events, a dead or
    complaining address stays active: it keeps getting issues and counts in
    referral rewards and sponsors' copies sent. Each town's endpoint acts
