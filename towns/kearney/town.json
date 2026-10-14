@@ -83,5 +83,9 @@
       "venue": "University of Nebraska at Kearney",
       "address": "905 W 25th St"
     }
-  ]
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  }
 }
