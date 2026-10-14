@@ -272,6 +272,19 @@ def test_exclude_and_place():
         town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "timeout": 999}])
 
 
+def test_rename():
+    evs = [{"name": "University of Nebraska - Kearney Women's Soccer vs Fort Hays State"},
+           {"name": "Tri-City Storm Men's Ice Hockey vs Chicago Steel"}]
+    rules = [[r"^University of Nebraska - Kearney ", "UNK "], [r" Men's Ice Hockey", ""]]
+    town_feeds.renamed(evs, rules)
+    assert [e["name"] for e in evs] == ["UNK Women's Soccer vs Fort Hays State", "Tri-City Storm vs Chicago Steel"]
+    assert town_feeds.renamed(evs, None) == evs
+    assert town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": rules}])
+    for bad in ("x", [["("], ["a"]], [["(", "b"]], [[1, "b"]]):
+        with pytest.raises(ValueError, match="rename"):
+            town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": bad}])
+
+
 def test_growthzone_reads_each_events_calendar_file():
     month = '<a href="https://c.example/events/details/fall-fest-1?calendarMonth=2026-10-01">x</a>' * 2
     ics = "BEGIN:VEVENT\nSUMMARY:Fall Fest\nDTSTART:20261017T140000Z\nLOCATION:Mobile Plaza\\, 18 Mobile St\nEND:VEVENT\n"

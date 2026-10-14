@@ -50,6 +50,38 @@
       "name": "mona",
       "type": "tribe",
       "url": "https://mona.unk.edu"
+    },
+    {
+      "name": "lopers",
+      "type": "ics",
+      "url": "https://lopers.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\|.*Kearney, NE)",
+      "rename": [
+        [
+          "^University of Nebraska - Kearney ",
+          "UNK "
+        ]
+      ]
+    },
+    {
+      "name": "tri_city_storm",
+      "type": "ics",
+      "url": "https://stormhockey.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\|.*Viaero Center)",
+      "rename": [
+        [
+          " Men's Ice Hockey",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "unk",
+      "type": "ics",
+      "url": "https://www.unk.edu/calendar/_data/current.ics",
+      "exclude": "^(?!.*(concert|recital|book launch|lecture|theatre|play|exhibit|festival|reading|planetarium|gallery|film|symphony|band|choir|jazz|opera|dance|art))|book club",
+      "venue": "University of Nebraska at Kearney",
+      "address": "905 W 25th St"
     }
   ]
 }
