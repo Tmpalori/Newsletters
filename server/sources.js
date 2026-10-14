@@ -79,6 +79,28 @@ export async function readMetadataFile(metadataPath) {
 
 // Builds the response payload the /api/admin/sources route returns. Pure
 // function over its inputs so it's easy to test.
+// The collector's Apify spend (collect_events.py apify_spend): numbers only,
+// so a malformed file can't put text in the admin.
+function apifySpend(a) {
+  if (!a || typeof a !== 'object') return null;
+  const n = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const out = { month_usd: n(a.month_usd), limit_usd: n(a.limit_usd), run_usd: n(a.run_usd),
+    cycle_end: typeof a.cycle_end === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.cycle_end) ? a.cycle_end : null };
+  return out.month_usd == null ? null : out;
+}
+
+// Facebook pages the collector skips for having no posts lately
+// (collect_events.py quiet pages), for the owner to check their links.
+function quietPages(q) {
+  if (!q || typeof q !== 'object') return [];
+  return Object.entries(q)
+    .filter(([url, r]) => /^https:\/\/(www\.|m\.)?facebook\.com\//.test(url) && r && typeof r === 'object')
+    .map(([url, r]) => ({ url, name: String(r.name || '').slice(0, 120), misses: Number(r.misses) || 0,
+      since: /^\d{4}-\d{2}-\d{2}$/.test(String(r.since || '')) ? r.since : null }))
+    .filter(r => r.misses >= 2)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, actionsUrl }) {
   const next = nextWeeklyRunUtc(now);
   const seenNames = new Set();
@@ -151,6 +173,8 @@ export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, ac
     // workflow_dispatch. Surface this so the UI can reassure the user when
     // Pull Now fails.
     save_publish_unaffected: true,
+    apify: apifySpend(metadata && metadata.apify),
+    quiet_pages: quietPages(metadata && metadata.quiet_pages),
     sources: rows,
   };
 }

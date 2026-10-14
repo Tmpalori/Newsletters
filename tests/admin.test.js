@@ -170,6 +170,25 @@ describe('admin Sources tab rendering', () => {
     expect(fbCard.textContent).toContain('APIFY_TOKEN missing');
   });
 
+  it('renderSources shows the Apify month and the quiet Facebook pages, escaped', () => {
+    api.renderSources({
+      ok: true, sources: [],
+      apify: { month_usd: 41.24, limit_usd: 50, cycle_end: '2026-10-31', run_usd: 1.81 },
+      quiet_pages: [{ url: 'https://www.facebook.com/aerocrafters', name: 'Aero <b>Crafters</b>', misses: 2, since: '2026-10-11' }]
+    });
+    const item = document.getElementById('sources-apify-item');
+    expect(item.hidden).toBe(false);
+    expect(document.getElementById('sources-apify').textContent).toBe('$41.24 of $50.00 (82%), resets 2026-10-31 · last collect $1.81');
+    expect(item.classList.contains('is-warn')).toBe(true);
+    const quiet = document.getElementById('sources-quiet');
+    expect(quiet.hidden).toBe(false);
+    expect(quiet.querySelector('a').getAttribute('href')).toBe('https://www.facebook.com/aerocrafters');
+    expect(quiet.querySelector('b')).toBeNull();
+    api.renderSources({ ok: true, sources: [] });
+    expect(item.hidden).toBe(true);
+    expect(quiet.hidden).toBe(true);
+  });
+
   it('renderSources disables the trigger button and shows help when not enabled', () => {
     api.renderSources({
       ok: true,

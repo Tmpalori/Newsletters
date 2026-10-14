@@ -4157,6 +4157,61 @@ def _load_venue_list():
     return [], None
 
 
+# What Apify has charged: the account's spend this billing month against its
+# monthly limit (one account for every town), and what the actor runs
+# started during this collect cost. Recorded in collection_metadata.json
+# ("apify") for the admin's Sources tab and HQ; at APIFY_ALERT_SHARE of the
+# limit it's a warning, which the workflow's "collect done" Slack message
+# carries. Read-only calls; any failure just leaves the numbers out.
+APIFY_ALERT_SHARE = 0.8
+
+
+def _num(v):
+    return round(float(v), 2) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def apify_spend(token, since_iso, get=None):
+    """{"month_usd", "limit_usd", "cycle_end", "run_usd"} or None."""
+    get = get or requests.get
+    headers = _apify_headers(token)
+    try:
+        r = get("https://api.apify.com/v2/users/me/limits", headers=headers, timeout=30)
+        data = r.json().get("data") if r.status_code == 200 else None
+    except Exception as e:
+        print(f"  [Apify spend] couldn't read the limits: {type(e).__name__}")
+        return None
+    if not isinstance(data, dict):
+        print("  [Apify spend] no limits in the answer")
+        return None
+    out = {
+        "month_usd": _num((data.get("current") or {}).get("monthlyUsageUsd")),
+        "limit_usd": _num((data.get("limits") or {}).get("maxMonthlyUsageUsd")),
+        "cycle_end": str((data.get("monthlyUsageCycle") or {}).get("endAt") or "")[:10] or None,
+        "run_usd": None,
+    }
+    try:
+        r = get("https://api.apify.com/v2/actor-runs", params={"desc": "true", "limit": 200}, headers=headers, timeout=30)
+        items = ((r.json().get("data") or {}).get("items") or []) if r.status_code == 200 else []
+        out["run_usd"] = round(sum(_num(x.get("usageTotalUsd")) or 0 for x in items
+                                   if isinstance(x, dict) and str(x.get("startedAt") or "") >= since_iso), 2)
+    except Exception as e:
+        print(f"  [Apify spend] couldn't read this run's cost: {type(e).__name__}")
+    return out
+
+
+def note_apify_spend(spend):
+    """Print it, and warn at APIFY_ALERT_SHARE of the monthly limit."""
+    if not spend or spend.get("month_usd") is None:
+        return
+    limit = spend.get("limit_usd")
+    print(f"  [Apify spend] ${spend['month_usd']:.2f} this month"
+          + (f" of ${limit:.2f}" if limit else "")
+          + (f"; this collect ${spend['run_usd']:.2f}" if spend.get("run_usd") is not None else ""))
+    if limit and spend["month_usd"] >= APIFY_ALERT_SHARE * limit:
+        _warn(f"Apify spend at {round(100 * spend['month_usd'] / limit)}% of the monthly limit",
+              spent=f"${spend['month_usd']:.2f}", limit=f"${limit:.2f}", resets=spend.get("cycle_end") or "?")
+
+
 def _apify_hard_limit_tripped(resp_text):
     """Detect Apify's monthly hard-limit response so we can short-circuit."""
     if not resp_text:
@@ -4624,7 +4679,71 @@ COLLECT_DEADLINE_MIN = 38
 # FB posts alone took 15.5 minutes). Hung OpenAI calls could otherwise run
 # scraping past the 50-minute step timeout before candidates.json is written.
 SCRAPE_BUDGET_MIN = 30
+# Facebook posts stop this many minutes before SCRAPE_BUDGET_MIN when the
+# Instagram pass runs after them, so Instagram gets its own time. Oct 11
+# 2026: FB posts took 24 of the 30 minutes and Instagram skipped all 20
+# accounts (0 events, from 26 on Oct 7).
+IG_RESERVE_MIN = 10
 _RUN_STARTED = None
+
+
+def _ig_posts_will_run():
+    return (os.environ.get("IG_POSTS_ENABLED", "").strip() in ("1", "true", "yes")
+            and bool(os.environ.get("APIFY_TOKEN", "").strip()))
+
+
+def fb_posts_budget_min():
+    """Minutes into the run past which FB posts start no new page."""
+    return SCRAPE_BUDGET_MIN - (IG_RESERVE_MIN if _ig_posts_will_run() else 0)
+
+
+# Quiet Facebook pages: a page that gave no posts QUIET_AFTER runs in a row
+# (a wrong or renamed link, a login wall, or a page that stopped posting) is
+# skipped, and tried again every QUIET_RETRY_EVERY-th run, so it stops eating
+# scrape time but comes back on its own once it posts. Oct 11 2026: 14 of 42
+# pages came back empty. Kept between runs in collection_metadata.json
+# ("quiet_pages", keyed by page URL) and listed in the admin's Sources tab.
+QUIET_AFTER = 2
+QUIET_RETRY_EVERY = 4
+_QUIET_PAGES = {}
+
+
+def load_quiet_pages(metadata_path):
+    """The last run's quiet pages, from its collection_metadata.json."""
+    _QUIET_PAGES.clear()
+    try:
+        with open(metadata_path) as f:
+            saved = json.load(f).get("quiet_pages") or {}
+    except (OSError, ValueError, AttributeError):
+        return
+    if isinstance(saved, dict):
+        for url, row in saved.items():
+            if isinstance(url, str) and isinstance(row, dict):
+                _QUIET_PAGES[url] = {"name": str(row.get("name") or "")[:120],
+                                     "misses": int(row.get("misses") or 0), "skips": int(row.get("skips") or 0),
+                                     "since": str(row.get("since") or "")[:10]}
+
+
+def quiet_page_skip(url):
+    """True to skip this page this run (and count the skip)."""
+    row = _QUIET_PAGES.get(url)
+    if not row or row["misses"] < QUIET_AFTER:
+        return False
+    if row["skips"] >= QUIET_RETRY_EVERY - 1:
+        row["skips"] = 0       # its turn to be tried again
+        return False
+    row["skips"] += 1
+    return True
+
+
+def quiet_page_result(url, name, posts):
+    """Record a tried page: posts clear it, none counts a miss."""
+    if posts:
+        _QUIET_PAGES.pop(url, None)
+        return
+    row = _QUIET_PAGES.setdefault(url, {"name": name, "misses": 0, "skips": 0, "since": now_central().date().isoformat()})
+    row["name"] = name
+    row["misses"] += 1
 
 
 def _minutes_in():
@@ -5010,6 +5129,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
     actor_run_url = _apify_run_url(APIFY_FB_POSTS_ACTOR)
 
     venue_stats = []
+    quiet_skipped = []
     for i, venue in enumerate(high_conf):
         if _APIFY_LIMIT_TRIPPED:
             venue_stats.append(f"{venue.get('name','?')}: SKIP (limit tripped)")
@@ -5017,16 +5137,24 @@ def fetch_apify_facebook_posts(days_ahead=14):
         if _OPENAI_DEAD:
             _note_source("apify_facebook_posts", f"OpenAI unusable; skipped {len(high_conf) - i} of {len(high_conf)} pages")
             break
-        if _minutes_in() > SCRAPE_BUDGET_MIN:
-            _note_source("apify_facebook_posts", f"stopped at the {SCRAPE_BUDGET_MIN}-minute scrape budget; "
-                         f"skipped {len(high_conf) - i} of {len(high_conf)} pages")
-            _warn("[Apify FB Posts] scrape budget reached", skipped=len(high_conf) - i)
+        budget = fb_posts_budget_min()
+        if _minutes_in() > budget:
+            left = len(high_conf) - i
+            reserve = f", leaving Instagram its {IG_RESERVE_MIN}" if budget < SCRAPE_BUDGET_MIN else ""
+            _note_source("apify_facebook_posts", f"stopped at its {budget}-minute scrape budget{reserve}; "
+                         f"skipped {left} of {len(high_conf)} pages")
+            _warn("[Apify FB Posts] scrape budget reached", skipped=left)
             break
 
         venue_name = venue.get("name", "?")
         page_url = venue.get("facebook_page")
         if not page_url:
             venue_stats.append(f"{venue_name}: SKIP (no facebook_page)")
+            continue
+        if quiet_page_skip(page_url):
+            quiet_skipped.append(venue_name)
+            venue_stats.append(f"{venue_name}: SKIP (no posts the last {_QUIET_PAGES[page_url]['misses']} tries; "
+                               f"tried again every {QUIET_RETRY_EVERY}th run)")
             continue
 
         payload = {
@@ -5082,6 +5210,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
         # A flyer with no caption is still a post worth reading.
         posts = [p for p in posts if isinstance(p, dict) and not p.get("error")
                  and (p.get("text") or p.get("caption") or _post_image_urls(p))]
+        quiet_page_result(page_url, venue_name, posts)
         if not posts:
             reason = (page_errors[0].get("error") if page_errors else "no posts with text or images")
             venue_stats.append(f"{venue_name}: 0 posts ({str(reason)[:60]}) — check facebook_page in venues.json")
@@ -5140,6 +5269,11 @@ def fetch_apify_facebook_posts(days_ahead=14):
                 kept += 1
         venue_stats.append(f"{venue_name}: {len(posts)} posts → {kept} events")
 
+    if quiet_skipped:
+        note = (f"skipped {len(quiet_skipped)} pages with no posts lately (check their links in venues.json; "
+                f"each is tried again every {QUIET_RETRY_EVERY}th run): {', '.join(quiet_skipped)}")
+        prior = _SOURCE_NOTES.get("apify_facebook_posts")
+        _note_source("apify_facebook_posts", f"{prior}; {note}" if prior else note)
     print(f"  [Apify FB Posts] Extracted {len(events)} events across {len(high_conf)} venues")
     for s in venue_stats:
         print(f"    • {s}")
@@ -5623,6 +5757,8 @@ def main():
     reset_source_stats()
     global _RUN_STARTED
     _RUN_STARTED = datetime.now().timestamp()  # flyer time budget
+    run_started_iso = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    load_quiet_pages(os.path.join(os.path.dirname(os.path.abspath(args.candidates)) or ".", "collection_metadata.json"))
     all_events = []
 
     # 1. Local YAML (backbone)
@@ -5780,6 +5916,9 @@ def main():
         os.path.dirname(candidates_path) or ".",
         "collection_metadata.json",
     )
+    token = os.environ.get("APIFY_TOKEN", "").strip()
+    spend = apify_spend(token, run_started_iso) if token else None
+    note_apify_spend(spend)
     try:
         metadata_output = {
             "last_run_at": _stamp(),
@@ -5792,6 +5931,8 @@ def main():
             "sources": get_source_stats(),
             # Read by the workflow's "Collect done" Slack message.
             "warnings": {"count": len(_WARNINGS), "first": _WARNINGS[:5], "summary": warning_summary()},
+            **({"apify": spend} if spend else {}),
+            "quiet_pages": dict(sorted(_QUIET_PAGES.items())),
         }
         with open(metadata_path, "w") as f:
             json.dump(metadata_output, f, indent=2)
