@@ -70,6 +70,9 @@ jobs:
   # A late GitHub cron run is skipped when the site's scheduler already
   # dispatched today's report (no second Slack report).
   gate:
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -101,6 +104,9 @@ jobs:
   ads:
     needs: gate
     if: needs.gate.outputs.run == 'true'
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

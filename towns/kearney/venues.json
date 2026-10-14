@@ -1,1 +1,1018 @@
-[]
+[
+ {
+  "name": "The Other Side",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/theothersidene",
+  "facebook_events": "https://www.facebook.com/theothersidene/events",
+  "event_potential": "Live bands downstairs most weekends, touring acts, PondstOcktober fest; pinball/pool lounge upstairs",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; FB linked from Visit Kearney event pages; IG handle matches FB",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "theothersidene"
+  ],
+  "instagram_url": "https://www.instagram.com/theothersidene/"
+ },
+ {
+  "name": "Gillies Bar",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/gillieslive",
+  "facebook_events": "https://www.facebook.com/gillieslive/events",
+  "event_potential": "Original rock/punk/alt bands, DJ nights; dive bar + taco joint at 1822 Central Ave",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via instagram.com search (bio: dive bar + taco joint)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "gillieskearney"
+  ],
+  "instagram_url": "https://www.instagram.com/gillieskearney/"
+ },
+ {
+  "name": "Joe's Honky-Tonk",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/Joeshonkytonk",
+  "facebook_events": "https://www.facebook.com/Joeshonkytonk/events",
+  "event_potential": "Country and rock bands Fri/Sat, big dance floor (2023 1st Ave); most Bandsintown listings in Kearney",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG bio 'Located in Kearney, NE'",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "joeshonkytonk"
+  ],
+  "instagram_url": "https://www.instagram.com/joeshonkytonk/"
+ },
+ {
+  "name": "Brix",
+  "category": "Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/brixkearney",
+  "facebook_events": "https://www.facebook.com/brixkearney/events",
+  "event_potential": "Karaoke every Tuesday and 2nd Friday, Masters of the Bricks bar crawl, drink specials",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search (Best of Kearney 2022/2023)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "brixkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/brixkearney/"
+ },
+ {
+  "name": "Whistlin' Wolf Bar & Lounge",
+  "category": "Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/profile.php?id=61551043024109",
+  "facebook_events": "https://www.facebook.com/profile.php?id=61551043024109&sk=events",
+  "event_potential": "Karaoke Wednesdays, cocktail lounge events on the Bricks (12 E 21st St)",
+  "confidence": "high",
+  "notes": "FB profile ID linked from Visit Kearney 'Karaoke Wednesdays' event; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "wolfbarkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/wolfbarkearney/"
+ },
+ {
+  "name": "The Crafty Dog Sports Bar",
+  "category": "Bar / Trivia",
+  "facebook_page": "https://www.facebook.com/thecraftydogkearney",
+  "facebook_events": "https://www.facebook.com/thecraftydogkearney/events",
+  "event_potential": "Askin' Nebraskan trivia nights, game-day specials (1325 2nd Ave)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; trivia confirmed via Askin' Nebraskan page; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "thecraftydogkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/thecraftydogkearney/"
+ },
+ {
+  "name": "McCue's Nebraska Taproom",
+  "category": "Taproom / Trivia",
+  "facebook_page": "https://www.facebook.com/2957469201147466",
+  "facebook_events": "https://www.facebook.com/2957469201147466/events",
+  "event_potential": "Weekly Wednesday trivia (Askin' Nebraskan), Drink Local tap takeovers; Nebraska-only beer/wine/spirits",
+  "confidence": "high",
+  "notes": "FB numeric page ID from facebook.com search; weekly trivia on Visit Kearney calendar",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "The Askin' Nebraskan Trivia",
+  "category": "Trivia Host",
+  "facebook_page": "https://www.facebook.com/askinnebraskan",
+  "facebook_events": "https://www.facebook.com/askinnebraskan/events",
+  "event_potential": "Posts weekly trivia topics/locations (McCue's, Crafty Dog and others)",
+  "confidence": "high",
+  "notes": "FB linked from Visit Kearney 'Trivia @ McCue's' event",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "Cunningham's Journal on the Bricks",
+  "category": "Pub / Trivia",
+  "facebook_page": "https://www.facebook.com/cunninghamsonthebricks",
+  "facebook_events": "https://www.facebook.com/cunninghamsonthebricks/events",
+  "event_potential": "Pub Quiz nights, specials (15 W 23rd St)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; Pub Quiz on Visit Kearney calendar",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "http://cunninghamsjournal.net/"
+ },
+ {
+  "name": "Sip & Swirl Wine Bar",
+  "category": "Wine Bar",
+  "facebook_page": "https://www.facebook.com/sipandswirlwinebar",
+  "facebook_events": "https://www.facebook.com/sipandswirlwinebar/events",
+  "event_potential": "Board Game Mondays, DWTS watch parties, paint & sip, wine tastings, cookie decorating nights",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website (linked from Visit Kearney); most-listed venue on Visit Kearney",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "sipandswirlwinebar"
+  ],
+  "instagram_url": "https://www.instagram.com/sipandswirlwinebar/",
+  "website": "https://www.sipandswirlwinebar.com/"
+ },
+ {
+  "name": "Joy's Table",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/JoysTableKearney",
+  "facebook_events": "https://www.facebook.com/JoysTableKearney/events",
+  "event_potential": "Live Music Wednesdays, wine dinners (110 2nd Ave)",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website; weekly music on Visit Kearney",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "joystablekearney"
+  ],
+  "instagram_url": "https://www.instagram.com/joystablekearney/",
+  "website": "https://www.joystablekearney.com/"
+ },
+ {
+  "name": "Upper Room Brewery",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/upperroombrewery",
+  "facebook_events": "https://www.facebook.com/upperroombrewery/events",
+  "event_potential": "Askin' Nebraskan trivia, food trucks, weekly specials, music nights (1540 W 56th St)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; website has Beer & Events page; no IG found",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://upperroombrewery.com/"
+ },
+ {
+  "name": "Merryman Performing Arts Center",
+  "category": "Theater / Performing Arts",
+  "facebook_page": "https://www.facebook.com/merrymancenter",
+  "facebook_events": "https://www.facebook.com/merrymancenter/events",
+  "event_potential": "Concerts, touring shows, season performances (760 seats)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; website links FB page ID; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "merrymanperformingarts"
+  ],
+  "instagram_url": "https://www.instagram.com/merrymanperformingarts/",
+  "website": "https://merrymancenter.org/"
+ },
+ {
+  "name": "The World Theatre",
+  "category": "Theater / Cinema",
+  "facebook_page": "https://www.facebook.com/WorldTheatre",
+  "facebook_events": "https://www.facebook.com/WorldTheatre/events",
+  "event_potential": "Nonprofit indie/classic film screenings, special events, rentals (2318 Central Ave)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG location Kearney, NE",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "worldtheatre"
+  ],
+  "instagram_url": "https://www.instagram.com/worldtheatre/"
+ },
+ {
+  "name": "Kearney Community Theatre",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/KearneyCommunityTheatre",
+  "facebook_events": "https://www.facebook.com/KearneyCommunityTheatre/events",
+  "event_potential": "Season productions, auditions, fundraisers",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search (48th season)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "kctonline"
+  ],
+  "instagram_url": "https://www.instagram.com/kctonline/"
+ },
+ {
+  "name": "UNK Music, Theatre, and Dance",
+  "category": "University Arts",
+  "facebook_page": "https://www.facebook.com/unkmusictheatreanddance",
+  "facebook_events": "https://www.facebook.com/unkmusictheatreanddance/events",
+  "event_potential": "Concerts, recitals, plays, dance shows at UNK Fine Arts",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "Museum of Nebraska Art (MONA)",
+  "category": "Museum / Art",
+  "facebook_page": "https://www.facebook.com/museumofnebraskaart",
+  "facebook_events": "https://www.facebook.com/museumofnebraskaart/events",
+  "event_potential": "Exhibition openings, art classes, talks, family days",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "museumofnebraskaart"
+  ],
+  "instagram_url": "https://www.instagram.com/museumofnebraskaart/",
+  "website": "https://mona.unk.edu/"
+ },
+ {
+  "name": "The Archway",
+  "category": "Museum / Attraction",
+  "facebook_page": "https://www.facebook.com/KearneyArchway",
+  "facebook_events": "https://www.facebook.com/KearneyArchway/events",
+  "event_potential": "Seasonal events, history programs, holiday events over I-80",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "kearneyarchway"
+  ],
+  "instagram_url": "https://www.instagram.com/kearneyarchway/",
+  "website": "https://www.archway.org/"
+ },
+ {
+  "name": "Kearney Area Children's Museum",
+  "category": "Museum / Family",
+  "facebook_page": "https://www.facebook.com/KearneyChildrensMuseum",
+  "facebook_events": "https://www.facebook.com/KearneyChildrensMuseum/events",
+  "event_potential": "Family events, story times, themed play days",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "kacmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/kacmuseum/"
+ },
+ {
+  "name": "Kearney Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/KearneyPublicLibrary",
+  "facebook_events": "https://www.facebook.com/KearneyPublicLibrary/events",
+  "event_potential": "Story times, Senior College lectures, book clubs, crafts, teen events (2020 1st Ave)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result (lists 2020 1st Ave); IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "kearneylib"
+  ],
+  "instagram_url": "https://www.instagram.com/kearneylib/",
+  "website": "https://cityofkearney.org/1475/Library"
+ },
+ {
+  "name": "Kearney Park & Recreation",
+  "category": "Parks & Rec",
+  "facebook_page": "https://www.facebook.com/KearneyParksandRecreation",
+  "facebook_events": "https://www.facebook.com/KearneyParksandRecreation/events",
+  "event_potential": "Park events, Harmon Park Activity Center programs, leagues, holiday events",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; NOTE facebook.com/KearneyParks is Kearney MO, not this",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://cityofkearney.org/"
+ },
+ {
+  "name": "Viaero Center",
+  "category": "Arena",
+  "facebook_page": "https://www.facebook.com/ViaeroCenter",
+  "facebook_events": "https://www.facebook.com/ViaeroCenter/events",
+  "event_potential": "Concerts, Storm hockey, rodeos, shows (5,000 seats)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; no Viaero Center IG found",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "Tri-City Storm",
+  "category": "Sports / Hockey",
+  "facebook_page": "https://www.facebook.com/TriCityStorm",
+  "facebook_events": "https://www.facebook.com/TriCityStorm/events",
+  "event_potential": "USHL home games at Viaero Center, promo nights",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG from stormhockey.com",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "tricitystorm"
+  ],
+  "instagram_url": "https://www.instagram.com/tricitystorm/",
+  "website": "https://stormhockey.com/"
+ },
+ {
+  "name": "UNK Athletics (Lopers)",
+  "category": "Sports / College",
+  "facebook_page": "https://www.facebook.com/unkathletics",
+  "facebook_events": "https://www.facebook.com/unkathletics/events",
+  "event_potential": "Loper football, volleyball, basketball, wrestling home games",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "unk_athletics"
+  ],
+  "instagram_url": "https://www.instagram.com/unk_athletics/",
+  "website": "https://lopers.com/"
+ },
+ {
+  "name": "Buffalo County Fairgrounds",
+  "category": "Fairgrounds",
+  "facebook_page": "https://www.facebook.com/buffalocofair",
+  "facebook_events": "https://www.facebook.com/buffalocofair/events",
+  "event_potential": "Buffalo County Fair, concerts, rodeos, trade shows, auto shows",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "buffalocofair"
+  ],
+  "instagram_url": "https://www.instagram.com/buffalocofair/",
+  "website": "https://www.buffalocountyfair.com/"
+ },
+ {
+  "name": "Kearney Raceway Park",
+  "category": "Motorsports",
+  "facebook_page": "https://www.facebook.com/KearneyRacewayPark",
+  "facebook_events": "https://www.facebook.com/KearneyRacewayPark/events",
+  "event_potential": "Drag races, NHRA National Open (seasonal)",
+  "confidence": "high",
+  "notes": "FB scraped from krpi.com",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://krpi.com/"
+ },
+ {
+  "name": "Visit Kearney",
+  "category": "Tourism",
+  "facebook_page": "https://www.facebook.com/VisitKearney",
+  "facebook_events": "https://www.facebook.com/VisitKearney/events",
+  "event_potential": "Citywide events calendar, festivals, crane season",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "visitkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/visitkearney/",
+  "website": "https://visitkearney.org/"
+ },
+ {
+  "name": "Downtown Kearney on the Bricks",
+  "category": "Downtown Association",
+  "facebook_page": "https://www.facebook.com/downtownkearney",
+  "facebook_events": "https://www.facebook.com/downtownkearney/events",
+  "event_potential": "Downtown festivals, Cruise Nite, holiday events, shop promotions",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "downtownkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/downtownkearney/"
+ },
+ {
+  "name": "Audubon's Rowe Sanctuary",
+  "category": "Nature / Wildlife",
+  "facebook_page": "https://www.facebook.com/audubonsrowesanctuary",
+  "facebook_events": "https://www.facebook.com/audubonsrowesanctuary/events",
+  "event_potential": "Crane season blinds, workshops, nature programs (Gibbon)",
+  "confidence": "high",
+  "notes": "FB + IG scraped from official website; events peak Feb-Apr",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "rowesanctuary"
+  ],
+  "instagram_url": "https://www.instagram.com/rowesanctuary/",
+  "website": "https://rowe.audubon.org/"
+ },
+ {
+  "name": "Kearney Live Music Scene",
+  "category": "Community / Music Calendar",
+  "facebook_page": "https://www.facebook.com/klmsne2022",
+  "facebook_events": "https://www.facebook.com/klmsne2022/events",
+  "event_potential": "Aggregator page posting upcoming local shows across Kearney venues",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; community page, good catch-all for band posts",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "UN:Inebriated",
+  "category": "Non-Alcoholic Bar",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Game Night Fridays, open mics, live acoustic sets, readings (2102 Central Ave)",
+  "confidence": "medium",
+  "notes": "No FB page found (Visit Kearney links only to FB event IDs); IG via search; collector will use IG only",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "uninebriatedne"
+  ],
+  "instagram_url": "https://www.instagram.com/uninebriatedne/"
+ },
+ {
+  "name": "Copperfields Bar",
+  "category": "Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/copperfieldsbarkearney",
+  "facebook_events": "https://www.facebook.com/copperfieldsbarkearney/events",
+  "event_potential": "Karaoke nights, game watch parties (13 E 21st St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Fanatics Sports Bar",
+  "category": "Bar / Sports",
+  "facebook_page": "https://www.facebook.com/fanatics.bar",
+  "facebook_events": "https://www.facebook.com/fanatics.bar/events",
+  "event_potential": "Watch parties, live music/DJ, specials on Central Ave",
+  "confidence": "medium",
+  "notes": "FB from search result titled 'Fanatics Sports Bar, Kearney'; IG lists 2021 Central Ave, Kearney",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "fanaticskearney"
+  ],
+  "instagram_url": "https://www.instagram.com/fanaticskearney/"
+ },
+ {
+  "name": "Cunningham's on the Lake",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/CJLakeside",
+  "facebook_events": "https://www.facebook.com/CJLakeside/events",
+  "event_potential": "Patio music, watch parties, specials (610 Talmadge St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Thunderhead Brewing (Kearney pub)",
+  "category": "Brewery / Pub",
+  "facebook_page": "https://www.facebook.com/thunderheadbrew",
+  "facebook_events": "https://www.facebook.com/thunderheadbrew/events",
+  "event_potential": "Pub events and releases at 18 E 21st St",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (Kearney pub listed); IG from search, not confirmed as Kearney-specific",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thunderhead.brewing"
+  ],
+  "instagram_url": "https://www.instagram.com/thunderhead.brewing/"
+ },
+ {
+  "name": "Kinkaider Brewing Co. Kearney",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/Kinkaider",
+  "facebook_events": "https://www.facebook.com/Kinkaider/events",
+  "event_potential": "Kearney taproom at Younes campus lake: live music, Oktoberfest, lake events",
+  "confidence": "medium",
+  "notes": "FB is the brand-wide page (linked from kinkaider.com); Kearney-specific IG @kinkaider.kearney via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "kinkaider.kearney",
+   "kinkaider.brewing"
+  ],
+  "instagram_url": "https://www.instagram.com/kinkaider.kearney/",
+  "website": "https://kinkaider.com/"
+ },
+ {
+  "name": "Nebraska Ale Works - Kearney",
+  "category": "Restaurant / Sports Bar",
+  "facebook_page": "https://www.facebook.com/p/Nebraska-Ale-Works-Kearney-61575187415908",
+  "facebook_events": "https://www.facebook.com/p/Nebraska-Ale-Works-Kearney-61575187415908/events",
+  "event_potential": "Watch parties, trivia/specials at 115 2nd Ave E",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG from official website (brand-wide)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "nebraskaaleworks"
+  ],
+  "instagram_url": "https://www.instagram.com/nebraskaaleworks/",
+  "website": "https://nebraskaaleworks.com/"
+ },
+ {
+  "name": "Big Apple Sports Bar",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/BigAppleSportsBar",
+  "facebook_events": "https://www.facebook.com/BigAppleSportsBar/events",
+  "event_potential": "Occasional outdoor concerts, sports events (500 W 4th St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Big Apple Fun Center",
+  "category": "Entertainment / Bowling",
+  "facebook_page": "https://www.facebook.com/BigAppleKearney",
+  "facebook_events": "https://www.facebook.com/BigAppleKearney/events",
+  "event_potential": "Bowling leagues, laser tag, glow bowling, holiday family events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "bigapplekearney"
+  ],
+  "instagram_url": "https://www.instagram.com/bigapplekearney/",
+  "website": "https://bigapplefuncenter.com/"
+ },
+ {
+  "name": "Jersey's Sports Bar & Grill",
+  "category": "Bar / Sports",
+  "facebook_page": "https://www.facebook.com/JerseysKearney",
+  "facebook_events": "https://www.facebook.com/JerseysKearney/events",
+  "event_potential": "Watch parties, specials",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Chicken Coop Sports Bar and Grill",
+  "category": "Bar / Sports",
+  "facebook_page": "https://www.facebook.com/ChickenCoopSportsBar",
+  "facebook_events": "https://www.facebook.com/ChickenCoopSportsBar/events",
+  "event_potential": "Watch parties, karaoke/specials",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (titled 'Kearney, Nebraska')",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Cellar Sports Bar & Grill",
+  "category": "Bar / Sports",
+  "facebook_page": "https://www.facebook.com/p/Cellar-Sports-Bar-Grill-100090343909981",
+  "facebook_events": "https://www.facebook.com/p/Cellar-Sports-Bar-Grill-100090343909981/events",
+  "event_potential": "Watch parties, local hangout events (3901 2nd Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Birdies and Brews",
+  "category": "Golf Simulator / Bar",
+  "facebook_page": "https://www.facebook.com/birdiesandbrewskearney",
+  "facebook_events": "https://www.facebook.com/birdiesandbrewskearney/events",
+  "event_potential": "Golf sim leagues, tournaments, watch parties (5915 2nd Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "birdiesandbrews_kearney"
+  ],
+  "instagram_url": "https://www.instagram.com/birdiesandbrews_kearney/"
+ },
+ {
+  "name": "Drop Zone",
+  "category": "Entertainment / Golf / Pickleball",
+  "facebook_page": "https://www.facebook.com/DropZoneNE",
+  "facebook_events": "https://www.facebook.com/DropZoneNE/events",
+  "event_potential": "Pickleball and golf leagues, tournaments, events (101 11th Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Axe Holes Kearney",
+  "category": "Entertainment / Axe Throwing",
+  "facebook_page": "https://www.facebook.com/krnyaxeholes",
+  "facebook_events": "https://www.facebook.com/krnyaxeholes/events",
+  "event_potential": "Axe throwing leagues, themed nights, bar events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "axeholeskearney"
+  ],
+  "instagram_url": "https://www.instagram.com/axeholeskearney/"
+ },
+ {
+  "name": "Le Chateau Venues + Bistro (Speakeasy Velvet Hour)",
+  "category": "Event Venue / Live Jazz",
+  "facebook_page": "https://www.facebook.com/lechateauvenuesandbistro",
+  "facebook_events": "https://www.facebook.com/lechateauvenuesandbistro/events",
+  "event_potential": "Speakeasy Velvet Hour live jazz nights, bistro events at historic Crescent Theatre (2218 Central Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG from speakeasyvelvethour.com; Velvet Hour on Visit Kearney",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lechateauvenues"
+  ],
+  "instagram_url": "https://www.instagram.com/lechateauvenues/",
+  "website": "https://www.speakeasyvelvethour.com"
+ },
+ {
+  "name": "Legacy on the Bricks",
+  "category": "Event Venue",
+  "facebook_page": "https://www.facebook.com/Legacyonthebricks",
+  "facebook_events": "https://www.facebook.com/Legacyonthebricks/events",
+  "event_potential": "Downtown event space; public events, markets, pop-ups",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "legacyonthebricks"
+  ],
+  "instagram_url": "https://www.instagram.com/legacyonthebricks/"
+ },
+ {
+  "name": "Crane River Theater",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/cranerivertheater",
+  "facebook_events": "https://www.facebook.com/cranerivertheater/events",
+  "event_potential": "Professional summer theater productions, cabarets",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; FB + IG also linked from website",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "cranerivertheater"
+  ],
+  "instagram_url": "https://www.instagram.com/cranerivertheater/",
+  "website": "https://cranerivertheater.org/"
+ },
+ {
+  "name": "University Theatre at Kearney",
+  "category": "University Arts / Theater",
+  "facebook_page": "https://www.facebook.com/UniversityTheatreKearney",
+  "facebook_events": "https://www.facebook.com/UniversityTheatreKearney/events",
+  "event_potential": "UNK theatre productions",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney Concert Association",
+  "category": "Performing Arts",
+  "facebook_page": "https://www.facebook.com/kearneyconcerts",
+  "facebook_events": "https://www.facebook.com/kearneyconcerts/events",
+  "event_potential": "Touring concert series since 1948",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney Area Arts Council",
+  "category": "Arts Council",
+  "facebook_page": "https://www.facebook.com/kearneyarts",
+  "facebook_events": "https://www.facebook.com/kearneyarts/events",
+  "event_potential": "Summer concert series, arts events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The American Automobile Experience",
+  "category": "Museum / Cars",
+  "facebook_page": "https://www.facebook.com/theamericanautomobileexperience",
+  "facebook_events": "https://www.facebook.com/theamericanautomobileexperience/events",
+  "event_potential": "Car shows, drive-in movies, museum events (formerly Classic Car Collection, 3600 Hwy 30 E)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; rebrand confirmed by KSNB June 2024",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://americanautoexperience.com/"
+ },
+ {
+  "name": "Trails & Rails Museum (Buffalo County Historical Society)",
+  "category": "Museum / History",
+  "facebook_page": "https://www.facebook.com/245794133428",
+  "facebook_events": "https://www.facebook.com/245794133428/events",
+  "event_potential": "Historical programs, Christmas open house, member events",
+  "confidence": "medium",
+  "notes": "FB page ID linked from official bchs.us website (a separate 'buffalocounty.historicalsociety' page also exists)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.bchs.us/"
+ },
+ {
+  "name": "G.W. Frank Museum of History and Culture",
+  "category": "Museum / History",
+  "facebook_page": "https://www.facebook.com/frankmuseum",
+  "facebook_events": "https://www.facebook.com/frankmuseum/events",
+  "event_potential": "Tours, holiday and history programs at UNK",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "City of Kearney Nebraska",
+  "category": "Government",
+  "facebook_page": "https://www.facebook.com/cityofkearneynebraska",
+  "facebook_events": "https://www.facebook.com/cityofkearneynebraska/events",
+  "event_potential": "City events, park/library announcements, closures",
+  "confidence": "medium",
+  "notes": "FB + IG scraped from cityofkearney.org",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "cityofkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/cityofkearney/",
+  "website": "https://cityofkearney.org/"
+ },
+ {
+  "name": "University of Nebraska at Kearney",
+  "category": "University",
+  "facebook_page": "https://www.facebook.com/UNKearney",
+  "facebook_events": "https://www.facebook.com/UNKearney/events",
+  "event_potential": "Campus events, homecoming, lectures, concerts",
+  "confidence": "medium",
+  "notes": "FB + IG scraped from unk.edu",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "unkearney"
+  ],
+  "instagram_url": "https://www.instagram.com/unkearney/",
+  "website": "https://www.unk.edu/"
+ },
+ {
+  "name": "Tri-City BMX",
+  "category": "Sports / BMX",
+  "facebook_page": "https://www.facebook.com/tricitybmxkearney",
+  "facebook_events": "https://www.facebook.com/tricitybmxkearney/events",
+  "event_potential": "BMX races and practice nights (3710 30th Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG location Kearney, NE",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "tricitybmxne"
+  ],
+  "instagram_url": "https://www.instagram.com/tricitybmxne/"
+ },
+ {
+  "name": "Crane Trust",
+  "category": "Nature / Wildlife",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Crane viewing, nature programs, visitor center events (Wood River)",
+  "confidence": "medium",
+  "notes": "No FB found via search; IG via search (Wood River, NE); collector will use IG only",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "crane_trust"
+  ],
+  "instagram_url": "https://www.instagram.com/crane_trust/",
+  "website": "https://cranetrust.org/"
+ },
+ {
+  "name": "Kearney Area Chamber of Commerce",
+  "category": "Chamber",
+  "facebook_page": "https://www.facebook.com/KACCNebraska",
+  "facebook_events": "https://www.facebook.com/KACCNebraska/events",
+  "event_potential": "Ribbon cuttings, business after hours, community events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "kearneychamber"
+  ],
+  "instagram_url": "https://www.instagram.com/kearneychamber/"
+ },
+ {
+  "name": "Kearney Cruise Nite",
+  "category": "Festival / Car Show",
+  "facebook_page": "https://www.facebook.com/cruisenitekearney",
+  "facebook_events": "https://www.facebook.com/cruisenitekearney/events",
+  "event_potential": "Summer Cruise Nite and show-and-shine events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (a second page facebook.com/kearneycn also exists)",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney Area Farmers Market",
+  "category": "Farmers Market",
+  "facebook_page": "https://www.facebook.com/KearneyAreaFarmersMarket",
+  "facebook_events": "https://www.facebook.com/KearneyAreaFarmersMarket/events",
+  "event_potential": "Saturday market at Hilltop Mall (seasonal)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Yanney Heritage Park",
+  "category": "Park",
+  "facebook_page": "https://www.facebook.com/YanneyPark",
+  "facebook_events": "https://www.facebook.com/YanneyPark/events",
+  "event_potential": "Park concerts, holiday lights, community events (2020 W 11th St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Farmer Brown's Field of Screams",
+  "category": "Seasonal Attraction",
+  "facebook_page": "https://www.facebook.com/farmerbrownsfieldofscreams",
+  "facebook_events": "https://www.facebook.com/farmerbrownsfieldofscreams/events",
+  "event_potential": "Haunted attraction nights each October",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (Kearney)",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney VFW Post 759",
+  "category": "Veterans Club",
+  "facebook_page": "https://www.facebook.com/kearney.vfw",
+  "facebook_events": "https://www.facebook.com/kearney.vfw/events",
+  "event_potential": "Bingo, meals, dances, fundraisers (2215 1st Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "http://vfw759.org/"
+ },
+ {
+  "name": "American Legion Post 52",
+  "category": "Veterans Club",
+  "facebook_page": "https://www.facebook.com/AmericanLegionPost52KearneyNE",
+  "facebook_events": "https://www.facebook.com/AmericanLegionPost52KearneyNE/events",
+  "event_potential": "Bingo, meals, member bar events (1223 Central Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://kearneylegion.com/"
+ },
+ {
+  "name": "Kearney Eagles #2722",
+  "category": "Fraternal Club",
+  "facebook_page": "https://www.facebook.com/KearneyEaglesClub2722",
+  "facebook_events": "https://www.facebook.com/KearneyEaglesClub2722/events",
+  "event_potential": "Club dinners, bingo, fundraisers",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (small page)",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Elks Country Golf",
+  "category": "Golf",
+  "facebook_page": "https://www.facebook.com/ElksCountryGolf",
+  "facebook_events": "https://www.facebook.com/ElksCountryGolf/events",
+  "event_potential": "Par 3 and foot golf, leagues and events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney Country Club",
+  "category": "Golf / Club",
+  "facebook_page": "https://www.facebook.com/KearneyCountryClub",
+  "facebook_events": "https://www.facebook.com/KearneyCountryClub/events",
+  "event_potential": "Tournaments, member events, holiday dinners",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "kearneycountryclub"
+  ],
+  "instagram_url": "https://www.instagram.com/kearneycountryclub/"
+ },
+ {
+  "name": "Meadowlark Hills Golf Course",
+  "category": "Golf",
+  "facebook_page": "https://www.facebook.com/Meadowlarkgolf",
+  "facebook_events": "https://www.facebook.com/Meadowlarkgolf/events",
+  "event_potential": "Tournaments, scrambles, leagues",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Game On Games",
+  "category": "Game Store",
+  "facebook_page": "https://www.facebook.com/gameonkearney",
+  "facebook_events": "https://www.facebook.com/gameonkearney/events",
+  "event_potential": "Card game nights, tournaments, board/miniature games",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (a second handle facebook.com/gameongames also appeared)",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The Open Book",
+  "category": "Bookstore",
+  "facebook_page": "https://www.facebook.com/theopenbookbookstore",
+  "facebook_events": "https://www.facebook.com/theopenbookbookstore/events",
+  "event_potential": "Book events, readings (942 W 24th St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The Brickwalk Gallery",
+  "category": "Art Gallery",
+  "facebook_page": "https://www.facebook.com/thebrickwalkgallery",
+  "facebook_events": "https://www.facebook.com/thebrickwalkgallery/events",
+  "event_potential": "Art openings, artist events (2008 Ave A)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Kearney Pickleball Club",
+  "category": "Sports / Club",
+  "facebook_page": "https://www.facebook.com/KearneyPickleball",
+  "facebook_events": "https://www.facebook.com/KearneyPickleball/events",
+  "event_potential": "Clinics, tournaments, open play at Kearney SportsPlex",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Just Breathe Yoga - Kearney",
+  "category": "Yoga",
+  "facebook_page": "https://www.facebook.com/justbreatheyogakearney",
+  "facebook_events": "https://www.facebook.com/justbreatheyogakearney/events",
+  "event_potential": "Yoga, tai chi and pilates classes, workshops",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Gibbon Chamber of Commerce",
+  "category": "Chamber (Gibbon)",
+  "facebook_page": "https://www.facebook.com/gibbonchamber",
+  "facebook_events": "https://www.facebook.com/gibbonchamber/events",
+  "event_potential": "Gibbon parade and community celebration events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Elm Creek Buffalo Stampede",
+  "category": "Festival (Elm Creek)",
+  "facebook_page": "https://www.facebook.com/ecbuffalostampede",
+  "facebook_events": "https://www.facebook.com/ecbuffalostampede/events",
+  "event_potential": "Annual Elm Creek community celebration",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ }
+]

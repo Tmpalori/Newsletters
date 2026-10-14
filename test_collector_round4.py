@@ -3,6 +3,7 @@
 festival copies merged, recurring local_events.yaml days in other spellings,
 and venues.json winning over the legacy seed in discover_venues."""
 
+import glob
 import json
 import os
 import sys
@@ -205,6 +206,13 @@ def test_recurring_entry_with_plural_day_is_loaded(tmp_path):
     assert evs and all(date.fromisoformat(e["date"]).weekday() == 4 for e in evs)
 
 
+def test_recurring_entry_with_a_day_list_is_loaded(tmp_path):
+    p = tmp_path / "local.yaml"
+    p.write_text("recurring:\n  - name: Haunted Trail\n    day: [friday, saturday]\n")
+    evs = ce.load_local_events(str(p))
+    assert evs and {date.fromisoformat(e["date"]).weekday() for e in evs} == {4, 5}
+
+
 def test_recurring_entry_with_unknown_day_warns(tmp_path):
     p = tmp_path / "local.yaml"
     p.write_text("recurring:\n  - name: Fish Fry\n    day: fryday\n")
@@ -212,10 +220,12 @@ def test_recurring_entry_with_unknown_day_warns(tmp_path):
     assert any("unknown day" in w for w in ce._WARNINGS)
 
 
-def test_shipped_local_events_recurring_days_all_resolve():
+@pytest.mark.parametrize("path", ["local_events.yaml"] + sorted(
+    os.path.relpath(p, HERE) for p in glob.glob(os.path.join(HERE, "towns", "*", "local_events.yaml"))))
+def test_shipped_local_events_recurring_days_all_resolve(path):
     import yaml
-    with open(os.path.join(HERE, "local_events.yaml")) as f:
-        data = yaml.safe_load(f) or {}
+    with open(os.path.join(HERE, path)) as f:
+        data = ce._coerce_yaml_events(yaml.safe_load(f) or {})
     for ev in data.get("recurring") or []:
         assert ce.recurring_days(ev.get("day")), ev.get("name")
 

@@ -44,12 +44,64 @@
     {
       "name": "visit_kearney",
       "type": "tribe",
-      "url": "https://visitkearney.org"
+      "url": "https://visitkearney.org",
+      "exclude": "^(UNK Loper .*(Football|Soccer|Volleyball|Basketball|Wrestling|Softball|Baseball|Tennis|Track|Swim)|Tri-City Storm Hockey)"
     },
     {
       "name": "mona",
       "type": "tribe",
       "url": "https://mona.unk.edu"
+    },
+    {
+      "name": "lopers",
+      "type": "ics",
+      "url": "https://lopers.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\|.*Kearney, NE)",
+      "rename": [
+        [
+          "^University of Nebraska - Kearney ",
+          "UNK "
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Kearney, NE,? *",
+          ""
+        ],
+        [
+          "^Health & Sports C.*",
+          "UNK Health & Sports Center"
+        ]
+      ]
+    },
+    {
+      "name": "tri_city_storm",
+      "type": "ics",
+      "url": "https://stormhockey.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\|.*Viaero Center)",
+      "rename": [
+        [
+          " Men's Ice Hockey",
+          ""
+        ],
+        [
+          " - Watch on .*$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "unk",
+      "type": "ics",
+      "url": "https://www.unk.edu/calendar/_data/current.ics",
+      "exclude": "^(?!.*\\b(concerts?|recitals?|book launch|lectures?|theatre|plays?|exhibits?|exhibitions?|festivals?|readings?|planetarium|gallery|films?|symphony|band|choirs?|jazz|opera|dance|arts?)\\b)|book club",
+      "venue": "University of Nebraska at Kearney",
+      "address": "905 W 25th St"
     }
-  ]
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  },
+  "workflows": true
 }

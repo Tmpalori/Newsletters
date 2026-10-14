@@ -149,6 +149,9 @@ jobs:
     concurrency:
       group: weekly-collect${{ matrix.town != 'victoria' && format('-{0}', matrix.town) || '' }}
       cancel-in-progress: false
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ matrix.town != 'victoria' && matrix.town || '' }}
     runs-on: ubuntu-latest
     # Per-step timeouts below keep any single phase bounded; this is the
     # overall safety net — see header comment.

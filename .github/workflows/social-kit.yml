@@ -80,6 +80,9 @@ jobs:
   # A late GitHub cron run is skipped when the site's scheduler already
   # started today's run.
   gate:
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -111,6 +114,9 @@ jobs:
   build:
     needs: gate
     if: needs.gate.outputs.run == 'true'
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     # Worst case: build, up to 10 min waiting for the deploy, a Reel that
     # takes 6 min to process, and Thursday's second post. The post step has
