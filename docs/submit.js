@@ -281,12 +281,25 @@
     if (thanks) {
       thanks.hidden = false;
       const msg = $('#thanks-message');
+      showReach(json.duplicate);
       if (json.duplicate && msg) {
         msg.textContent = 'Looks like a matching submission was already in our queue. We\'ll review it soon.';
       } else if (json.queued === false && msg) {
         msg.textContent = 'Got it — we\'ll take a look.';
       }
     }
+  }
+
+  // How many people it goes in front of (GET /api/reach: rounded, null while
+  // small). Not for a duplicate, and nothing if it can't be read.
+  function showReach(duplicate) {
+    const el = $('#thanks-reach');
+    if (!el || duplicate) return;
+    fetch('/api/reach').then(r => (r.ok ? r.json() : null)).then((j) => {
+      if (!j || !j.readers) return;
+      el.textContent = 'Once it\'s live, it\'s in front of the ' + j.readers.toLocaleString('en-US') + ' people who used the site this past week.';
+      el.hidden = false;
+    }).catch(() => null);   // the line is a bonus; the thank-you shows without it
   }
 
   function wireResetForAnother() {

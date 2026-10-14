@@ -53,7 +53,7 @@ import { burst } from './burst.js';
 import express from 'express';
 import {
   AD_PACKAGES, escHtml, safeUrl, localDateStr, currentWeek, addDays, formatDay, layout,
-  renderEventItem, sponsorHtml, dayClass, sortEvents, SAMPLE_LOGO
+  renderEventItem, sponsorHtml, dayClass, sortEvents, SAMPLE_LOGO, reachPitchHtml
 } from './seo.js';
 import { normalizeUrl, validateSubmission } from './validate.js';
 import { normalizePayload, newId, nowIso, eventKeyOf } from './db.js';
@@ -866,7 +866,7 @@ export function renderCheckoutPage(pkg, { siteUrl, now, orders, venues, values =
         <div id="co-preview" aria-live="polite">${renderPreview(pkg.key, v, { now, orders, venues })}</div>
       </section>
       ${field({ name: 'email', label: 'Email for your receipt', type: 'email', value: v.email, error: e.email, max: 254 })}
-      ${agreeField(v.agree, e.agree)}
+      ${agreeField(v.agree, e.agree)}${reachPitchHtml() && `\n      ${reachPitchHtml()}`}
       <button class="btn btn--primary" type="submit">Continue to payment</button>
       <p class="co-hint">Secure payment by Stripe. ${pkg.interval ? 'Cancel any time from your receipt email.' : ''}</p>
     </form>

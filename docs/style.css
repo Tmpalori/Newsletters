@@ -1819,6 +1819,7 @@ a.notable-name { color: inherit; text-decoration: underline; text-decoration-thi
 .sub-fine { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--color-text-muted); font-weight: 700; }
 .sub-fine + .page-lead { margin-top: var(--space-4); }
 .sub-crowd { margin: var(--space-3) 0 0; font-weight: 800; }
+.co-reach { margin: var(--space-4) 0 var(--space-3); font-weight: 800; font-size: var(--text-base); color: var(--ink); background: var(--sun-light); border: 3px solid var(--ink); border-radius: 14px; padding: var(--space-3); }
 .sub-perks { list-style: none; padding: 0; margin: 0 0 var(--space-6, 1.5rem); display: grid; gap: var(--space-3); }
 .sub-perks li { padding-left: 2rem; position: relative; }
 .sub-perks li::before { content: "✓"; position: absolute; left: 0; top: 0; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--cactus); color: var(--ink); font-weight: 900; display: grid; place-items: center; font-size: 0.85rem; border: 2px solid var(--ink); }

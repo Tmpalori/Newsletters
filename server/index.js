@@ -57,7 +57,7 @@ import { verifyPass, MIN_SSO_SECRET } from './sso.js';
 import {
   HUB_PAGES, localDateStr, renderHome, renderHubPage, renderEventPage,
   renderAboutPage, renderAdvertisePage, advertiseStats, renderNotFoundPage, renderSitemap, renderLlmsTxt
-  , fillSeasonalNav, fillReach, setReach, currentWeek, addDays, shiftToWeek
+  , fillSeasonalNav, fillReach, setReach, reachNumbers, currentWeek, addDays, shiftToWeek
 } from './seo.js';
 import {
   businessConfig, useBusiness, hasLegalName, hasContactEmail, mailingAddress,
@@ -1587,6 +1587,12 @@ export async function createApp(opts = {}) {
       console.error('[traffic] event stats failed:', err.message);
       res.status(500).json({ ok: false, error: 'event-stats-failed', message: err.message });
     }
+  });
+
+  // The rounded reach (server/seo.js reachNumbers) for the static submit
+  // page's thank-you. Counts only; null below each threshold.
+  app.get('/api/reach', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=300').json({ ok: true, ...reachNumbers(reachNow() || {}) });
   });
 
   // What people did on the site (server/activity.js): views, clicks,

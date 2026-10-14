@@ -238,6 +238,7 @@
         Your submission is in our review queue. If it fits and the details
         check out, it goes live on The Vic 361, usually within the hour; some need a closer look and take a day or two.
       </p>
+      <p class="submit-lede submit-reach" id="thanks-reach" hidden></p>
       <p class="submit-lede" id="thanks-email" hidden>
         We'll email you a confirmation, and again when your event is live.
       </p>

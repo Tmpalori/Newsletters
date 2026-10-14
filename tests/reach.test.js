@@ -46,7 +46,7 @@ describe('on the site', () => {
     }
     const { app } = await createApp({
       storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, now: () => NOW,
-      siteUrl: 'https://www.thevic361.com', analyticsSecret: 'test',
+      siteUrl: 'https://www.thevic361.com', analyticsSecret: 'test', stripeSecretKey: 'sk_test', stripeWebhookSecret: 'whsec_test',
       adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c'
     });
     server = http.createServer(app);
@@ -65,6 +65,17 @@ describe('on the site', () => {
     expect(ad).toContain('<strong>840+</strong><span>local subscribers</span>');
   });
 
+  it('the checkout pitch, /subscribe and the submit thank-you (GET /api/reach)', async () => {
+    await startApp({ active: 847, visitors: 520 });
+    for (const pkg of ['weekly', 'featured']) {
+      expect(await page(`/advertise/checkout?package=${pkg}`), pkg)
+        .toContain('<p class="co-reach">Your ad reaches 520 readers on the site this past week and 840+ newsletter subscribers.</p>');
+    }
+    expect(await page('/subscribe')).toContain('<p class="sub-crowd">Join 840+ Victoria locals who already get it. 520 people used The Vic 361 this past week.</p>');
+    expect(await (await fetch(baseUrl + '/api/reach')).json()).toEqual({ ok: true, subscribers: 840, readers: 520 });
+    expect(await page('/submit')).toContain('id="thanks-reach" hidden');
+  });
+
   it('shows nothing while the numbers are small', async () => {
     await startApp({ active: 30, visitors: 12 });
     for (const p of ['/', '/about']) {
@@ -73,5 +84,8 @@ describe('on the site', () => {
       expect(html, p).not.toContain('<!--REACH-->');
     }
     expect(await page('/advertise')).not.toContain('readers on the site');
+    expect(await page('/advertise/checkout?package=weekly')).not.toContain('co-reach');
+    expect(await page('/subscribe')).not.toContain('sub-crowd');
+    expect(await (await fetch(baseUrl + '/api/reach')).json()).toEqual({ ok: true, subscribers: null, readers: null });
   });
 });

@@ -310,3 +310,6 @@ body {
 .submit-site-footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1rem; }
 .submit-site-footer a { color: inherit; font-weight: 700; }
 .submit-site-footer p { margin: 0.6rem 0 0; opacity: 0.75; }
+
+/* "In front of N people" on the thank-you (docs/submit.js showReach). */
+.submit-reach { font-weight: 800; }

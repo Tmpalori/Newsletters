@@ -61,7 +61,7 @@ export { referralTiers, referralFlags };
 import { inboundConfig } from './inbound.js';
 import {
   escHtml, safeUrl, localDateStr, currentWeek, formatDay, sortEvents, layout, addDays, renderEventItem, pickRank, parseTimes,
-  sponsorLinkUrl, formatTime, placeText, iconKeys, isSponsorLogo, SAMPLE_LOGO, isPaidPick, AD_LABEL
+  sponsorLinkUrl, formatTime, placeText, iconKeys, isSponsorLogo, SAMPLE_LOGO, isPaidPick, AD_LABEL, reachNumbers, getReach
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 
@@ -777,8 +777,13 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
   const picks = sortEvents(next7.filter(e => e.featured).sort((a, b) => pickRank(a) - pickRank(b)).concat(next7)
     .filter(e => e.page && !seen.has(e.name) && seen.add(e.name)).slice(0, 5))
     .map(e => ({ ...e, time: [dayOf(e.date), e.time].filter(Boolean).join(' · ') }));
-  const crowd = subscriberCount >= town.business.showSubscribersFrom // "Join 40 locals" undersells
-    ? `<p class="sub-crowd">Join ${Math.floor(subscriberCount / 10) * 10}+ ${town.city} locals who already get it.</p>` : '';
+  // "Join 40 locals" undersells: each number only from its threshold.
+  const { readers } = reachNumbers(getReach() || {});
+  const crowd = [
+    subscriberCount >= town.business.showSubscribersFrom ? `Join ${Math.floor(subscriberCount / 10) * 10}+ ${town.city} locals who already get it.` : '',
+    readers ? `${readers.toLocaleString('en-US')} people used ${town.siteName} this past week.` : ''
+  ].filter(Boolean).join(' ');
+  const crowdHtml = crowd ? `<p class="sub-crowd">${crowd}</p>` : '';
   const proof = picks.length ? `
     <h2 class="section-heading">Coming up in the next week</h2>
     <p class="sub-proof-lead">${next7.length} things to do in ${town.city} in the next seven days, including:</p>
@@ -792,7 +797,7 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
       ${signupFormHtml({ source: 'subscribe-page', button: 'Subscribe free' })}
       <p class="sub-fine">No spam, ever. Unsubscribe with one click.</p>
       <p class="page-lead">The whole week on Monday, the weekend on Thursday: live music, festivals, markets, family days, and new spots opening.</p>
-      ${crowd}
+      ${crowdHtml}
     </section>
     <ul class="sub-perks" role="list">
       <li><strong>Monday mornings:</strong> the whole week, day by day, before you make plans.</li>

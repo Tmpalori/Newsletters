@@ -882,6 +882,18 @@ export const SEASONAL_NAV_SLOT = '<!--SEASONAL_NAV-->';
 export const REACH_SLOT = '<!--REACH-->';
 let reachCounts = null;
 export function setReach(counts) { reachCounts = counts || null; }
+export function getReach() { return reachCounts; }
+
+// Above the checkout's pay button: who the ad reaches. Only the numbers
+// past their thresholds; none, no line.
+export function reachPitchHtml(counts = reachCounts) {
+  const { subscribers, readers } = reachNumbers(counts || {});
+  const parts = [
+    readers ? `${readers.toLocaleString('en-US')} readers on the site this past week` : null,
+    subscribers ? `${subscribers.toLocaleString('en-US')}+ newsletter subscribers` : null
+  ].filter(Boolean);
+  return parts.length ? `<p class="co-reach">Your ad reaches ${parts.join(' and ')}.</p>` : '';
+}
 const roundDown = n => (n >= 1000 ? Math.floor(n / 100) * 100 : Math.floor(n / 10) * 10);
 export function reachNumbers({ subscribers = 0, readers = 0 } = {}) {
   return {
