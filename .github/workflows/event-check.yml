@@ -45,6 +45,9 @@ jobs:
   # town that failed isn't checked. The fallback cron is Victoria's (each
   # town's site dispatches its own check); a manual run, the town asked for.
   gate:
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -100,6 +103,9 @@ jobs:
       fail-fast: false
       matrix:
         town: ${{ fromJSON(needs.gate.outputs.towns) }}
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ matrix.town != 'victoria' && matrix.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:

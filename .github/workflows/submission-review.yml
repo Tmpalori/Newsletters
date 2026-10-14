@@ -48,6 +48,9 @@ env:
 
 jobs:
   review:
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

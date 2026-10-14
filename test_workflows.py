@@ -423,6 +423,21 @@ def test_town_slack_tag_is_empty_for_victoria(name):
         assert wf["env"]["SLACK_TOWN_TAG"] == "${{ inputs.town && inputs.town != 'victoria' && vars.SLACK_TOWN_TAG || '' }}"
 
 
+@pytest.mark.parametrize("name", TOWN_WORKFLOWS)
+def test_town_jobs_use_the_towns_environment_and_none_for_victoria(name):
+    # MULTI_CITY_PLAN.md 3.3: another town's jobs read its GitHub Environment
+    # (SITE_URL, cron secrets, Meta ids); Victoria's ("" = none) keep the
+    # repo-level ones. The newsletter waits until a town can send by dispatch.
+    for job_name, job in load(name)["jobs"].items():
+        env = job.get("environment")
+        if name == "newsletter.yml" or (name == "weekly-collect.yml" and job_name == "towns"):
+            assert env is None, job_name        # "towns" only lists the matrix
+        elif MATRIX_JOBS.get(name) == job_name:
+            assert env == "${{ matrix.town != 'victoria' && matrix.town || '' }}", job_name
+        else:
+            assert env == "${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}", job_name
+
+
 # ─── 3.4: which towns a run covers ──────────────────────────────────────────
 
 def _ready_towns(tmp_path, towns):

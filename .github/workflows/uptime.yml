@@ -44,6 +44,9 @@ jobs:
     concurrency:
       group: uptime${{ inputs.town && inputs.town != 'victoria' && format('-{0}', inputs.town) || '' }}
       cancel-in-progress: false
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -85,6 +88,9 @@ jobs:
     concurrency:
       group: uptime-stale-feed
       cancel-in-progress: false
+    # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
+    # none for Victoria, which keeps the repo-level settings.
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
