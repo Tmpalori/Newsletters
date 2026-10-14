@@ -1,0 +1,4751 @@
+{
+  "last_updated": "2026-10-14T18:51:26-05:00",
+  "events": [
+    {
+      "date": "2026-10-12",
+      "name": "The Middle West & The Pastoral Ideal in the American Artistic Landscape",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave, Kearney",
+      "description": "Senior College Monday Morning Lecture The Middle West & The Pastoral Ideal in the American Artistic Landscape Explore with Rebecca Umland how the American Midwest inspired writers and storytellers, including Willa Cather, F. Scott Fitzgerald, Walt Disney, and Ray Bradbury.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/the-middle-west-the-pastoral-ideal-in-the-american-artistic-landscape/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "UNK Men's Tennis vs Concordia (Exhibition)",
+      "time": "11:00 AM \u2013 2:00 PM",
+      "venue": "Harmon Park",
+      "address": "",
+      "description": "University of Nebraska - Kearney Men's Tennis vs Concordia (Exhibition)",
+      "icons": [
+        "arts",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8952&amp;sport_id=7",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Boardgame Mondays at Sip & Swirl",
+      "time": "3:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "All-day happy hour and board games. Bring your crew or your own favorite game; the bar has a shelf of its own and wine specials all day.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "http://sipandswirlwinebar.com",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "$4 select domestic beers & seltzers; $18 buckets; half-price wine of the day; $3 select shots; $5 & $6 cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Faith & Blue Family BBQ",
+      "time": "6:00 PM \u2013 7:00 PM",
+      "venue": "Harmon Park",
+      "address": "3020 5th Ave. , Kearney",
+      "description": "Join us for a fun-filled evening with local law enforcement and faith organizations as we come together to connect with our neighbors, make new friends, and celebrate community.",
+      "icons": [
+        "food",
+        "family",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/faith-blue-family-bbq/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Zombie Shoot Archery Camp",
+      "time": "6:00 PM \u2013 7:15 PM",
+      "venue": "Harmon Park Activity Center",
+      "address": "3100 5th Ave, Kearney",
+      "description": "Zombie Shoot Archery Camp! Monday, Oct. 12th & Tuesday, Oct. 13th | 6:00 \u2013 7:15 pm | Harmon Park Activity Center | Register Register today at KPRreg.org , call 308-237-4644, or stop by the KPR office at 1930 University Dr.! Take aim and join the fun at our Indoor Archery Camp! Kids will learn basic archery skills and practice their technique with help from KPR certified instructors.",
+      "icons": [
+        "family",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/zombie-shoot-archery-camp/2026-10-12/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Jazz at The World",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave, Kearney",
+      "description": "\u2605 The World Theatre Presents \u2605 Jazz at The World Sept 14th, Mon: 7:00 PM Oct 12th, Mon: 7:00 PM Nov 9th, Mon: 7:00 PM Dec 14th, Mon: 7:00 PM Jan 11th, Mon: 7:00 PM _____________________ Take in the music, or take part by bringing your own instrument and joining the band. Please join us for this unique, interactive event. No charge for admission, but donations are appreciated.",
+      "icons": [
+        "music",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/jazz-at-the-world-6/2026-10-12/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Happy Hour",
+      "time": "ALL DAY",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Happy Hour from 3-5:30PM Sunday, Tuesday-Thursday, and ALL DAY Monday!",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-12",
+      "name": "Golf - UNK Regional Preview",
+      "time": "",
+      "venue": "Meadowlark Hills Golf Course",
+      "address": "",
+      "description": "GOLF - UNK REGIONAL PREVIEW",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/unkathletics/posts/pfbid08SUAjgdhGzkJmFqcKsssmn2u3xeXeqrho9wwz2N3ux7HQeWXtNuU8ywpCb4C2WBCl",
+      "_source": "apify_facebook_posts",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Knot Just Knitting",
+      "time": "1:00 PM \u2013 3:00 PM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "Drop-in fiber arts circle: knitting, crochet, cross-stitch and more. Bring a project; volunteer knitting coaches on hand.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearney.events.mylibrary.digital/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2
+    },
+    {
+      "date": "2026-10-13",
+      "name": "CommUNITY Fest",
+      "time": "2:00 PM \u2013 6:00 PM",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Avenue N, Kearney",
+      "description": "Tuesday, Oct. 13th | 2:00 \u2013 6:00 pm | Buffalo County Fairgrounds Exhibit Building Join us at CommUNITY Fest in Kearney! Local nonprofits, clubs, organizations, and businesses will on site to provide local resources and services about topics like Food, Jobs, and other assistance programs.",
+      "icons": [
+        "food",
+        "arts",
+        "shopping",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/community-fest/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Happy Hour from 3-5:30PM Sunday, Tuesday-Thursday, and ALL DAY Monday!",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "10% off on orders over $10, up to $10 off",
+      "time": "3:00 PM to 5:00 PM",
+      "venue": "The Crafty Dog Sports Bar",
+      "address": "",
+      "description": "Community event at The Crafty Dog Sports Bar. Check the venue for details.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/thecraftydogkearney/posts/pfbid0g2gp3qpcXnsKgCHnWJLQ4ct6E4JgK9suR8t5NPT9nDRxEoxeRfqkSKyjiWXMnbW2l",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "$4 select domestic beers & seltzers; $18 buckets; half-price wine of the day; $3 select shots; $5 & $6 cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Sanatorium: Inside the Architectural Cure for Tuberculosis",
+      "time": "6:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave, Kearney",
+      "description": "\u2605 The World Theatre Presents \u2605 Sanatorium: Inside the Architectural Cure for Tuberculosis presented by New York Author and Photagrapher John Lazzaro Oct 13th, Tue: 6:00 PM Presentation will last 45-60 minutes, with Q&A to follow Free & Open To All Ages . Please be respectful to maintain a quiet and focused presentation environment.",
+      "icons": [
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/sanatorium-inside-the-architectural-cure-for-tuberculosis/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Pink Out vs York University",
+      "time": "6:00 PM",
+      "venue": "UNK Athletics (Lopers)",
+      "address": "",
+      "description": "Pink Out",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/unkathletics/posts/pfbid08SUAjgdhGzkJmFqcKsssmn2u3xeXeqrho9wwz2N3ux7HQeWXtNuU8ywpCb4C2WBCl",
+      "_source": "apify_facebook_posts",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "John Lazzaro presentation",
+      "time": "6:00 PM",
+      "venue": "The World Theatre",
+      "address": "",
+      "description": "John Lazzaro will share vivid photographs and excerpts from his latest book Sanatorium",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeakZIJjj_j/",
+      "_source": "apify_instagram_posts",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Zombie Shoot Archery Camp",
+      "time": "6:00 PM \u2013 7:15 PM",
+      "venue": "Harmon Park Activity Center",
+      "address": "3100 5th Ave, Kearney",
+      "description": "Zombie Shoot Archery Camp! Monday, Oct. 12th & Tuesday, Oct. 13th | 6:00 \u2013 7:15 pm | Harmon Park Activity Center | Register Register today at KPRreg.org , call 308-237-4644, or stop by the KPR office at 1930 University Dr.! Take aim and join the fun at our Indoor Archery Camp! Kids will learn basic archery skills and practice their technique with help from KPR certified instructors.",
+      "icons": [
+        "family",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/zombie-shoot-archery-camp/2026-10-13/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "[W] University of Nebraska - Kearney Volleyball vs York U.",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "UNK Health & Sports Center",
+      "address": "",
+      "description": "[W] University of Nebraska - Kearney Volleyball vs York U. W 3-0 (-13, -14, -14) TV: MIAA Network Radio: KRVN 93.1/106.9 FM Streaming Video: https://themiaanetwork.com/unklopers/ Streaming Audio: https://listen.streamon.fm/krvnfm Tickets: https://www.etix.com/ticket/v/39804",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8789&amp;sport_id=16",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Paint-a-Paver: BOO SIGN",
+      "time": "6:30 PM",
+      "venue": "Kearney Public Library",
+      "address": "",
+      "description": "We will turn plain scalloped cement pavers into a 'BOO' sign that's perfect for Halloween; registration required, ages 12-18.",
+      "icons": [
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/858132914029578/",
+      "_source": "apify_facebook_posts",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Figure Drawing",
+      "time": "6:30 PM \u2013 8:30 PM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave, Kearney",
+      "description": "Work from a live model and enhance your figure drawing skills. Participants will have the opportunity to draw the human figure in an open studio format. Models will be clothed. Each workshop begins with short poses for gestures and sketches, followed by longer poses, with a final pose for completed drawings.",
+      "icons": [
+        "arts",
+        "shopping",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/figure-drawing-6/2026-10-13/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Trivia @ The Crafty Dog",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The Crafty Dog",
+      "address": "1325 2nd Ave",
+      "description": "Weekly team trivia hosted by The Askin' Nebraskan. Topics change every week; check their Facebook for the theme.",
+      "icons": [
+        "drinks",
+        "food",
+        "free",
+        "community"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Bingo Night",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Old Town Hall",
+      "address": "1900 Central Ave",
+      "description": "Weekly bingo with cash prizes in downtown's Old Town Hall. Every dollar raised goes to charity.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/bingo-night-6/",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Dancing with the Stars Watch Party",
+      "time": "7:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "DWTS on the big screen every Tuesday with wine and snack specials and trivia during the breaks.",
+      "icons": [
+        "drinks",
+        "community",
+        "free",
+        "arts"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/share/1EjMn7JmWS/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "apify_instagram_posts",
+        "town_feeds"
+      ],
+      "sources": 3
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Things That Go Bump in the Night",
+      "time": "7:30 PM",
+      "venue": "UNK Music, Theatre, and Dance",
+      "address": "",
+      "description": "The Kearney Symphony Orchestra opens its 121st concert season with Halloween-inspired works.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/unkmusictheatreanddance/posts/pfbid02qyRbAugFpcg9dZQXmGXCkatnfQDEcwyJo61u2tYfyCbArGi1PLArGghdMpSFhBVCl",
+      "_source": "apify_facebook_posts",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Kearney Symphony Orchestra Concert: Things that go bump in the night",
+      "time": "7:30 PM \u2013 8:30 PM",
+      "venue": "University of Nebraska at Kearney",
+      "address": "905 W 25th St",
+      "description": "Music that animates the magic of fall in mystical and spooky works featuring Funeral March of a Marionette by Gounod and Danse Macabre by Saint-S\u00e4ens.\\r \\r",
+      "icons": [
+        "music"
+      ],
+      "free": false,
+      "url": "",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Kearney Symphony Orchestra \u2013 \u201cThings that go bump in the night\u201d",
+      "time": "7:30 PM \u2013 9:00 PM",
+      "venue": "UNK Fine Arts Recital Hall",
+      "address": "UNK Campus",
+      "description": "\u201cThings that go bump in the night\u201d Celebrate the opening concert of KSO\u2019s 121st season \u2013 a Kearney tradition since 1905. Erin Beave, Artistic Director and Conductor. Ticket details here and available through the UNK Fine Arts Box Office \u2013 (308) 865-8417 Music that animates the magic of fall in mystical and spooky works featuring \u201cFuneral March of a Marionette\u201d by Gounod and \u201cDanse Macabre\u201d by\u2026",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/kearney-symphony-orchestra-things-that-go-bump-in-the-night/",
+      "_source": "town_feeds",
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "Snow Crab Tuesday",
+      "time": "",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "1 lb of snow crab legs served with herb butter and choice of two sides for $25.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid02Gqsaiy7hA8zHmkSPT91sWf658RxzAyARTmEHHX9y49c7F2sm2nDgouifHeJmsuH9l",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-13",
+      "name": "$25 Crab Legs",
+      "time": "",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Don't forget, today and every Tuesday is $25 Crab Legs!",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Decco7jF62L/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Christmas Unveiling at Real Deals",
+      "time": "05:00 PM",
+      "venue": "",
+      "address": "2102 Highway 30 E",
+      "description": "Preview the store's new holiday merchandise and seasonal displays. A casual shopping kickoff for the season.",
+      "icons": [
+        "shopping",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://allevents.in/kearney/christmas-unveiling-at-real-deals/200030830757246",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Watercolor Wednesday",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave, Kearney",
+      "description": "Brush up on watercolor techniques and try new approaches in a relaxed, guided session. All skill levels welcome.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/watercolor-wednesday-3/2026-10-14/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Grab drink specials during the venue's happy hour, including extended and all-day Monday deals. Casual bar atmosphere.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Enjoy discounted domestic beers, seltzers, wine, select shots and cocktails during happy hour. Great for after-work outings.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Live Music Wednesday",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "Joy's Table",
+      "address": "110 2nd Ave",
+      "description": "Live music every Wednesday evening. Check their Facebook to see who's playing this week.",
+      "icons": [
+        "music",
+        "food",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/JoysTableKearney",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Book Launch: Religious Culture in Modernist Verse by Dr. Annarose Steinke",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "University of Nebraska at Kearney",
+      "address": "905 W 25th St",
+      "description": "Celebrate the local book launch with the author; refreshments will be served and copies will be available for purchase.",
+      "icons": [
+        "arts",
+        "shopping",
+        "community"
+      ],
+      "free": false,
+      "url": "",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Trivia @ McCue\u2019s",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "McCue's Nebraska Taproom",
+      "address": "2008 Ave A, Suite A",
+      "description": "Midweek team trivia hosted by The Askin' Nebraskan, with an all-Nebraska tap list.",
+      "icons": [
+        "community",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Trivia @ Buffalo Wild Wings",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Buffalo Wild Wings",
+      "address": "5208 2nd Ave",
+      "description": "Free-to-play team trivia with image and music rounds. Prizes for the winners.",
+      "icons": [
+        "music",
+        "food",
+        "drinks"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/trivia-buffalo-wild-wings/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "allevents",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Karaoke Wednesdays",
+      "time": "8:00 PM \u2013 11:00 PM",
+      "venue": "Whistlin' Wolf",
+      "address": "12 E 21st St",
+      "description": "Downtown karaoke on a real sound system, run by Spencer Hansen of The Innocence. Drink specials all night.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/profile.php?id=61551043024109",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-14",
+      "name": "Wednesday Special $8.99 Pizzas",
+      "time": "",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "12\" pizzas for $8.99 available for dine-in or takeout.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid02Y4BUQKcuTMZEd5iMRMgWALyBePN2Qm2NMPQv5mEaLTgi5QY1ew224JqS2yN4a3SUl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Fall Festival",
+      "time": "05:00 PM",
+      "venue": "",
+      "address": "6110 11th Ave",
+      "description": "Seasonal, family-friendly festival with vendors, activities, and fall-themed fun.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/fall-festival/200030830756732",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Discounted drinks during scheduled happy hours; check the bar for daily details and specials.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Free Family Fun Night with Trius Federal Credit Union",
+      "time": "4-7PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "Free play time plus Halloween and fall tattoos and chances for kids to win a piggy bank.",
+      "icons": [
+        "family",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/KearneyChildrensMuseum/posts/pfbid022aPTDMVLu7cXVYP65thb3TPAjxuwf3HDr2CV2h9v1Dog8136b9WBNByRz7iNvqSJl",
+      "_source": "apify_facebook_posts",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Free Family Fun Night @ KACM",
+      "time": "4:00 PM \u2013 7:00 PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "5827 4th Ave",
+      "description": "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month.",
+      "icons": [
+        "family",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/4145987415620311",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Weekend Antique Show and Sale",
+      "time": "4:00 PM \u2013 7:00 PM",
+      "venue": "The Hive (Antiques and More)",
+      "address": "550 W Hwy 40",
+      "description": "The 'ColorFall Buzz' antique show runs Oct 15\u201317 at the family-run shop just north of I-80 Exit 275.",
+      "icons": [
+        "shopping",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/weekend-antique-show-and-sale-3/2026-10-15/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Drink specials include $4 domestic beers and seltzers, $18 buckets, half-price wine, discounted shots and cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-15",
+      "name": "CCC\u2019s Spooktacular Halloween Night",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Central Community College \u2013 Kearney Center",
+      "address": "1215 30th Ave, Kearney",
+      "description": "Outdoor costume contest with prizes followed by a screening of Casper. Free to attend; donations accepted for the student pantry.",
+      "icons": [
+        "family",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/cccs-spooktacular-halloween-night-2/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-15",
+      "name": "UNK Choir Concert",
+      "time": "7:30 PM \u2013 9:00 PM",
+      "venue": "UNK Fine Arts Recital Hall",
+      "address": "UNK Campus",
+      "description": "University choirs present a concert featuring the Choraleers and Women\u2019s Chorus performing choral works.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/unk-choir-concert/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-15",
+      "name": "Choir Concert: Choraleers and Women's Chorus",
+      "time": "7:30 PM \u2013 9:00 PM",
+      "venue": "University of Nebraska at Kearney",
+      "address": "905 W 25th St",
+      "description": "Hear a variety of choral music performed by UNK choruses in a campus concert.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-15",
+      "name": "ArcoStrum",
+      "time": "7:30 PM \u2013 9:30 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St., Kearney",
+      "description": "A cross-cultural program blending Chinese traditional instruments with violin, guitar and electric guitar across classical, traditional and rock pieces.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/arcostrum/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Tunnel of Terror\u00ae: Tommy\u2019s Express Kearney",
+      "time": "06:00 PM",
+      "venue": "",
+      "address": "3802 2nd Ave",
+      "description": "Step into a spooky, haunted attraction with actors and set pieces designed to startle. Expect jump scares and a thrill-ride atmosphere for teens and adults.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/tunnel-of-terror-tommys-express-kearney/200030770967617",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "We're open late",
+      "time": "10 AM - 8 PM",
+      "venue": "Museum of Nebraska Art (MONA)",
+      "address": "",
+      "description": "Enjoy MONA after hours every Friday in October with free admission. Browse exhibits and special displays in a relaxed evening setting.",
+      "icons": [
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/museumofnebraskaart/posts/pfbid022DCbWoRxxXS1sNdNqvcSLTvywKyQPefJPid9nh51XjfLYps78CWZjs4QMTedGXa3l",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Mom Talk-Kearney",
+      "time": "10:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "An in-person support group for moms of babies and toddlers offering breastfeeding encouragement, education and community connection. All feeding choices welcome.",
+      "icons": [
+        "community",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/4417156485097882/",
+      "_source": "apify_facebook",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Weekend Antique Show and Sale",
+      "time": "10:00 AM \u2013 5:00 PM",
+      "venue": "The Hive",
+      "address": "550 W Hwy 40, Kearney",
+      "description": "Browse antiques, restored finds and vintage goods from local dealers during a multi-day show and sale. A casual, family-owned shopping experience on the edge of town.",
+      "icons": [
+        "shopping",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/weekend-antique-show-and-sale-3/2026-10-16/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Soccer vs Missouri Western",
+      "time": "1:00 PM",
+      "venue": "UNK Athletics (Lopers)",
+      "address": "",
+      "description": "Catch a competitive college soccer match as the Lopers take on Missouri Western. Expect energetic play and a student-athlete atmosphere.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/unkathletics/posts/pfbid08SUAjgdhGzkJmFqcKsssmn2u3xeXeqrho9wwz2N3ux7HQeWXtNuU8ywpCb4C2WBCl",
+      "_source": "apify_facebook_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "School\u2019s Out Halloween Party",
+      "time": "1:00 PM \u2013 5:15 PM",
+      "venue": "Harmon Park Activity Center",
+      "address": "3100 5th Ave, Kearney",
+      "description": "A not-too-spooky Halloween party for K\u20133 kids with crafts, games, treats and a costume celebration. Registration required to attend.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/schools-out-halloween-party/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_facebook_posts"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "UNK Women's Soccer vs Missouri Western St.",
+      "time": "2:00 PM \u2013 4:00 PM",
+      "venue": "Ron & Carol Cope Stadium at Foster Field",
+      "address": "",
+      "description": "Watch UNK women's soccer in a conference match against Missouri Western State; streaming is available for remote viewers. Expect competitive collegiate play.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8834&amp;sport_id=18",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "UNK Softball vs Cloud County C.C.",
+      "time": "4:00 PM \u2013 6:00 PM",
+      "venue": "Dryden Park",
+      "address": "",
+      "description": "Support the UNK softball team in a game against Cloud County Community College. Family-friendly outdoor athletics and college-level competition.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=9037&amp;sport_id=9",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Happy Hour",
+      "time": "4\u20135 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Drink specials include $4 select domestics and seltzers, $18 buckets, half-price wine, $3 shots and discounted cocktails. Great after-work happy hour deals.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Game Night Fridays",
+      "time": "5:00 PM \u2013 9:00 PM",
+      "venue": "UN:Inebriated",
+      "address": "2102 Central Ave",
+      "description": "Sober October game nights at the downtown zero-proof bar, with a game library curated by Board & Bean Co.",
+      "icons": [
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/photo/?fbid=122225860982488552",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "From Beyond the Grave",
+      "time": "5:30 PM",
+      "venue": "Kearney Cemetery",
+      "address": "4400 I Ave",
+      "description": "Reenactors bring early Buffalo County figures to life among the headstones. Runs nightly Oct 16\u201318; free-will donation.",
+      "icons": [
+        "community",
+        "arts",
+        "family"
+      ],
+      "free": true,
+      "url": "https://www.bchs.us/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "_also_from": [
+        "allevents",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Faith Christian School Gala/Auction",
+      "time": "5:30 PM \u2013 8:00 PM",
+      "venue": "Faith Christian School",
+      "address": "5710 19th Avenue, Kearney",
+      "description": "An evening fundraiser with dinner, live and silent auctions, raffles and fellowship supporting the school's students and mission.",
+      "icons": [
+        "community",
+        "food"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/faith-christian-school-gala-auction/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "KneeKnocker Woods",
+      "time": "6:00 PM",
+      "venue": "KneeKnocker Woods",
+      "address": "46290 Hwy 30, Gibbon",
+      "description": "Halloween trail of terror, Nana's Corn Maze, a haunted night market, midway games, food and music, a short drive east of Kearney.",
+      "icons": [
+        "family",
+        "outdoors",
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo/?fbid=1925530032034936",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "town": "Gibbon",
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Tunnel of Terror\u00ae: Tommy\u2019s Express Kearney",
+      "time": "6:00 PM",
+      "venue": "",
+      "address": "3802 Second Ave.",
+      "description": "A themed Tunnel of Terror event with spooky attractions. Admission listed at $20; Unlimited Club members may have different pricing.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/2079121836030589/",
+      "_source": "apify_facebook",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Nature Journaling Workshop",
+      "time": "6:00 PM \u2013 7:30 PM",
+      "venue": "Rowe Sanctuary",
+      "address": "44450 Elm Island Road, Gibbon",
+      "description": "An evening nature-journaling workshop at dusk exploring light, shadow and guided prompts. Bring a journal or use provided materials if listed.",
+      "icons": [
+        "outdoors",
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/nature-journaling-workshop/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Pumpkin Paint & Sip",
+      "time": "6:00 PM \u2013 7:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E, Kearney",
+      "description": "An instructor-led mini pumpkin painting night; supplies included. $10 reservation fee (applied to a glass) plus $15 for the pumpkin and materials.",
+      "icons": [
+        "arts",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/pumpkin-paint-sip/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Field of Screams",
+      "time": "7:00 PM",
+      "venue": "Farmer Brown's Field of Screams",
+      "address": "2174 28 Rd",
+      "description": "Haunted trail in the dark, six nights only. Tickets sold at the door ($20).",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo?fbid=1077144651832289",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "The Isaacs",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Five decades of family bluegrass and gospel harmony. Tickets $35\u2013$44.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://merrymancenter.org/tickets",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "apify_facebook_posts",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Boots & Brews Country Night",
+      "time": "7:05 PM",
+      "venue": "Viaero Center - Kearney",
+      "address": "",
+      "description": "Hockey game night with country music and $3 beers from doors open until puck drop. Expect a lively atmosphere.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/TriCityStorm/posts/pfbid0KfUFdncFHXfwdYW5RQtDq89iSFqQQ7sVTSTDePTG1G94BsQ8zhezeXMTtK9Wzy6Hl",
+      "_source": "apify_facebook_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Tri-City Storm vs Omaha Lancers",
+      "time": "7:05 PM \u2013 10:05 PM",
+      "venue": "Viaero Center",
+      "address": "",
+      "description": "Fast\u2011paced junior hockey action as the home team takes on a regional rival. Tickets available online.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://stormhockey.com/calendar.aspx?game_id=468&amp;sport_id=2",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Heart of the Beast",
+      "time": "7:30 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave, Kearney",
+      "description": "A suspenseful survival drama about a Special Forces officer and his combat dog stranded in the Alaskan wild.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/heart-of-the-beast/2026-10-16/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts",
+        "gemini_search"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Archie Camp",
+      "time": "8:00 AM - 3:00 PM",
+      "venue": "The Archway",
+      "address": "",
+      "description": "A day of kid\u2011friendly activities for K\u20135 students, including a Bigfoot hunt and creature\u2011making projects.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/reel/956596233610515/",
+      "_source": "apify_facebook_posts",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "No School Camp",
+      "time": "8:00 AM \u2013 3:00 PM",
+      "venue": "Kearney Area Children\u2019s Museum",
+      "address": "5827 4th Ave, Kearney",
+      "description": "Hands\u2011on activities and creative projects to keep kids busy and curious on a day off school. Pre\u2011registration likely.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/no-school-camp-24/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "No School Day",
+      "time": "8AM-3PM (extension available 3-5PM)",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "Museum playtime plus Halloween crafts like stress balls and yarn monsters; optional extended pickup available.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeS4VWfgQrh/",
+      "_source": "apify_instagram_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Jeremy Porter & The Tucos",
+      "time": "9:00 PM",
+      "venue": "Joe\u2019s Honky-Tonk",
+      "address": "2023 1st Ave, Kearney",
+      "description": "Enjoy high-energy original rock and roll from a Detroit trio. 21+ show with a $10 cover.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/jeremy-porter-the-tucos/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "MONA Minis \u2013 Fall 2026 Semester",
+      "time": "9:30 AM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Avenue, Kearney, Nebraska, United States",
+      "description": "Interactive 45-minute session for ages 3\u20135 with story time, gallery exploration, and a hands-on sensory art activity.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://mona.unk.edu/events/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "Nebraska NetFest Pickleball Tournament",
+      "time": "",
+      "venue": "Kearney SportsPlex",
+      "address": "1415 Younes Drive, Kearney",
+      "description": "Competitive pickleball tournament featuring singles and mixed-doubles brackets across multiple skill levels over several days.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/nebraska-netfest-pickleball-tournament/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "gemini_search"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-16",
+      "name": "California Wine Tasting",
+      "time": "",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Taste a selection of California wines and learn about their flavors from the hosts. Ideal for wine lovers and groups.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DecPOglNRTj/",
+      "_source": "apify_instagram_posts",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Terrarium Workshop (10AM & 2PM Sessions)",
+      "time": "10:00 AM",
+      "venue": "",
+      "address": "2010 30th Ave",
+      "description": "Make a planted terrarium in a hands-on workshop with materials and guidance provided. Two session times available.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/terrarium-workshop-10am-and-2pm-sessions/200030755135632",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Weekend Antique Show and Sale",
+      "time": "10:00 AM \u2013 4:00 PM",
+      "venue": "The Hive",
+      "address": "550 W Hwy 40, Kearney",
+      "description": "Browse antiques, vintage finds, and restored treasures from local dealers throughout the weekend.",
+      "icons": [
+        "shopping",
+        "arts",
+        "community"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/weekend-antique-show-and-sale-3/2026-10-17/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Open for All",
+      "time": "10AM-5PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "Interactive exhibits and hands-on play for children of all ages; admission fees apply.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeUMdXQDf1C/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Tri-City BMX Race",
+      "time": "1:00 PM",
+      "venue": "Tri-City BMX Track",
+      "address": "3710 30th Ave",
+      "description": "USA BMX racing. Registration 1\u20132 PM, racing right after. Free to watch.",
+      "icons": [
+        "outdoors",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.usabmx.com/events/640462",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "MSSU at University Of Nebraska- Kearney",
+      "time": "1:00 PM",
+      "venue": "Cope Stadium",
+      "address": "",
+      "description": "College football game with NCAA-level play and a lively campus crowd; expect tailgate energy and student fans.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1030725889799082/",
+      "_source": "apify_facebook",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Football vs Missouri Southern",
+      "time": "1:00 PM",
+      "venue": "UNK Athletics (Lopers)",
+      "address": "",
+      "description": "NCAA regular-season college football matchup with live video and radio streaming available for remote viewing.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/unkathletics/posts/pfbid08SUAjgdhGzkJmFqcKsssmn2u3xeXeqrho9wwz2N3ux7HQeWXtNuU8ywpCb4C2WBCl",
+      "_source": "apify_facebook_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "UNK Football vs Missouri Southern",
+      "time": "1:00 PM \u2013 4:00 PM",
+      "venue": "Ron & Carol Cope Stadium at Foster Field",
+      "address": "2708 12th Avenue, Kearney, NE 68849",
+      "description": "Home college football game with live MIAA Network video and KRVN radio coverage; tickets available online.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8747&amp;sport_id=2",
+      "_source": "town_feeds",
+      "_also_from": [
+        "gemini_search"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Happy Hour",
+      "time": "4\u20135 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Early evening drink specials including $4 domestic beers and seltzers, buckets, half-price wine, discounted shots and cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-17",
+      "name": "From Beyond The Grave 2026",
+      "time": "5:30 PM",
+      "venue": "Kearney Cemetery",
+      "address": "4400 I Ave",
+      "description": "Reenactors bring early Buffalo County figures to life among the headstones. Free-will donation.",
+      "icons": [
+        "arts",
+        "community",
+        "family"
+      ],
+      "free": true,
+      "url": "https://www.bchs.us/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "KneeKnocker Woods",
+      "time": "6:00 PM",
+      "venue": "KneeKnocker Woods",
+      "address": "46290 Hwy 30, Gibbon",
+      "description": "Halloween trail of terror, Nana's Corn Maze, a haunted night market, midway games, food and music, a short drive east of Kearney.",
+      "icons": [
+        "outdoors",
+        "family",
+        "music"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo/?fbid=1925530032034936",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "town": "Gibbon",
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Nebraska vs Oregon",
+      "time": "6:00 PM",
+      "venue": "Brix",
+      "address": "",
+      "description": "Watch party for the Huskers vs. Ducks with bar service and extended late-night hours; doors open early.",
+      "icons": [
+        "drinks",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DedQNIzAP8Y/",
+      "_source": "apify_instagram_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Speakeasy Velvet Hour",
+      "time": "6:30 PM \u2013 11:00 PM",
+      "venue": "Speakeasy Velvet Hour",
+      "address": "2216 Central Ave, Kearney, NE 68847",
+      "description": "Live jazz in a speakeasy setting paired with steak and seafood offerings for a dinner-and-music night out.",
+      "icons": [
+        "music",
+        "food",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/speakeasy-velvet-hour-5/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "gemini_search"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Field of Screams",
+      "time": "7:00 PM",
+      "venue": "Farmer Brown's Field of Screams",
+      "address": "2174 28 Rd",
+      "description": "Haunted trail in the dark, six nights only. Tickets sold at the door ($20).",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo?fbid=1077144651832289",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Askin\u2019 Nebraskan Trivia",
+      "time": "7:00 PM",
+      "venue": "The Upper Room Brewery",
+      "address": "1540 W 56th St, Suite D",
+      "description": "Askin' Nebraskan Trivia offers a chance to test your knowledge and win prizes. The event is categorized under Fun & Games and Nightlife.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/1405946131035069/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Heart of the Beast",
+      "time": "7:30 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave, Kearney",
+      "description": "A survival drama about a Special Forces officer and his dog fighting to stay alive after a plane crash. Local staged production over multiple nights.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/heart-of-the-beast/2026-10-17/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Kearney Area Farmers Market",
+      "time": "8:00 AM \u2013 12:00 PM",
+      "venue": "Hilltop Mall Parking Lot",
+      "address": "5011 2nd Ave",
+      "description": "Shop local, eat local: produce, meats, eggs, baked goods and crafts from area growers.",
+      "icons": [
+        "food",
+        "shopping",
+        "outdoors"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/KearneyAreaFarmersMarket",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Member Hour",
+      "time": "9-10AM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "Members-only morning hour with quieter, hands-on exhibits and playtime for young children.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeUMdXQDf1C/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Oldfather Prairie Restoration",
+      "time": "9:00 AM \u2013 12:00 PM",
+      "venue": "Cottonmill Park",
+      "address": "2795 Cottonmill Ave, Kearney, 68845, NE, Kearney",
+      "description": "Volunteer restoration work removing invasive trees and shrubs to protect and restore native prairie habitat.",
+      "icons": [
+        "outdoors",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/oldfather-prairie-restoration-2/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "The Peaks & The Plains Pepper Expo",
+      "time": "9:00 AM \u2013 5:00 PM",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "",
+      "description": "A full-day expo focused on peppers, with vendors and exhibits selling pepper-related products and plants.",
+      "icons": [
+        "shopping",
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/buffalocofair/posts/pfbid0FryWKNAB4tqtM4ZB76nw7vP4W5ZnXduJgpHEez2d5ko7bGexXxFHdX6QKUFqmw8hl",
+      "_source": "apify_facebook_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Wonder Rising",
+      "time": "9:00 PM",
+      "venue": "Joe\u2019s Honky-Tonk",
+      "address": "2023 1st Ave, Kearney",
+      "description": "Live cover band playing hits from the \u201990s to today; $10 cover and a night of dancing at the honky-tonk.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/wonder-rising/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Ribbon Run / Walk",
+      "time": "9:30 AM",
+      "venue": "Kearney Cancer Center, Yanney Park",
+      "address": "Yanney Heritage Park",
+      "description": "KRMC and Cancer Partners of Nebraska's annual run/walk honoring everyone touched by cancer.",
+      "icons": [
+        "community",
+        "outdoors",
+        "family"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1299620982103114",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Survival Trade Show",
+      "time": "",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Avenue N, Kearney",
+      "description": "Indoor expo of survival gear, preparedness products and expert vendors for emergency readiness enthusiasts. Expect demos and shopping.",
+      "icons": [
+        "shopping",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/survival-trade-show/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Nebraska NetFest Volleyball Championship",
+      "time": "",
+      "venue": "Kearney SportsPlex",
+      "address": "1415 Younes Drive, Kearney",
+      "description": "State youth volleyball championships with matches across multiple age divisions. Spectators can watch tournament play all day.",
+      "icons": [
+        "community",
+        "family"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/nebraska-netfest-volleyball-championship/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Reiki Level One",
+      "time": "",
+      "venue": "",
+      "address": "",
+      "description": "An introductory-level Reiki class covering basics, hand positions and a certification attunement. Suitable for beginners wanting hands-on practice.",
+      "icons": [
+        "community",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/reiki-level-one/200030765772759",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Pioneer Neighborhood Fall Cleanup",
+      "time": "",
+      "venue": "",
+      "address": "1919 15th Ave",
+      "description": "Volunteers help tidy the neighborhood for fall with litter pickup and basic outdoor cleanup tasks. Bring gloves and dress for the weather.",
+      "icons": [
+        "community",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "https://allevents.in/kearney/pioneer-neighborhood-fall-cleanup/200030787017231",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "Inaugural Kearney, NE Survival and Prepper show",
+      "time": "",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "Buffalo County Fairgrounds",
+      "description": "A new survival and prepper show featuring vendors, gear demos and experts on emergency planning and self-reliance.",
+      "icons": [
+        "shopping",
+        "community"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/inaugural-kearney-ne-survival-and-prepper-show/200030793686917",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-17",
+      "name": "2026 NetFest Volleyball Tournament",
+      "time": "",
+      "venue": "Kearney SportsPlex",
+      "address": "1415 Younes Drive, Kearney, NE",
+      "description": "A regional volleyball tournament hosted by the Nebraska Sports Council with multiple divisions competing through the day.",
+      "icons": [
+        "community",
+        "family"
+      ],
+      "free": false,
+      "url": "https://event.racereach.com/netfestvolleyball/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-18",
+      "name": "The Peaks & The Plains Pepper Expo",
+      "time": "10:00 AM \u2013 4:00 PM",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "",
+      "description": "A vendor expo showcasing survival, preparedness and food-storage products, plus educational seminars throughout the day.",
+      "icons": [
+        "shopping",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/buffalocofair/posts/pfbid0FryWKNAB4tqtM4ZB76nw7vP4W5ZnXduJgpHEez2d5ko7bGexXxFHdX6QKUFqmw8hl",
+      "_source": "apify_facebook_posts",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-18",
+      "name": "Walk to End Alzheimer's",
+      "time": "1:00 PM",
+      "venue": "Yanney Heritage Park, Cope Amphitheater",
+      "address": "2020 W 11th St",
+      "description": "Registration at 1, ceremony at 1:30, then the walk.",
+      "icons": [
+        "community",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "http://act.alz.org/Kearney",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-18",
+      "name": "Heart of the Beast",
+      "time": "2:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave, Kearney",
+      "description": "A survival drama following a Special Forces officer and his combat dog fighting to survive after a plane crash in the Alaskan wilderness.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/heart-of-the-beast/2026-10-18/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-18",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Drink specials and reduced prices most afternoons and evenings, with all-day happy hour on Mondays.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-18",
+      "name": "Tri-City Storm vs Sioux City Musketeers",
+      "time": "4:05 PM \u2013 7:05 PM",
+      "venue": "Viaero Center",
+      "address": "",
+      "description": "Junior hockey action with fast-paced play and a lively arena atmosphere; tickets available online or at the box office.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://stormhockey.com/calendar.aspx?game_id=470&amp;sport_id=2",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_facebook_posts"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-18",
+      "name": "From Beyond The Grave 2026",
+      "time": "5:30 PM",
+      "venue": "Kearney Cemetery",
+      "address": "4400 I Ave",
+      "description": "Final night of the historical society's cemetery reenactments. Free-will donation.",
+      "icons": [
+        "community",
+        "arts",
+        "family"
+      ],
+      "free": true,
+      "url": "https://www.bchs.us/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-19",
+      "name": "Meadowlark Hills Ducks Unlimited Golf Tournament",
+      "time": "09:00 AM",
+      "venue": "Meadowlark Hills Golf Course",
+      "address": "3715 E Cedar Hill Dr",
+      "description": "A charity golf tournament supporting conservation hosted at the local course; registration and sponsorships help Ducks Unlimited work.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/meadowlark-hills-ducks-unlimited-golf-tournament/200030830756835",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-19",
+      "name": "The Definition of Meaning: Schema Theory",
+      "time": "11:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave, Kearney",
+      "description": "A Senior College lecture exploring how personal experience shapes language and meaning, with engaging examples and discussion.",
+      "icons": [
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/the-definition-of-meaning-schema-theory/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-19",
+      "name": "Boardgame Mondays at Sip & Swirl",
+      "time": "3:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "All-day happy hour and board games. Bring your crew or your own favorite game; the bar has a shelf of its own and wine specials all day.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "http://sipandswirlwinebar.com",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-19",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Drink specials including $4 domestics, $18 buckets, half-price wine, $3 shots and $5\u2013$6 cocktails. Casual early-evening happy hour crowd welcome.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-19",
+      "name": "Happy Hour",
+      "time": "ALL DAY",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Happy hour runs 3\u20135:30 PM Sunday, Tuesday\u2013Thursday, and all day Monday. Expect discounted wine, glasses and small pours.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Dementia Support Group for Caregivers",
+      "time": "12:00 PM \u2013 1:00 PM",
+      "venue": "CountryHouse Residence",
+      "address": "5605 K Avenue, Kearney",
+      "description": "Support meeting for caregivers offering practical tips, techniques and peer support for those caring for someone with memory loss.",
+      "icons": [
+        "community",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/dementia-support-group-for-caregivers/2026-10-20/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Knot Just Knitting",
+      "time": "1:00 PM \u2013 3:00 PM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "Drop-in fiber arts circle: knitting, crochet, cross-stitch and more. Bring a project; volunteer knitting coaches on hand.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearney.events.mylibrary.digital/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Happy hour runs 3\u20135:30 PM Sunday, Tuesday\u2013Thursday, and all day Monday. Look for wine specials and small pours.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Drink specials including $4 domestics, $18 buckets, half-price wine, $3 shots and $5\u2013$6 cocktails. Early-evening social hour.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Black Jacket Symphony: Bon Jovi's 'Slippery When Wet'",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "The full album note for note, then a set of Bon Jovi's greatest hits. $44.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://merrymancenter.org/tickets",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "apify_facebook_posts",
+        "gemini_search",
+        "town_feeds"
+      ],
+      "sources": 4,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-20",
+      "name": "The Cat in the Hat",
+      "time": "7:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Avenue, Kearney, NE 68847",
+      "description": "Free screening of the 2003 family film adaptation of Dr. Seuss's tale. All ages welcome; runtime about 82 minutes.",
+      "icons": [
+        "arts",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://theworldtheatre.org/movies-events/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Trivia @ The Crafty Dog",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The Crafty Dog",
+      "address": "1325 2nd Ave",
+      "description": "Weekly team trivia hosted by The Askin' Nebraskan. Topics change every week; check their Facebook for the theme.",
+      "icons": [
+        "community",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Bingo Night",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Old Town Hall",
+      "address": "1900 Central Ave",
+      "description": "Weekly bingo with cash prizes in downtown's Old Town Hall. Every dollar raised goes to charity.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/bingo-night-6/",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Dancing with the Stars Watch Party",
+      "time": "7:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "DWTS on the big screen every Tuesday with wine and snack specials and trivia during the breaks.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/share/1EjMn7JmWS/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Pub Quiz",
+      "time": "7:30 PM",
+      "venue": "Cunningham's Journal (upstairs loft)",
+      "address": "15 W 23rd St",
+      "description": "Kearney Public Library's pub quiz: teams of 1\u20136, 30 questions in an hour. Registration required.",
+      "icons": [
+        "community",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/28295260670084012",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "apify_facebook_posts",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-20",
+      "name": "Bird Walk @ Rowe Sanctuary",
+      "time": "8:00 AM \u2013 9:30 AM",
+      "venue": "Rowe Sanctuary",
+      "address": "44450 Elm Island Road, Gibbon",
+      "description": "Guided bird walk during fall migration to spot migrating and resident species along the Platte River trails. Bring binoculars and dress for the weather.",
+      "icons": [
+        "outdoors",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/bird-walk-rowe-sanctuary/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Wildlife Wednesday Storytime",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Rowe Sanctuary",
+      "address": "44450 Elm Island Rd, Gibbon",
+      "description": "Kids' nature storytime on the Platte. This month: feathers, spit-built nests and owl pellets.",
+      "icons": [
+        "family",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.audubon.org/events?location=Iain+Nicolson+Audubon+Center+at+Rowe+Sanctuary",
+      "_source": "local_events",
+      "curated": true,
+      "town": "Gibbon",
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Discounted drinks during weekday happy hour and all-day Monday specials. Drop in for reduced prices on wine, beer and cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Budget-friendly drink deals: $4 domestics and seltzers, $18 buckets, half-price wine, discounted shots and cocktails.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-21",
+      "name": "15% off on orders over $15, up to $15 off",
+      "time": "5:00 PM to 7:00 PM",
+      "venue": "The Crafty Dog Sports Bar",
+      "address": "1325 2nd Ave Suite A, Kearney, NE 68847",
+      "description": "Save 15% on orders over $15 (max $15 off). Offer applies on Wednesdays and Thursdays.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/thecraftydogkearney/posts/pfbid02oEk1xS3iuAZsL3DH71uVzQUf2LJg9SvwcSThHpDMPXf7hf9u9y2TKxGYGFBuubHUl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Fancy a dinner discount?",
+      "time": "5:00 PM to 7:00 PM",
+      "venue": "The Crafty Dog Sports Bar",
+      "address": "",
+      "description": "Weeknight dinner discount: 15% off orders over $15 (up to $15) available Wednesdays and Thursdays.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeMLK9mF_6K/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Live Music Wednesday",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "Joy's Table",
+      "address": "110 2nd Ave",
+      "description": "Live music every Wednesday evening. Check their Facebook to see who's playing this week.",
+      "icons": [
+        "music",
+        "food",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/JoysTableKearney",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Trivia @ McCue\u2019s",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "McCue's Nebraska Taproom",
+      "address": "2008 Ave A, Suite A",
+      "description": "Midweek team trivia hosted by The Askin' Nebraskan, with an all-Nebraska tap list.",
+      "icons": [
+        "community",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Trivia @ Buffalo Wild Wings",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Buffalo Wild Wings",
+      "address": "5208 2nd Ave",
+      "description": "Free-to-play team trivia with image and music rounds. Prizes for the winners.",
+      "icons": [
+        "community",
+        "music",
+        "drinks"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/trivia-buffalo-wild-wings/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-21",
+      "name": "Karaoke Wednesdays",
+      "time": "8:00 PM \u2013 11:00 PM",
+      "venue": "Whistlin' Wolf",
+      "address": "12 E 21st St",
+      "description": "Downtown karaoke on a real sound system, run by Spencer Hansen of The Innocence. Drink specials all night.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/profile.php?id=61551043024109",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-22",
+      "name": "Writer\u2019s Block Group",
+      "time": "12:00 PM \u2013 1:30 PM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave, Kearney",
+      "description": "Informal twice-monthly writing group for all levels; bring a notebook and your lunch if you like. Guest leaders join occasionally.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/writers-block-group/2026-10-22/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-22",
+      "name": "Trick-or-Treat on the Bricks",
+      "time": "4:00 PM \u2013 6:00 PM",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Trick-or-Treating on the Bricks is a family-friendly way to celebrate Halloween in a safe, walkable downtown setting. Kids can trick-or-treat at participating businesses.",
+      "icons": [
+        "family",
+        "shopping",
+        "community"
+      ],
+      "free": true,
+      "url": "https://downtownkearney.com/events/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "apify_facebook_posts",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-22",
+      "name": "2026 CHI Health Good Samaritan Trunk or Treat",
+      "time": "4:30 PM",
+      "venue": "",
+      "address": "10 E 31st St",
+      "description": "Hospital staff hand out candy in the north parking lot for kids 12 and under in a supervised trunk-or-treat.",
+      "icons": [
+        "family",
+        "outdoors",
+        "community"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/1116832834103977/",
+      "_source": "apify_facebook",
+      "_also_from": [
+        "allevents"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-22",
+      "name": "Ghostbusters",
+      "time": "6:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Avenue, Kearney, NE 68847",
+      "description": "A free screening of the 1984 comedy Ghostbusters presented by Black Hills Energy. Classic family-friendly fun on the big screen.",
+      "icons": [
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://theworldtheatre.org/movies-events/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-22",
+      "name": "Bingo Night @ Upper Room Brewery",
+      "time": "7:00 PM",
+      "venue": "The Upper Room Brewery",
+      "address": "1540 W 56th St, Suite D",
+      "description": "Bingo Night is held in the taproom, inviting participants to grab a pint and a card for a night of classic fun with prizes, laughs, and good vibes. A purchase from the bar is required to play.",
+      "icons": [
+        "drinks",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1075846565260873/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-22",
+      "name": "HOOP CAMP",
+      "time": "6:15 PM - 8:25 PM",
+      "venue": "Kearney Park & Recreation",
+      "address": "1930 University Dr., Kearney, NE",
+      "description": "Youth basketball camp focused on fundamentals, drills and games to build skills and confidence. Suitable for beginners.",
+      "icons": [
+        "family",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/KearneyParksandRecreation/posts/pfbid02Jd5PUVLiTy6oZAxqfiMAvXHf6btdEXuFKQ9UxUvmPTtezkBYb4c23wTnfQEAKKqkl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Burn the Evidence: HALLOWEEN EDITION",
+      "time": "09:00 PM",
+      "venue": "",
+      "address": "1220 Central Avenue",
+      "description": "An improv show where audience-submitted secrets inspire long-form scenes in a Halloween-themed performance. Expect surprises and laughs.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/burn-the-evidence-halloween-edition/100002002816204181",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "We're open late",
+      "time": "10 AM - 8 PM",
+      "venue": "Museum of Nebraska Art (MONA)",
+      "address": "",
+      "description": "The museum stays open late for evening visits to view rotating and permanent exhibits. Drop in to explore the galleries after hours.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/museumofnebraskaart/posts/pfbid022DCbWoRxxXS1sNdNqvcSLTvywKyQPefJPid9nh51XjfLYps78CWZjs4QMTedGXa3l",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Drag Races at KRP",
+      "time": "12:00 PM \u2013 7:00 PM",
+      "venue": "Kearney Raceway Park",
+      "address": "4860 Imperial Ave, Kearney",
+      "description": "NHRA open testing and open-track drag racing with time trials and eliminations throughout the day. Expect loud, fast action on the strip.",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/drag-races-at-krp-30/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Happy Hour",
+      "time": "4\u20135 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Early evening drink specials including $4 domestics, discounted buckets, wine deals and reduced-price cocktails and shots. Good for after-work drinks.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Game Night Fridays",
+      "time": "5:00 PM \u2013 9:00 PM",
+      "venue": "UN:Inebriated",
+      "address": "2102 Central Ave",
+      "description": "Sober October game nights at the downtown zero-proof bar, with a game library curated by Board & Bean Co.",
+      "icons": [
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/photo/?fbid=122225860982488552",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "KneeKnocker Woods",
+      "time": "6:00 PM",
+      "venue": "KneeKnocker Woods",
+      "address": "46290 Hwy 30, Gibbon",
+      "description": "Halloween trail of terror, Nana's Corn Maze, a haunted night market, midway games, food and music, a short drive east of Kearney.",
+      "icons": [
+        "outdoors",
+        "family",
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo/?fbid=1925530032034936",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "town": "Gibbon",
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Kiley Barwick",
+      "time": "6:00 PM",
+      "venue": "The Upper Room Brewery",
+      "address": "1540 West 56th Street Suite D, Kearney",
+      "description": "Traditional country set in the taproom; a relaxed evening of acoustic songs and local charm.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/kiley-barwick/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Fall Wine Tasting Event",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E, Kearney",
+      "description": "Guided tasting of six regional wines with a full charcuterie spread, sommelier-led notes, and bottle discounts. Limited spots; $65.",
+      "icons": [
+        "drinks",
+        "food"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/fall-wine-tasting-event/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Field of Screams",
+      "time": "7:00 PM",
+      "venue": "Farmer Brown's Field of Screams",
+      "address": "2174 28 Rd",
+      "description": "Haunted trail in the dark, six nights only. Tickets sold at the door ($20).",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo?fbid=1077144651832289",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "The History of Concrete",
+      "time": "7:30 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Avenue, Kearney, NE 68847",
+      "description": "Screening of a documentary that explores concrete through humorous and reflective storytelling. A film night for curious minds.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/reel/1084464934298785/",
+      "_source": "apify_facebook_posts",
+      "_also_from": [
+        "apify_instagram_posts",
+        "gemini_search"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Tim Zach Band",
+      "time": "9:00 PM",
+      "venue": "Big Apple Fun Center",
+      "address": "500 W 4th Street, Kearney",
+      "description": "An all-ages-21+ evening concert with live country music; first-come seating.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/tim-zach-band/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "allevents"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Jaden Schumacher",
+      "time": "9:00 PM",
+      "venue": "Joe\u2019s Honky-Tonk",
+      "address": "2023 1st Ave, Kearney",
+      "description": "A return show from a local country artist with special guests and a big fan giveaway. 18+ event with a lively honky-tonk vibe.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/jaden-schumacher/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 3,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-23",
+      "name": "Tim Zach Live @ Big Apple Sportsbar Kearney Ne",
+      "time": "9:00 PM",
+      "venue": "Big Apple Fun Center",
+      "address": "500 West 4th Street",
+      "description": "An evening performance by an award-winning country artist, featuring classic and contemporary country songs.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/1809574993566541/",
+      "_source": "apify_facebook",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-23",
+      "name": "NSAA State Cross Country",
+      "time": "All day",
+      "venue": "Kearney Country Club",
+      "address": "2800 19th Ave",
+      "description": "Kearney has hosted Nebraska's state high school cross country meet for 50 years. The biggest meet of the year.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://nsaahome.org/cross-country/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 5
+    },
+    {
+      "date": "2026-10-23",
+      "name": "PondstOcktober V",
+      "time": "All day",
+      "venue": "The Other Side",
+      "address": "15 E 24th St",
+      "description": "Two-day music fest (Oct 23\u201324) with The Peculiar Pretzelmen, Poudre Valley Playboys, The Black Mariah Theater and more.",
+      "icons": [
+        "music",
+        "drinks",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1763583704674880/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "allevents",
+        "town_feeds"
+      ],
+      "sources": 3,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Fall Craft Show",
+      "time": "09:00 AM",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Ave N",
+      "description": "Fall craft and vendor show at the fairgrounds.",
+      "icons": [
+        "shopping",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://buffalocountyfairgrounds.com/event/fall-craft-show-102426/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts",
+        "gemini_search",
+        "town_feeds"
+      ],
+      "sources": 5,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Trunk or Treat",
+      "time": "09:00 AM",
+      "venue": "",
+      "address": "4500 6th Ave",
+      "description": "Family-friendly trick-or-treating from decorated car trunks, with candy and low-key Halloween fun for kids. Come in costume and enjoy a safe, outdoor setup.",
+      "icons": [
+        "family",
+        "community",
+        "outdoors"
+      ],
+      "free": true,
+      "url": "https://allevents.in/kearney/trunk-or-treat/200030772904549",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "EMMETT BOWER BAND",
+      "time": "09:30 PM",
+      "venue": "Joe's Honky-Tonk",
+      "address": "2023 1st Ave",
+      "description": "Live country/rock music late night at a downtown honky-tonk; tickets are on sale. Expect a bar crowd and a high-energy set.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/emmett-bower-band/200030813953221",
+      "_source": "allevents",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Trick or Treat Event \ud83c\udf6c",
+      "time": "10:00 AM",
+      "venue": "",
+      "address": "5212 3rd Ave",
+      "description": "A kid-focused trick-or-treating event with candy and family activities. Ideal for younger children and families looking for a safe Halloween outing.",
+      "icons": [
+        "family",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://allevents.in/kearney/trick-or-treat-event/200030830757141",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Staghorn Fern Mounting Workshop",
+      "time": "10:00 AM",
+      "venue": "",
+      "address": "2010 30th Ave",
+      "description": "Hands-on workshop teaching how to mount and care for staghorn ferns; materials and plants are provided. Small-group instruction from plant experts.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/930542359777865/",
+      "_source": "apify_facebook",
+      "_also_from": [
+        "allevents"
+      ],
+      "sources": 2,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Open for All",
+      "time": "10AM-5PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "A drop-in day at the children's museum open to all families for play and learning. Hands-on exhibits and kid-focused activities throughout the day.",
+      "icons": [
+        "family",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.instagram.com/p/DeUMdXQDf1C/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Tri-City BMX Race",
+      "time": "1:00 PM",
+      "venue": "Tri-City BMX Track",
+      "address": "3710 30th Ave",
+      "description": "USA BMX racing. Registration 1\u20132 PM, racing right after. Free to watch.",
+      "icons": [
+        "outdoors",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.usabmx.com/events/640462",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "2 Player Alternate Shot Scramble",
+      "time": "1:00 PM",
+      "venue": "",
+      "address": "",
+      "description": "Two-player 9-hole alternate-shot scramble. $50 per team; carts extra.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/2174331690100249/",
+      "_source": "apify_facebook",
+      "_also_from": [
+        "allevents"
+      ],
+      "sources": 2,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-24",
+      "name": "UNK Football vs Northwest Missouri",
+      "time": "1:00 PM \u2013 4:00 PM",
+      "venue": "Ron & Carol Cope Stadium at Foster Field",
+      "address": "2708 12th Avenue, Kearney, NE 68849",
+      "description": "College football matchup between UNK and Northwest Missouri. Tickets available; game also streams and airs on local radio.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8748&amp;sport_id=2",
+      "_source": "town_feeds",
+      "_also_from": [
+        "gemini_search"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Kearney Regional Medical Center Trunk or Treat",
+      "time": "4:30 PM \u2013 7:00 PM",
+      "venue": "Platte Valley Medical parking lot",
+      "address": "804 22nd Ave",
+      "description": "Kearney Regional Medical Center's annual trunk or treat, open to the public.",
+      "icons": [
+        "family",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/1068589992600977/",
+      "_source": "local_events",
+      "curated": true,
+      "_also_from": [
+        "allevents",
+        "apify_facebook",
+        "town_feeds"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Happy Hour",
+      "time": "4\u20135 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Early evening drink specials including discounted beers, seltzers, buckets, shots and cocktails. Good for after-work socializing.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Costume Crawl on the Bricks",
+      "time": "5:00 PM \u2013 11:30 PM",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Adults-only downtown costume night with themed drinks and a costume contest.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://downtownkearney.com/events/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "_also_from": [
+        "allevents",
+        "apify_facebook_posts",
+        "town_feeds"
+      ],
+      "sources": 4,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "7th Annual HalloweenFest",
+      "time": "5:00 PM \u2013 8:30 PM",
+      "venue": "The Archway",
+      "address": "3060 E 1st St",
+      "description": "Games, inflatable corn maze, hayrack rides, apple slingshot and food trucks, capped by the re-lighting of the Archway bridge at 8:30. 20 tickets for $10.",
+      "icons": [
+        "family",
+        "food",
+        "community"
+      ],
+      "free": false,
+      "url": "https://archway.org/events/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts",
+        "gemini_search",
+        "town_feeds"
+      ],
+      "sources": 5,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "KneeKnocker Woods",
+      "time": "6:00 PM",
+      "venue": "KneeKnocker Woods",
+      "address": "46290 Hwy 30, Gibbon",
+      "description": "Halloween trail of terror, Nana's Corn Maze, a haunted night market, midway games, food and music, a short drive east of Kearney.",
+      "icons": [
+        "outdoors",
+        "music",
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo/?fbid=1925530032034936",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "town": "Gibbon",
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Miles from Dublin",
+      "time": "6:00 PM",
+      "venue": "The Upper Room Brewery",
+      "address": "1540 West 56th Street Suite D, Kearney",
+      "description": "Live Irish music and a festive pub atmosphere with drink service in the taproom. Expect singalongs and traditional tunes.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/miles-from-dublin-6/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Field of Screams",
+      "time": "7:00 PM",
+      "venue": "Farmer Brown's Field of Screams",
+      "address": "2174 28 Rd",
+      "description": "Haunted trail in the dark, six nights only. Tickets sold at the door ($20).",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo?fbid=1077144651832289",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "The History of Concrete - Presented by On Point Construction",
+      "time": "7:30 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave",
+      "description": "A documentary screening and talk exploring concrete\u2019s role in urban life, inspired by John Wilson\u2019s work. Film-focused, thought-provoking program.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1778666736670139/",
+      "_source": "apify_facebook",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Kearney Area Farmers Market",
+      "time": "8:00 AM \u2013 12:00 PM",
+      "venue": "Hilltop Mall Parking Lot",
+      "address": "5011 2nd Ave",
+      "description": "Shop local, eat local: produce, meats, eggs, baked goods and crafts from area growers.",
+      "icons": [
+        "food",
+        "shopping",
+        "outdoors"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/KearneyAreaFarmersMarket",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-24",
+      "name": "NHRA National Open",
+      "time": "8:00 AM \u2013 12:00 PM",
+      "venue": "Kearney Raceway Park",
+      "address": "4860 Imperial Ave, Kearney",
+      "description": "Drag-racing event with time trials and eliminations; pits open in the morning. Racing fans can watch multiple stock and bracket classes.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/nhra-national-open-3/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Light Up The Archway",
+      "time": "8:30 PM",
+      "venue": "The Archway",
+      "address": "",
+      "description": "Ceremonial switch-flip to illuminate the Archway, followed by a fireworks countdown. Family-friendly celebration after Halloweenfest.",
+      "icons": [
+        "community",
+        "free",
+        "family"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/reel/931825806417557/",
+      "_source": "apify_facebook_posts",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 5
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Member Hour",
+      "time": "9-10AM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "",
+      "description": "Member-only morning playtime offering hands-on exhibits and activities for young children. Reserved for museum members and their families.",
+      "icons": [
+        "family",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeUMdXQDf1C/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-24",
+      "name": "Ever*More in Love",
+      "time": "",
+      "venue": "",
+      "address": "3801 Avenue A",
+      "description": "A themed arts presentation focused on love and relationships; attendees can expect music or theatrical elements. Details TBA.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/evermore-in-love/200030765772659",
+      "_source": "allevents",
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-25",
+      "name": "The History of Concrete - Presented by On Point Construction",
+      "time": "02:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave",
+      "description": "A talk on the development, techniques and history of concrete led by local construction experts. Good for anyone curious about building materials and methods.",
+      "icons": [
+        "community",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/the-history-of-concrete-presented-by-on-point-construction/200030832535427",
+      "_source": "allevents",
+      "_also_from": [
+        "apify_facebook_posts",
+        "apify_instagram_posts"
+      ],
+      "sources": 3,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-25",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Drink specials during designated happy hour times; check the venue for exact days and featured pours. Casual spot for an after-work drink.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-25",
+      "name": "Drag Races at KRP",
+      "time": "8:00 AM \u2013 12:00 PM",
+      "venue": "Kearney Raceway Park",
+      "address": "4860 Imperial Ave, Kearney",
+      "description": "NHRA points racing with morning time trials and noon eliminations. Expect loud, fast action \u2014 dress warmly and prepare for outdoor conditions.",
+      "icons": [
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/drag-races-at-krp-32/",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-25",
+      "name": "2026 AVC Monster Smash Youth Volleyball Tournament",
+      "time": "",
+      "venue": "Kearney SportsPlex",
+      "address": "1415 Younes Drive, Kearney, NE",
+      "description": "Youth teams compete in age-group volleyball matches throughout the day. Family-friendly tournament atmosphere for players and spectators.",
+      "icons": [
+        "family",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.avcnebraska.com/program/avc-monster-smash/25981",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-26",
+      "name": "Boardgame Mondays at Sip & Swirl",
+      "time": "3:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "All-day happy hour and board games. Bring your crew or your own favorite game; the bar has a shelf of its own and wine specials all day.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "http://sipandswirlwinebar.com",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-26",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Happy hour with $4 domestic beers and seltzers, $18 buckets, half-price wine, discounted shots and cocktails. Good for budget-friendly drinks.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-26",
+      "name": "Happy Hour",
+      "time": "ALL DAY",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Extended happy hour specials available all day on Mondays. Stop by for relaxed wine and drink deals throughout the day.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-27",
+      "name": "2026 Nebraska Natural Resources Conference",
+      "time": "09:00 AM",
+      "venue": "Younes Conference Center South",
+      "address": "416 Talmadge Street",
+      "description": "A three-day conference on conservation and land stewardship featuring presentations, workshops and networking opportunities for the public and professionals.",
+      "icons": [
+        "community",
+        "outdoors"
+      ],
+      "free": false,
+      "url": "https://allevents.in/kearney/2026-nebraska-natural-resources-conference/100001983657007508",
+      "_source": "allevents",
+      "_also_from": [
+        "apify_facebook"
+      ],
+      "sources": 2,
+      "appeal": 4
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Knot Just Knitting",
+      "time": "1:00 PM \u2013 3:00 PM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "Drop-in fiber arts circle: knitting, crochet, cross-stitch and more. Bring a project; volunteer knitting coaches on hand.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearney.events.mylibrary.digital/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Happy Hour",
+      "time": "3:00 PM - 5:30 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "",
+      "description": "Drink specials during designated happy hours; offerings and hours vary by day. Check the bar for current discounts.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/Dd9--DjtVAk/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-27",
+      "name": "UNK Softball vs UNK Fall Ball World Series (Single game each day)",
+      "time": "4:00 PM",
+      "venue": "Dryden Park",
+      "address": "",
+      "description": "College softball game played as part of the Fall Ball World Series. Expect competitive collegiate-level play outdoors.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8955&amp;sport_id=9",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Happy Hour",
+      "time": "4\u20136 PM",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "Assorted drink specials including $4 select domestics, $18 buckets, half-price wine of the day and discounted cocktails and shots.",
+      "icons": [
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid0AciTpjU4dVhzFvwVgfVjjwKLHTQJbyDAwtK3TdMLwJTfdzcfovSjo81bcZCpd5UMl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-27",
+      "name": "UNK Volleyball vs Doane U.",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "UNK Health & Sports Center",
+      "address": "",
+      "description": "College volleyball match with tickets available and live broadcasts online and on local radio. Expect competitive MIAA play.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8790&amp;sport_id=16",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "OPEN DOUBLES PICKLEBALL LEAGUE",
+      "time": "6:00\u201310:00pm",
+      "venue": "Kearney SportsPlex",
+      "address": "",
+      "description": "Open doubles pickleball league where teams may be any combination of players; join in for recreational league play.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/KearneyParksandRecreation/posts/pfbid02SLjDbDzurPqEbmQk2JJejq6XDL1w7r2PxkFaX8YzKKpxvEfqcpmSa6FBvjR3ibxWl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Halloween Cookie Decorating & Wine Night",
+      "time": "6:30 PM \u2013 8:00 PM",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E, Kearney",
+      "description": "Guided cookie-decorating class with all supplies provided; wine, beer and snacks available for purchase during the event.",
+      "icons": [
+        "arts",
+        "drinks",
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/halloween-cookie-decorating-wine-night/",
+      "_source": "town_feeds",
+      "_also_from": [
+        "apify_instagram_posts"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Backrooms",
+      "time": "7:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Avenue, Kearney, NE 68847",
+      "description": "A horror/thriller film screening in the theater. Expect a tense, suspenseful movie experience.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://theworldtheatre.org/movies-events/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Trivia @ The Crafty Dog",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The Crafty Dog",
+      "address": "1325 2nd Ave",
+      "description": "Weekly team trivia hosted by The Askin' Nebraskan. Topics change every week; check their Facebook for the theme.",
+      "icons": [
+        "community",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Bingo Night",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Old Town Hall",
+      "address": "1900 Central Ave",
+      "description": "Weekly bingo with cash prizes in downtown's Old Town Hall. Every dollar raised goes to charity.",
+      "icons": [
+        "community"
+      ],
+      "free": false,
+      "url": "https://visitkearney.org/event/bingo-night-6/",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Dancing with the Stars Watch Party",
+      "time": "7:00 PM \u2013 close",
+      "venue": "Sip & Swirl Wine Bar",
+      "address": "221 11th Ave, Suite E",
+      "description": "DWTS on the big screen every Tuesday with wine and snack specials and trivia during the breaks.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/share/1EjMn7JmWS/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-27",
+      "name": "Buddy",
+      "time": "9:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Avenue, Kearney, NE 68847",
+      "description": "A sci\u2011fi horror film screening for fans of atmospheric, suspenseful genre cinema.",
+      "icons": [
+        "arts",
+        "community"
+      ],
+      "free": false,
+      "url": "https://theworldtheatre.org/movies-events/",
+      "_source": "gemini_search",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "15% off on orders over $15, up to $15 off",
+      "time": "5:00 PM to 7:00 PM",
+      "venue": "The Crafty Dog Sports Bar",
+      "address": "",
+      "description": "Get 15% off orders over $15 (maximum $15 off) during the listed hours. Applies to food orders only.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/thecraftydogkearney/posts/pfbid02oEk1xS3iuAZsL3DH71uVzQUf2LJg9SvwcSThHpDMPXf7hf9u9y2TKxGYGFBuubHUl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Fancy a dinner discount?",
+      "time": "5:00 PM to 7:00 PM",
+      "venue": "The Crafty Dog Sports Bar",
+      "address": "",
+      "description": "Enjoy 15% off orders over $15 (up to $15 savings) during the posted dinner hours.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.instagram.com/p/DeMLK9mF_6K/",
+      "_source": "apify_instagram_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Live Music Wednesday",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "Joy's Table",
+      "address": "110 2nd Ave",
+      "description": "Live music every Wednesday evening. Check their Facebook to see who's playing this week.",
+      "icons": [
+        "music",
+        "food",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/JoysTableKearney",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "UNK Women's Soccer vs Fort Hays State",
+      "time": "6:00 PM \u2013 8:00 PM",
+      "venue": "Ron & Carol Cope Stadium at Foster Field",
+      "address": "",
+      "description": "UNK women's soccer takes on Fort Hays State; the game will also stream on the MIAA Network.",
+      "icons": [
+        "outdoors",
+        "community"
+      ],
+      "free": false,
+      "url": "https://lopers.com/calendar.aspx?game_id=8837&amp;sport_id=18",
+      "_source": "town_feeds",
+      "sources": 1,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Trivia @ McCue\u2019s",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "McCue's Nebraska Taproom",
+      "address": "2008 Ave A, Suite A",
+      "description": "Midweek team trivia hosted by The Askin' Nebraskan, with an all-Nebraska tap list.",
+      "icons": [
+        "drinks",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/askinnebraskan",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Trivia @ Buffalo Wild Wings",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "Buffalo Wild Wings",
+      "address": "5208 2nd Ave",
+      "description": "Free-to-play team trivia with image and music rounds. Prizes for the winners.",
+      "icons": [
+        "music",
+        "food",
+        "drinks"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/trivia-buffalo-wild-wings/",
+      "_source": "local_events",
+      "curated": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Karaoke Wednesdays",
+      "time": "8:00 PM \u2013 11:00 PM",
+      "venue": "Whistlin' Wolf",
+      "address": "12 E 21st St",
+      "description": "Downtown karaoke on a real sound system, run by Spencer Hansen of The Innocence. Drink specials all night.",
+      "icons": [
+        "music",
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/profile.php?id=61551043024109",
+      "_source": "local_events",
+      "curated": true,
+      "favorite": true,
+      "recurring": true,
+      "_also_from": [
+        "town_feeds"
+      ],
+      "sources": 2,
+      "appeal": 3
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Wednesday Special $8.99 Pizzas",
+      "time": "",
+      "venue": "Joy's Table",
+      "address": "",
+      "description": "12\" pizzas for $8.99, available for dine\u2011in or takeout as the midweek special.",
+      "icons": [
+        "food"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/JoysTableKearney/posts/pfbid02Y4BUQKcuTMZEd5iMRMgWALyBePN2Qm2NMPQv5mEaLTgi5QY1ew224JqS2yN4a3SUl",
+      "_source": "apify_facebook_posts",
+      "recurring": true,
+      "sources": 1,
+      "appeal": 2
+    },
+    {
+      "date": "2026-10-29",
+      "name": "BOO!-seum at the Children's Museum",
+      "time": "4:30 PM \u2013 6:30 PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "5827 4th Ave",
+      "description": "Come-and-go Halloween adventure through the museum. $3\u2013$8.",
+      "icons": [
+        "family"
+      ],
+      "free": false,
+      "url": "https://kearneychildrensmuseum.org",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-29",
+      "name": "Askin' Nebraskan Trivia at Upper Room Brewery",
+      "time": "7:00 PM",
+      "venue": "The Upper Room Brewery",
+      "address": "1540 W 56th St, Suite D",
+      "description": "Team trivia in the taproom. Test your knowledge and win prizes.",
+      "icons": [
+        "drinks",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/askin-nebraskan-trivia-18/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-10-31",
+      "name": "Ghetto Psycho Tour: King Iso",
+      "time": "6:30 PM",
+      "venue": "The Other Side",
+      "address": "15 E 24th St",
+      "description": "Halloween night hip-hop show with King Iso and guests.",
+      "icons": [
+        "music",
+        "drinks"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1021624114190650",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-01",
+      "name": "Menopause the Musical",
+      "time": "3:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "25th anniversary tour of the hit musical comedy.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://merrymancenter.org/tickets",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-03",
+      "name": "MONA Book Club",
+      "time": "10:30 AM \u2013 11:30 AM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "First-Tuesday book club for Nebraska authors and art-minded reads. November: Anita de Monte Laughs Last by X\u00f3chitl Gonz\u00e1lez.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://mona.unk.edu/event/mona-book-club-november-6-2026/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-06",
+      "name": "Free UNK Planetarium Show",
+      "time": "7:00 PM & 8:15 PM",
+      "venue": "UNK Planetarium, Bruner Hall of Science",
+      "address": "2401 11th Ave",
+      "description": "Free first-Friday planetarium show on the UNK campus. November: A Solar Eclipse Makes It Dark.",
+      "icons": [
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/events/1370325404676752/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-07",
+      "name": "Kaleidoscope Holiday Market at MONA",
+      "time": "10:00 AM \u2013 5:00 PM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "MONA's festive holiday market with local artists and Nebraska makers. Free.",
+      "icons": [
+        "shopping",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://mona.unk.edu/kaleidoscope/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-07",
+      "name": "Veterans Day Parade",
+      "time": "11:00 AM",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Kearney's Veterans Day parade down Central Avenue.",
+      "icons": [
+        "community",
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/events/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-07",
+      "name": "Downtown Holiday Open House",
+      "time": "",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Downtown shops roll out their holiday merchandise. Runs Nov 7\u20138.",
+      "icons": [
+        "shopping",
+        "free"
+      ],
+      "free": true,
+      "url": "https://downtownkearney.com/events/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-08",
+      "name": "38 Special",
+      "time": "",
+      "venue": "Viaero Center",
+      "address": "609 Platte Rd",
+      "description": "Southern rock legends 38 Special with Goldylocks. Tickets at kearneyevents.net.",
+      "icons": [
+        "music"
+      ],
+      "free": false,
+      "url": "https://kearneyevents.net/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-09",
+      "name": "Jazz at The World",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave",
+      "description": "Free monthly jazz night on the second Monday at downtown's historic theater.",
+      "icons": [
+        "music",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-10",
+      "name": "Figure Drawing at MONA",
+      "time": "6:30 PM \u2013 8:30 PM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "Open-studio drawing from a live (clothed) model. All levels; $15\u2013$20.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://mona.unk.edu/event/figure-drawing-september/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-11",
+      "name": "Watercolor Wednesday",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "Free adult watercolor class (18+) on the second Wednesday of the month. Supplies and technique tips provided.",
+      "icons": [
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearney.events.mylibrary.digital/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-12",
+      "name": "Howler Comedy Takeover Tour",
+      "time": "7:00 PM",
+      "venue": "Kinkaider Brewing Co.",
+      "address": "221 11th Ave",
+      "description": "Touring stand-up night at Kinkaider's Kearney brewery and Bierhaus.",
+      "icons": [
+        "drinks",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/events/1701403384490190",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-13",
+      "name": "Kearney Artists Guild Holiday Art Market",
+      "time": "12:00 PM \u2013 6:00 PM",
+      "venue": "First Baptist Church",
+      "address": "1616 W 39th St",
+      "description": "Nineteen guild artists show and sell work. Runs Nov 13\u201314.",
+      "icons": [
+        "arts",
+        "shopping",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.facebook.com/kearneyartistsguild/events",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-14",
+      "name": "Holiday Splendor Craft Show",
+      "time": "",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Ave N",
+      "description": "Holiday craft and gift show at the fairgrounds.",
+      "icons": [
+        "shopping",
+        "free"
+      ],
+      "free": true,
+      "url": "https://buffalocountyfairgrounds.com/event/holiday-splender-craft-show-111426/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-18",
+      "name": "Wildlife Wednesday Storytime at Rowe Sanctuary",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Rowe Sanctuary",
+      "address": "44450 Elm Island Rd, Gibbon",
+      "description": "Kids' nature storytime at Audubon's Rowe Sanctuary on the Platte River.",
+      "icons": [
+        "family",
+        "outdoors",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.audubon.org/events?location=Iain+Nicolson+Audubon+Center+at+Rowe+Sanctuary",
+      "_source": "local_events",
+      "curated": true,
+      "town": "Gibbon",
+      "sources": 1
+    },
+    {
+      "date": "2026-11-18",
+      "name": "Gateway Farm Expo",
+      "time": "",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Ave N",
+      "description": "The 57th Gateway Farm Expo, Nebraska's longest-running farm show, draws thousands to Kearney.",
+      "icons": [
+        "community",
+        "shopping",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.gatewayfarmexpo.org/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-19",
+      "name": "Free Family Fun Night at the Children's Museum",
+      "time": "4:00 PM \u2013 7:00 PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "5827 4th Ave",
+      "description": "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month.",
+      "icons": [
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearneychildrensmuseum.org",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-20",
+      "name": "NSAA 8-Man & 6-Man Football Championships",
+      "time": "1:00 PM & 7:00 PM",
+      "venue": "Ron & Carol Cope Stadium",
+      "address": "University Dr & 29th St",
+      "description": "State title games at UNK: D3 (8-man) at 1 PM, D6 (6-man) under the lights at 7 PM.",
+      "icons": [
+        "sports"
+      ],
+      "free": false,
+      "url": "https://nsaahome.org/football/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-20",
+      "name": "Michael Martin Murphey's Cowboy Christmas",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Western holiday concert presented by Kearney COSMOS.",
+      "icons": [
+        "music"
+      ],
+      "free": false,
+      "url": "https://merrymancenter.org/tickets",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-26",
+      "name": "YMCA Turkey Trot & Gobble Wobble",
+      "time": "8:30 AM",
+      "venue": "Kearney Family YMCA",
+      "address": "4500 6th Ave",
+      "description": "Thanksgiving morning run/walk at the Y.",
+      "icons": [
+        "sports",
+        "family",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.facebook.com/photo?fbid=1362392272726022",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-28",
+      "name": "A Celtic Christmas by A Taste of Ireland",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Irish dance and holiday music from the Off-Broadway touring company.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://atasteofirelandshow.com/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-11-28",
+      "name": "Small Business Saturday Downtown",
+      "time": "",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Shop the independent stores on the bricks.",
+      "icons": [
+        "shopping",
+        "free"
+      ],
+      "free": true,
+      "url": "https://downtownkearney.com/events/list/page/2/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-01",
+      "name": "MONA Book Club",
+      "time": "10:30 AM \u2013 11:30 AM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "First-Tuesday book club for Nebraska authors and art-minded reads.",
+      "icons": [
+        "arts",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://mona.unk.edu",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-02",
+      "name": "Blue Violin's Retro Rock & Roll Christmas",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Retro holiday rock show. $35.",
+      "icons": [
+        "music"
+      ],
+      "free": false,
+      "url": "https://blue-violin.com/retro-christmas/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-03",
+      "name": "Christmas Walk on the Bricks",
+      "time": "5:00 PM \u2013 8:00 PM",
+      "venue": "Downtown Kearney",
+      "address": "Central Ave",
+      "description": "Downtown's holiday kickoff: tree lighting, reindeer and family activities along Central Avenue.",
+      "icons": [
+        "family",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://downtownkearney.com/events/list/page/2/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-04",
+      "name": "Free UNK Planetarium Show",
+      "time": "7:00 PM & 8:15 PM",
+      "venue": "UNK Planetarium, Bruner Hall of Science",
+      "address": "2401 11th Ave",
+      "description": "Free first-Friday planetarium show on the UNK campus.",
+      "icons": [
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/free-unk-planetarium-show-7/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-05",
+      "name": "Christmas Tree Walk at Trails & Rails Museum",
+      "time": "",
+      "venue": "Trails & Rails Museum",
+      "address": "710 W 11th St",
+      "description": "The 39th annual Christmas Tree Walk, themed 'America 250: Constitutional Freedoms'. Runs Dec 5\u201313.",
+      "icons": [
+        "family",
+        "community"
+      ],
+      "free": false,
+      "url": "https://www.bchs.us/",
+      "_source": "local_events",
+      "curated": true,
+      "big": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-05",
+      "name": "Breakfast with Santa",
+      "time": "",
+      "venue": "Buffalo County Fairgrounds",
+      "address": "3807 Ave N",
+      "description": "Pancakes and photos with Santa at the fairgrounds.",
+      "icons": [
+        "family",
+        "food"
+      ],
+      "free": false,
+      "url": "https://buffalocountyfairgrounds.com/event/breakfast-with-santa-120526/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-08",
+      "name": "Figure Drawing at MONA",
+      "time": "6:30 PM \u2013 8:30 PM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "Open-studio drawing from a live (clothed) model. All levels; $15\u2013$20.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://mona.unk.edu/event/figure-drawing-september/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-08",
+      "name": "Kearney Symphony Orchestra: Holiday Favorites",
+      "time": "7:30 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "The holiday concert of the KSO's 121st season, a Kearney tradition since 1905.",
+      "icons": [
+        "music",
+        "arts"
+      ],
+      "free": false,
+      "url": "https://www.unk.edu/kso/attend/index.php",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-09",
+      "name": "Watercolor Wednesday",
+      "time": "10:00 AM \u2013 11:00 AM",
+      "venue": "Kearney Public Library",
+      "address": "2020 1st Ave",
+      "description": "Free adult watercolor class (18+) on the second Wednesday of the month.",
+      "icons": [
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearney.events.mylibrary.digital/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-14",
+      "name": "Jazz at The World",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave",
+      "description": "Free monthly jazz night on the second Monday at downtown's historic theater.",
+      "icons": [
+        "music",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-17",
+      "name": "Free Family Fun Night at the Children's Museum",
+      "time": "4:00 PM \u2013 7:00 PM",
+      "venue": "Kearney Area Children's Museum",
+      "address": "5827 4th Ave",
+      "description": "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month.",
+      "icons": [
+        "family",
+        "free"
+      ],
+      "free": true,
+      "url": "https://kearneychildrensmuseum.org",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-17",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Crane River Theater's holiday musical. Performances Dec 17\u201322. Tickets $15\u2013$45.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-18",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Crane River Theater's holiday musical.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-19",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "1:00 PM & 6:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Crane River Theater's holiday musical, two shows today.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-20",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "1:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Crane River Theater's holiday musical, Sunday matinee.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-21",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Crane River Theater's holiday musical.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-21",
+      "name": "Kearney Christmas Bird Count",
+      "time": "All day",
+      "venue": "Around Kearney",
+      "address": "",
+      "description": "Help local birders tally every bird in the Kearney count circle, in the field or from your own feeder.",
+      "icons": [
+        "outdoors",
+        "community",
+        "free"
+      ],
+      "free": true,
+      "url": "https://visitkearney.org/event/kearney-christmas-bird-count/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2026-12-22",
+      "name": "The Best Christmas Pageant Ever",
+      "time": "7:00 PM",
+      "venue": "Merryman Performing Arts Center",
+      "address": "225 W 22nd St",
+      "description": "Closing night of Crane River Theater's holiday musical.",
+      "icons": [
+        "arts",
+        "family"
+      ],
+      "free": false,
+      "url": "https://cranerivertheater.org/best-christmas-pageant/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2027-01-11",
+      "name": "Jazz at The World",
+      "time": "7:00 PM \u2013 9:00 PM",
+      "venue": "The World Theatre",
+      "address": "2318 Central Ave",
+      "description": "Free monthly jazz night on the second Monday at downtown's historic theater.",
+      "icons": [
+        "music",
+        "arts",
+        "free"
+      ],
+      "free": true,
+      "url": "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    },
+    {
+      "date": "2027-01-12",
+      "name": "Figure Drawing at MONA",
+      "time": "6:30 PM \u2013 8:30 PM",
+      "venue": "Museum of Nebraska Art",
+      "address": "2401 Central Ave",
+      "description": "Open-studio drawing from a live (clothed) model. All levels; $15\u2013$20.",
+      "icons": [
+        "arts"
+      ],
+      "free": false,
+      "url": "https://mona.unk.edu/event/figure-drawing-september/",
+      "_source": "local_events",
+      "curated": true,
+      "sources": 1
+    }
+  ],
+  "sources": {
+    "local_events": "ok",
+    "google_sheet": "empty",
+    "town_feeds": "ok",
+    "allevents": "ok",
+    "gemini_search": "ok",
+    "apify_facebook": "partial",
+    "apify_eventbrite": "empty",
+    "apify_facebook_posts": "ok",
+    "apify_instagram_posts": "ok"
+  },
+  "new_and_notable": []
+}

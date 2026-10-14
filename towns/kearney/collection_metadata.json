@@ -1,0 +1,85 @@
+{
+  "last_run_at": "2026-10-14T18:51:26-05:00",
+  "window_start": "2026-10-12",
+  "window_end": "2026-10-28",
+  "days_ahead": 14,
+  "candidates_only": true,
+  "merged_count": 250,
+  "raw_count": 403,
+  "sources": [
+    {
+      "name": "local_events",
+      "count": 105,
+      "status": "ok",
+      "started_at": "2026-10-14T18:19:54-05:00",
+      "finished_at": "2026-10-14T18:19:54-05:00"
+    },
+    {
+      "name": "google_sheet",
+      "count": 0,
+      "status": "empty",
+      "started_at": "2026-10-14T18:19:54-05:00",
+      "finished_at": "2026-10-14T18:19:54-05:00",
+      "message": "no sheet for this town"
+    },
+    {
+      "name": "town_feeds",
+      "count": 120,
+      "status": "ok",
+      "started_at": "2026-10-14T18:19:54-05:00",
+      "finished_at": "2026-10-14T18:20:01-05:00",
+      "message": "visit_kearney 105, mona 0, lopers 10, tri_city_storm 2, unk 3"
+    },
+    {
+      "name": "allevents",
+      "count": 33,
+      "status": "ok",
+      "started_at": "2026-10-14T18:20:01-05:00",
+      "finished_at": "2026-10-14T18:20:09-05:00"
+    },
+    {
+      "name": "gemini_search",
+      "count": 17,
+      "status": "ok",
+      "started_at": "2026-10-14T18:20:09-05:00",
+      "finished_at": "2026-10-14T18:21:34-05:00"
+    },
+    {
+      "name": "apify_facebook",
+      "count": 10,
+      "status": "partial",
+      "started_at": "2026-10-14T18:21:34-05:00",
+      "finished_at": "2026-10-14T18:22:47-05:00",
+      "message": "partial: apify~facebook-events-scraper hit the 20-event cap, alfalfa~facebook-events-scraper hit the 20-event cap"
+    },
+    {
+      "name": "apify_eventbrite",
+      "count": 0,
+      "status": "empty",
+      "started_at": "2026-10-14T18:22:47-05:00",
+      "finished_at": "2026-10-14T18:23:02-05:00"
+    },
+    {
+      "name": "apify_facebook_posts",
+      "count": 69,
+      "status": "ok",
+      "started_at": "2026-10-14T18:23:02-05:00",
+      "finished_at": "2026-10-14T18:39:56-05:00"
+    },
+    {
+      "name": "apify_instagram_posts",
+      "count": 49,
+      "status": "ok",
+      "started_at": "2026-10-14T18:39:56-05:00",
+      "finished_at": "2026-10-14T18:46:26-05:00"
+    }
+  ],
+  "warnings": {
+    "count": 2,
+    "first": [
+      "[Feeds] mona returned 0 events (feed=mona url=https://mona.unk.edu)",
+      "[Eventbrite] actor HTTP error (actor=khadinakbar~eventbrite-events-scraper status=502 body=<html>  <head><title>502 Bad Gateway</title></head>  <body>  <center><h1>502 Bad Gateway</h1></cente)"
+    ],
+    "summary": "2 warnings: [Feeds] mona returned 0 events (feed=mona url=https://mona.unk.edu); [Eventbrite] actor HTTP error (actor=khadinakbar~eventbrite-events-scraper status=502 body=<html>  <"
+  }
+}
