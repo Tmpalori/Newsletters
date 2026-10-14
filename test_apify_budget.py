@@ -134,3 +134,36 @@ def test_eighty_percent_of_the_limit_is_a_warning():
     ce.reset_source_stats()
     ce.note_apify_spend({"month_usd": 400.0, "limit_usd": None, "cycle_end": None, "run_usd": None})   # no limit set
     assert ce._WARNINGS == []
+
+
+# ─── No silent gaps ─────────────────────────────────────────────────────────
+
+def test_a_watched_source_that_comes_back_empty_is_a_warning():
+    ce.reset_source_stats()
+    assert ce.safe_fetch("apify_instagram_posts", lambda: [], expect_events=True) == []
+    assert any("apify_instagram_posts returned 0 events" in w for w in ce._WARNINGS)
+    assert ce.get_source_stats()[-1]["status"] == "empty"
+
+
+def test_a_source_switched_off_on_purpose_is_skipped_quietly(monkeypatch):
+    ce.reset_source_stats()
+    monkeypatch.delenv("IG_POSTS_ENABLED", raising=False)
+    assert ce.safe_fetch("apify_instagram_posts", ce.fetch_apify_instagram_posts, expect_events=True) == []
+    assert ce._WARNINGS == []
+    assert ce.get_source_stats()[-1]["status"] == "skipped"
+
+
+def test_every_paid_or_ai_source_is_watched():
+    watched = {n for n, _, expect in ce.WEB_SOURCES if expect}
+    assert {"gemini_search", "apify_facebook", "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts"} <= watched
+
+
+def test_a_page_turning_quiet_warns_once():
+    ce.reset_source_stats()
+    ce._QUIET_PAGES.clear()
+    url = "https://facebook.com/quiet"
+    for _ in range(ce.QUIET_AFTER + 2):
+        ce.quiet_page_result(url, "Quiet Bar", [])
+    assert [w for w in ce._WARNINGS if "Quiet Bar" in w] == [
+        f"Facebook page Quiet Bar had no posts {ce.QUIET_AFTER} collects in a row; skipped from now on, "
+        f"check its link in venues.json (page={url})"]

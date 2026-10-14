@@ -144,6 +144,7 @@ def reset_source_stats():
     _SOURCE_STATS.clear()
     _SOURCE_NOTES.clear()
     _SOURCE_PARTIAL.clear()
+    _SOURCE_OFF.clear()
     _WARNINGS.clear()
 
 
@@ -154,6 +155,17 @@ _SOURCE_NOTES = {}
 
 def _note_source(name, message):
     _SOURCE_NOTES[name] = message
+
+
+# Sources switched off on purpose this run (no key, a toggle, nothing to
+# scrape): an empty result from one of them is "skipped", not breakage.
+# Every other empty result from a watched source is a warning, which the
+# Slack "collect done" message and the owner inbox carry.
+_SOURCE_OFF = set()
+
+
+def _source_off(name):
+    _SOURCE_OFF.add(name)
 
 
 # Scrapers that got only part of what they look at this run (a page that
@@ -232,6 +244,9 @@ def safe_fetch(name, fn, args=(), expect_events=True):
         if partial:
             note = "; ".join(([note] if note else []) + ["partial: " + ", ".join(partial)])
         if len(result) == 0:
+            if name in _SOURCE_OFF:
+                _record_source_stat(name, 0, "skipped", started, finished, message=note or "switched off for this town")
+                return result
             if expect_events:
                 _warn(
                     f"[scraper] {name} returned 0 events",
@@ -1446,9 +1461,11 @@ def fetch_gemini_events(days_ahead=14, post=None, categories=None, get=None, wor
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if os.environ.get("GEMINI_ENABLED", "1").strip().lower() in ("0", "false", "no"):
         print("  [Gemini] Disabled (GEMINI_ENABLED=0)")
+        _source_off("gemini_search")
         return events
     if not key:
         print("  [Gemini] No GEMINI_API_KEY — skipping")
+        _source_off("gemini_search")
         return events
     post = post or requests.post
     model = os.environ.get("GEMINI_MODEL", "").strip() or _GEMINI_DEFAULT_MODEL
@@ -4245,10 +4262,12 @@ def fetch_apify_eventbrite_events(days_ahead=14):
     events = []
     if os.environ.get("EVENTBRITE_ENABLED", "1").strip() in ("0", "false", "no"):
         print("  [Eventbrite] Disabled (EVENTBRITE_ENABLED=0)")
+        _source_off("apify_eventbrite")
         return events
     token = os.environ.get("APIFY_TOKEN", "").strip()
     if not token:
         print("  [Eventbrite] No APIFY_TOKEN — skipping")
+        _source_off("apify_eventbrite")
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Eventbrite] Apify monthly limit already tripped this run — skipping")
@@ -4355,8 +4374,7 @@ def _run_apify_search(actor, payload, token):
                 _APIFY_LIMIT_TRIPPED = True
                 _warn("Apify monthly hard limit tripped", actor=actor, status=403)
             else:
-                # apify_facebook runs with expect_events=False: warn, or a bad
-                # token or renamed actor goes unnoticed for weeks.
+                # A bad token or renamed actor must not go unnoticed for weeks.
                 _warn("[Apify FB] actor HTTP error", actor=actor,
                       status=resp.status_code, body=resp.text[:100])
             return None
@@ -4408,6 +4426,7 @@ def fetch_apify_facebook_events(days_ahead=14):
     token = os.environ.get("APIFY_TOKEN", "").strip()
     if not token:
         print("  [Apify FB] No APIFY_TOKEN — skipping")
+        _source_off("apify_facebook")
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify FB] Monthly hard limit already tripped this run — skipping")
@@ -4744,6 +4763,9 @@ def quiet_page_result(url, name, posts):
     row = _QUIET_PAGES.setdefault(url, {"name": name, "misses": 0, "skips": 0, "since": now_central().date().isoformat()})
     row["name"] = name
     row["misses"] += 1
+    if row["misses"] == QUIET_AFTER:
+        _warn(f"Facebook page {name} had no posts {QUIET_AFTER} collects in a row; skipped from now on, check its link in venues.json",
+              page=url)
 
 
 def _minutes_in():
@@ -5084,11 +5106,13 @@ def fetch_apify_facebook_posts(days_ahead=14):
 
     if os.environ.get("FB_POSTS_ENABLED", "").strip() not in ("1", "true", "yes"):
         print("  [Apify FB Posts] Disabled (set FB_POSTS_ENABLED=1 to enable)")
+        _source_off("apify_facebook_posts")
         return events
 
     token = os.environ.get("APIFY_TOKEN", "").strip()
     if not token:
         print("  [Apify FB Posts] No APIFY_TOKEN — skipping")
+        _source_off("apify_facebook_posts")
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify FB Posts] Monthly hard limit already tripped this run — skipping")
@@ -5434,11 +5458,13 @@ def fetch_apify_instagram_posts(days_ahead=14):
 
     if os.environ.get("IG_POSTS_ENABLED", "").strip() not in ("1", "true", "yes"):
         print("  [Apify IG Posts] Disabled (set IG_POSTS_ENABLED=1 to enable)")
+        _source_off("apify_instagram_posts")
         return events
 
     token = os.environ.get("APIFY_TOKEN", "").strip()
     if not token:
         print("  [Apify IG Posts] No APIFY_TOKEN — skipping")
+        _source_off("apify_instagram_posts")
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify IG Posts] Monthly hard limit already tripped this run — skipping")
@@ -5472,6 +5498,7 @@ def fetch_apify_instagram_posts(days_ahead=14):
 
     if not targets:
         print(f"  [Apify IG Posts] No tiered venues with IG handles (low_tier={skipped_low_tier}, no_ig={skipped_no_ig})")
+        _source_off("apify_instagram_posts")
         return events
 
     # Cost cap: HIGH tier first, then MEDIUM. Prevents a future venues.json
@@ -5682,13 +5709,13 @@ WEB_SOURCES = [
     # The town's official calendar feeds (town.json "feeds"; none for Victoria).
     ("town_feeds", "fetch_town_feeds", False),
     ("allevents", "fetch_allevents_events", True),
-    ("gemini_search", "fetch_gemini_events", False),          # only with GEMINI_API_KEY
-    ("apify_facebook", "fetch_apify_facebook_events", False),  # only with APIFY_TOKEN
-    ("apify_eventbrite", "fetch_apify_eventbrite_events", False),
+    ("gemini_search", "fetch_gemini_events", True),          # only with GEMINI_API_KEY
+    ("apify_facebook", "fetch_apify_facebook_events", True),  # only with APIFY_TOKEN
+    ("apify_eventbrite", "fetch_apify_eventbrite_events", True),
     # Posts → OpenAI event extraction, off unless FB_POSTS_ENABLED /
     # IG_POSTS_ENABLED; they pull from venues.json's pages and handles.
-    ("apify_facebook_posts", "fetch_apify_facebook_posts", False),
-    ("apify_instagram_posts", "fetch_apify_instagram_posts", False),
+    ("apify_facebook_posts", "fetch_apify_facebook_posts", True),
+    ("apify_instagram_posts", "fetch_apify_instagram_posts", True),
 ]
 # Scrapers of one town's own websites (Victoria's city calendar, chamber,
 # library, venues). Another town gets them only by naming them.
