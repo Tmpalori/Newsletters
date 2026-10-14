@@ -25,7 +25,8 @@ or venues to drop, "timeout": seconds (5-240) for a slow site, "venue" and
 "address": where its events are when they don't say (a library's calendar),
 "rename": [[pattern, replacement], ...] regular expressions (case-insensitive)
 applied to each name in order (a college sports feed's "University of
-Nebraska - Kearney Football" to "UNK Football").
+Nebraska - Kearney Football" to "UNK Football"), and "rename_venue" the same
+for venues ("Kearney, NE, Cope Stadium" to "Cope Stadium").
 
 Each parser is pure: text or JSON in, events out, in the town's timezone and
 inside [start, end] (dates). The collector adds icons and its own checks.
@@ -75,15 +76,16 @@ def check_feeds(feeds):
         for k in ("venue", "address"):
             if k in f and not isinstance(f[k], str):
                 raise ValueError(f"feed {name}: {k} must be text")
-        rename = f.get("rename", [])
-        if not isinstance(rename, list) or not all(
-                isinstance(r, list) and len(r) == 2 and all(isinstance(x, str) for x in r) for r in rename):
-            raise ValueError(f"feed {name}: rename must be a list of [pattern, replacement]")
-        for pattern, _ in rename:
-            try:
-                re.compile(pattern)
-            except re.error:
-                raise ValueError(f"feed {name}: rename pattern {pattern!r} is not a regular expression")
+        for key in ("rename", "rename_venue"):
+            rules = f.get(key, [])
+            if not isinstance(rules, list) or not all(
+                    isinstance(r, list) and len(r) == 2 and all(isinstance(x, str) for x in r) for r in rules):
+                raise ValueError(f"feed {name}: {key} must be a list of [pattern, replacement]")
+            for pattern, _ in rules:
+                try:
+                    re.compile(pattern)
+                except re.error:
+                    raise ValueError(f"feed {name}: {key} pattern {pattern!r} is not a regular expression")
         t = f.get("timeout", 15)
         if not isinstance(t, int) or isinstance(t, bool) or not 5 <= t <= 240:
             raise ValueError(f"feed {name}: timeout must be 5-240 seconds")
@@ -138,12 +140,12 @@ def excluded(events, pattern):
     return [e for e in events if not rx.search(f'{e.get("name", "")} | {e.get("venue", "")}')]
 
 
-def renamed(events, rules):
-    """Each name rewritten by the feed's [pattern, replacement] rules, in order."""
+def renamed(events, rules, key="name"):
+    """Each event's `key` rewritten by the feed's [pattern, replacement] rules, in order."""
     for pattern, repl in rules or []:
         rx = re.compile(pattern, re.I)
         for e in events:
-            e["name"] = clean(rx.sub(repl, e.get("name", "")))
+            e[key] = clean(rx.sub(repl, e.get(key, "")))
     return events
 
 

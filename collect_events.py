@@ -480,6 +480,8 @@ def _coerce_yaml_events(data):
             elif k == "time" and isinstance(v, int) and not isinstance(v, bool):
                 h, m = divmod(v, 60)
                 out[k] = f"{(h % 12) or 12}:{m:02d} {'PM' if h % 24 >= 12 else 'AM'}" if h < 24 else str(v)
+            elif k == "day" and isinstance(v, list):
+                out[k] = [str(d) for d in v]        # [friday, saturday] (recurring_days)
             elif k in ("name", "venue", "address", "description", "day") and v is not None and not isinstance(v, str):
                 out[k] = str(v)
         return out
@@ -3882,6 +3884,7 @@ def fetch_town_feeds(days_ahead=14):
             got = town_feeds.excluded(town_feeds.fetch_feed(feed, get, tz, _WINDOW_START, _WINDOW_END), feed.get("exclude"))
             got = town_feeds.place(got, feed.get("venue", ""), feed.get("address", ""))
             got = town_feeds.renamed(got, feed.get("rename"))
+            got = town_feeds.renamed(got, feed.get("rename_venue"), "venue")
         except Exception as e:
             _warn(f"[Feeds] {feed['name']} failed: {type(e).__name__}: {e}", feed=feed["name"], url=feed["url"])
             _mark_partial("town_feeds", f"{feed['name']} failed")

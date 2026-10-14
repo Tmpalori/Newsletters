@@ -44,7 +44,8 @@
     {
       "name": "visit_kearney",
       "type": "tribe",
-      "url": "https://visitkearney.org"
+      "url": "https://visitkearney.org",
+      "exclude": "^(UNK Loper .*(Football|Soccer|Volleyball|Basketball|Wrestling|Softball|Baseball|Tennis|Track|Swim)|Tri-City Storm Hockey)"
     },
     {
       "name": "mona",
@@ -61,6 +62,16 @@
           "^University of Nebraska - Kearney ",
           "UNK "
         ]
+      ],
+      "rename_venue": [
+        [
+          "^Kearney, NE,? *",
+          ""
+        ],
+        [
+          "^Health & Sports C.*",
+          "UNK Health & Sports Center"
+        ]
       ]
     },
     {
@@ -71,6 +82,10 @@
       "rename": [
         [
           " Men's Ice Hockey",
+          ""
+        ],
+        [
+          " - Watch on .*$",
           ""
         ]
       ]

@@ -279,10 +279,15 @@ def test_rename():
     town_feeds.renamed(evs, rules)
     assert [e["name"] for e in evs] == ["UNK Women's Soccer vs Fort Hays State", "Tri-City Storm vs Chicago Steel"]
     assert town_feeds.renamed(evs, None) == evs
+    evs[0]["venue"] = "Kearney, NE, Ron & Carol Cope Stadium"
+    town_feeds.renamed(evs, [[r"^Kearney, NE, ", ""]], "venue")
+    assert evs[0]["venue"] == "Ron & Carol Cope Stadium"
     assert town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": rules}])
     for bad in ("x", [["("], ["a"]], [["(", "b"]], [[1, "b"]]):
         with pytest.raises(ValueError, match="rename"):
             town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": bad}])
+        with pytest.raises(ValueError, match="rename_venue"):
+            town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename_venue": bad}])
 
 
 def test_growthzone_reads_each_events_calendar_file():
