@@ -2,7 +2,7 @@
  *
  * Some admin routes are also served at /api/hq/admin/..., with the same
  * handler: the admin's Needs attention, Newsletter, Sponsors and Analytics
- * data, plus the few actions the owner lets his assistant take for him
+ * data (and /activity: views, clicks and shares per day and event), plus the few actions the owner lets his assistant take for him
  * (restore or dismiss a hidden event, dismiss a message, hide or restore a
  * sponsor placement or mark it a test, send a test issue or the issue).
  * The gate (index.js adminOrHq) lets HQ_REPLY_KEY in at the /api/hq/ path

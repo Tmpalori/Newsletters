@@ -441,7 +441,7 @@ export function paidTooLate(order, now) {
 // Compared by host (without www) and path only: the button's href is
 // sponsorLinkUrl(url), so the beacon's click_url carries utm_* tags (and the
 // browser may add a #hash) that the stored sponsor URL doesn't.
-function sameLink(a, b) {
+export function sameLink(a, b) {
   const norm = u => {
     const raw = String(u || '').trim();
     try {
@@ -502,7 +502,7 @@ export function sponsorStats(order, rows, { recipients = 0, issues = recipients 
 //   from shares views of its page from a link someone shared (?s=sh)
 // `pages`: its event page paths (one per day it's listed); `urls`: the
 // link(s) it carries; `starred`: whether the Monday issue starred it.
-function pathOf(u) {
+export function pathOf(u) {
   try { return new URL(String(u || ''), 'https://x.invalid').pathname.replace(/\/+$/, ''); } catch { return ''; }
 }
 
@@ -540,7 +540,7 @@ export function pickStats(order, rows, { start, end, pages = [], urls = [], reci
 // `rows` must reach back LEAD_IN_DAYS before `start`. `events`: live and
 // archived events (each with page, name, venue, date, url).
 export const LEAD_IN_DAYS = 7;
-const PAGE_SHARE_BUTTONS = new Set(['share_facebook', 'share_x', 'share_text']);
+export const PAGE_SHARE_BUTTONS = new Set(['share_facebook', 'share_x', 'share_text']);
 export function eventWeekStats(rows, events, { start, end }) {
   const byPage = new Map();
   for (const ev of events || []) {

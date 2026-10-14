@@ -30,6 +30,7 @@ import { createAuth, MIN_SECRET } from './auth.js';
 import { createGithub } from './github.js';
 import { readMetadataFile, buildSourcesPayload } from './sources.js';
 import { crawlerMiddleware, beaconRow, summarize } from './analytics.js';
+import { activitySummary, ACTIVITY_MAX_DAYS } from './activity.js';
 import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
@@ -1585,6 +1586,30 @@ export async function createApp(opts = {}) {
     } catch (err) {
       console.error('[traffic] event stats failed:', err.message);
       res.status(500).json({ ok: false, error: 'event-stats-failed', message: err.message });
+    }
+  });
+
+  // What people did on the site (server/activity.js): views, clicks,
+  // shares, calendar adds, ad views and the issues' opens, per day and per
+  // event. For the owner's assistant through HQ; ?days=1..90, default 7.
+  app.get(hqPaths('/api/admin/activity'), adminOrHq, async (req, res) => {
+    if (typeof store.listTraffic !== 'function') return res.json({ ok: false, error: 'not-supported' });
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), ACTIVITY_MAX_DAYS);
+    try {
+      const now = nowFn();
+      const [rows, payload, archived, sends] = await Promise.all([
+        store.listTraffic(addDays(localDateStr(now), -days)), getPublicPayload(), listArchived().catch(() => []),
+        typeof store.listNewsletterSends === 'function' ? store.listNewsletterSends(Math.ceil(days / 7) * 2 + 2).catch(() => []) : []
+      ]);
+      // A failed read leaves the opens off, not the report.
+      const opens = sends.length && typeof store.countEmailOpens === 'function'
+        ? await store.countEmailOpens(sends.map(s => s.week_key)).catch(() => ({})) : {};
+      const events = [...((payload && payload.events) || []), ...(archived || [])];
+      res.set('Cache-Control', 'no-store');
+      res.json(activitySummary(rows, { now, days, events, sends, opens }));
+    } catch (err) {
+      console.error('[activity] summary failed:', err.message);
+      res.status(500).json({ ok: false, error: 'activity-failed', message: err.message });
     }
   });
 
