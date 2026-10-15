@@ -262,6 +262,10 @@ These matter the moment a second town exists. All keep Victoria's values.
 
 ## Phase 5: launching a town
 
+> **Current process:** [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md). Towns now run their
+> jobs on Railway, so the GitHub Environment and workflow items below (3.3–3.5) don't apply
+> to new towns. This section is kept as the original plan.
+
 - [x] **5.1 New-town kit**: a script that creates `towns/<slug>/town.json`
       from prompts, seeds venues with `discover_venues.py`, adds the town to
       `towns/index.json`, and prints the account checklist below.
