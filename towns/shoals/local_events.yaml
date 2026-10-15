@@ -10,13 +10,16 @@
 # ONE-TIME events only show on their specific date.
 #
 # The town feeds already pull the Shoals Chamber (GrowthZone), The Shoals
-# Now and Florence Arts & Museums (Squarespace), MSNHA, TVAA/Ritz, UNA
+# Now and Florence Arts & Museums (Squarespace), MSNHA, UNA
 # events, UNA athletics and the Florence-Lauderdale library calendars, and
 # the collector dedups. So entries here are the backbone the feeds miss:
 # the bar-and-restaurant live music that makes the Shoals the Shoals, plus
 # big one-time dates we want to plan ahead for. Shoals After Dark (Mobile
-# Plaza, Saturdays), the Ritz/TVAA season, UNA recitals and home games,
-# Walker Ranch and the library programs come through the feeds.
+# Plaza, Saturdays), UNA recitals and home games,
+# Walker Ranch and the library programs come through the feeds. The Ritz
+# (TVAA) shows are here by hand: tennesseevalleyarts.org answers Railway's
+# servers with a bot check, and the Ritz's Facebook (venues.json) takes over
+# once Apify is set.
 #
 # Optional tags (they feed the event score; see server/scoring.js):
 #   big: true        a big draw; shows in "Coming up" and scores high
@@ -234,6 +237,17 @@ events:
 
   # ── November 2026 ───────────────────────────────────────────────────────
 
+  - date: "2026-11-05"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Opening night of C.P. Taylor's wartime family comedy-drama at Sheffield's historic Ritz Theatre."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
   - date: "2026-11-06"
     name: "First Fridays Florence"
     time: "5:30 PM – 8:30 PM"
@@ -282,6 +296,73 @@ events:
     big: true
     # VERIFIED: muscleshoalssongfest.com 2026-10-15 (Nov 6 – 8 2026)
 
+  - date: "2026-11-06"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "C.P. Taylor's wartime family comedy-drama on the Ritz Theatre stage in Sheffield."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-07"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "C.P. Taylor's wartime family comedy-drama on the Ritz Theatre stage in Sheffield."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-08"
+    name: "And A Nightingale Sang…"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Closing matinee of C.P. Taylor's wartime family comedy-drama at the Ritz Theatre."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-13"
+    name: "Shrek KIDS!"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Young performers bring the swamp-to-castle musical to the Ritz Theatre in Sheffield."
+    icons: [arts, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/shrek-kids/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 13 at 7pm, Nov 14 at 2pm)
+
+  - date: "2026-11-14"
+    name: "Shrek KIDS!"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Matinee of the kids' Shrek musical at the Ritz Theatre in Sheffield."
+    icons: [arts, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/shrek-kids/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 13 at 7pm, Nov 14 at 2pm)
+
+  - date: "2026-11-19"
+    name: "A Birthday Evening with Penn & Oldham"
+    time: "7:00 PM – 9:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Muscle Shoals songwriting legends Dan Penn and Spooner Oldham play their classics at the Ritz Theatre."
+    icons: [music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-birthday-evening-with-penn-oldham/"
+    big: true
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 19 7 – 9pm)
+
   - date: "2026-11-26"
     name: "Trax4Max 5K Turkey Trot & 1 Mile Fun Run"
     time: "Morning"
@@ -292,3 +373,51 @@ events:
     free: false
     url: "https://www.visitflorenceal.com/events/trax4max-5k-turkey-trot-1-mile-fun-run/"
     # VERIFIED: Visit Florence event page 2026-10-15 (Nov 26 2026, First Baptist Church of Florence)
+
+  # ── December 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-12-11"
+    name: "A Taste of the Nutcracker"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A condensed Nutcracker ballet with live music at the Ritz Theatre in Sheffield."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  - date: "2026-12-12"
+    name: "A Taste of the Nutcracker"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A condensed Nutcracker ballet with live music at the Ritz Theatre. Also at 7 PM."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  - date: "2026-12-13"
+    name: "A Taste of the Nutcracker"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Closing matinee of the condensed Nutcracker ballet with live music at the Ritz Theatre."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  # ── January 2027 ────────────────────────────────────────────────────────
+
+  - date: "2027-01-09"
+    name: "Taylorville: A Live Tribute to Taylor Swift"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A Taylor Swift tribute band at the Ritz Theatre in Sheffield. Also at 7 PM."
+    icons: [music, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/taylorville/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Jan 9 2027 at 2pm and 7pm)

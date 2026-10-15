@@ -94,11 +94,6 @@
       "timeout": 200
     },
     {
-      "name": "tvaa_ritz",
-      "type": "tribe",
-      "url": "https://tennesseevalleyarts.org"
-    },
-    {
       "name": "una",
       "type": "tribe",
       "url": "https://apps.una.edu",
