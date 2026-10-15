@@ -120,19 +120,27 @@ Each phase is its own PR with tests. Victoria's output must not change
 
 ### Phase 3: HQ sees everything
 
-- [ ] `/api/hq/summary` adds `jobs` (last run of each job and its result)
+- [x] `/api/hq/summary` adds `jobs` (last run of each job and its result)
       and recent alerts; HQ shows them per town and to the assistant.
-- [ ] HQ checks each town's `/api/health` every few minutes and alerts once
+      (tristen-hq: a silent worker or a failed collect is a town problem,
+      so it reaches the inbox; alerts already reach HQ's inbox.)
+- [x] HQ checks each town's `/api/health` every few minutes and alerts once
       when a town is down or a job is overdue (replaces `uptime.yml`).
+      (Already: tristen-hq src/watch.js turns a site that's down into an
+      inbox item.)
 - [ ] HQ sends the weekly digest (replaces `weekly-digest.yml`).
 
 ### Phase 4: new towns the new way
 
-- [ ] `scripts/bootstrap_town.py` / an agent runbook: Railway web, jobs and
+- [x] `scripts/bootstrap_town.py` / an agent runbook: Railway web, jobs and
       Postgres with backups, every variable (fresh secrets, never shown),
-      domain, Cloudflare DNS and apex redirect, HQ registration.
-- [ ] Source research per town (feeds, venues, recurring events), checked
-      against Victoria's events per day.
+      domain, Cloudflare DNS and apex redirect, HQ registration. (RAILWAY.md
+      "New town, the simple way".)
+- [x] Source research per town (feeds, venues, recurring events), checked
+      against Victoria's events per day. (Done October 2026, before FB/IG,
+      events a day in a 17-day window: Medford 19, Shoals 9.4, Kearney 8,
+      Tupelo 7; Kearney's first full run with FB/IG was 12 against
+      Victoria's 15.)
 - [ ] Tupelo, Medford, The Shoals.
 
 ### Phase 5: Victoria moves (after the others run cleanly for 2+ weeks)

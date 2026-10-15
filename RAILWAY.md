@@ -269,6 +269,46 @@ a commit or a redeploy.
 The social kit and the ads report move later (JOBS_ON_RAILWAY.md 2b); a
 town on jobs doesn't run them until then.
 
+## New town, the simple way (jobs on Railway)
+
+What an agent does end to end with the Railway connector and the Cloudflare
+API, once the town's files are in `towns/<slug>/` (feeds, venues, local
+events) and merged:
+
+1. **Postgres:** `Postgres-<Town>` in `production`, backups on (the owner
+   turns backups on in Railway; the API can't).
+2. **Web service** `<domain-without-tld>` from `main`, start `node
+   server/index.js`, healthcheck `/api/health`, the watch paths of step 16
+   above. Variables before the first deploy: `TOWN`, `SITE_URL`,
+   `DATABASE_URL=${{Postgres-<Town>.DATABASE_URL}}`, `ADMIN_USERNAME`,
+   `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `NEWSLETTER_CRON_SECRET`,
+   `EVENT_CHECK_SECRET`, `SUBMISSION_REVIEW_SECRET`, `HQ_API_KEY`,
+   `HQ_SSO_SECRET`, `HQ_REPLY_KEY` (each fresh, 32+ characters, never
+   copied from another town), `SLACK_*` (shared channels are fine),
+   `SLACK_TOWN_TAG`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`,
+   `JOBS_ON_RAILWAY=1`. The town's `town.json` keeps `"workflows": false`:
+   it never runs on GitHub.
+3. **Jobs service** `<web>-jobs`: "Jobs on Railway" above.
+4. **Domain:** `www.<domain>` on the web service; in Cloudflare (DNS only,
+   not proxied) the `www` CNAME to Railway's target and its verification
+   TXT, and the apex redirected to `www` with the path kept (a Cloudflare
+   redirect rule, or the apex on Railway too).
+5. **HQ:** on the HQ service, `HQ_TOWN_<SLUG>` =
+   `{"site_url":"https://www.<domain>","key":"<its HQ_API_KEY>"}` plus
+   `HQ_SSO_<SLUG>` and `HQ_REPLY_<SLUG>` (references don't cross
+   projects, so these are the only copies; the owner pastes them if the
+   agent can't read secrets).
+6. **First collect:** Pull Now in the town's admin (or wait for its first
+   Sunday or Wednesday); HQ shows it under the town's jobs.
+7. **Owner, when ready to sell and send:** Resend domain and key, the
+   town's Stripe account, the mailing address and business name, the
+   Facebook page and Instagram (then `META_TOWN` and the social kit move,
+   JOBS_ON_RAILWAY.md 2b). Turnstile: add `www.<domain>` to the widget.
+
+Fresh secrets are generated (`openssl rand -hex 32`) and set straight on
+the service. An agent session that isn't allowed to generate secrets asks
+the owner to run that once per town, or to allow it.
+
 ## HQ dashboard (its own repo and project)
 
 The dashboard that shows every town on one screen is `tmpalori/tristen-hq`,
