@@ -245,8 +245,9 @@ a commit or a redeploy.
    `limits` in its `town.json`. Never share a town's own secrets.
 3. **The jobs service:** a new service named `<domain>-jobs` from this repo
    (`main`), in `production` only, built from `Dockerfile.jobs`, no domain,
-   watch paths `/*.py`, `/scripts/**`, `/requirements.txt`,
-   `/Dockerfile.jobs`, `/towns/<slug>/**`, `/towns/*/town.json`. Its
+   watch paths `/*.py`, `!/test_*.py`, `/scripts/**`, `/requirements.txt`,
+   `/Dockerfile.jobs`, `/towns/<slug>/**`, `/towns/*/town.json` (the test
+   files are left out: a redeploy stops a collect under way). Its
    variables, all references, so nothing is copied:
    - `TOWN=<slug>`, `SITE_URL=https://www.<domain>`
    - `JOBS_SECRET=${{<web>.JOBS_SECRET}}`

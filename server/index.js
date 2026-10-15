@@ -465,8 +465,11 @@ export async function createApp(opts = {}) {
         `/actions/workflows/${WEEKLY_COLLECT_WORKFLOW}`,
       // Another town only: whether it may start workflows yet (TOWN_WORKFLOWS=1
       // once its GitHub Environment exists), for scripts/launch_check.py. A
-      // flag, no secret. Victoria's config stays exactly as it was.
-      ...(town.id !== VICTORIA.id ? { town_workflows: jobs.enabled || townWorkflowsReady(), jobs_on_railway: jobs.enabled } : {})
+      // flag, no secret. Victoria's config stays exactly as it was until her
+      // jobs move to Railway; then it says so too, which GitHub's submission
+      // review cron reads to stand down (JOBS_ON_RAILWAY.md phase 5).
+      ...(town.id !== VICTORIA.id ? { town_workflows: jobs.enabled || townWorkflowsReady(), jobs_on_railway: jobs.enabled }
+        : jobs.enabled ? { jobs_on_railway: true } : {})
     });
   });
 
