@@ -223,4 +223,17 @@ describe('/api/config town_workflows (scripts/launch_check.py)', () => {
     process.env.TOWN_WORKFLOWS = '1';
     expect((await config({ town: BAY, siteUrl: OK.siteUrl })).town_workflows).toBe(true);
   });
+
+  it('Victoria on Railway jobs says so (for the submission review cron), and nothing else changes', async () => {
+    const off = await config({ siteUrl: 'https://www.thevic361.com' });
+    expect(off).not.toHaveProperty('jobs_on_railway');
+    const on = await config({ siteUrl: 'https://www.thevic361.com', jobs: { enabled: true, register() {} } });
+    expect(on.jobs_on_railway).toBe(true);
+    expect(on).not.toHaveProperty('town_workflows');
+    // Pull Now works with jobs on (it queues the collect); the rest is the same.
+    expect(on.sources_trigger_enabled).toBe(true);
+    const { jobs_on_railway: _a, sources_trigger_enabled: _b, ...rest } = on;
+    const { sources_trigger_enabled: _c, ...restOff } = off;
+    expect(rest).toEqual(restOff);
+  });
 });

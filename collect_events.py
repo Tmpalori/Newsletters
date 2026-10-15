@@ -4307,7 +4307,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
             "url": (item.get("url") or "").split("?")[0],
         })
 
-    print(f"  [Eventbrite] Extracted {len(events)} Victoria events ({len(items)} raw, "
+    print(f"  [Eventbrite] Extracted {len(events)} {TOWN['city']} events ({len(items)} raw, "
           + ", ".join(f"{v} {k}" for k, v in skipped.items()) + ")")
     return events
 
@@ -4394,7 +4394,7 @@ def fetch_apify_facebook_events(days_ahead=14):
     # support search queries — which is more useful for us anyway since it
     # discovers events from venues we haven't even cataloged yet. We post-filter
     # for Victoria-area events using the address/location text.
-    print(f"  [Apify FB] Searching Facebook events for Victoria TX...")
+    print(f"  [Apify FB] Searching Facebook events for {TOWN['city']} {TOWN['state']}...")
 
     # Two search actors with the same output schema return different
     # events for the same query (Oct 2026 probe: 39 and 31 Victoria events,
@@ -4525,8 +4525,8 @@ def fetch_apify_facebook_events(days_ahead=14):
         })
 
     print(
-        f"  [Apify FB] Extracted {len(events)} Victoria events "
-        f"({len(items)} raw, {skipped_off_locality} non-Victoria, "
+        f"  [Apify FB] Extracted {len(events)} {TOWN['city']} events "
+        f"({len(items)} raw, {skipped_off_locality} elsewhere, "
         f"{skipped_off_window} out-of-window, {skipped_no_data} missing data)"
     )
     return events
