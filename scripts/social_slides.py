@@ -287,7 +287,10 @@ def render(groups, start, end, kind, out_dir, chrome=None, batch=10):
                 with open(page, "w") as f:
                     f.write(head + "".join(chunk) + tail)
                 subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
-                                "--disable-dev-shm-usage", "--force-device-scale-factor=1", f"--window-size={W},{H * len(chunk)}",
+                                "--disable-dev-shm-usage", "--force-device-scale-factor=1", # Taller than the slides: newer headless Chrome takes its
+                                # own bar out of the window, which left the last slide's
+                                # bottom unpainted. Only the slides are cropped out below.
+                                f"--window-size={W},{H * len(chunk) + 200}",
                                 "--virtual-time-budget=10000", "--allow-file-access-from-files",
                                 f"--screenshot={shot}", "file://" + page],
                                check=True, capture_output=True, timeout=120)

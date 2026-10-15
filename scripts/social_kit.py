@@ -340,6 +340,12 @@ MUTED = (92, 86, 120)
 ACCENT = (232, 96, 38)   # sunset, darkened a touch for contrast on cream
 SUN = (255, 201, 60)
 CARD = (255, 255, 255)
+if TOWN["id"] != "victoria":
+    # Another town's plain slides in its own colors (towns/<slug>/BRAND.md).
+    _hex = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+    _pal = brand_palette()
+    BG, INK, SUN, ACCENT = _hex(_pal["paper"]), _hex(_pal["ink"]), _hex(_pal["highlight"]), _hex(_pal["primary"])
+    MUTED = tuple(round(c + (255 - c) * 0.3) for c in INK)
 
 FONT_DIRS = ["/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu", "/Library/Fonts"]
 
