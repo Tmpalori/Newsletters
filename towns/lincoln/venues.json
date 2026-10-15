@@ -1,1 +1,884 @@
-[]
+[
+ {
+  "name": "Zoo Bar",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/ZooBarBlues",
+  "facebook_events": "https://www.facebook.com/ZooBarBlues/events",
+  "event_potential": "Blues/roots bar since 1973: touring blues acts, Jazzocracy Thursdays, live band karaoke, Shake a Tail Feather Tuesdays, bluegrass jam (136 N 14th St)",
+  "confidence": "high",
+  "notes": "site footer (zoobar.com); also covered by zoo_bar Google Calendar feed",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "zoobarblues"
+  ],
+  "instagram_url": "https://www.instagram.com/zoobarblues/",
+  "website": "https://zoobar.com"
+ },
+ {
+  "name": "Duffy's Tavern",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/duffyslincoln",
+  "facebook_events": "https://www.facebook.com/duffyslincoln/events",
+  "event_potential": "Downtown music bar since 1936: indie/rock shows Wed and Sun plus touring acts, comedy night Mondays (1412 O St)",
+  "confidence": "high",
+  "notes": "site footer (duffyslincoln.com, Wix)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "duffystavern"
+  ],
+  "instagram_url": "https://www.instagram.com/duffystavern/",
+  "website": "https://www.duffyslincoln.com"
+ },
+ {
+  "name": "Bourbon Theatre",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/thebourbontheatre",
+  "facebook_events": "https://www.facebook.com/thebourbontheatre/events",
+  "event_potential": "Main concert club for touring rock, country, hip-hop and EDM; Rye Room side stage (1415 O St)",
+  "confidence": "high",
+  "notes": "site footer (bourbontheatre.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "thebourbontheatre"
+  ],
+  "instagram_url": "https://www.instagram.com/thebourbontheatre/",
+  "website": "https://www.bourbontheatre.com"
+ },
+ {
+  "name": "The Royal Grove",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/theroyalgrove",
+  "facebook_events": "https://www.facebook.com/theroyalgrove/events",
+  "event_potential": "Historic 1933 club booking touring country, rock, EDM and tribute acts (340 W Cornhusker Hwy)",
+  "confidence": "high",
+  "notes": "site footer (theroyalgrove.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "theroyalgrove"
+  ],
+  "instagram_url": "https://www.instagram.com/theroyalgrove/",
+  "website": "https://www.theroyalgrove.com"
+ },
+ {
+  "name": "Pinnacle Bank Arena",
+  "category": "Arena",
+  "facebook_page": "https://www.facebook.com/PinnacleBankArena",
+  "facebook_events": "https://www.facebook.com/PinnacleBankArena/events",
+  "event_potential": "Arena concerts, Husker basketball, PBR, monster trucks (400 Pinnacle Arena Dr)",
+  "confidence": "high",
+  "notes": "site footer (pinnaclebankarena.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "pinnaclebankarena"
+  ],
+  "instagram_url": "https://www.instagram.com/pinnaclebankarena/",
+  "website": "https://www.pinnaclebankarena.com"
+ },
+ {
+  "name": "Pinewood Bowl Theater",
+  "category": "Outdoor Amphitheater",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Summer concert series in Pioneers Park amphitheater (May-Sept)",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (Legends Global-operated, Lincoln NE); FB not verified, PBA site handles its listings",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "pinewoodbowltheater"
+  ],
+  "instagram_url": "https://www.instagram.com/pinewoodbowltheater/",
+  "website": "https://www.pinnaclebankarena.com"
+ },
+ {
+  "name": "Lied Center for Performing Arts",
+  "category": "Performing Arts Center",
+  "facebook_page": "https://www.facebook.com/pages/Lied-Center-for-Performing-Arts/215630630607",
+  "facebook_events": "",
+  "event_potential": "Broadway tours, dance, comedians, orchestras (301 N 12th St); also in UNL events feed",
+  "confidence": "high",
+  "notes": "site footer (liedcenter.org)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "liedcenter"
+  ],
+  "instagram_url": "https://www.instagram.com/liedcenter/",
+  "website": "https://www.liedcenter.org"
+ },
+ {
+  "name": "Rococo Theatre",
+  "category": "Theater / Event Venue",
+  "facebook_page": "https://www.facebook.com/rococotheatre",
+  "facebook_events": "https://www.facebook.com/rococotheatre/events",
+  "event_potential": "Restored 1920s theater: concerts, comedy, film nights (140 N 13th St)",
+  "confidence": "high",
+  "notes": "site footer (rococotheatre.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "rococotheatre"
+  ],
+  "instagram_url": "https://www.instagram.com/rococotheatre/",
+  "website": "https://rococotheatre.com"
+ },
+ {
+  "name": "Barrymore's",
+  "category": "Bar",
+  "facebook_page": "https://www.facebook.com/barrymoreslincoln",
+  "facebook_events": "https://www.facebook.com/barrymoreslincoln/events",
+  "event_potential": "Cocktail bar behind the Rococo Theatre; Thursday trivia (America's Pub Quiz) (124 N 13th St)",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search (cocktail bar at 124 N 13th St); trivia from americaspubquiz.com Lincoln league",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Bodega's Alley",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/bodegasalley",
+  "facebook_events": "https://www.facebook.com/bodegasalley/events",
+  "event_potential": "Haymarket-area bar with bluegrass, jam and local bands most weekends",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search ('Bodegas Lincoln', @bodegasalley); website blocks bots",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.bodegasalley.com"
+ },
+ {
+  "name": "Knickerbockers",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/p/Knickerbockers-100047287964745",
+  "facebook_events": "",
+  "event_potential": "Downtown bar and live music spot at 901 O St",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search (page lists 901 O St)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Crescent Moon Coffee",
+  "category": "Coffeehouse / Open Mic",
+  "facebook_page": "https://www.facebook.com/cmooncoffee",
+  "facebook_events": "https://www.facebook.com/cmooncoffee/events",
+  "event_potential": "Writers' open mic Wednesdays, songwriters' open mic Thursdays, Friday acoustic sets (140 N 8th St); in crescent_moon feed",
+  "confidence": "high",
+  "notes": "site footer (crescentmooncoffee.com, Squarespace)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "crescentmooncoffee"
+  ],
+  "instagram_url": "https://www.instagram.com/crescentmooncoffee/",
+  "website": "https://www.crescentmooncoffee.com"
+ },
+ {
+  "name": "The Hub Cafe",
+  "category": "Cafe / Music",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Farm-to-fork cafe with occasional acoustic open mics and pop-ups (250 N 21st St)",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (The Hub Café, Lincoln)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "hubcafelincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/hubcafelincoln/"
+ },
+ {
+  "name": "Pla-Mor Ballroom",
+  "category": "Ballroom / Dance Hall",
+  "facebook_page": "https://www.facebook.com/Plamorballroom",
+  "facebook_events": "https://www.facebook.com/Plamorballroom/events",
+  "event_potential": "Historic ballroom: big band, swing and country dances, polka nights (6600 W O St)",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search (Pla-Mor Ballroom, Lincoln, ~90 years)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "The Bay",
+  "category": "All-Ages Venue / Skatepark",
+  "facebook_page": "https://www.facebook.com/thebaylincoln",
+  "facebook_events": "https://www.facebook.com/thebaylincoln/events",
+  "event_potential": "All-ages concerts, skate events and creative workshops (2005 Y St)",
+  "confidence": "high",
+  "notes": "site footer (thebay.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.thebay.org"
+ },
+ {
+  "name": "Das Haus",
+  "category": "Nightclub / LGBTQ+ Bar",
+  "facebook_page": "https://www.facebook.com/dashauslincoln",
+  "facebook_events": "https://www.facebook.com/dashauslincoln/events",
+  "event_potential": "Themed nights, drag shows, karaoke and trivia",
+  "confidence": "high",
+  "notes": "site footer (dashauslincoln.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "dashauslincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/dashauslincoln/",
+  "website": "https://www.dashauslincoln.com"
+ },
+ {
+  "name": "The Railyard",
+  "category": "Entertainment District",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Haymarket district with the Cube mega screen: watch parties, outdoor concerts, holiday events",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (The Railyard Lincoln); website returned 503 on 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "railyardlnk"
+  ],
+  "instagram_url": "https://www.instagram.com/railyardlnk/",
+  "website": "https://railyardlincoln.com"
+ },
+ {
+  "name": "Downtown Lincoln Association",
+  "category": "Downtown Org / Events",
+  "facebook_page": "https://www.facebook.com/downtownlincoln",
+  "facebook_events": "https://www.facebook.com/downtownlincoln/events",
+  "event_potential": "Haymarket Farmers' Market, holiday events, First Friday, downtown festivals",
+  "confidence": "high",
+  "notes": "site footer (downtownlincoln.org; lincolnhaymarket.org redirects here)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "downtownlincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/downtownlincoln/",
+  "website": "https://downtownlincoln.org"
+ },
+ {
+  "name": "Lincoln Community Playhouse",
+  "category": "Community Theater",
+  "facebook_page": "https://www.facebook.com/lnkplayhouse",
+  "facebook_events": "https://www.facebook.com/lnkplayhouse/events",
+  "event_potential": "Mainstage musicals and plays year-round (2500 S 56th St)",
+  "confidence": "high",
+  "notes": "site footer (lincolnplayhouse.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "lnkplayhouse"
+  ],
+  "instagram_url": "https://www.instagram.com/lnkplayhouse/",
+  "website": "https://www.lincolnplayhouse.com"
+ },
+ {
+  "name": "Nebraska Repertory Theatre",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/nebraskarep",
+  "facebook_events": "https://www.facebook.com/nebraskarep/events",
+  "event_potential": "Professional theater at UNL's Temple Building and Lied Center",
+  "confidence": "high",
+  "notes": "site footer (nebraskarep.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "nebraskarep"
+  ],
+  "instagram_url": "https://www.instagram.com/nebraskarep/",
+  "website": "https://nebraskarep.org"
+ },
+ {
+  "name": "TADA Theater",
+  "category": "Youth / Community Theater",
+  "facebook_page": "https://www.facebook.com/TADAyouththeater",
+  "facebook_events": "https://www.facebook.com/TADAyouththeater/events",
+  "event_potential": "Family musicals and youth productions",
+  "confidence": "high",
+  "notes": "site footer (tadatheater.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "tadatheater"
+  ],
+  "instagram_url": "https://www.instagram.com/tadatheater/",
+  "website": "https://tadatheater.com"
+ },
+ {
+  "name": "Lincoln Symphony Orchestra",
+  "category": "Orchestra",
+  "facebook_page": "https://www.facebook.com/lincolnsymphony",
+  "facebook_events": "https://www.facebook.com/lincolnsymphony/events",
+  "event_potential": "Classics and pops concerts at the Lied Center, holiday concerts",
+  "confidence": "high",
+  "notes": "site footer (lincolnsymphony.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "lincolnsymphony"
+  ],
+  "instagram_url": "https://www.instagram.com/lincolnsymphony/",
+  "website": "https://lincolnsymphony.com"
+ },
+ {
+  "name": "Lincoln Midwest Ballet",
+  "category": "Ballet Company",
+  "facebook_page": "https://www.facebook.com/lincolnmidwestballetcompany",
+  "facebook_events": "https://www.facebook.com/lincolnmidwestballetcompany/events",
+  "event_potential": "The Nutcracker each December and spring productions",
+  "confidence": "high",
+  "notes": "site footer (lincolnmidwestballet.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.lincolnmidwestballet.org"
+ },
+ {
+  "name": "Mary Riepma Ross Media Arts Center",
+  "category": "Cinema",
+  "facebook_page": "https://www.facebook.com/rossmediaartscenter",
+  "facebook_events": "https://www.facebook.com/rossmediaartscenter/events",
+  "event_potential": "Art-house and repertory film, special screenings and Q&As (UNL campus)",
+  "confidence": "high",
+  "notes": "site footer (theross.org)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "rossmediaartscenter"
+  ],
+  "instagram_url": "https://www.instagram.com/rossmediaartscenter/",
+  "website": "https://theross.org"
+ },
+ {
+  "name": "Sheldon Museum of Art",
+  "category": "Art Museum",
+  "facebook_page": "https://www.facebook.com/sheldonmuseum",
+  "facebook_events": "https://www.facebook.com/sheldonmuseum/events",
+  "event_potential": "First Friday openings, curator tours, Sunday yoga, artist lectures; in UNL feed",
+  "confidence": "high",
+  "notes": "site footer (sheldonartmuseum.org)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "sheldonmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/sheldonmuseum/",
+  "website": "https://sheldonartmuseum.org"
+ },
+ {
+  "name": "Great Plains Art Museum",
+  "category": "Art Museum",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Coffee Break Tuesdays, First Friday openings (1155 Q St)",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (CGPS & Great Plains Art Museum account)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "greatplains.unl"
+  ],
+  "instagram_url": "https://www.instagram.com/greatplains.unl/"
+ },
+ {
+  "name": "Morrill Hall (University of Nebraska State Museum)",
+  "category": "Natural History Museum",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Mammoth hall, Mueller Planetarium shows, family science nights",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (@morrillhallunl, NU State Museum); museum.unl.edu lists no social links",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "morrillhallunl"
+  ],
+  "instagram_url": "https://www.instagram.com/morrillhallunl/",
+  "website": "https://museum.unl.edu"
+ },
+ {
+  "name": "International Quilt Museum",
+  "category": "Museum",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Exhibit openings, gallery talks, family days (1523 N 33rd St)",
+  "confidence": "high",
+  "notes": "site footer (IG only on internationalquiltmuseum.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "internationalquiltmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/internationalquiltmuseum/",
+  "website": "https://www.internationalquiltmuseum.org"
+ },
+ {
+  "name": "Lux Center for the Arts",
+  "category": "Art Center / Gallery",
+  "facebook_page": "https://www.facebook.com/luxcenterforthearts",
+  "facebook_events": "https://www.facebook.com/luxcenterforthearts/events",
+  "event_potential": "Gallery openings, First Friday, art classes (2601 N 48th St)",
+  "confidence": "high",
+  "notes": "site footer (luxcenter.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lux_center"
+  ],
+  "instagram_url": "https://www.instagram.com/lux_center/",
+  "website": "https://www.luxcenter.org"
+ },
+ {
+  "name": "Burkholder Project",
+  "category": "Art Gallery",
+  "facebook_page": "https://www.facebook.com/burkholderproject",
+  "facebook_events": "https://www.facebook.com/burkholderproject/events",
+  "event_potential": "Haymarket galleries and studios; First Friday openings (719 P St)",
+  "confidence": "high",
+  "notes": "site footer (burkholderproject.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "theburkholderproject"
+  ],
+  "instagram_url": "https://www.instagram.com/theburkholderproject/",
+  "website": "https://burkholderproject.com"
+ },
+ {
+  "name": "Lincoln Arts Council",
+  "category": "Arts Organization",
+  "facebook_page": "https://www.facebook.com/LincolnArtsCouncil",
+  "facebook_events": "https://www.facebook.com/LincolnArtsCouncil/events",
+  "event_potential": "First Friday promotion, art events and Mayor's Arts Awards",
+  "confidence": "high",
+  "notes": "site footer (artscene.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lincolnartscouncil"
+  ],
+  "instagram_url": "https://www.instagram.com/lincolnartscouncil/",
+  "website": "https://artscene.org"
+ },
+ {
+  "name": "Francie & Finch Bookshop",
+  "category": "Bookstore",
+  "facebook_page": "https://www.facebook.com/francieandfinch",
+  "facebook_events": "https://www.facebook.com/francieandfinch/events",
+  "event_potential": "Author readings and book launches several times a month (130 S 13th St); in francie_finch feed",
+  "confidence": "high",
+  "notes": "site footer (francieandfinch.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "francieandfinch"
+  ],
+  "instagram_url": "https://www.instagram.com/francieandfinch/",
+  "website": "https://francieandfinch.com"
+ },
+ {
+  "name": "Lincoln City Libraries",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/LNKLibraries",
+  "facebook_events": "https://www.facebook.com/LNKLibraries/events",
+  "event_potential": "Storytimes, author talks, teen and family programs (LocalHop calendar, no feed)",
+  "confidence": "high",
+  "notes": "site footer (lincolnlibraries.org; its IG link points to the City of Lincoln account, so left out)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.lincolnlibraries.org"
+ },
+ {
+  "name": "Lincoln Children's Zoo",
+  "category": "Zoo",
+  "facebook_page": "https://www.facebook.com/lincolnchildrenszoo",
+  "facebook_events": "https://www.facebook.com/lincolnchildrenszoo/events",
+  "event_potential": "Zoo Lights (Nov 20-Dec 30), Boo at the Zoo, Brews at the Zoo, Family Fun Fest (1222 S 27th St)",
+  "confidence": "high",
+  "notes": "site footer (lincolnzoo.org)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "lincolnchildrenszoo"
+  ],
+  "instagram_url": "https://www.instagram.com/lincolnchildrenszoo/",
+  "website": "https://www.lincolnzoo.org"
+ },
+ {
+  "name": "Lincoln Children's Museum",
+  "category": "Children's Museum",
+  "facebook_page": "https://www.facebook.com/LincolnChildrensMuseum",
+  "facebook_events": "https://www.facebook.com/LincolnChildrensMuseum/events",
+  "event_potential": "Family nights, sensory mornings, holiday events (1420 P St)",
+  "confidence": "high",
+  "notes": "site footer (lincolnchildrensmuseum.org)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "lincolnchildrensmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/lincolnchildrensmuseum/",
+  "website": "https://lincolnchildrensmuseum.org"
+ },
+ {
+  "name": "Speedway Motors Museum of American Speed",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/MuseumofAmericanSpeed",
+  "facebook_events": "https://www.facebook.com/MuseumofAmericanSpeed/events",
+  "event_potential": "Car shows, special exhibits and family days (599 Oakcreek Dr)",
+  "confidence": "high",
+  "notes": "site footer (museumofamericanspeed.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "museumofamericanspeed"
+  ],
+  "instagram_url": "https://www.instagram.com/museumofamericanspeed/",
+  "website": "https://www.museumofamericanspeed.org"
+ },
+ {
+  "name": "Lincoln Stars",
+  "category": "Hockey Team",
+  "facebook_page": "https://www.facebook.com/LincolnStars",
+  "facebook_events": "https://www.facebook.com/LincolnStars/events",
+  "event_potential": "USHL home games at The Ice Box with theme nights (Sept-Apr); in lincoln_stars feed",
+  "confidence": "high",
+  "notes": "site footer (lincolnstars.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "officiallincolnstars"
+  ],
+  "instagram_url": "https://www.instagram.com/officiallincolnstars/",
+  "website": "https://lincolnstars.com"
+ },
+ {
+  "name": "Lincoln Saltdogs",
+  "category": "Baseball Team",
+  "facebook_page": "https://www.facebook.com/Saltdogs",
+  "facebook_events": "https://www.facebook.com/Saltdogs/events",
+  "event_potential": "American Association baseball at Haymarket Park (May-Sept), fireworks nights",
+  "confidence": "high",
+  "notes": "site footer (saltdogs.com); offseason until May",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "saltdogsball"
+  ],
+  "instagram_url": "https://www.instagram.com/saltdogsball/",
+  "website": "https://saltdogs.com"
+ },
+ {
+  "name": "Sandhills Global Event Center",
+  "category": "Event Center / Fairgrounds",
+  "facebook_page": "https://www.facebook.com/sandhillsglobaleventcenter",
+  "facebook_events": "https://www.facebook.com/sandhillsglobaleventcenter/events",
+  "event_potential": "Rodeos, horse shows, expos, Lancaster County Super Fair (84th & Havelock)",
+  "confidence": "high",
+  "notes": "site footer (sandhillsglobaleventcenter.org, formerly Lancaster Event Center)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "sandhillsglobaleventcenter"
+  ],
+  "instagram_url": "https://www.instagram.com/sandhillsglobaleventcenter/",
+  "website": "https://sandhillsglobaleventcenter.org"
+ },
+ {
+  "name": "Lancaster County Super Fair",
+  "category": "Fair",
+  "facebook_page": "https://www.facebook.com/SuperFairLNK",
+  "facebook_events": "https://www.facebook.com/SuperFairLNK/events",
+  "event_potential": "County fair each August at Sandhills Global Event Center",
+  "confidence": "high",
+  "notes": "site footer (superfair.org); seasonal",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "superfairlnk"
+  ],
+  "instagram_url": "https://www.instagram.com/superfairlnk/",
+  "website": "https://superfair.org"
+ },
+ {
+  "name": "Lincoln Calling",
+  "category": "Music Festival",
+  "facebook_page": "https://www.facebook.com/LincolnCalling",
+  "facebook_events": "https://www.facebook.com/LincolnCalling/events",
+  "event_potential": "Multi-venue downtown music festival",
+  "confidence": "high",
+  "notes": "site footer (lincolncalling.com); seasonal",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://lincolncalling.com"
+ },
+ {
+  "name": "Lincoln Parks Foundation",
+  "category": "Parks Nonprofit",
+  "facebook_page": "https://www.facebook.com/LincolnParksFoundation",
+  "facebook_events": "https://www.facebook.com/LincolnParksFoundation/events",
+  "event_potential": "Park concerts, Jazz in June partner, outdoor family events",
+  "confidence": "high",
+  "notes": "site footer (lincolnparks.org)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lnkparksfdn"
+  ],
+  "instagram_url": "https://www.instagram.com/lnkparksfdn/",
+  "website": "https://lincolnparks.org"
+ },
+ {
+  "name": "Roca Berry Farm",
+  "category": "Farm / Pumpkin Patch",
+  "facebook_page": "https://www.facebook.com/RocaBerryFarm",
+  "facebook_events": "https://www.facebook.com/RocaBerryFarm/events",
+  "event_potential": "Fall festival, pumpkin patch, corn maze (Sept-Oct), south of Lincoln in Roca",
+  "confidence": "high",
+  "notes": "site footer (rocaberryfarm.com); seasonal",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "rocaberryfarm"
+  ],
+  "instagram_url": "https://www.instagram.com/rocaberryfarm/",
+  "website": "https://rocaberryfarm.com"
+ },
+ {
+  "name": "Empyrean Brewing Co.",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/EmpyreanBrewingCo",
+  "facebook_events": "https://www.facebook.com/EmpyreanBrewingCo/events",
+  "event_potential": "Haymarket taproom (Lazlo's): beer releases and tappings (729 Q St)",
+  "confidence": "high",
+  "notes": "site footer (empyreanbrewingco.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "empyreanbrewingco"
+  ],
+  "instagram_url": "https://www.instagram.com/empyreanbrewingco/",
+  "website": "https://empyreanbrewingco.com"
+ },
+ {
+  "name": "Zipline Brewing Co.",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/ziplinebrewing",
+  "facebook_events": "https://www.facebook.com/ziplinebrewing/events",
+  "event_potential": "Taproom events, trivia, food trucks, beer releases (several Lincoln taprooms)",
+  "confidence": "high",
+  "notes": "site footer (ziplinebrewing.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "ziplinebrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/ziplinebrewing/",
+  "website": "https://ziplinebrewing.com"
+ },
+ {
+  "name": "Boiler Brewing Company",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/boilerbrewingcompany",
+  "facebook_events": "https://www.facebook.com/boilerbrewingcompany/events",
+  "event_potential": "Trivia nights, live music and themed events in the Telephone Building (129 N 10th St)",
+  "confidence": "high",
+  "notes": "site footer (boilerbrewingcompany.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "boilerbrewingcompany"
+  ],
+  "instagram_url": "https://www.instagram.com/boilerbrewingcompany/",
+  "website": "https://www.boilerbrewingcompany.com"
+ },
+ {
+  "name": "Corn Coast Brewing Co.",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/corncoastbrewing",
+  "facebook_events": "https://www.facebook.com/corncoastbrewing/events",
+  "event_potential": "Lincoln taproom (1433 Dahlberg Dr): trivia, live music, food trucks",
+  "confidence": "high",
+  "notes": "site footer (corncoastbrewing.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "corncoastbrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/corncoastbrewing/",
+  "website": "https://www.corncoastbrewing.com"
+ },
+ {
+  "name": "Catalyst Brewing Co.",
+  "category": "Brewery / Pub",
+  "facebook_page": "https://www.facebook.com/catalystcraft",
+  "facebook_events": "https://www.facebook.com/catalystcraft/events",
+  "event_potential": "Pub at 5730 Hidcote Dr: trivia, live music on the patio",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search (pub at 5730 Hidcote Dr, Lincoln)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Kinkaider Brewing Co. (Lincoln)",
+  "category": "Brewery / Restaurant",
+  "facebook_page": "https://www.facebook.com/Kinkaider",
+  "facebook_events": "https://www.facebook.com/Kinkaider/events",
+  "event_potential": "Lincoln taproom: live music and trivia nights",
+  "confidence": "medium",
+  "notes": "site footer (kinkaider.com); accounts are the Broken Bow-based company's main pages, shared with Kearney/Omaha",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "kinkaider.brewing"
+  ],
+  "instagram_url": "https://www.instagram.com/kinkaider.brewing/",
+  "website": "https://www.kinkaider.com"
+ },
+ {
+  "name": "Saro Cider",
+  "category": "Cidery",
+  "facebook_page": "https://www.facebook.com/4sarocider",
+  "facebook_events": "https://www.facebook.com/4sarocider/events",
+  "event_potential": "Cider taproom with live music and pop-up markets",
+  "confidence": "high",
+  "notes": "site footer (sarocider.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "sarocider"
+  ],
+  "instagram_url": "https://www.instagram.com/sarocider/",
+  "website": "https://www.sarocider.com"
+ },
+ {
+  "name": "Longwells",
+  "category": "Restaurant / Taproom",
+  "facebook_page": "https://www.facebook.com/longwells76",
+  "facebook_events": "https://www.facebook.com/longwells76/events",
+  "event_potential": "Railyard taproom (350 Canopy St): Husker watch parties, live music",
+  "confidence": "medium",
+  "notes": "FB from facebook.com-restricted search (350 Canopy St)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "HopCat Lincoln",
+  "category": "Beer Bar",
+  "facebook_page": "https://www.facebook.com/hopcatlincoln",
+  "facebook_events": "https://www.facebook.com/hopcatlincoln/events",
+  "event_potential": "Wednesday trivia (America's Pub Quiz), beer events (601 P St)",
+  "confidence": "high",
+  "notes": "site footer (hopcat.com/lincoln)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "hopcatlincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/hopcatlincoln/",
+  "website": "https://www.hopcat.com/lincoln"
+ },
+ {
+  "name": "Bison Witches Bar & Deli",
+  "category": "Bar / Deli",
+  "facebook_page": "https://www.facebook.com/146190658743887",
+  "facebook_events": "",
+  "event_potential": "Tuesday trivia, Wednesday music bingo (1320 P St)",
+  "confidence": "high",
+  "notes": "site footer (bisonwitcheslincoln.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "bisonwitcheslincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/bisonwitcheslincoln/",
+  "website": "https://www.bisonwitcheslincoln.com"
+ },
+ {
+  "name": "Brewsky's Food & Spirits",
+  "category": "Sports Bar",
+  "facebook_page": "https://www.facebook.com/322522999535",
+  "facebook_events": "",
+  "event_potential": "Wednesday trivia at East and North locations, Thursday music bingo",
+  "confidence": "high",
+  "notes": "site footer (brewskys.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "brewskysfoodandspirits"
+  ],
+  "instagram_url": "https://www.instagram.com/brewskysfoodandspirits/",
+  "website": "https://www.brewskys.com"
+ },
+ {
+  "name": "The Barge",
+  "category": "Bar",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Lincoln's on-the-water bar: patio music and seasonal events",
+  "confidence": "medium",
+  "notes": "IG from instagram.com search (bills itself as Lincoln's only on-the-water bar)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thebargelincoln"
+  ],
+  "instagram_url": "https://www.instagram.com/thebargelincoln/"
+ },
+ {
+  "name": "James Arthur Vineyards",
+  "category": "Winery",
+  "facebook_page": "https://www.facebook.com/pages/James-Arthur-Vineyards/306375211621",
+  "facebook_events": "",
+  "event_potential": "Live music on the patio, wine events (Raymond, north of Lincoln)",
+  "confidence": "high",
+  "notes": "site footer (jamesarthurvineyards.com); IG link on site is a staff account, so left out",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://jamesarthurvineyards.com"
+ },
+ {
+  "name": "Deer Springs Winery",
+  "category": "Winery",
+  "facebook_page": "https://www.facebook.com/deerspringswinerynebraska",
+  "facebook_events": "https://www.facebook.com/deerspringswinerynebraska/events",
+  "event_potential": "Live music, wine-and-paint and seasonal events (NW Lincoln)",
+  "confidence": "high",
+  "notes": "site footer (deerspringswinery.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "deerspringswinery"
+  ],
+  "instagram_url": "https://www.instagram.com/deerspringswinery/",
+  "website": "https://www.deerspringswinery.com"
+ }
+]
