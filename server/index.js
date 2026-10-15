@@ -38,7 +38,7 @@ import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary, keyOk, jobsSummary } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
-import { createJobs, kindForWorkflow } from './jobs.js';
+import { createJobs, kindForWorkflow, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
@@ -2571,7 +2571,8 @@ export async function createApp(opts = {}) {
     store, github, slack, siteUrl, nowFn: () => nowFn(),
     // Jobs on Railway: the town's workflow jobs go to its jobs worker.
     queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(kindForWorkflow(job.workflow), slot) : null,
-    canQueue: job => Boolean(kindForWorkflow(job.workflow)),
+    // Not Victoria's social kit: it stays on GitHub (server/jobs.js).
+    canQueue: job => canRunOnWorker(job),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
       newsletterReady: () => newsletter.enabled && newsletter.autosend,
@@ -2942,14 +2943,32 @@ export async function createApp(opts = {}) {
   // Victoria's raw docs/ copies: her events, social kit, homepage (with her
   // GA tag) and submit form. Those pages are routed above by exact spelling.
   if (town.id !== VICTORIA.id) {
-    app.use((req, res, next) => {
+    app.use(async (req, res, next) => {
       let p = req.path;
       try { p = path.posix.normalize(decodeURIComponent(p)); } catch (_) { return next(); }
       if (/^\/events\.json$/i.test(p)) {
         res.set('Cache-Control', 'no-store');
         return res.json({ last_updated: null, events: [] });
       }
-      if (/^\/social(\/|$)/i.test(p)) return res.status(404).type('text/plain').send('Not found');
+      // The town's own social kit, built and posted by its jobs worker and
+      // kept in its database (server/jobs.js); Facebook and Instagram fetch
+      // the slides from here. Nothing else under /social: never Victoria's.
+      if (/^\/social(\/|$)/i.test(p)) {
+        const m = /^\/social\/latest\/([a-z0-9][a-z0-9_-]{0,63}\.(?:png|jpg|mp4|json|html|txt))$/.exec(p);
+        if (m && (req.method === 'GET' || req.method === 'HEAD') && typeof store.getSocialFile === 'function') {
+          let f = null;
+          try { f = await store.getSocialFile(m[1]); } catch (err) {
+            console.warn('[social] read failed:', err.message);
+            return res.status(503).set('Retry-After', '60').type('text/plain').send('Try again shortly');
+          }
+          if (f) {
+            res.set({ 'Content-Type': f.type, 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex',
+              'X-Content-Type-Options': 'nosniff', 'Last-Modified': new Date(f.updated_at).toUTCString() });
+            return res.send(f.body);
+          }
+        }
+        return res.status(404).type('text/plain').send('Not found');
+      }
       if (/^\/index(\.html)?$/i.test(p)) return res.redirect(301, '/');
       if (/^\/submit(\.html)?$/i.test(p)) return res.redirect(301, '/submit');
       next();

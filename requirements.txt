@@ -4,3 +4,6 @@ requests>=2.28,<3
 beautifulsoup4>=4.12,<5
 lxml>=4.9,<7
 pyyaml>=6.0,<7
+# The social kit's slides, their JPEG twins and the plain fallback
+# (scripts/social_kit.py), now on the jobs worker too (Dockerfile.jobs).
+pillow>=10,<13

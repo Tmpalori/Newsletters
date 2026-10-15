@@ -38,7 +38,7 @@ except ImportError:  # pragma: no cover
     ZoneInfo = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
+from town import TOWN, brand_palette, site_url, town_asset, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 SITE = site_url()
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", *town_paths()["social"].strip("/").split("/"))
@@ -146,13 +146,17 @@ def _short_time(t):
 
 
 _ZIP = re.compile(r"\b\d{5}(?:-\d{4})?\b")
+# Where a geocoder string's town tail starts: ", Victoria", ", TX", ", Texas"
+# for Victoria (the old literal), the town's own city and state elsewhere.
+_PLACE_TAIL = re.compile(r",\s*(?:" + "|".join(re.escape(w.lower()) + r"\b" for w in (TOWN["city"], TOWN["state"], TOWN["state_name"]))
+                         + r"|united states\b|usa\b)", re.I)
 
 
 def clean_venue(venue):
     """A venue as people say it, not a geocoder string: '3102 Miori Ln.,
     Victoria, TX, United States, Texas 77901' → '3102 Miori Ln.'."""
     v = re.sub(r"\s+", " ", str(venue or "")).strip()
-    cut = re.search(r",\s*(?:victoria\b|tx\b|texas\b|united states\b|usa\b)", v, re.I)
+    cut = _PLACE_TAIL.search(v)
     if cut and cut.start() > 0:
         v = v[:cut.start()]
     v = re.sub(r",?\s*\bunited states\b", "", v, flags=re.I)
@@ -365,7 +369,8 @@ def _wrap(draw, text, font, width):
     return lines
 
 
-LOGO = os.path.join(os.path.dirname(__file__), "..", "docs", "logo.png")
+# The town's own badge (Victoria's docs/logo.png); none rather than Victoria's.
+LOGO = town_asset("logo.png")
 
 
 def _header(draw, kicker, title):
@@ -373,6 +378,8 @@ def _header(draw, kicker, title):
     draw.rectangle([0, 300, W, 310], fill=INK)
     try:
         from PIL import Image
+        if not LOGO:
+            raise FileNotFoundError("no logo")
         logo = Image.open(LOGO).convert("RGBA").resize((128, 128))
         draw._image.paste(logo, (W - 72 - 128, 60), logo)
     except Exception:
@@ -475,7 +482,7 @@ def make_reel(out_dir, slides, name="weekend.mp4", seconds=4):
         for s in slides:
             f.write(f"file '{s}'\nduration {seconds}\n")
         f.write(f"file '{slides[-1]}'\n")  # concat demuxer needs the last frame repeated
-    bg = "0xFFF4D6"  # the slides' cream, so the Reel's padding blends in
+    bg = "0x" + brand_palette()["paper"].lstrip("#")  # the slides' paper, so the Reel's padding blends in
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "reel.txt",
            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
            "-vf", f"scale=1080:1350,pad=1080:1920:0:285:color={bg},fps=30,format=yuv420p",
@@ -682,7 +689,8 @@ def main(argv=None):
     with open(manifest_path, "w") as f:
         # `build` changes every run, so the poster can tell this deploy from an
         # earlier one the same day before it posts (see wait_for_deploy).
-        build = os.environ.get("GITHUB_RUN_ID") and f"{os.environ['GITHUB_RUN_ID']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+        # SOCIAL_BUILD: the jobs worker's own id for this run (scripts/jobs_worker.py).
+        build = os.environ.get("SOCIAL_BUILD", "").strip() or os.environ.get("GITHUB_RUN_ID") and f"{os.environ['GITHUB_RUN_ID']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
         json.dump({"generated_for": today.isoformat(), "build": build or datetime.now().isoformat(timespec="seconds"),
                    "kits": kits}, f, indent=2, ensure_ascii=False)
 

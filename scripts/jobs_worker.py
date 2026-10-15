@@ -12,12 +12,18 @@ Jobs:
   collect            collect_events.py --candidates-only (the weekly collect)
   event-check        scripts/sweep_events.py
   submission-review  scripts/review_submissions.py
+  social-kit         scripts/social_kit.py, then scripts/social_post.py's
+                     posting (another town's; Victoria's stays on GitHub)
 
 Environment (on Railway, the secrets are references to the web service's
 own variables, so nothing is copied):
   TOWN, SITE_URL      the town and its site (https://www.<domain>)
   JOBS_SECRET         the site's JOBS_SECRET
   JOBS_POLL_SECONDS   default 30
+  SOCIAL_AUTOPOST     1 lets the social kit post (else it only builds the
+                      kit and hands it to the site)
+  META_TOWN, META_PAGE_ID, META_PAGE_TOKEN, IG_USER_ID (optional),
+  GRAPH_API_VERSION   the town's own Meta settings (town.py meta_allowed)
   plus what the scripts read: OPENAI_API_KEY, APIFY_TOKEN, GEMINI_API_KEY,
   EVENT_CHECK_SECRET, SUBMISSION_REVIEW_SECRET, the Slack webhooks...
 
@@ -34,17 +40,18 @@ import tempfile
 import threading
 import time
 from collections import deque
-from datetime import date, timedelta
+from contextlib import redirect_stdout
+from datetime import date, datetime, timedelta
 
 import requests
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from town import TOWN, repo_path, site_url, town_paths  # noqa: E402
+from town import TOWN, VICTORIA, meta_allowed, repo_path, site_url, town_paths, tz  # noqa: E402
 
 # How long each script may run (the site gives up a little later, see
 # JOB_KINDS in server/jobs.js). The collect's own budget is 50 minutes.
-TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60}
+TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60, "social-kit": 10 * 60}
 LOG_TAIL = 60
 LINE_MAX = 500          # a log line's length in a report (one line can be megabytes)
 HTTP_TIMEOUT = 60
@@ -107,6 +114,21 @@ class Site:
     def put_file(self, name, data):
         def go():
             r = self.session.put(self._url(f"/api/jobs/files/{name}"), headers=self.headers, json=data, timeout=300)
+            r.raise_for_status()
+            return r.json()
+        return _retry(go)
+
+    def put_social(self, build, name, body):
+        def go():
+            r = self.session.put(self._url(f"/api/jobs/social/{build}/{name}"), data=body, timeout=300,
+                                 headers={**self.headers, "Content-Type": "application/octet-stream"})
+            r.raise_for_status()
+            return r.json()
+        return _retry(go)
+
+    def publish_social(self, build):
+        def go():
+            r = self.session.post(self._url(f"/api/jobs/social/{build}/publish"), headers=self.headers, timeout=HTTP_TIMEOUT)
             r.raise_for_status()
             return r.json()
         return _retry(go)
@@ -235,7 +257,139 @@ def job_submission_review(site, run=run_script, env=None):
                                                  {"error": f"The submission review exited with code {code}.", "log_tail": tail})
 
 
-JOBS = {"collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review}
+class _Tee:
+    """Echo to the log and keep the tail (the in-process post's output)."""
+
+    def __init__(self, out):
+        self.out, self.tail, self._buf = out, deque(maxlen=LOG_TAIL), ""
+
+    def write(self, text):
+        self.out.write(text)
+        self._buf += text
+        *lines, self._buf = self._buf.split("\n")
+        self.tail.extend(line[:LINE_MAX] for line in lines)
+        return len(text)
+
+    def flush(self):
+        self.out.flush()
+
+
+def social_plan(today):
+    """(kits to build, kit to post, also post "today" when it has a paid
+    pick) for a day, as social-kit.yml does: Monday builds the week, the
+    weekend and today and posts the week; Thursday builds the weekend and
+    today and posts the weekend (and today with a paid pick); other days
+    today."""
+    dow = today.isoweekday()
+    if dow == 1:
+        return ["week", "weekend", "today"], "week", False
+    if dow == 4:
+        return ["weekend", "today"], "weekend", True
+    return ["today"], "today", False
+
+
+SOCIAL_SKIP = {"reel.txt", "posted.json"}
+
+
+def job_social_kit(site, run=run_script, env=None, post=None, today=None, session=None):
+    """Build the day's kit, hand every file to the site (which serves it at
+    /social/latest/ and keeps only the latest), then, with SOCIAL_AUTOPOST=1,
+    post it with scripts/social_post.py's own code. What went out is kept
+    on the site (social_posted) and saved before each publish call, so a
+    retry or a restart never posts twice."""
+    env = dict(env if env is not None else os.environ)
+    if TOWN["id"] == VICTORIA["id"]:
+        return "failed", {"error": "Victoria's social kit runs on GitHub (social-kit.yml), not on the worker."}
+    today = today or datetime.now(tz()).date()
+    kinds, post_kind, extra_today = social_plan(today)
+    build = f"w{int(time.time())}-{os.getpid()}"
+    env["SOCIAL_BUILD"] = build
+    with tempfile.TemporaryDirectory() as kit_dir:
+        code, tail = run([sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds),
+                          "--today", today.isoformat()], TIMEOUTS["social-kit"], env)
+        if code != 0:
+            return "failed", {"error": f"The social kit build exited with code {code}.", "log_tail": tail}
+        manifest = _read_json(os.path.join(kit_dir, "kit.json"))
+        if not manifest or manifest.get("build") != build:
+            return "failed", {"error": "The social kit build wrote no kit.json for this run.", "log_tail": tail}
+        names = sorted(n for n in os.listdir(kit_dir) if n not in SOCIAL_SKIP and os.path.isfile(os.path.join(kit_dir, n)))
+        names.sort(key=lambda n: n == "kit.json")      # the manifest last
+        size = 0
+        for name in names:
+            with open(os.path.join(kit_dir, name), "rb") as f:
+                body = f.read()
+            size += len(body)
+            site.put_social(build, name, body)
+        site.publish_social(build)
+        outreach = ""
+        if "week" in kinds:
+            try:
+                with open(os.path.join(kit_dir, "outreach-slack.txt")) as f:
+                    outreach = f.read().strip()
+            except OSError:
+                pass
+        result = {"kinds": kinds, "files": len(names), "bytes": size, "build": build,
+                  "events": {k: (manifest.get("kits", {}).get(k) or {}).get("events") for k in kinds},
+                  "log_tail": tail[-8:]}
+        if outreach:
+            result["outreach"] = outreach
+        if env.get("SOCIAL_AUTOPOST", "").strip() != "1":
+            result["posted"] = "off (SOCIAL_AUTOPOST isn't 1)"
+            return "done", result
+        # Switched on but not set up right: say so (social_post.py would
+        # quietly skip), so the owner hears it instead of seeing no posts.
+        problem = social_settings_problem(env)
+        if problem:
+            return "failed", {**result, "error": f"SOCIAL_AUTOPOST is 1 but {problem}; the kit is on the site, nothing was posted."}
+        posted = site.get_file("social_posted")
+        if isinstance(posted, dict):
+            _write_json(os.path.join(kit_dir, "posted.json"), posted)
+        post = post or _social_post_main
+        tee = _Tee(sys.stdout)
+        codes = []
+        saved_env = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)          # social_post reads its Meta settings from the environment
+        try:
+            with redirect_stdout(tee):
+                save = lambda data: site.put_file("social_posted", data)
+                codes.append(post(["--kind", post_kind, "--kit-dir", kit_dir], session=session, on_save=save))
+                if extra_today:
+                    codes.append(post(["--kind", "today", "--if-featured", "--kit-dir", kit_dir], session=session, on_save=save))
+        except Exception as e:      # noqa: BLE001 - reported as the job's failure
+            codes.append(1)
+            tee.write(f"::error::{type(e).__name__}: {e}\n")
+        finally:
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        result["post_log"] = list(tee.tail)[-15:]
+        if any(codes):
+            errors = [line.replace("::error::", "") for line in tee.tail if line.startswith("::error::")]
+            return "failed", {**result, "error": "Posting failed: " + ("; ".join(errors)[:600] or "see the log."),
+                              "log_tail": list(tee.tail)}
+        result["posted"] = post_kind + (" (+ today if it had a paid pick)" if extra_today else "")
+        return "done", result
+
+
+def social_settings_problem(env):
+    """Why the town's Meta settings can't post, or None."""
+    if not env.get("META_PAGE_ID", "").strip() or not env.get("META_PAGE_TOKEN", "").strip():
+        return "META_PAGE_ID or META_PAGE_TOKEN isn't set on the jobs service"
+    if not meta_allowed(env=env):
+        return (f"the Meta settings aren't {TOWN['id']}'s own (META_TOWN={TOWN['id']} and the page id"
+                f"{' and Instagram id' if env.get('IG_USER_ID', '').strip() else ''} pinned in towns/{TOWN['id']}/town.json)")
+    return None
+
+
+def _social_post_main(argv, session=None, on_save=None):
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import social_post
+    return social_post.main(argv, session=session, on_save=on_save)
+
+
+JOBS = {"social-kit": job_social_kit, "collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review}
 
 
 def run_one(site, job, run=run_script, clock=time.monotonic):

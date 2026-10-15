@@ -1126,6 +1126,56 @@ class FileStore {
     });
   }
 
+  // ─── A town's social kit (server/jobs.js, JOBS_ON_RAILWAY.md 2b) ───
+  // The jobs worker uploads a kit's files under a build id, then publishes
+  // the build: /social/latest/<name> serves the published one, and every
+  // other build is deleted, so only the latest kit is kept. The pointer is
+  // the town file "social_kit" ({ build, files, bytes, published_at }).
+  async putSocialFile(build, name, type, body, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const all = data.social_files && typeof data.social_files === 'object' ? data.social_files : {};
+      const current = ((data.town_files || {}).social_kit || {}).data?.build;
+      // One build in the making at a time: an upload abandoned by a crash
+      // is dropped when the next one starts.
+      for (const b of Object.keys(all)) if (b !== build && b !== current) delete all[b];
+      all[build] = all[build] || {};
+      all[build][name] = { type, b64: Buffer.from(body).toString('base64'), size: body.length, updated_at: now.toISOString() };
+      data.social_files = all;
+      await this._write(data);
+    });
+  }
+
+  async socialBuildSize(build) {
+    const files = ((await this._read()).social_files || {})[build] || {};
+    return { files: Object.keys(files).length, bytes: Object.values(files).reduce((n, f) => n + (f.size || 0), 0), names: Object.keys(files) };
+  }
+
+  async getSocialBuildFile(build, name) {
+    const f = (((await this._read()).social_files || {})[build] || {})[name];
+    return f ? { type: f.type, body: Buffer.from(f.b64, 'base64'), updated_at: f.updated_at } : null;
+  }
+
+  async publishSocialKit(build, info, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.town_files || typeof data.town_files !== 'object') data.town_files = {};
+      data.town_files.social_kit = { data: { build, ...info, published_at: now.toISOString() }, updated_at: now.toISOString() };
+      const all = data.social_files || {};
+      for (const b of Object.keys(all)) if (b !== build) delete all[b];
+      data.social_files = all;
+      await this._write(data);
+    });
+  }
+
+  // The published kit's file, or null (none published, or no such file).
+  async getSocialFile(name) {
+    const data = await this._read();
+    const build = ((data.town_files || {}).social_kit || {}).data?.build;
+    const f = build && ((data.social_files || {})[build] || {})[name];
+    return f ? { type: f.type, body: Buffer.from(f.b64, 'base64'), updated_at: f.updated_at, build } : null;
+  }
+
   // ─── Contact form messages (server/contact.js) ───
   async saveContactMessage(msg) {
     return this._withWrite(async () => {
@@ -2425,6 +2475,61 @@ class PgStore {
       INSERT INTO town_files (name, data, updated_at) VALUES ($1, $2::jsonb, $3)
       ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
     [name, JSON.stringify(value), now.toISOString()]);
+  }
+
+  // ─── A town's social kit: see FileStore. Its own table, made on first
+  // use by these methods only, which Victoria never calls (her kit stays in
+  // git, docs/social/latest), so her database gets no new table.
+  async _socialTable() {
+    await this._jobTables();
+    if (!this._socialTablePromise) {
+      this._socialTablePromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS social_files (
+          build TEXT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, body BYTEA NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (build, name))`)
+        .catch(err => { this._socialTablePromise = null; throw err; });
+    }
+    await this._socialTablePromise;
+  }
+
+  async putSocialFile(build, name, type, body, now = new Date()) {
+    await this._socialTable();
+    await this.pool.query(`
+      DELETE FROM social_files WHERE build <> $1
+         AND build <> COALESCE((SELECT data->>'build' FROM town_files WHERE name = 'social_kit'), '')`, [build]);
+    await this.pool.query(`
+      INSERT INTO social_files (build, name, type, body, updated_at) VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (build, name) DO UPDATE SET type = EXCLUDED.type, body = EXCLUDED.body, updated_at = EXCLUDED.updated_at`,
+    [build, name, type, Buffer.from(body), now.toISOString()]);
+  }
+
+  async socialBuildSize(build) {
+    await this._socialTable();
+    const r = await this.pool.query('SELECT name, octet_length(body) AS n FROM social_files WHERE build = $1', [build]);
+    return { files: r.rows.length, bytes: r.rows.reduce((n, row) => n + Number(row.n), 0), names: r.rows.map(row => row.name) };
+  }
+
+  async getSocialBuildFile(build, name) {
+    await this._socialTable();
+    const r = await this.pool.query('SELECT type, body, updated_at FROM social_files WHERE build = $1 AND name = $2', [build, name]);
+    const row = r.rows[0];
+    return row ? { type: row.type, body: row.body, updated_at: new Date(row.updated_at).toISOString() } : null;
+  }
+
+  async publishSocialKit(build, info, now = new Date()) {
+    await this._socialTable();
+    await this.setTownFile('social_kit', { build, ...info, published_at: now.toISOString() }, now);
+    await this.pool.query('DELETE FROM social_files WHERE build <> $1', [build]);
+  }
+
+  async getSocialFile(name) {
+    await this._socialTable();
+    const r = await this.pool.query(`
+      SELECT f.type, f.body, f.updated_at, f.build FROM social_files f
+        JOIN town_files t ON t.name = 'social_kit' AND t.data->>'build' = f.build
+       WHERE f.name = $1`, [name]);
+    const row = r.rows[0];
+    return row ? { type: row.type, body: row.body, updated_at: new Date(row.updated_at).toISOString(), build: row.build } : null;
   }
 
   // ─── Contact form messages (server/contact.js) ───

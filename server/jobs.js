@@ -11,6 +11,8 @@
  *   POST /api/jobs/:id/finish         { status: 'done'|'failed', result }
  *   GET  /api/jobs/files/:name        → { data, updated_at } or 404
  *   PUT  /api/jobs/files/:name        the JSON body is the file
+ *   PUT  /api/jobs/social/:build/:name a social kit file (raw body), staged
+ *   POST /api/jobs/social/:build/publish  that build becomes /social/latest/
  *
  * Every route needs `Authorization: Bearer <JOBS_SECRET>` (32+ characters;
  * the jobs service reads it as a Railway reference to the web service's
@@ -19,6 +21,7 @@
  */
 import crypto from 'node:crypto';
 import express from 'express';
+import { town, VICTORIA } from './town.js';
 
 // What the worker can run, the workflow it replaces, and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
@@ -27,16 +30,43 @@ export const JOB_KINDS = {
   // out a web redeploy): 75 minutes before the site gives up on it.
   collect: { workflow: 'weekly-collect.yml', label: 'Weekly event collect', limitMs: 75 * 60 * 1000 },
   'event-check': { workflow: 'event-check.yml', label: 'Event check', limitMs: 20 * 60 * 1000 },
-  'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 }
+  'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 },
+  // Build the day's kit, hand it to the site (served at /social/latest/),
+  // post it to the town's Facebook page (and Instagram). Up to 10 minutes
+  // to build, then up to 10 waiting for the files, a Reel that takes 6 to
+  // process and Thursday's second post. Not Victoria's: her kit is
+  // committed to git and posted by social-kit.yml until she moves (phase 5).
+  'social-kit': { workflow: 'social-kit.yml', label: 'Social posts (Facebook/Instagram)', limitMs: 45 * 60 * 1000, notVictoria: true }
 };
 
 // Files a job may hand the site: the collect's outputs and the submission
 // review's small state (when it last alerted, attempts per submission).
-export const JOB_FILES = ['candidates', 'collection_metadata', 'enrichment_cache', 'review_ai_alert', 'review_attempts'];
+// social_posted: what the social kit posted per day and kind (posted.json
+// on GitHub), so a retried or restarted job never posts twice.
+export const JOB_FILES = ['candidates', 'collection_metadata', 'enrichment_cache', 'review_ai_alert', 'review_attempts', 'social_posted'];
 
 export function kindForWorkflow(file) {
   return Object.keys(JOB_KINDS).find(k => JOB_KINDS[k].workflow === file) || null;
 }
+
+// Whether the scheduler hands this job to the town's jobs worker (when
+// jobs are on): a kind the worker runs, and the social kit only for a town
+// other than Victoria (hers stays on GitHub).
+export function canRunOnWorker(job, t = town) {
+  const kind = kindForWorkflow(job && job.workflow);
+  return Boolean(kind) && !(JOB_KINDS[kind].notVictoria && t.id === VICTORIA.id);
+}
+
+// The social kit's files: what social_kit.py writes, nothing else, and
+// how big a kit may get in the database (a Reel is a few MB; a week's
+// slides with their JPEG twins about as much again).
+export const SOCIAL_TYPES = {
+  png: 'image/png', jpg: 'image/jpeg', mp4: 'video/mp4', json: 'application/json',
+  html: 'text/html; charset=utf-8', txt: 'text/plain; charset=utf-8'
+};
+export const SOCIAL_NAME = /^[a-z0-9][a-z0-9_-]{0,63}\.(png|jpg|mp4|json|html|txt)$/;
+export const SOCIAL_LIMITS = { fileBytes: 20 * 1024 * 1024, buildBytes: 60 * 1024 * 1024, files: 60 };
+const BUILD_ID = /^[A-Za-z0-9-]{1,64}$/;
 
 export function jobsConfig(env = process.env) {
   const secret = String(env.JOBS_SECRET || '').trim();
@@ -136,11 +166,20 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       // hours (ai_down_alert) and the runs between pass, so the streak never
       // reaches alertAfter: that run alerts on its own.
       const aiDown = job.kind === 'submission-review' && /The AI review can't run/.test(tail);
-      failed(job, `${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`,
+      const who = job.kind === 'social-kit' ? `${town.siteName}: ` : '';
+      failed(job, `${who}${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`,
         aiDown ? 'Submission review: the AI can’t run (key or credit); submissions are waiting' : undefined, aiDown);
       return;
     }
     worked(job);
+    if (job.kind === 'social-kit') {
+      // Monday's list of this week's venues to send their link (the GitHub
+      // run's outreach-slack.txt).
+      if (slack && typeof r.outreach === 'string' && r.outreach.trim()) {
+        slack.notify({ title: '📣 Venues to tag this week', text: r.outreach.slice(0, 3000), link: `${siteUrl}/social/latest/outreach.txt`, channel: 'activity' });
+      }
+      return;
+    }
     if (job.kind !== 'collect') return;
     // The upload was stored but its publish failed: the events aren't live.
     if (r.published && r.published.ok === false) {
@@ -194,6 +233,43 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       if (!job) return res.status(404).json({ ok: false, error: 'not-running' });
       try { await finished(job, result); } catch (err) { log.warn('[jobs] after finish:', err.message); }
       res.json({ ok: true });
+    }));
+
+    // The social kit (another town's only: Victoria's is in git). Each
+    // file is staged under the run's build id; publishing checks the kit's
+    // own files are all there, then switches /social/latest/ to it and drops
+    // every other build.
+    const socialGuard = (req, res, next) => {
+      if (town.id === VICTORIA.id) return res.status(404).json({ ok: false, error: 'not-found' });
+      if (!BUILD_ID.test(req.params.build)) return res.status(400).json({ ok: false, error: 'bad-build' });
+      return next();
+    };
+    const socialRaw = express.raw({ type: () => true, limit: SOCIAL_LIMITS.fileBytes });
+    app.put('/api/jobs/social/:build/:name', guard, socialGuard, socialRaw, wrap(async (req, res) => {
+      const { build, name } = req.params;
+      const m = SOCIAL_NAME.exec(name);
+      if (!m) return res.status(400).json({ ok: false, error: 'bad-name' });
+      const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      if (!body.length) return res.status(400).json({ ok: false, error: 'empty' });
+      const have = await store.socialBuildSize(build);
+      const again = have.names.includes(name);
+      if (!again && have.files >= SOCIAL_LIMITS.files) return res.status(413).json({ ok: false, error: 'too-many-files' });
+      if (have.bytes + body.length > SOCIAL_LIMITS.buildBytes) return res.status(413).json({ ok: false, error: 'kit-too-large' });
+      await store.putSocialFile(build, name, SOCIAL_TYPES[m[1]], body, nowFn());
+      res.json({ ok: true, bytes: body.length });
+    }));
+    app.post('/api/jobs/social/:build/publish', guard, socialGuard, wrap(async (req, res) => {
+      const { build } = req.params;
+      const kitFile = await store.getSocialBuildFile(build, 'kit.json');
+      let kit = null;
+      try { kit = kitFile ? JSON.parse(kitFile.body.toString('utf8')) : null; } catch { kit = null; }
+      if (!kit || typeof kit.kits !== 'object' || kit.build !== build) return res.status(400).json({ ok: false, error: 'no-kit' });
+      const have = await store.socialBuildSize(build);
+      const wanted = Object.values(kit.kits).flatMap(k => [...(k.slides || []), ...(k.slides_jpg || []), ...(k.reel ? [k.reel] : [])]);
+      const missing = wanted.filter(n => !have.names.includes(n));
+      if (missing.length) return res.status(400).json({ ok: false, error: 'missing-files', missing: missing.slice(0, 10) });
+      await store.publishSocialKit(build, { files: have.files, bytes: have.bytes, generated_for: kit.generated_for || null }, nowFn());
+      res.json({ ok: true, files: have.files, bytes: have.bytes });
     }));
 
     app.get('/api/jobs/files/:name', guard, wrap(async (req, res) => {
