@@ -28,11 +28,11 @@
       <path d="M-20 -81L-32 -76" fill="none" stroke-width="3"/>
       <path d="M8 -52Q22 -50 24 -38" fill="none" stroke-width="3"/>
     </g>
-    <path d="M-700 212q30-14 60 0t60 0" fill="none" stroke="#A6DAF4" stroke-width="6"/>
     <path d="M-170 212L-160 120M-130 212L-140 120M-166 170H-134" fill="none" stroke-width="3.5"/>
     <circle cx="-150" cy="112" r="6" fill="#C8323C"/>
     <path d="M-150 112L-150 82M-150 112L-176 128M-150 112L-124 128M-150 112L-176 96M-150 112L-124 96M-150 112L-150 142" fill="none" stroke-width="3"/>
-    <path d="M-150 112L-110 112L-100 102" fill="none" stroke-width="3"/>
+    <circle cx="-150" cy="112" r="30" fill="none" stroke-width="2.5"/>
+    <path d="M-150 112H-112" fill="none" stroke-width="3"/><path d="M-114 102L-90 98V126L-114 122Z" fill="#E3DCCB" stroke-width="3"/>
         <!-- the Archway over the interstate (motif) -->
     <rect x="1360" y="96" width="34" height="116" fill="#9C6B48"/>
     <rect x="1644" y="96" width="34" height="116" fill="#9C6B48"/>
@@ -54,7 +54,6 @@
     <path d="M228 38L249 24L270 38Z" fill="#C8323C"/>
     <path d="M196 212V80a14 6 0 0 1 28 0V212Z" fill="#E3DCCB"/><path d="M224 212V80a14 6 0 0 1 28 0V212Z" fill="#E3DCCB"/><path d="M252 212V80a14 6 0 0 1 28 0V212Z" fill="#E3DCCB"/>
     <rect x="240" y="48" width="16" height="12" fill="#FFF4D6" stroke-width="3"/>
-    <path d="M280 120L310 96V212" fill="none" stroke-width="3.5"/>
         <!-- brick storefronts on Central Avenue -->
     <rect x="324" y="112" width="70" height="100" fill="#B85A3E"/>
     <rect x="320" y="104" width="78" height="10" fill="#FBF2DE"/>
