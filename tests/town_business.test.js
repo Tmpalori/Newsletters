@@ -32,9 +32,9 @@ describe('Victoria', () => {
   it('keeps today’s numbers', () => {
     useTown(VICTORIA);
     expect(AD_PACKAGES.map(p => [p.key, p.amount, p.price])).toEqual([
-      ['weekly', 30000, '$300 / week'], ['featured', 4900, '$49 Mon–Thu · $89 Fri–Sun']]);
+      ['weekly', 14900, '$149 / week'], ['featured', 2900, '$29 Mon–Thu · $39 Fri–Sun']]);
     expect(AD_PACKAGES[1].limit).toBe('Only 3 a day Mon–Thu and 4 a day Fri–Sun, so book early.');
-    expect({ ...VICS_PICK }).toEqual({ weekdayAmount: 4900, weekendAmount: 8900, weekdayCap: 3, weekendCap: 4 });
+    expect({ ...VICS_PICK }).toEqual({ weekdayAmount: 2900, weekendAmount: 3900, weekdayCap: 3, weekendCap: 4 });
     expect([{ ...DAY_MAX }, { ...PICKS }, { ...PICKS_MIN }]).toEqual([{ weekday: 15, weekend: 20 }, { weekday: 2, weekend: 3 }, { weekday: 1, weekend: 2 }]);
     expect(referralTiers().map(t => [t.n, t.amount || 0, t.reward])).toEqual([
       [1, 0, 'an entry in our monthly $25 gift card drawing'], [5, 10, 'a $10 gift card'], [10, 25, 'a $25 gift card']]);
@@ -53,11 +53,11 @@ describe('another town', () => {
     const page = renderAdvertisePage({ siteUrl: 'https://www.thebay979.com', now: new Date('2026-10-07T17:00:00Z'), stats: advertiseStats([], new Date('2026-10-07T17:00:00Z')) });
     expect(page).toContain('$200 / week');
     expect(page).toContain('$29.50 Mon–Thu · $59 Fri–Sun');
-    expect(page).not.toMatch(/\$300|\$49\b|\$89\b/);
+    expect(page).not.toMatch(/\$149\b|\$29(?!\.50)\b|\$39\b/);
     const email = renderSubmissionReceived({ name: 'Fish Fry', date: '2026-10-09', time: '6:00 PM', venue: 'Hall' },
       { siteUrl: 'https://www.thebay979.com', address: '', upgradeUrl: 'https://www.thebay979.com/up' });
     // The free-submission email carries no paid upsell (and so no prices).
-    expect(email.html).not.toMatch(/\$29\.50|\$59|\$49|\$89/);
+    expect(email.html).not.toMatch(/\$29|\$59|\$39|\$149/);
   });
 
   it('keeps the shared curation defaults it doesn’t set', () => {

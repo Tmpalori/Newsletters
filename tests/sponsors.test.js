@@ -167,7 +167,7 @@ describe('weekly sponsor', () => {
     expect(r.headers.get('location')).toBe('https://checkout.stripe.com/c/pay/cs_test_1');
     const s = sessions[0];
     expect(s.params).toMatchObject({ mode: 'payment', customer_email: 'owner@acme.example' });
-    expect(s.params.line_items[0].price_data.unit_amount).toBe(30000);
+    expect(s.params.line_items[0].price_data.unit_amount).toBe(14900);
     expect(s.key).toBe(`vic361-order-${s.params.client_reference_id}`);
 
     // While that buyer is paying, the week can't be sold again.
@@ -213,7 +213,7 @@ describe('featured event', () => {
     });
     expect(r.status).toBe(303);
     // Saturday: weekend Vic’s Pick price.
-    expect(sessions[0].params.line_items[0].price_data.unit_amount).toBe(8900);
+    expect(sessions[0].params.line_items[0].price_data.unit_amount).toBe(3900);
     await completed(sessions[0]);
 
     const subs = await store.list({});
@@ -420,7 +420,7 @@ describe('Stripe best practices', () => {
 
     stripe.ensurePrice = async () => { throw new Error('catalog down'); };
     await form({ ...weekly('beta'), week: '2026-11-02' });
-    expect(sessions[1].params.line_items[0].price_data.unit_amount).toBe(30000);
+    expect(sessions[1].params.line_items[0].price_data.unit_amount).toBe(14900);
   });
 });
 
@@ -459,16 +459,16 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     event: { date, name: 'Taken', time: '7 PM', venue: 'X' }
   });
 
-  it('weekdays are $49, Fri–Sun $89, with its own Stripe product name', async () => {
+  it('weekdays are $29, Fri–Sun $39, with its own Stripe product name', async () => {
     expect([isWeekendDate('2026-10-08'), isWeekendDate('2026-10-09'), isWeekendDate('2026-10-11'), isWeekendDate('2026-10-12')])
       .toEqual([false, true, true, false]);
     await startApp();
     expect((await pick('2026-10-08')).status).toBe(303);   // Thursday
     expect((await pick('2026-10-09')).status).toBe(303);   // Friday
-    expect(sessions.map(x => x.params.line_items[0].price_data.unit_amount)).toEqual([4900, 8900]);
+    expect(sessions.map(x => x.params.line_items[0].price_data.unit_amount)).toEqual([2900, 3900]);
     expect(sessions[1].params.line_items[0].price_data.product_data.name).toContain('Fri–Sun');
     const amounts = (await store.listSponsorOrders()).map(o => o.amount).sort();
-    expect(amounts).toEqual([4900, 8900]);
+    expect(amounts).toEqual([2900, 3900]);
   });
 
   it('a weekday holds 3 picks and a weekend day 4; live checkouts count, expired ones don’t', async () => {
@@ -484,10 +484,10 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     for (let i = 0; i < 3; i++) await order('2026-10-10', 'paid');
     expect((await pick('2026-10-10')).status).toBe(303);            // 4th Saturday spot
     const sat = await (await fetch(baseUrl + '/api/vics-pick/availability?date=2026-10-10')).json();
-    expect(sat).toMatchObject({ ok: true, weekend: true, cap: 4, taken: 4, left: 0, price: '$89' });
+    expect(sat).toMatchObject({ ok: true, weekend: true, cap: 4, taken: 4, left: 0, price: '$39' });
     expect((await pick('2026-10-10', { email: 'someone@else.example' })).status).toBe(400);
     const thu = await (await fetch(baseUrl + '/api/vics-pick/availability?date=2026-10-08')).json();
-    expect(thu).toMatchObject({ weekend: false, cap: 3, left: 0, price: '$49' });
+    expect(thu).toMatchObject({ weekend: false, cap: 3, left: 0, price: '$29' });
     expect((await fetch(baseUrl + '/api/vics-pick/availability?date=soon')).status).toBe(400);
   });
 
@@ -497,7 +497,7 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     expect(page).toContain('Preview: exactly how it’ll look');
     expect(page).toContain('event-entry event-entry--featured');            // same markup as the site
     expect(page).toContain('Pumpkin &lt;Patch&gt;');                        // prefilled and escaped
-    expect(page).toContain('Saturday, Oct 10: $89');
+    expect(page).toContain('Saturday, Oct 10: $39');
     expect(page).toContain('4 of 4 Vic’s Pick spots left');
     expect(page.indexOf('co-preview')).toBeLessThan(page.indexOf('Continue to payment'));
 
@@ -514,7 +514,7 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
   it('the advertise page says where each option shows, its limits, and shows examples', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
-    expect(html).toContain('$49 Mon–Thu · $89 Fri–Sun');
+    expect(html).toContain('$29 Mon–Thu · $39 Fri–Sun');
     expect(html).toContain('Only 3 a day Mon–Thu and 4 a day Fri–Sun');
     expect(html).not.toContain('Where it shows:'); // the checklist and the "Where your ad goes" diagram say it
     expect((html.match(/ad-package__preview/g) || []).length).toBe(2);
@@ -550,9 +550,9 @@ describe('admin sponsorship calendar', () => {
     expect(cal[0].weekly).toBeNull();
     expect(cal[1].weekly).toMatchObject({ business: 'Acme Tacos', state: 'booked' });
     const sat = cal[0].days.find(d => d.date === '2026-10-10');
-    expect(sat).toMatchObject({ weekend: true, cap: 4, taken: 2, left: 2, price: '$89', past: false });
+    expect(sat).toMatchObject({ weekend: true, cap: 4, taken: 2, left: 2, price: '$39', past: false });
     expect(sat.picks.map(p => [p.business, p.state])).toEqual([['Titan', 'booked'], ['Weber', 'held']]);
-    expect(cal[0].days.find(d => d.date === '2026-10-06')).toMatchObject({ past: true, cap: 3, price: '$49' });
+    expect(cal[0].days.find(d => d.date === '2026-10-06')).toMatchObject({ past: true, cap: 3, price: '$29' });
   });
 
   it('comes back from the admin API', async () => {

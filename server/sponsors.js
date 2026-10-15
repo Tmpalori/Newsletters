@@ -3,7 +3,7 @@
  * A business picks a package on /advertise, fills one short form, pays on
  * Stripe Checkout, and the placement goes live on its own:
  *
- *   - Weekly sponsor ($300, one-time): books one Monday–Sunday week. Their
+ *   - Weekly sponsor ($149, one-time): books one Monday–Sunday week. Their
  *     block replaces the sponsor slot on every page, in /events.json, and in
  *     that week's newsletters (Monday's and Thursday's). One sponsor per week; a week someone is
  *     paying for right now is held for the life of the Checkout session.
@@ -13,7 +13,7 @@
  *     price, so it's off /advertise and checkout. Subscriptions bought before
  *     then are still honored (applyPlacements) until they're cancelled in
  *     Stripe (customer.subscription.* webhooks).
- *   - Vic’s Pick event (one-time; $49 Mon–Thu, $89 Fri–Sun): the event lands
+ *   - Vic’s Pick event (one-time; $29 Mon–Thu, $39 Fri–Sun): the event lands
  *     in the submissions queue (so a person still checks it before it's
  *     listed) and is pinned as Featured as soon as it, or a matching
  *     collector event, is live. Limited per day (VICS_PICK caps) so the top

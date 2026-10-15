@@ -1,7 +1,7 @@
 [
   {
     "method": "GET",
-    "url": "https://api.stripe.com/v1/prices?lookup_keys%5B%5D=vic361_weekly_30000&active=true&limit=1",
+    "url": "https://api.stripe.com/v1/prices?lookup_keys%5B%5D=vic361_weekly_14900&active=true&limit=1",
     "headers": {
       "Stripe-Version": "2026-09-30.endive"
     },
@@ -23,9 +23,9 @@
     "headers": {
       "Stripe-Version": "2026-09-30.endive",
       "Content-Type": "application/x-www-form-urlencoded",
-      "Idempotency-Key": "vic361-price-vic361_weekly_30000"
+      "Idempotency-Key": "vic361-price-vic361_weekly_14900"
     },
-    "body": "currency=usd\nlookup_key=vic361_weekly_30000\nproduct=prod_1\nunit_amount=30000"
+    "body": "currency=usd\nlookup_key=vic361_weekly_14900\nproduct=prod_1\nunit_amount=14900"
   },
   {
     "method": "POST",
@@ -39,7 +39,7 @@
   },
   {
     "method": "GET",
-    "url": "https://api.stripe.com/v1/prices?lookup_keys%5B%5D=vic361_featured_weekend_8900&active=true&limit=1",
+    "url": "https://api.stripe.com/v1/prices?lookup_keys%5B%5D=vic361_featured_weekend_3900&active=true&limit=1",
     "headers": {
       "Stripe-Version": "2026-09-30.endive"
     },
@@ -61,9 +61,9 @@
     "headers": {
       "Stripe-Version": "2026-09-30.endive",
       "Content-Type": "application/x-www-form-urlencoded",
-      "Idempotency-Key": "vic361-price-vic361_featured_weekend_8900"
+      "Idempotency-Key": "vic361-price-vic361_featured_weekend_3900"
     },
-    "body": "currency=usd\nlookup_key=vic361_featured_weekend_8900\nproduct=prod_1\nunit_amount=8900"
+    "body": "currency=usd\nlookup_key=vic361_featured_weekend_3900\nproduct=prod_1\nunit_amount=3900"
   },
   {
     "method": "POST",
