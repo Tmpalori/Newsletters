@@ -1,0 +1,185 @@
+{
+  "workflows": false,
+  "siteName": "The Tide 757",
+  "domain": "thetide757.com",
+  "city": "Virginia Beach",
+  "state": "VA",
+  "stateName": "Virginia",
+  "timezone": "America/New_York",
+  "areaCode": "757",
+  "pickName": "Tide Pick",
+  "areaZips": [
+    "23450",
+    "23451",
+    "23452",
+    "23453",
+    "23454",
+    "23455",
+    "23456",
+    "23457",
+    "23459",
+    "23460",
+    "23461",
+    "23462",
+    "23463",
+    "23464",
+    "23465",
+    "23466",
+    "23467",
+    "23471",
+    "23479"
+  ],
+  "otherTowns": [
+    "norfolk",
+    "chesapeake",
+    "portsmouth",
+    "suffolk",
+    "hampton",
+    "newport news",
+    "williamsburg",
+    "elizabeth city",
+    "outer banks",
+    "kitty hawk",
+    "richmond"
+  ],
+  "areaName": "Virginia Beach",
+  "hashtags": "#VirginiaBeach #VB #757 #TheTide757",
+  "siteNameHtml": "The Tide <span>757</span>",
+  "feeds": [
+    {
+      "name": "vibe_creative_district",
+      "type": "tribe",
+      "url": "https://www.vibecreativedistrict.org",
+      "exclude": "hotel discount|artist opportunity|apply to|call for (artists|entries)|^old beach farmers market \\||persons with disabilities",
+      "rename": [
+        [
+          "^VB Flea Market\\s*[\\u2013-]\\s*Every 3rd Saturday Morning$",
+          "VB Flea Market"
+        ],
+        [
+          " #FirstFriday$",
+          " (First Friday)"
+        ],
+        [
+          "^#FirstFriday ",
+          "First Friday "
+        ],
+        [
+          " 2026$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "virginia_moca",
+      "type": "tribe",
+      "url": "https://www.virginiamoca.org",
+      "venue": "Virginia MOCA",
+      "address": "2200 Parks Ave, Virginia Beach, VA 23451",
+      "exclude": "wellness experience|chakra"
+    },
+    {
+      "name": "beach_events_vb",
+      "type": "tribe",
+      "url": "https://beacheventsvb.com",
+      "sparse": true,
+      "exclude": "vip party|\\bvip\\b"
+    },
+    {
+      "name": "neptune_festival",
+      "type": "tribe",
+      "url": "https://neptunefestival.com",
+      "sparse": true,
+      "exclude": "golf tournament|gala|luncheon"
+    },
+    {
+      "name": "wasserhund_vb",
+      "type": "tribe",
+      "url": "https://wasserhundbrewing.com",
+      "exclude": "^(?!.*\\| Wasserhund . Virginia Beach$)|military appreciation",
+      "rename": [
+        [
+          " (at|in) (VB|Virginia Beach)$",
+          ""
+        ],
+        [
+          " at Wasserhund Virginia Beach$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Wasserhund . Virginia Beach$",
+          "Wasserhund Brewing Company"
+        ]
+      ]
+    },
+    {
+      "name": "military_aviation_museum",
+      "type": "tribe",
+      "url": "https://www.militaryaviationmuseum.org",
+      "sparse": true,
+      "venue": "Military Aviation Museum",
+      "address": "1341 Princess Anne Rd, Virginia Beach, VA 23457",
+      "rename": [
+        [
+          " 2026\\s*[\\u2013-].*$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "vb_public_library",
+      "type": "ics",
+      "url": "https://vbpl.librarymarket.com/events/feed/ical",
+      "library": true,
+      "exclude": "\\| US$|career coach|appointment|customer training|orientation|english conversation|english for language|language learners|webex|virtual|online|job applications|ciberseguridad|community conversations|\\bvote\\b|revive|narcan|naloxone|h\\.o\\.p\\.e|memory caf|pathways to connections|seeing beyond|support group|disabilities|genealog|seed library|volunteer|tax (help|prep)|medicare|\\bclub\\b meeting|board meeting",
+      "rename_venue": [
+        [
+          "^4100 Virginia Beach Boulevard$",
+          "Meyera E. Oberndorf Central Library"
+        ],
+        [
+          "^1700 College Crescent$",
+          "TCC/City Joint-Use Library"
+        ],
+        [
+          "^832 Kempsville Road$",
+          "Kempsville Area Library"
+        ],
+        [
+          "^1444 Nimmo Parkway$",
+          "Princess Anne Area Library"
+        ],
+        [
+          "^700 Virginia Beach Boulevard$",
+          "Oceanfront Area Library"
+        ],
+        [
+          "^936 Independence Blvd\\.?$",
+          "Bayside Area Library"
+        ],
+        [
+          "^1251 Bayne Dr$",
+          "Great Neck Area Library"
+        ],
+        [
+          "^3612 South Plaza Trail$",
+          "Windsor Woods Area Library"
+        ],
+        [
+          "^916 Princess Anne Road$",
+          "Pungo-Blackwater Library"
+        ],
+        [
+          "^505 18th Street$",
+          "Vibrant Shore Brewing"
+        ],
+        [
+          "^2444 Pleasure House Rd.*$",
+          "Commonwealth Brewing Company"
+        ]
+      ]
+    }
+  ]
+}

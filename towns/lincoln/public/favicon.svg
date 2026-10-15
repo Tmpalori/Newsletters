@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="The Star 402">
+  <circle cx="32" cy="32" r="29" fill="#33417E"/>
+  <path d="M32.0 11.5L38.5 25.1L53.4 27.0L42.5 37.4L45.2 52.2L32.0 45.0L18.8 52.2L21.5 37.4L10.6 27.0L25.5 25.1Z" fill="#FFC93C" stroke="#1F2433" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#1F2433" stroke-width="4"/>
+</svg>
