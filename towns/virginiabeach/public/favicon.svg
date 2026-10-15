@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="The Tide 757">
+  <defs><clipPath id="f"><circle cx="32" cy="32" r="29"/></clipPath></defs>
+  <circle cx="32" cy="32" r="29" fill="#BFE6F2"/>
+  <g clip-path="url(#f)" stroke="#13263A" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="46" cy="39" r="10.5" fill="#FFC94A"/>
+    <path d="M-2 42H66V66H-2Z" fill="#2E86AB"/>
+    <path d="M-2 42H6C9 40 10 36 11 32C14 22 20 16 30 16C40 16 45 23 43 30C41 36 34 36 33 32C32 28 36 26 38 29C36 23 27 23 25 31C23 41 29 50 42 54C49 56 57 55 66 54V66H-2Z" fill="#1F6E96"/>
+  </g>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#13263A" stroke-width="4"/>
+</svg>
