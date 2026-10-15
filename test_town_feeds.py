@@ -306,3 +306,25 @@ def test_growthzone_reads_each_events_calendar_file():
 
 def test_page_builder_shortcodes_are_stripped():
     assert town_feeds.clean("[et_pb_section][et_pb_text]Patchwork quilts[/et_pb_text][/et_pb_section]") == "Patchwork quilts"
+
+
+def test_lineup_reads_each_act_on_its_day_at_its_venue():
+    page = """<main><h2>Live Music This Week</h2>
+      <h3>Friday, October 16</h3>
+      <p><strong>Swampers</strong></p><p>- Elle Claytor: 5-7pm</p>
+      <p><strong>Champy's</strong></p><p>- Back Alley String Band 7-9pm</p>
+      <p><strong>FloBama</strong></p><p>- Late-Night Karaoke: 10pm-close</p>
+      <h3>Saturday, October 17</h3>
+      <p><strong>Lava Room</strong></p><p>- Kevin Padron : 8pm</p>
+      <h3>Monday, November 30</h3>
+      <p><strong>Swampers</strong></p><p>- Too Late: 7:30-10pm</p>
+      <footer>- Not an act: 7pm</footer></main>"""
+    from zoneinfo import ZoneInfo
+    evs = town_feeds.parse_lineup(page, ZoneInfo("America/Chicago"), date(2026, 10, 14), date(2026, 10, 28))
+    assert [(e["date"], e["time"], e["name"], e["venue"]) for e in evs] == [
+        ("2026-10-16", "5:00 PM – 7:00 PM", "Elle Claytor", "Swampers"),
+        ("2026-10-16", "7:00 PM – 9:00 PM", "Back Alley String Band", "Champy's"),
+        ("2026-10-16", "10:00 PM", "Late-Night Karaoke", "FloBama"),
+        ("2026-10-17", "8:00 PM", "Kevin Padron", "Lava Room"),
+    ]
+    assert town_feeds.check_feeds([{"name": "music", "type": "lineup", "url": "https://x.example/music/"}])

@@ -50,10 +50,42 @@
   "siteNameHtml": "Shoals <span>Setlist</span>",
   "feeds": [
     {
+      "name": "visit_florence_music",
+      "type": "lineup",
+      "url": "https://www.visitflorenceal.com/music/live-music/",
+      "timeout": 30,
+      "rename_venue": [
+        [
+          "^Swampers$",
+          "Swampers Bar & Grille"
+        ],
+        [
+          "^Champy's$",
+          "Champy's Shoals"
+        ],
+        [
+          "^FloBama$",
+          "FloBama Music Hall"
+        ]
+      ]
+    },
+    {
       "name": "shoals_chamber",
       "type": "growthzone",
       "url": "https://business.shoalschamber.com",
-      "exclude": "ribbon cutting|member 101|loretto"
+      "exclude": "ribbon cutting|member 101|loretto|customer appreciation|grand opening|open house|after hours|chamber (breakfast|luncheon)"
+    },
+    {
+      "name": "shoals_now",
+      "type": "squarespace",
+      "url": "https://www.theshoalsnow.com/events?format=json",
+      "exclude": "health fair|volunteer (day|workday)|pickwick|ribbon cutting|cancell?ed"
+    },
+    {
+      "name": "florence_museums",
+      "type": "squarespace",
+      "url": "https://www.florencealmuseums.com/calendar?format=json",
+      "exclude": "cancell?ed"
     },
     {
       "name": "msnha",
@@ -70,7 +102,47 @@
       "name": "una",
       "type": "tribe",
       "url": "https://apps.una.edu",
-      "exclude": "\\b(meetings?|practice|shuttle|snap available|study|sessions?|faculty|staff|workshops?|group|luncheon|lunch & lift|webinar|panel|training|screenings?|applications?|due tonight|senate|club|interest|kickback|tailgate|breakfast|mass and meal|midweek|church|worship|internship|biometric|nursing|research|abroad|post-tenure|pedagogy|conversation partners|table|success|career|bites & insights|i’m fine|wellness|clinic|simulation|connections|professional|online event)\\b|\\bx\\b|^(?!.*(recital|showcase|\\bvs\\.?\\b|concert|festival|parade|walk)).*private location"
+      "exclude": "\\b(meetings?|practice|shuttle|snap available|study|sessions?|faculty|staff|workshops?|group|luncheon|lunch & lift|webinar|panel|training|screenings?|applications?|due tonight|senate|club|interest|kickback|tailgate|breakfast|mass and meal|midweek|church|worship|internship|biometric|nursing|research|abroad|post-tenure|pedagogy|conversation partners|table|success|career|bites & insights|i’m fine|wellness|clinic|simulation|connections|professional|online event)\\b|\\bx\\b|^(?!.*(recital|showcase|\\bvs\\.?\\b|concert|festival|parade|walk)).*private location|^(AI, Explained|Poker Night|Vision Board|COBT|Going Gilman|School Spirit|Put Your Pride|BBQ with Bankers|Germany on Campus|Haunted GUC)",
+      "rename_venue": [
+        [
+          "^The event will be held on the ",
+          ""
+        ],
+        [
+          ", UNA Box \\d+.*$",
+          ""
+        ],
+        [
+          ", 1 Harrison Plaza.*$",
+          ""
+        ],
+        [
+          ", United States$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "una_athletics",
+      "type": "ics",
+      "url": "https://roarlions.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\| Florence, Ala)",
+      "rename": [
+        [
+          "^University of North Alabama ",
+          "UNA "
+        ],
+        [
+          " - (Youth Day|Homecoming|Senior Day|Marching Band|Military|Wear |Faculty|Pink|Teacher).*$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Florence, Ala\\.? *,? *",
+          ""
+        ]
+      ]
     },
     {
       "name": "flpl_teen",
@@ -96,5 +168,9 @@
       "venue": "Florence-Lauderdale Public Library",
       "address": "350 N Wood Ave, Florence, AL 35630"
     }
-  ]
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  }
 }

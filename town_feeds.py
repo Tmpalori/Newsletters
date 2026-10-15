@@ -15,6 +15,9 @@ Types:
   squarespace  a Squarespace events page (<page>?format=json, its "upcoming")
   growthzone  a GrowthZone/ChamberMaster chamber calendar: the event links
             on /events/calendar/<YYYY-MM-01>, then each event's own iCalendar
+  lineup    a live-music lineup page: day headings, a venue line, then its
+            acts ("- Back Alley String Band 7-9pm"; Visit Florence's
+            /music/live-music/)
   cards     a Craft CMS tourism site's event listing (Visit Tupelo's
             tupelo.net/events: article.card blocks, "?page=N"; the time comes
             from each event page's schema.org startDate)
@@ -42,7 +45,7 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9
     ZoneInfo = None
 
-TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone")
+TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone", "lineup")
 MAX_PAGES = 10          # tribe and localist pagination cap (50 or 100 a page)
 MAX_DETAILS = 80        # event pages a growthzone feed fetches per run
 _SLUG = re.compile(r"^[a-z0-9_]+$")
@@ -464,6 +467,70 @@ def parse_cards(page_html, start, end):
     return events, past_end
 
 
+# ─── A live-music lineup page (Visit Florence's /music/live-music/) ─────────
+# The page lists days, under each day a venue, under each venue its acts:
+#   Friday, October 16 / Champy's / - Back Alley String Band 7-9pm
+
+_DAY_HEAD = re.compile(r"^(?:mon|tues|wednes|thurs|fri|satur|sun)day,?\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2})$", re.I)
+_CLOCK = r"\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?"
+_ACT = re.compile(rf"^[-–•]\s*(.+?)\s*:?\s+({_CLOCK})(?:\s*[-–]\s*({_CLOCK}|close))?\s*$", re.I)
+
+
+def _clock(text, ampm=None):
+    """'7:30', 'pm' → time; ampm is the other end's when this one has none."""
+    m = re.match(r"(\d{1,2})(?::(\d{2}))?\s*([ap])?", (text or "").strip().lower())
+    if not m:
+        return None
+    h, mi, half = int(m.group(1)), int(m.group(2) or 0), m.group(3) or ampm
+    if half is None:
+        half = "a" if 7 <= h <= 11 else "p"       # bands play at night; a morning gig says so
+    if h > 12 or mi > 59:
+        return None
+    h = h % 12 + (12 if half == "p" else 0)
+    return h, mi
+
+
+def parse_lineup(page_html, tz, start, end):
+    """Events from a lineup page: each act on its day at its venue, with its
+    time. Lines outside a day and a venue are ignored."""
+    from bs4 import BeautifulSoup
+    text = BeautifulSoup(page_html or "", "html.parser").get_text("\n")
+    day = venue = None
+    events = []
+    for line in (clean(x) for x in text.split("\n")):
+        if not line:
+            continue
+        m = _DAY_HEAD.match(line)
+        if m:
+            mon = _MONTHS.get(m.group(1).lower())
+            if not mon:
+                day = None
+                continue
+            year = start.year + (1 if mon < start.month - 6 else 0)
+            try:
+                day = date(year, mon, int(m.group(2)))
+            except ValueError:
+                day = None
+            venue = None
+            continue
+        if day is None:
+            continue
+        a = _ACT.match(line)
+        if a and venue:
+            if not (start <= day <= end):
+                continue
+            ends = (a.group(3) or "").lower()
+            end_half = re.search(r"([ap])", ends)
+            s_clock = _clock(a.group(2), end_half.group(1) if end_half and not re.search(r"[ap]", a.group(2).lower()) else None)
+            e_clock = _clock(ends) if ends and ends != "close" else None
+            s_dt = datetime(day.year, day.month, day.day, *s_clock, tzinfo=tz) if s_clock else None
+            e_dt = datetime(day.year, day.month, day.day, *e_clock, tzinfo=tz) if e_clock else None
+            events.append(_event(day, a.group(1).strip(" -–:"), s_dt, e_dt, venue=venue))
+        elif not line.startswith(("-", "–", "•")) and len(line) <= 60:
+            venue = line
+    return events
+
+
 def parse_card_detail(page_html, tz):
     """(start, end, free) from an event page: the schema.org Event's times
     (the date is the listing's: a repeating event's startDate is its first
@@ -508,6 +575,8 @@ def fetch_feed(feed, get, tz, start, end):
             events.extend(got)
             page += 1
         return events
+    if kind == "lineup":
+        return parse_lineup(get(url).text, tz, start, end)
     if kind == "squarespace":
         return parse_squarespace(get(url).json(), tz, start, end, base=squarespace_base(url))
     if kind == "growthzone":
