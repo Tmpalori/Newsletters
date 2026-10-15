@@ -4,7 +4,7 @@ Starter assets for **The Rogue 541**. They are drawn in the same cartoon family 
 
 ## Concept
 
-Mt. McLoughlin (a snow-capped cone) over fir-green foothills and a teal river, with a pear-gold sun. The skyline puts the mountain behind the right side of downtown: a tall historic tower, an arched-window bank, awninged storefronts and pear trees. The Rogue River runs teal along the bottom. Out of town: vineyard rows with plum grapes on one side and a pear orchard on the other, with firs throughout. No flames, smoke or Table Rock.
+Mt. McLoughlin (a snow-capped cone) over fir-green foothills and a teal river, with a pear-gold sun. The skyline puts the mountain behind the right side of downtown: the Hotel Medford (the tallest building downtown, brick with broad eaves and its HOTEL MEDFORD rooftop sign), the Holly Theatre (brick, red tile roof, arched storefronts and its tall HOLLY blade sign), awninged storefronts and pear trees. The Rogue River runs teal along the bottom. Out of town: vineyard rows with plum grapes on one side and a pear orchard on the other, with firs throughout. No flames, smoke or Table Rock.
 
 Header wordmark (two-tone, for `siteNameHtml` in town.json): `The Rogue <span>541</span>`. The span is the tilted badge, filled with the `highlight` color.
 
