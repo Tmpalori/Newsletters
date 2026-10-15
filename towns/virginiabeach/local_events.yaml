@@ -1,2 +1,802 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── The Tide 757 — Local Events (Virginia Beach, VA) ───────────────────────
+# Manually curated recurring and one-time events for Virginia Beach:
+# neighborhoods first (the ViBe, Town Center, Shore Drive, Hilltop,
+# Sandbridge, Pungo), the Oceanfront when locals actually go.
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# The town feeds already pull the ViBe Creative District (First Fridays,
+# VB Flea Market, Old Beach Art & Eco Market, International Night Markets,
+# CreativeMornings, walking tours), Virginia MOCA, Beach Events VB (the
+# city's Oceanfront events: Holiday Trail of Lights, Holiday Parade at the
+# Beach, Santa's Seaside Cinema, Last Night on the Town), the Neptune
+# Festival, the Military Aviation Museum, Wasserhund Brewing (Virginia
+# Beach location: trivia, music bingo, live music) and the Virginia Beach
+# Public Library (LibraryCalendar iCal). Entries here cover what those
+# miss: brewery and Shore Drive nights, farmers markets, Town Center (CBDA)
+# events, the Sandler Center (carbonhouse site, no feed), Elevation 27
+# (Ticketmaster widget, no feed), the Aquarium, and the big holiday dates.
+# The feed's "Old Beach Farmers Market" is excluded (it lists every
+# Saturday all winter); the market's own schedule is below.
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line.
+#   "Sandler events page" = sandlercenter.org/events list view, read 2026-10-15.
+#   "Elevation 27 homepage" = elevation27.com "Upcoming Shows", read 2026-10-15.
+#   "CBDA events page" = cbda.net/events, read 2026-10-15.
+#   "Aquarium featured events" = virginiaaquarium.com/featured-events, read 2026-10-15.
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── WEDNESDAY ───────────────────────────────────────────────────────────
+
+  - name: "Team Trivia at Pleasure House Brewing"
+    day: [wednesday, thursday]
+    time: "7:00 PM – 9:00 PM"
+    venue: "Pleasure House Brewing"
+    address: "2032 Pleasure House Rd"
+    description: "Team trivia two nights a week at the neighborhood brewery off Shore Drive."
+    icons: [drinks, community, free]
+    free: true
+    url: "https://www.pleasurehousebrewing.com/events/"
+    favorite: true
+    # VERIFIED: pleasurehousebrewing.com/events "Daily Events" 2026-10-15 ("Team Trivia Wednesdays (7:00) 7-9pm", "Team Trivia Thursdays (7:00) 7-9pm")
+
+  - name: "Toddler Meet & Move at the Virginia Aquarium"
+    day: wednesday
+    time: "9:15 AM & 10:15 AM"
+    venue: "Virginia Aquarium & Marine Science Center (South Building)"
+    address: "717 General Booth Blvd"
+    description: "Animal-themed toddler program with movement, a letter of the week and a live animal visit."
+    icons: [family]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/toddler-meet-move"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("Every Wednesday, October Through Spring | First Session at 9:15AM, Second Session at 10:15AM")
+
+  # ── THURSDAY ────────────────────────────────────────────────────────────
+
+  - name: "Toddler Trek at the Virginia Aquarium"
+    day: thursday
+    time: "10:00 AM – 11:00 AM"
+    venue: "Virginia Aquarium & Marine Science Center (South Building)"
+    address: "717 General Booth Blvd"
+    description: "Guided nature walk on the Aquarium trail for toddlers, with counting, shapes and songs."
+    icons: [family, outdoors]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/toddler-trek"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("Every Thursday | 10:00am-11:00am | South Building")
+
+  # ── FRIDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Music Bingo at Pleasure House Brewing"
+    day: friday
+    time: "7:00 PM – 9:00 PM"
+    venue: "Pleasure House Brewing"
+    address: "2032 Pleasure House Rd"
+    description: "Friday music bingo with name-that-tune cards and house-brewed pints."
+    icons: [music, drinks, community, free]
+    free: true
+    url: "https://www.pleasurehousebrewing.com/events/"
+    # VERIFIED: pleasurehousebrewing.com/events "Daily Events" 2026-10-15 ("Fridays Music Bingo 7-9pm")
+
+  - name: "Friday Night Hoedown"
+    day: friday
+    time: "7:00 PM – 10:00 PM"
+    venue: "Virginia Beach Farmers Market"
+    address: "3640 Dam Neck Rd"
+    description: "Free live country and classic rock bands at the city farmers market, rain or shine. Bring a lawn chair."
+    icons: [music, family, community, free]
+    free: true
+    url: "https://agriculture.virginiabeach.gov/farmers-market/special-events"
+    favorite: true
+    end_date: "2026-10-30"
+    # VERIFIED: agriculture.virginiabeach.gov farmers-market/special-events 2026-10-15 (Fridays Apr-Oct 7-10pm; Oct 16 The Country Rockers, Oct 23 and 30 Rob Oliver)
+
+  - name: "Live Music at Hot Tuna"
+    day: [friday, saturday]
+    time: "8:30 PM – 11:00 PM"
+    venue: "Hot Tuna Bar & Grill"
+    address: "2817 Shore Dr"
+    description: "Weekend live bands and duos at the Shore Drive seafood spot."
+    icons: [music, food, drinks]
+    free: false
+    url: "https://www.hottunavb.com/events"
+    # VERIFIED: hottunavb.com/events 2026-10-15 (live music Fri/Sat 8:30-11pm: Sharif Duo Oct 17, JohnBrad Duo Oct 23, Ready Steady Go! Oct 24)
+
+  # ── SATURDAY ────────────────────────────────────────────────────────────
+
+  - name: "Old Beach Farmers Market"
+    day: saturday
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "The ViBe's Saturday market since 2008: produce, meats, seafood, eggs, cheese, baked goods and Virginia wine, spilling onto 19th Street."
+    icons: [food, shopping, outdoors, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    favorite: true
+    end_date: "2026-10-31"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Regular Market Season: April through October Every Saturday from 9-12 pm")
+
+  - name: "Movies in the Plaza"
+    day: saturday
+    time: "7:00 PM"
+    venue: "Town Center Fountain Plaza"
+    address: "Town Center, 222 Central Park Ave"
+    description: "Free outdoor movies at sunset in Town Center. Bring blankets and chairs; free popcorn while it lasts."
+    icons: [family, outdoors, community, free]
+    free: true
+    url: "https://www.cbda.net/events/movies-in-the-plaza-2026/"
+    end_date: "2026-10-24"
+    # VERIFIED: CBDA events page 2026-10-15 ("each Saturday night at sunset in September and October", Sept 12 - Oct 24, 2026, 7:00 PM)
+
+events:
+
+  # ── Monthly series ──────────────────────────────────────────────────────
+
+  - date: "2026-11-07"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2026-11-21"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2026-12-05"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2026-12-19"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2027-01-02"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2027-01-16"
+    name: "Old Beach Farmers Market (Winter Market)"
+    time: "9:00 AM – 12:00 PM"
+    venue: "Old Beach Farmers Market"
+    address: "611 18th St"
+    description: "Winter edition of the ViBe's farmers market, now on the 1st and 3rd Saturdays."
+    icons: [food, shopping, family, free]
+    free: true
+    url: "https://www.oldbeachfarmersmarket.com/market-days"
+    # VERIFIED: oldbeachfarmersmarket.com/market-days 2026-10-15 ("Winter Markets: November through March 1st & 3rd Saturdays 9-12 pm")
+
+  - date: "2026-10-15"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2026-11-05"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2026-11-19"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2026-12-03"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2026-12-17"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2027-01-07"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2027-01-21"
+    name: "Common Run Club"
+    time: "7:00 PM (run at 7:15 PM)"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Free social run from the brewery by the Chesapeake Bay, with a $1 beer when you get back."
+    icons: [outdoors, drinks, community, free]
+    free: true
+    url: "https://commonwealthbrewingcompany.com/events/"
+    # VERIFIED: commonwealthbrewingcompany.com/events 2026-10-15 ("meets on the 1st and 3rd Thursdays of every month at 7 pm for a 7:15 pm run")
+
+  - date: "2026-11-05"
+    name: "Sharks After Dark"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center (North Building)"
+    address: "717 General Booth Blvd"
+    description: "Monthly after-hours evening at the Aquarium to see the exhibits at night. General $38, members $19."
+    icons: [drinks, arts]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/sharks-after-dark"
+    # VERIFIED: Aquarium featured events 2026-10-15 (Nov 5 2026; "First Thursday of the month | 6:00pm-9:00pm")
+
+  - date: "2026-12-03"
+    name: "Sharks After Dark"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center (North Building)"
+    address: "717 General Booth Blvd"
+    description: "Monthly after-hours evening at the Aquarium to see the exhibits at night. General $38, members $19."
+    icons: [drinks, arts]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/sharks-after-dark"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("First Thursday of the month | 6:00pm-9:00pm")
+
+  - date: "2027-01-07"
+    name: "Sharks After Dark"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center (North Building)"
+    address: "717 General Booth Blvd"
+    description: "Monthly after-hours evening at the Aquarium to see the exhibits at night. General $38, members $19."
+    icons: [drinks, arts]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/sharks-after-dark"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("First Thursday of the month | 6:00pm-9:00pm")
+
+  # ── October 2026 ────────────────────────────────────────────────────────
+
+  - date: "2026-10-16"
+    name: "Halloween Nights at the Virginia Aquarium"
+    time: "6:00 PM – 8:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center"
+    address: "717 General Booth Blvd"
+    description: "Costume-friendly evening at the Aquarium with Halloween activities and costumed characters. Adult $38, youth $33."
+    icons: [family]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/halloween-nights"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("October 16-17, 6PM-8PM")
+
+  - date: "2026-10-17"
+    name: "Halloween Nights at the Virginia Aquarium"
+    time: "6:00 PM – 8:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center"
+    address: "717 General Booth Blvd"
+    description: "Costume-friendly evening at the Aquarium with Halloween activities and costumed characters. Adult $38, youth $33."
+    icons: [family]
+    free: false
+    url: "https://virginiaaquarium.com/featured-events/halloween-nights"
+    # VERIFIED: Aquarium featured events 2026-10-15 ("October 16-17, 6PM-8PM")
+
+  - date: "2026-10-16"
+    name: "Private Eyes: The Hall & Oates Tribute"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Hall & Oates tribute night at Hilltop's music hall. All ages."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-10-17"
+    name: "Fall & Funk Fest at Commonwealth Brewing"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Fall seasonal drafts, food, music and a market of local makers at the bayside brewery."
+    icons: [music, drinks, shopping, food]
+    free: false
+    url: "https://commonwealthbrewingcompany.com/event/auto-draft-2026-10-17/"
+    # VERIFIED: commonwealthbrewingcompany.com event page 2026-10-15 ("October 17 4:00 pm - 8:00 pm, Virginia Beach")
+
+  - date: "2026-10-20"
+    name: "PUP: \"The Dream Is Over\" 10th Anniversary Tour"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Toronto punk band PUP plays its debut-era record, with NOBRO and Pony. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-10-23"
+    name: "Scott Bradlee's Postmodern Jukebox"
+    time: "8:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Pop hits in vintage jazz and swing arrangements on The Future is Vintage World Tour."
+    icons: [music, arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/pmj2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-10-24"
+    name: "Town and Treat at Town Center"
+    time: "11:00 AM – 2:00 PM"
+    venue: "Town Center of Virginia Beach"
+    address: "Town Center, 222 Central Park Ave"
+    description: "Free family Halloween: trick-or-treating at Town Center businesses, games and costume contests."
+    icons: [family, community, free]
+    free: true
+    url: "https://www.cbda.net/events/town-and-treat-at-town-center-2026/"
+    big: true
+    # VERIFIED: CBDA events page 2026-10-15 ("Saturday, October 24, 2026 at 11:00 AM to 2:00 PM", free)
+
+  - date: "2026-10-24"
+    name: "Swan Lake: Symphony of Lights"
+    time: "7:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Tchaikovsky's Swan Lake as a ballet and light show."
+    icons: [arts, music, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/swanlake"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-10-24"
+    name: "Live Wire: The Ultimate AC/DC Tribute"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "AC/DC tribute night in Hilltop. All ages."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-10-25"
+    name: "PB&J: John Williams' Sounds of Adventure"
+    time: "3:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Kid-sized concert of John Williams adventure themes."
+    icons: [music, family, arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/williamspbj2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-10-25"
+    name: "John Williams & Steven Spielberg: Iconic Film Scores"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "An orchestra evening of John Williams' scores for Steven Spielberg films."
+    icons: [music, arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/williams2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-10-28"
+    name: "Hot Tuna Run & Walk Club"
+    time: "6:00 PM (start 6:30 PM)"
+    venue: "Hot Tuna Bar & Grill"
+    address: "2817 Shore Dr"
+    description: "Every-other-Wednesday group run and walk from Hot Tuna on Shore Drive."
+    icons: [outdoors, community, free]
+    free: true
+    url: "https://www.hottunavb.com/events"
+    # VERIFIED: hottunavb.com/events 2026-10-15 ("Wednesday 10/28 Hot Tuna Run & Walk Club! Meet at 6:00pm | Start at 6:30pm")
+
+  - date: "2026-10-30"
+    name: "Black Velvet Halloween Party at Commonwealth Brewing"
+    time: "7:00 PM – 11:00 PM"
+    venue: "Commonwealth Brewing Company"
+    address: "2444 Pleasure House Rd"
+    description: "Halloween night of underground house and disco with Wavelength at the brewery taproom."
+    icons: [music, drinks]
+    free: false
+    url: "https://commonwealthbrewingcompany.com/event/black-velvet-halloween-party-2026-10-30/"
+    # VERIFIED: commonwealthbrewingcompany.com event page 2026-10-15 ("October 30 7:00 pm - 11:00 pm, Virginia Beach")
+
+  - date: "2026-10-30"
+    name: "Hawthorne Heights: 20th Anniversary of If Only You Were Lonely"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Emo favorites play their 2006 album in full. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-10-31"
+    name: "Wicked 10K"
+    time: "Evening"
+    venue: "Virginia Beach Oceanfront"
+    address: "Atlantic Ave"
+    description: "Halloween-weekend 10K race at the Oceanfront."
+    icons: [outdoors, community]
+    free: false
+    url: "https://cvb.virginiabeach.gov/resort-management/special-events-film/special-event-info"
+    # VERIFIED: City of Virginia Beach 2026 Major Events Roster PDF 2026-10-15 ("Oct. 31 Wicked 10K")
+
+  # ── November 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-11-06"
+    name: "Corrosion of Conformity & The Sword"
+    time: "7:30 PM (doors 6:30 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Heavy double bill at Hilltop's music hall. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-11-07"
+    name: "The ABBA Reunion Tribute Show"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "ABBA tribute concert with the hits from Waterloo to Dancing Queen."
+    icons: [music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/abba2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-12"
+    name: "John Crist Live!"
+    time: "7:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Stand-up from comedian John Crist."
+    icons: [arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/johncrist"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-13"
+    name: "BEAT: Belew/Vai/Levin/Bozzio Perform the Music of King Crimson"
+    time: "8:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Adrian Belew, Steve Vai, Tony Levin and Terry Bozzio play 1980s King Crimson."
+    icons: [music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/beat"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-14"
+    name: "Three Dog Night"
+    time: "8:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Joy to the World, Mama Told Me and the rest of the classic-rock catalog."
+    icons: [music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/threedognight"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-14"
+    name: "The Gringos at Elevation 27"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Local favorites The Gringos headline Hilltop's music hall. All ages."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-11-15"
+    name: "Symphonicity: Chapter II, Martial & Moral"
+    time: "3:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Virginia Beach's own community symphony orchestra in its fall concert."
+    icons: [music, arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/martial"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-21"
+    name: "Colby Acuff with Levi Foster"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Idaho country singer-songwriter Colby Acuff. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-11-21"
+    name: "Mannheim Steamroller Christmas by Chip Davis"
+    time: "3:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "The holiday multimedia concert tradition."
+    icons: [music, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/mannheimsteamroller"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-25"
+    name: "NUTCRACKER! Magical Christmas Ballet"
+    time: "3:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Touring Christmas Nutcracker ballet, the day before Thanksgiving."
+    icons: [arts, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/nutcracker2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-11-27"
+    name: "The Wailers ft. Junior Marvin"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Bob Marley's band with longtime guitarist Junior Marvin. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-11-28"
+    name: "Planes, Trains and Santa"
+    time: "9:00 AM"
+    venue: "Military Aviation Museum"
+    address: "1341 Princess Anne Rd"
+    description: "Thanksgiving-weekend family day in Pungo: model train villages among the warbirds, photos with Santa and a toy drive. Timed tickets, capped at 1,300 a day."
+    icons: [family]
+    free: false
+    url: "https://www.militaryaviationmuseum.org/event/planes-trains-and-santa-2026/"
+    # VERIFIED: militaryaviationmuseum.org event page 2026-10-15 ("November 27 @ 9:00 am - November 29 @ 3:00 pm"; the tribe feed lists only Nov 27)
+
+  - date: "2026-11-29"
+    name: "Planes, Trains and Santa"
+    time: "9:00 AM – 3:00 PM"
+    venue: "Military Aviation Museum"
+    address: "1341 Princess Anne Rd"
+    description: "Last day of the museum's Thanksgiving-weekend model trains and Santa event in Pungo. Timed tickets."
+    icons: [family]
+    free: false
+    url: "https://www.militaryaviationmuseum.org/event/planes-trains-and-santa-2026/"
+    # VERIFIED: militaryaviationmuseum.org event page 2026-10-15 ("November 27 @ 9:00 am - November 29 @ 3:00 pm")
+
+  - date: "2026-11-28"
+    name: "Grand Illumination and the Arrival of Santa"
+    time: "5:00 PM – 6:00 PM"
+    venue: "Town Center Fountain Plaza"
+    address: "Town Center, 222 Central Park Ave"
+    description: "Town Center lights its holiday tree and welcomes Santa and Mrs. Claus. Free."
+    icons: [family, community, free]
+    free: true
+    url: "https://www.cbda.net/events/"
+    big: true
+    # VERIFIED: CBDA events page 2026-10-15 ("Saturday, November 28, 2026 at 5:00 PM to 6:00 PM", free)
+
+  - date: "2026-11-28"
+    name: "Snow Globe Spectacular Opens at Town Center"
+    time: "7:00 PM"
+    venue: "Town Center Fountain Plaza"
+    address: "Town Center, 222 Central Park Ave"
+    description: "Snow globe art celebrating Virginia Beach and Hampton Roads on display in the Fountain Plaza through the holidays. Free."
+    icons: [arts, family, free]
+    free: true
+    url: "https://www.cbda.net/events/snow-globe-spectacular-at-town-center-2026/"
+    # VERIFIED: CBDA events page 2026-10-15 (opens Saturday, November 28, 2026 at 7:00 PM at Town Center Fountain Plaza, free)
+
+  # ── December 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-12-04"
+    name: "Million Dollar Quartet Christmas"
+    time: "Evening"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Virginia Musical Theatre's holiday spin on the Elvis, Cash, Perkins and Lewis jam-session musical (Dec 4-6)."
+    icons: [arts, music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/mdq-christmas"
+    # VERIFIED: Sandler events page 2026-10-15 ("Dec 4 - 6, 2026, Virginia Musical Theatre"; showtimes not listed)
+
+  - date: "2026-12-04"
+    name: "Tab Benoit with Bonerama"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Louisiana blues guitarist Tab Benoit with New Orleans brass band Bonerama. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-12-09"
+    name: "Men Without Hats with The Polecats"
+    time: "7:30 PM (doors 6:30 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "The Safety Dance band with rockabilly openers The Polecats. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-12-11"
+    name: "Ballet Virginia presents The Nutcracker"
+    time: "Evening"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Ballet Virginia's Nutcracker with live music from the Symphonicity orchestra (Dec 11-13)."
+    icons: [arts, music, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/bvnutcracker26"
+    big: true
+    # VERIFIED: Sandler events page 2026-10-15 ("Dec 11 - 13, 2026, with Symphonicity Orchestra"; showtimes not listed)
+
+  - date: "2026-12-12"
+    name: "Beach Floyd: The Dark Side of Oz"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Local Pink Floyd tribute syncs Dark Side of the Moon to The Wizard of Oz. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-12-15"
+    name: "Vienna Boys Choir"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "The Vienna Boys Choir's Christmas program, presented by the Virginia Arts Festival."
+    icons: [music, arts, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/vienna"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-16"
+    name: "Jim Brickman: A Christmas Celebration"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Pianist Jim Brickman's holiday concert."
+    icons: [music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/jimbrickman26"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-18"
+    name: "An Evening with John Cusack and Say Anything"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "A screening of Say Anything followed by a conversation with John Cusack."
+    icons: [arts]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/johncusack"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-19"
+    name: "PB&J: Jingle Bell Jam"
+    time: "3:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Short holiday concert for kids."
+    icons: [music, family]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/jingle2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-19"
+    name: "Holiday Pops"
+    time: "7:30 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "Holiday pops orchestra concert."
+    icons: [music]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/holidaypops2026"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-19"
+    name: "Deputy Dan: A Tribute to Steely Dan feat. Bernard \"Pretty\" Purdie"
+    time: "8:00 PM (doors 7:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "Steely Dan tribute with the band's legendary drummer Bernard Purdie. All ages."
+    icons: [music]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  - date: "2026-12-20"
+    name: "Virginia Beach Chorale: Unwrapped, The Surprises of Christmas!"
+    time: "7:00 PM"
+    venue: "Sandler Center for the Performing Arts"
+    address: "201 Market St"
+    description: "The Virginia Beach Chorale's holiday concert."
+    icons: [music, community]
+    free: false
+    url: "https://www.sandlercenter.org/events/detail/unwrapped"
+    # VERIFIED: Sandler events page 2026-10-15
+
+  - date: "2026-12-31"
+    name: "Last Fair Deal: NYE Night 1"
+    time: "9:00 PM (doors 8:00 PM)"
+    venue: "Elevation 27"
+    address: "600 Nevan Rd"
+    description: "New Year's Eve with Last Fair Deal at Hilltop's music hall."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.elevation27.com/"
+    # VERIFIED: Elevation 27 homepage 2026-10-15

@@ -93,6 +93,28 @@
       "exclude": "golf tournament|gala|luncheon"
     },
     {
+      "name": "wasserhund_vb",
+      "type": "tribe",
+      "url": "https://wasserhundbrewing.com",
+      "exclude": "^(?!.*\\| Wasserhund . Virginia Beach$)|military appreciation",
+      "rename": [
+        [
+          " (at|in) (VB|Virginia Beach)$",
+          ""
+        ],
+        [
+          " at Wasserhund Virginia Beach$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Wasserhund . Virginia Beach$",
+          "Wasserhund Brewing Company"
+        ]
+      ]
+    },
+    {
       "name": "military_aviation_museum",
       "type": "tribe",
       "url": "https://www.militaryaviationmuseum.org",

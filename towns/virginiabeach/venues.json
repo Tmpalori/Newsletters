@@ -1,1 +1,957 @@
-[]
+[
+ {
+  "name": "Sandler Center for the Performing Arts",
+  "category": "Performing Arts Center",
+  "facebook_page": "https://www.facebook.com/sandlercenter",
+  "facebook_events": "https://www.facebook.com/sandlercenter/events",
+  "event_potential": "Town Center's 1,300-seat hall: touring concerts, comedy, Virginia Symphony, Ballet Virginia Nutcracker, VB Chorale; site is carbonhouse with no feed (shows copied to local_events)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "sandlercenter"
+  ],
+  "instagram_url": "https://www.instagram.com/sandlercenter/",
+  "website": "https://www.sandlercenter.org"
+ },
+ {
+  "name": "Veterans United Home Loans Amphitheater",
+  "category": "Amphitheater",
+  "facebook_page": "https://www.facebook.com/vabeachamp",
+  "facebook_events": "https://www.facebook.com/vabeachamp/events",
+  "event_potential": "Live Nation outdoor amphitheater (3550 Cellar Door Way); big touring concerts April to October",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; Live Nation site has no feed; no IG confirmed",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://www.livenation.com/venue/KovZpZAEkeIA/veterans-united-home-loans-amphitheater-events"
+ },
+ {
+  "name": "Virginia Aquarium & Marine Science Center",
+  "category": "Aquarium / Family Attraction",
+  "facebook_page": "https://www.facebook.com/VirginiaAquarium",
+  "facebook_events": "https://www.facebook.com/VirginiaAquarium/events",
+  "event_potential": "Sharks After Dark (first Thursdays), Halloween Nights, Zzz's Under the Sea, toddler programs, creek cleanups; Holiday Trail of Lights host",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "vaaquarium"
+  ],
+  "instagram_url": "https://www.instagram.com/vaaquarium/",
+  "website": "https://virginiaaquarium.com"
+ },
+ {
+  "name": "Virginia MOCA",
+  "category": "Contemporary Art Museum",
+  "facebook_page": "https://www.facebook.com/VirginiaMOCA",
+  "facebook_events": "https://www.facebook.com/VirginiaMOCA/events",
+  "event_potential": "Exhibitions, classes, Family Fest, Night Shift; also the virginia_moca tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "virginiamoca"
+  ],
+  "instagram_url": "https://www.instagram.com/virginiamoca/",
+  "website": "https://www.virginiamoca.org"
+ },
+ {
+  "name": "ViBe Creative District",
+  "category": "Arts District / Organizer",
+  "facebook_page": "https://www.facebook.com/ViBeCreativeDistrict",
+  "facebook_events": "https://www.facebook.com/ViBeCreativeDistrict/events",
+  "event_potential": "First Fridays, VB Flea Market, Old Beach Art & Eco Market, International Night Markets, CreativeMornings, walking tours; also the vibe_creative_district tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "thevibecreativedistrict"
+  ],
+  "instagram_url": "https://www.instagram.com/thevibecreativedistrict/",
+  "website": "https://www.vibecreativedistrict.org"
+ },
+ {
+  "name": "Neptune Festival",
+  "category": "Festival Organizer",
+  "facebook_page": "https://www.facebook.com/NeptuneFestival",
+  "facebook_events": "https://www.facebook.com/NeptuneFestival/events",
+  "event_potential": "Boardwalk Weekend and Sandsculpting Classic in late September, plus year-round fundraisers; also the neptune_festival tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "neptunefestival"
+  ],
+  "instagram_url": "https://www.instagram.com/neptunefestival/",
+  "website": "https://neptunefestival.com"
+ },
+ {
+  "name": "Beach Events VB",
+  "category": "City Oceanfront Events",
+  "facebook_page": "https://www.facebook.com/beacheventsvb",
+  "facebook_events": "https://www.facebook.com/beacheventsvb/events",
+  "event_potential": "City Oceanfront events: Holiday Trail of Lights, Holiday Parade at the Beach, Santa's Seaside Cinema, Jeep Fest, summer Oceanfront Concert Series; also the beach_events_vb tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "beacheventsvb"
+  ],
+  "instagram_url": "https://www.instagram.com/beacheventsvb/",
+  "website": "https://beacheventsvb.com"
+ },
+ {
+  "name": "Central Business District Association",
+  "category": "Town Center Events Organizer",
+  "facebook_page": "https://www.facebook.com/Central-Business-District-Association-257592394270675",
+  "facebook_events": "https://www.facebook.com/Central-Business-District-Association-257592394270675/events",
+  "event_potential": "Town Center free events: Movies in the Plaza, Town and Treat, Grand Illumination, Snow Globe Spectacular, Last Night on the Town",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "cbdatowncentervb"
+  ],
+  "instagram_url": "https://www.instagram.com/cbdatowncentervb/",
+  "website": "https://www.cbda.net"
+ },
+ {
+  "name": "Town Center of Virginia Beach",
+  "category": "Shopping & Entertainment District",
+  "facebook_page": "https://www.facebook.com/towncenterofvirginiabeach",
+  "facebook_events": "https://www.facebook.com/towncenterofvirginiabeach/events",
+  "event_potential": "Fountain Plaza events, holiday tree lighting, live music; event calendar is a JS widget with no supported feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "towncenterofvirginiabeach"
+  ],
+  "instagram_url": "https://www.instagram.com/towncenterofvirginiabeach/",
+  "website": "https://www.towncentervb.com"
+ },
+ {
+  "name": "Military Aviation Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/MilitaryAviationMuseum",
+  "facebook_events": "https://www.facebook.com/MilitaryAviationMuseum/events",
+  "event_potential": "Pungo warbird museum: Planes, Trains and Santa, airshows, hangar dances; also the military_aviation_museum tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "militaryaviationmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/militaryaviationmuseum/",
+  "website": "https://www.militaryaviationmuseum.org"
+ },
+ {
+  "name": "Virginia Beach Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/pages/Virginia-Beach-Public-Library/11840317194",
+  "facebook_events": "https://www.facebook.com/pages/Virginia-Beach-Public-Library/11840317194/events",
+  "event_potential": "Ten branches of programs (storytimes, teen nights, Books on Tap at breweries); also the vb_public_library iCal feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "vbplibrary"
+  ],
+  "instagram_url": "https://www.instagram.com/vbplibrary/",
+  "website": "https://libraries.virginiabeach.gov"
+ },
+ {
+  "name": "Virginia Beach Farmers Market",
+  "category": "Farmers Market",
+  "facebook_page": "https://www.facebook.com/VBFarmersMarket",
+  "facebook_events": "https://www.facebook.com/VBFarmersMarket/events",
+  "event_potential": "Year-round market at 3640 Dam Neck Rd; Friday Night Hoedowns Apr-Oct, Fall Festival, Santa's Workshop and other free special events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); no IG on the site",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://agriculture.virginiabeach.gov/farmers-market"
+ },
+ {
+  "name": "Old Beach Farmers Market",
+  "category": "Farmers Market",
+  "facebook_page": "https://www.facebook.com/OldBeachFarmersMarkets",
+  "facebook_events": "https://www.facebook.com/OldBeachFarmersMarkets/events",
+  "event_potential": "Saturday market on 18th/19th St in the ViBe since 2008: weekly Apr-Oct, 1st and 3rd Saturdays Nov-Mar",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "oldbeachfarmersmarket"
+  ],
+  "instagram_url": "https://www.instagram.com/oldbeachfarmersmarket/",
+  "website": "https://www.oldbeachfarmersmarket.com"
+ },
+ {
+  "name": "Kings Grant Farmers Market",
+  "category": "Farmers Market",
+  "facebook_page": "https://www.facebook.com/kingsgrantfarmersmarket",
+  "facebook_events": "https://www.facebook.com/kingsgrantfarmersmarket/events",
+  "event_potential": "1st and 3rd Thursday evening market May-September at 873 Little Neck Rd",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thekingsgrantfarmersmarketvb"
+  ],
+  "instagram_url": "https://www.instagram.com/thekingsgrantfarmersmarketvb/",
+  "website": "https://www.kingsgrantfarmersmarket.com"
+ },
+ {
+  "name": "Commonwealth Brewing Company",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/commonwealthbrewingcompany",
+  "facebook_events": "https://www.facebook.com/commonwealthbrewingcompany/events",
+  "event_potential": "Chesapeake Bay brewery on Pleasure House Rd: Common Run Club (1st/3rd Thu), Fall & Funk Fest, Halloween party, markets, Books on Tap",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "commonwealthbrewco"
+  ],
+  "instagram_url": "https://www.instagram.com/commonwealthbrewco/",
+  "website": "https://commonwealthbrewingcompany.com"
+ },
+ {
+  "name": "Pleasure House Brewing",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/PHExB",
+  "facebook_events": "https://www.facebook.com/PHExB/events",
+  "event_potential": "Shore Drive area brewery: team trivia Wed and Thu, music bingo Fri, weekend events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "phbrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/phbrewing/",
+  "website": "https://www.pleasurehousebrewing.com"
+ },
+ {
+  "name": "Smartmouth Pilot House",
+  "category": "Brewery Taproom",
+  "facebook_page": "https://www.facebook.com/196524850454187",
+  "facebook_events": "https://www.facebook.com/196524850454187/events",
+  "event_potential": "Smartmouth's ViBe taproom at 313 32nd St; parties, line dancing, live music",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); FB link is Smartmouth's numeric page id (whole company, incl. Norfolk)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "smartmouthbeer"
+  ],
+  "instagram_url": "https://www.instagram.com/smartmouthbeer/",
+  "website": "https://smartmouthbrewing.com"
+ },
+ {
+  "name": "Wasserhund Brewing Company",
+  "category": "Brewery / Pizza",
+  "facebook_page": "https://www.facebook.com/wasserhundbrewing",
+  "facebook_events": "https://www.facebook.com/wasserhundbrewing/events",
+  "event_potential": "Laskin Rd brewery: Monday trivia, music bingo, Friend Feud, weekend live music; also the wasserhund_vb tribe feed",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "wasserhundbrew"
+  ],
+  "instagram_url": "https://www.instagram.com/wasserhundbrew/",
+  "website": "https://wasserhundbrewing.com"
+ },
+ {
+  "name": "New Realm Brewing Virginia Beach",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/newrealmbrewingVB",
+  "facebook_events": "https://www.facebook.com/newrealmbrewingVB/events",
+  "event_potential": "Big Shore Drive-area brewery and beer garden: live music, trivia, movies, seasonal festivals; events page is JS-only",
+  "confidence": "medium",
+  "notes": "FB from the venue's website (curl 2026-10-15); IG from instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "newrealm_vb"
+  ],
+  "instagram_url": "https://www.instagram.com/newrealm_vb/",
+  "website": "https://newrealmbrewing.com/virginia-beach/"
+ },
+ {
+  "name": "Young Veterans Brewing Company",
+  "category": "Brewery",
+  "facebook_page": "https://www.facebook.com/youngveteransbrewingco",
+  "facebook_events": "https://www.facebook.com/youngveteransbrewingco/events",
+  "event_potential": "Veteran-owned brewery near Oceana; taproom events and live music",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "yvbc"
+  ],
+  "instagram_url": "https://www.instagram.com/yvbc/",
+  "website": "https://yvbc.com"
+ },
+ {
+  "name": "The Bunker Brewpub",
+  "category": "Brewpub",
+  "facebook_page": "https://www.facebook.com/bunkerbrewpub",
+  "facebook_events": "https://www.facebook.com/bunkerbrewpub/events",
+  "event_potential": "Young Veterans Brewing's brewpub; trivia and live music nights",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Back Bay's Beach House",
+  "category": "Brewery / Beach Bar",
+  "facebook_page": "https://www.facebook.com/backbaybeachhouse",
+  "facebook_events": "https://www.facebook.com/backbaybeachhouse/events",
+  "event_potential": "Back Bay Brewing Co. at 614 Norfolk Ave in the ViBe; live music and events (old website expired)",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "backbaybeachhouse"
+  ],
+  "instagram_url": "https://www.instagram.com/backbaybeachhouse/"
+ },
+ {
+  "name": "Vibrant Shore Brewing Company",
+  "category": "Brewery",
+  "event_potential": "ViBe brewery with a rooftop beer garden at 505 18th St; hosts library Books on Tap",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted web search 2026-10-15; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "vibrantshorebrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/vibrantshorebrewing/"
+ },
+ {
+  "name": "Voodoo Brewing Company Virginia Beach",
+  "category": "Brewpub",
+  "event_potential": "Locally owned brewpub; trivia and live music",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted web search 2026-10-15; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "voodoovirginiabeach"
+  ],
+  "instagram_url": "https://www.instagram.com/voodoovirginiabeach/"
+ },
+ {
+  "name": "Elevation 27",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/elevation27",
+  "facebook_events": "https://www.facebook.com/elevation27/events",
+  "event_potential": "Hilltop's 600-capacity music hall (600 Nevan Rd): touring bands, tributes, dance parties several nights a week",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "elevation27vb"
+  ],
+  "instagram_url": "https://www.instagram.com/elevation27vb/",
+  "website": "https://www.elevation27.com"
+ },
+ {
+  "name": "Abbey Road Pub & Restaurant",
+  "category": "Pub / Live Music",
+  "facebook_page": "https://www.facebook.com/AbbeyRoadPubVB",
+  "facebook_events": "https://www.facebook.com/AbbeyRoadPubVB/events",
+  "event_potential": "22nd St pub with live music most nights, big beer list",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "abbeyroadvb"
+  ],
+  "instagram_url": "https://www.instagram.com/abbeyroadvb/",
+  "website": "https://abbeyroadpub.com"
+ },
+ {
+  "name": "Kelly's Tavern Hilltop",
+  "category": "Irish Pub",
+  "facebook_page": "https://www.facebook.com/kellystavernhilltop",
+  "facebook_events": "https://www.facebook.com/kellystavernhilltop/events",
+  "event_potential": "Hilltop neighborhood pub; trivia and game-day events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15) (Hilltop location page)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "kellystavern"
+  ],
+  "instagram_url": "https://www.instagram.com/kellystavern/",
+  "website": "https://www.kellystavern.com/hilltop"
+ },
+ {
+  "name": "Hot Tuna Bar & Grill",
+  "category": "Seafood Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/hottunavabeach",
+  "facebook_events": "https://www.facebook.com/hottunavabeach/events",
+  "event_potential": "2817 Shore Dr: live bands Fri and Sat 8:30-11 PM, Fuego Friday Latin night, run club, Halloween parties",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "hottunavb"
+  ],
+  "instagram_url": "https://www.instagram.com/hottunavb/",
+  "website": "https://www.hottunavb.com"
+ },
+ {
+  "name": "Waterman's Surfside Grille",
+  "category": "Oceanfront Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/watermansvb",
+  "facebook_events": "https://www.facebook.com/watermansvb/events",
+  "event_potential": "Oceanfront bar at 5th St: live music, karaoke, Orange Crush birthplace",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "watermansvb"
+  ],
+  "instagram_url": "https://www.instagram.com/watermansvb/",
+  "website": "https://www.watermans.com"
+ },
+ {
+  "name": "Esoteric",
+  "category": "Craft Beer Restaurant",
+  "facebook_page": "https://www.facebook.com/esotericvb",
+  "facebook_events": "https://www.facebook.com/esotericvb/events",
+  "event_potential": "ViBe craft beer restaurant; beer dinners and tap takeovers",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "esoteric_vb"
+  ],
+  "instagram_url": "https://www.instagram.com/esoteric_vb/",
+  "website": "https://esotericvb.com"
+ },
+ {
+  "name": "Three Ships Coffee",
+  "category": "Coffee Roaster",
+  "facebook_page": "https://www.facebook.com/threeshipscoffee",
+  "facebook_events": "https://www.facebook.com/threeshipscoffee/events",
+  "event_potential": "Local roaster in the ViBe/Hilltop; pop-ups, cuppings, markets",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "threeshipscoffee"
+  ],
+  "instagram_url": "https://www.instagram.com/threeshipscoffee/",
+  "website": "https://threeshipscoffee.com"
+ },
+ {
+  "name": "Atlantic Wildfowl Heritage Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/atlanticwildfowlheritagemuseum",
+  "facebook_events": "https://www.facebook.com/atlanticwildfowlheritagemuseum/events",
+  "event_potential": "Oceanfront museum in the 1895 de Witt Cottage; carving demos, holiday open house",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "awfh_museum"
+  ],
+  "instagram_url": "https://www.instagram.com/awfh_museum/",
+  "website": "https://awhm.org"
+ },
+ {
+  "name": "Blue Pete's Restaurant",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/BluePetes",
+  "facebook_events": "https://www.facebook.com/BluePetes/events",
+  "event_potential": "Pungo waterfront restaurant on Back Bay creek; relaxed live bands",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "bluepetesrestaurant"
+  ],
+  "instagram_url": "https://www.instagram.com/bluepetesrestaurant/",
+  "website": "https://www.bluepetes.com"
+ },
+ {
+  "name": "Froggie's",
+  "category": "BBQ / Live Music Bar",
+  "facebook_page": "https://www.facebook.com/Froggiesshoredr",
+  "facebook_events": "https://www.facebook.com/Froggiesshoredr/events",
+  "event_potential": "3656 Shore Dr: regional and local bands, dance bands, 26 taps",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "froggiesvb"
+  ],
+  "instagram_url": "https://www.instagram.com/froggiesvb/",
+  "website": "https://www.froggiesvb.com"
+ },
+ {
+  "name": "Baja Restaurant Sandbridge",
+  "category": "Restaurant / Live Entertainment",
+  "facebook_page": "https://www.facebook.com/bajavb",
+  "facebook_events": "https://www.facebook.com/bajavb/events",
+  "event_potential": "Sandbridge's live-entertainment restaurant; its tribe calendar is empty off-season",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "bajasandbridge"
+  ],
+  "instagram_url": "https://www.instagram.com/bajasandbridge/",
+  "website": "https://bajasandbridge.com"
+ },
+ {
+  "name": "Rudee's Restaurant & Cabana Bar",
+  "category": "Waterfront Restaurant",
+  "facebook_page": "https://www.facebook.com/RudeesRestaurant",
+  "facebook_events": "https://www.facebook.com/RudeesRestaurant/events",
+  "event_potential": "Rudee Inlet restaurant and cabana bar; live music on the deck in season",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "rudeesvb"
+  ],
+  "instagram_url": "https://www.instagram.com/rudeesvb/",
+  "website": "https://rudees.com"
+ },
+ {
+  "name": "Doc Taylor's",
+  "category": "Restaurant",
+  "facebook_page": "https://www.facebook.com/DocTaylors",
+  "facebook_events": "https://www.facebook.com/DocTaylors/events",
+  "event_potential": "Oceanfront breakfast spot and Seaside Market Lounge; occasional events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); no IG on the site",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.doctaylors.com"
+ },
+ {
+  "name": "Lesner Inn",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/lesnerinn",
+  "facebook_events": "https://www.facebook.com/lesnerinn/events",
+  "event_potential": "Shore Drive bayside restaurant by Lesner Bridge; live music and specials",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lesnerinn"
+  ],
+  "instagram_url": "https://www.instagram.com/lesnerinn/",
+  "website": "https://lesnerinn.com"
+ },
+ {
+  "name": "Aldo's Ristorante",
+  "category": "Italian Restaurant",
+  "facebook_page": "https://www.facebook.com/Aldos-Ristorante-181497448570835",
+  "facebook_events": "https://www.facebook.com/Aldos-Ristorante-181497448570835/events",
+  "event_potential": "La Promenade Italian spot; live music some nights, wine dinners",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "aldosristorante"
+  ],
+  "instagram_url": "https://www.instagram.com/aldosristorante/",
+  "website": "https://aldosvb.com"
+ },
+ {
+  "name": "Croc's 19th Street Bistro",
+  "category": "Restaurant / Bar",
+  "event_potential": "ViBe eco bistro; trivia, live music and First Friday happenings",
+  "confidence": "medium",
+  "notes": "IG from the venue's website (curl 2026-10-15); no FB found",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "crocs19thstreetbistro"
+  ],
+  "instagram_url": "https://www.instagram.com/crocs19thstreetbistro/",
+  "website": "https://crocs19thstreetbistro.com"
+ },
+ {
+  "name": "Chick's Oyster Bar",
+  "category": "Waterfront Restaurant",
+  "facebook_page": "https://www.facebook.com/chicksoysterbar",
+  "facebook_events": "https://www.facebook.com/chicksoysterbar/events",
+  "event_potential": "Lynnhaven Inlet oyster bar and beach club; live music Fri-Sun in season",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); no IG on the site",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.chicksoysterbar.com"
+ },
+ {
+  "name": "Virginia Beach Parks & Recreation",
+  "category": "City Parks Department",
+  "facebook_page": "https://www.facebook.com/VBParksRec",
+  "facebook_events": "https://www.facebook.com/VBParksRec/events",
+  "event_potential": "Rising Sun Pow Wow, craft shows, Winter Wildlife Festival, Mount Trashmore July 4th, rec center events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "vbparksrec"
+  ],
+  "instagram_url": "https://www.instagram.com/vbparksrec/",
+  "website": "https://parks.virginiabeach.gov/events-information/special-events"
+ },
+ {
+  "name": "First Landing State Park",
+  "category": "State Park",
+  "facebook_page": "https://www.facebook.com/vaspfirstlanding",
+  "facebook_events": "https://www.facebook.com/vaspfirstlanding/events",
+  "event_potential": "Ranger programs, guided hikes, Chesapeake Bay beach",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); IG on the site is statewide (vastateparks), left out",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.dcr.virginia.gov/state-parks/first-landing"
+ },
+ {
+  "name": "Back Bay National Wildlife Refuge",
+  "category": "Wildlife Refuge",
+  "facebook_page": "https://www.facebook.com/backbaynwr",
+  "facebook_events": "https://www.facebook.com/backbaynwr/events",
+  "event_potential": "Guided walks and Winter Wildlife Festival programs in Sandbridge",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); no refuge IG",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.fws.gov/refuge/back-bay"
+ },
+ {
+  "name": "False Cape State Park",
+  "category": "State Park",
+  "facebook_page": "https://www.facebook.com/vaspfalsecape",
+  "facebook_events": "https://www.facebook.com/vaspfalsecape/events",
+  "event_potential": "Tram tours, guided paddles and hikes south of Sandbridge",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.dcr.virginia.gov/state-parks/false-cape"
+ },
+ {
+  "name": "Virginia Beach Sports Center",
+  "category": "Sports Venue",
+  "facebook_page": "https://www.facebook.com/vbsportscenter",
+  "facebook_events": "https://www.facebook.com/vbsportscenter/events",
+  "event_potential": "Indoor track meets, volleyball and basketball tournaments by the Convention Center",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "vbsportscenter"
+  ],
+  "instagram_url": "https://www.instagram.com/vbsportscenter/",
+  "website": "https://vbsportscenter.com"
+ },
+ {
+  "name": "Virginia Beach History Museums",
+  "category": "Historic Houses",
+  "facebook_page": "https://www.facebook.com/VBHistoryMuseums",
+  "facebook_events": "https://www.facebook.com/VBHistoryMuseums/events",
+  "event_potential": "Francis Land House, Thoroughgood House and Lynnhaven House: tours, holiday open houses",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://virginiabeach.gov/history-museums"
+ },
+ {
+  "name": "Virginia Beach Surf & Rescue Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/vbsrmnew",
+  "facebook_events": "https://www.facebook.com/vbsrmnew/events",
+  "event_potential": "Oceanfront museum at 24th St and Atlantic Ave in the old Coast Guard station",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG; old domain now a spam site",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Virginia Beach Funny Bone",
+  "category": "Comedy Club",
+  "facebook_page": "https://www.facebook.com/FunnyBoneVB",
+  "facebook_events": "https://www.facebook.com/FunnyBoneVB/events",
+  "event_potential": "Touring and local stand-up several nights a week (Pembroke Square); funnybone.com blocks bots",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "funnybonevb"
+  ],
+  "instagram_url": "https://www.instagram.com/funnybonevb/",
+  "website": "https://www.funnybone.com"
+ },
+ {
+  "name": "Zeiders American Dream Theater",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/TheZTheater",
+  "facebook_events": "https://www.facebook.com/TheZTheater/events",
+  "event_potential": "Town Center black-box theater: plays, musicals, cabaret and concerts; site behind a bot check",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://thez.org"
+ },
+ {
+  "name": "Virginia Musical Theatre",
+  "category": "Theater Company",
+  "facebook_page": "https://www.facebook.com/VirginiaMusicalTheatre",
+  "facebook_events": "https://www.facebook.com/VirginiaMusicalTheatre/events",
+  "event_potential": "Professional musicals at the Sandler Center (Million Dollar Quartet Christmas Dec 4-6)",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Murphy's Irish Pub",
+  "category": "Irish Pub / Live Music",
+  "event_potential": "Oceanfront pub at 2914 Pacific Ave: live Irish and local music, trivia",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted web search 2026-10-15; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "murphysvb"
+  ],
+  "instagram_url": "https://www.instagram.com/murphysvb/"
+ },
+ {
+  "name": "Keagan's Irish Pub",
+  "category": "Irish Pub",
+  "facebook_page": "https://www.facebook.com/KeagansVB",
+  "facebook_events": "https://www.facebook.com/KeagansVB/events",
+  "event_potential": "Town Center pub: trivia nights and live music",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.keagans.com"
+ },
+ {
+  "name": "Gringo's Taqueria",
+  "category": "Taqueria / Bar",
+  "facebook_page": "https://www.facebook.com/gringostaqueria",
+  "facebook_events": "https://www.facebook.com/gringostaqueria/events",
+  "event_potential": "ViBe taqueria at 612 Norfolk Ave; First Friday and patio events",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.gringostaqueria.com"
+ },
+ {
+  "name": "Chicho's Pizza Shore Drive",
+  "category": "Pizza / Bar",
+  "facebook_page": "https://www.facebook.com/ChichosPizzaShoreDrive",
+  "facebook_events": "https://www.facebook.com/ChichosPizzaShoreDrive/events",
+  "event_potential": "Local pizza bar since 1968 on Shore Drive; live music",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Fishtails by Ocean's 14",
+  "category": "Boardwalk Restaurant",
+  "facebook_page": "https://www.facebook.com/oceans14vb",
+  "facebook_events": "https://www.facebook.com/oceans14vb/events",
+  "event_potential": "Boardwalk seafood spot with live music",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "17th Street Stage",
+  "category": "Outdoor Stage",
+  "facebook_page": "https://www.facebook.com/17thStreetStage",
+  "facebook_events": "https://www.facebook.com/17thStreetStage/events",
+  "event_potential": "ViBe/Oceanfront outdoor stage and park: concerts and festivals",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Oceanfront Concert Series",
+  "category": "Concert Series",
+  "facebook_page": "https://www.facebook.com/OceanfrontConcertSeries",
+  "facebook_events": "https://www.facebook.com/OceanfrontConcertSeries/events",
+  "event_potential": "Free summer concerts on the beach (late May to mid-September)",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "oceanfrontconcertseries"
+  ],
+  "instagram_url": "https://www.instagram.com/oceanfrontconcertseries/"
+ },
+ {
+  "name": "Surf Club Ocean Grille",
+  "category": "Oceanfront Restaurant",
+  "facebook_page": "https://www.facebook.com/surfclub57",
+  "facebook_events": "https://www.facebook.com/surfclub57/events",
+  "event_potential": "Oceanfront grille with weekend live music",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Leaping Lizard Cafe",
+  "category": "Cafe / Bar",
+  "facebook_page": "https://www.facebook.com/LeapingLizardCafe",
+  "facebook_events": "https://www.facebook.com/LeapingLizardCafe/events",
+  "event_potential": "Shore Drive cafe (4408 Shore Dr); music and specials",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.leapinglizardcafe.com"
+ },
+ {
+  "name": "The Cafe on Shore",
+  "category": "Cafe / Bar",
+  "facebook_page": "https://www.facebook.com/thecafeonshore",
+  "facebook_events": "https://www.facebook.com/thecafeonshore/events",
+  "event_potential": "4640 Shore Dr cafe; ladies' nights with live singers",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Margie & Ray's",
+  "category": "Seafood Restaurant",
+  "facebook_page": "https://www.facebook.com/p/Margie-Rays-Restaurant-100068258477336",
+  "facebook_events": "https://www.facebook.com/p/Margie-Rays-Restaurant-100068258477336/events",
+  "event_potential": "Sandbridge Rd crabhouse; occasional music and events",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "South Beach Grill",
+  "category": "Restaurant / Live Entertainment",
+  "facebook_page": "https://www.facebook.com/SouthBeachGrillVaBeach",
+  "facebook_events": "https://www.facebook.com/SouthBeachGrillVaBeach/events",
+  "event_potential": "Promotes live entertainment",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; address not confirmed; no IG",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The Shack on 8th",
+  "category": "Outdoor Bar",
+  "event_potential": "Oceanfront outdoor bar and restaurant; live music and parties",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted web search 2026-10-15; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "theshackvb"
+  ],
+  "instagram_url": "https://www.instagram.com/theshackvb/"
+ },
+ {
+  "name": "Encore Karaoke and Entertainment",
+  "category": "Karaoke Host",
+  "event_potential": "Local karaoke host; posts weekly bar karaoke nights",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted web search 2026-10-15; organizer account",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "encorekaraoke757"
+  ],
+  "instagram_url": "https://www.instagram.com/encorekaraoke757/"
+ },
+ {
+  "name": "Hunt Club Farm",
+  "category": "Farm / Family Attraction",
+  "facebook_page": "https://www.facebook.com/HuntClubFarm",
+  "facebook_events": "https://www.facebook.com/HuntClubFarm/events",
+  "event_potential": "Pungo farm: fall pumpkin patch and corn maze, petting farm, holiday events",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "huntclubfarm"
+  ],
+  "instagram_url": "https://www.instagram.com/huntclubfarm/",
+  "website": "https://www.huntclubfarm.com"
+ },
+ {
+  "name": "City of Virginia Beach",
+  "category": "City Government (events)",
+  "facebook_page": "https://www.facebook.com/CityofVaBeach",
+  "facebook_events": "https://www.facebook.com/CityofVaBeach/events",
+  "event_potential": "City event announcements (holiday events, parks, Oceanfront); meetings are excluded",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "cityofvabeach"
+  ],
+  "instagram_url": "https://www.instagram.com/cityofvabeach/",
+  "website": "https://virginiabeach.gov"
+ }
+]
