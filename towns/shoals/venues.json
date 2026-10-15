@@ -362,7 +362,7 @@
   "facebook_events": "https://www.facebook.com/OfficialRitzSheffield/events",
   "event_potential": "Tennessee Valley Arts Association's Sheffield theater: concerts (Penn & Oldham Nov 19 2026), plays, films",
   "confidence": "high",
-  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @ritztheatresheffield; TVAA feed (tennesseevalleyarts.org) covers its shows",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @ritztheatresheffield; its shows are in local_events.yaml until Apify reads this page (tennesseevalleyarts.org blocks Railway)",
   "source": "seed",
   "tier": "HIGH",
   "instagrams": [
