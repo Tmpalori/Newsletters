@@ -279,7 +279,7 @@ These matter the moment a second town exists. All keep Victoria's values.
     with ZIP; no issue goes out without it), `NEWSLETTER_REPLY_TO`,
     `NEWSLETTER_CRON_SECRET` (Railway and the town's GitHub Environment),
     the webhook to `/api/email/inbound` (events `email.received`,
-    `email.bounced`, `email.complained`) and `RESEND_WEBHOOK_SECRET`.
+    `email.bounced`, `email.complained`, `email.delivered`) and `RESEND_WEBHOOK_SECRET`.
   - Business identity for the legal pages (`server/legal.js`):
     `BUSINESS_LEGAL_NAME` (the LLC's legal name), `BUSINESS_CONTACT_EMAIL`
     (an inbox someone reads: refunds, privacy and deletion requests, free

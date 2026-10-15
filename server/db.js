@@ -50,6 +50,23 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Soft bounces (server/inbound.js): a full mailbox or a greylist isn't a dead
+// address, but one that soft-bounces issue after issue is, and mailing it
+// forever wears down the sending domain's reputation with Gmail and Yahoo.
+// `limit` soft bounces in a run, spread over at least `minSpanMs` (a mailbox
+// full for a week, not one bad afternoon), and the address is marked bounced.
+// Bounces within `sameSendMs` of the last one count once (Resend retrying one
+// email, or two emails out the same day). The run starts over after a
+// delivery (email.delivered) or, if those aren't sent, after `resetMs` with
+// no soft bounce.
+export const SOFT_BOUNCE = {
+  limit: 4,
+  minSpanMs: 7 * 24 * 3600 * 1000,
+  sameSendMs: 12 * 3600 * 1000,
+  resetMs: 30 * 24 * 3600 * 1000
+};
+const SOFT_BOUNCE_CLEAR = { soft_bounces: 0, soft_bounce_first_at: null, soft_bounce_last_at: null };
+
 // Normalize a payload into the canonical event shape used by the rest of the
 // site so admin promotion is a straight copy. Trims strings to sane lengths
 // (defense-in-depth on top of route validation).
@@ -472,7 +489,8 @@ class FileStore {
         // comeback is a new ask and gets its own reminder.
         // weekend_optout: a fresh signup is promised both issues again.
         Object.assign(sub, { status: 'pending', token: newToken(), unsubscribed_at: null, source,
-          old_tokens: [...(sub.old_tokens || []), sub.token], pending_since: now, reminded_at: null, weekend_optout: false });
+          old_tokens: [...(sub.old_tokens || []), sub.token], pending_since: now, reminded_at: null, weekend_optout: false,
+          ...SOFT_BOUNCE_CLEAR });
         fresh = true;
       }
       await this._write(data);
@@ -547,6 +565,49 @@ class FileStore {
         if (set.has(sub.email) && sub.status === 'active') { Object.assign(sub, { status: 'bounced', bounced_at: nowIso() }); n++; }
       }
       await this._write(data);
+      return n;
+    });
+  }
+
+  // A soft bounce for these addresses (see SOFT_BOUNCE). Only active
+  // subscribers count. Returns the addresses this marked bounced.
+  async recordSoftBounce(emails, now = new Date()) {
+    const set = new Set(emails || []);
+    if (!set.size) return [];
+    const t = now.getTime();
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const bounced = [];
+      let changed = false;
+      for (const sub of data.subscribers) {
+        if (!set.has(sub.email) || sub.status !== 'active') continue;
+        const last = sub.soft_bounce_last_at ? Date.parse(sub.soft_bounce_last_at) : null;
+        if (last !== null && t - last < SOFT_BOUNCE.sameSendMs) continue;
+        if (last === null || t - last >= SOFT_BOUNCE.resetMs) Object.assign(sub, { soft_bounces: 0, soft_bounce_first_at: now.toISOString() });
+        sub.soft_bounces = (sub.soft_bounces || 0) + 1;
+        sub.soft_bounce_last_at = now.toISOString();
+        changed = true;
+        if (sub.soft_bounces >= SOFT_BOUNCE.limit && t - Date.parse(sub.soft_bounce_first_at) >= SOFT_BOUNCE.minSpanMs) {
+          Object.assign(sub, { status: 'bounced', bounced_at: now.toISOString() });
+          bounced.push(sub.email);
+        }
+      }
+      if (changed) await this._write(data);
+      return bounced;
+    });
+  }
+
+  // A delivery (email.delivered) ends a run of soft bounces.
+  async clearSoftBounces(emails) {
+    const set = new Set(emails || []);
+    if (!set.size) return 0;
+    return this._withWrite(async () => {
+      const data = await this._read();
+      let n = 0;
+      for (const sub of data.subscribers) {
+        if (set.has(sub.email) && sub.soft_bounces) { Object.assign(sub, SOFT_BOUNCE_CLEAR); n++; }
+      }
+      if (n) await this._write(data);
       return n;
     });
   }
@@ -1448,6 +1509,10 @@ class PgStore {
         await addColumn('subscribers', 'pending_since', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ');
         // Turned off the Thursday weekend issue (still gets Monday's).
         await addColumn('subscribers', 'weekend_optout', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS weekend_optout BOOLEAN NOT NULL DEFAULT FALSE');
+        // A run of soft bounces (FileStore.recordSoftBounce, SOFT_BOUNCE).
+        await addColumn('subscribers', 'soft_bounces', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounces INT NOT NULL DEFAULT 0');
+        await addColumn('subscribers', 'soft_bounce_first_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_first_at TIMESTAMPTZ');
+        await addColumn('subscribers', 'soft_bounce_last_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_last_at TIMESTAMPTZ');
         await this.pool.query(`
           CREATE TABLE IF NOT EXISTS newsletter_sends (
             week_key TEXT PRIMARY KEY,
@@ -1763,7 +1828,8 @@ class PgStore {
       // unsubscribing (Gmail's Unsubscribe on an older issue still works).
       const row = (await this.pool.query(
         `UPDATE subscribers SET status = 'pending', old_tokens = array_append(old_tokens, token), token = $2,
-           unsubscribed_at = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE WHERE email = $1 RETURNING *`,
+           unsubscribed_at = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE,
+           soft_bounces = 0, soft_bounce_first_at = NULL, soft_bounce_last_at = NULL WHERE email = $1 RETURNING *`,
         [email, newToken(), source])).rows[0];
       return { ...row, new_signup: true };
     }
@@ -1827,6 +1893,40 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query(
       `UPDATE subscribers SET status = 'bounced' WHERE email = ANY($1::text[]) AND status = 'active'`, [emails]);
+    return r.rowCount;
+  }
+
+  // See FileStore.recordSoftBounce. Count first, then mark the ones whose
+  // run is long enough; the second statement re-checks, so it's safe alone.
+  async recordSoftBounce(emails, now = new Date()) {
+    if (!emails || !emails.length) return [];
+    await this.ready();
+    const ms = v => `${v} milliseconds`;
+    const counted = await this.pool.query(
+      `UPDATE subscribers SET
+         soft_bounces = CASE WHEN soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $4::interval THEN 1 ELSE soft_bounces + 1 END,
+         soft_bounce_first_at = CASE WHEN soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $4::interval THEN $2::timestamptz ELSE soft_bounce_first_at END,
+         soft_bounce_last_at = $2::timestamptz
+       WHERE email = ANY($1::text[]) AND status = 'active'
+         AND (soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $3::interval)`,
+      [emails, now.toISOString(), ms(SOFT_BOUNCE.sameSendMs), ms(SOFT_BOUNCE.resetMs)]);
+    if (!counted.rowCount) return [];
+    const r = await this.pool.query(
+      `UPDATE subscribers SET status = 'bounced'
+       WHERE email = ANY($1::text[]) AND status = 'active' AND soft_bounces >= $2
+         AND soft_bounce_last_at - soft_bounce_first_at >= $3::interval
+       RETURNING email`,
+      [emails, SOFT_BOUNCE.limit, ms(SOFT_BOUNCE.minSpanMs)]);
+    return r.rows.map(row => row.email);
+  }
+
+  // See FileStore.clearSoftBounces.
+  async clearSoftBounces(emails) {
+    if (!emails || !emails.length) return 0;
+    await this.ready();
+    const r = await this.pool.query(
+      `UPDATE subscribers SET soft_bounces = 0, soft_bounce_first_at = NULL, soft_bounce_last_at = NULL
+       WHERE email = ANY($1::text[]) AND soft_bounces > 0`, [emails]);
     return r.rowCount;
   }
 
