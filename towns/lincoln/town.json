@@ -1,4 +1,5 @@
 {
+  "workflows": false,
   "siteName": "The Star 402",
   "domain": "thestar402.com",
   "city": "Lincoln",
@@ -199,5 +200,10 @@
   "limits": {
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15
+  },
+  "schedule": {
+    "newsletter": "08:03",
+    "newsletter-weekend": "07:20",
+    "sponsor-reports": "09:20"
   }
 }
