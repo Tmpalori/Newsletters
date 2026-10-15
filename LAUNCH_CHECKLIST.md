@@ -11,6 +11,8 @@ issue and tick it off.
 
 ## 1. Pick the town (Owner)
 
+- [ ] Fits GROWTH_STRATEGY.md (trade area 75k to 500k, its own identity,
+      no established competitor).
 - [ ] Town, state, newsletter name (house style: a local nickname plus the
       area code, e.g. The Crane 308) and domain, bought on the Cloudflare
       account. Sizing: judge the trade area (county or a 25 to 35 mile
@@ -133,3 +135,8 @@ Built once in the shared code, turned on per town:
 - [ ] **Venue outreach**: each week, the venues with an upcoming listed
       event get an email offering a featured pick for that event, with
       checkout prefilled.
+
+## Paused towns
+
+A town can be paused at near-zero cost and resumed later: see
+GROWTH_STRATEGY.md, Portfolio.
