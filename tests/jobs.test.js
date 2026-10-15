@@ -122,6 +122,20 @@ describe('jobs API', () => {
     expect(t.slack.notes.map(n => n.title)).toContain('✅ Submission review working again');
   });
 
+  it('a review whose AI is down alerts on that one failed run (the passes between never build a streak)', async () => {
+    const t = await start();
+    const run = async (slot, status, result) => {
+      await t.store.enqueueJob('submission-review', slot, {}, NOW);
+      const { job } = await (await t.call('POST', '/api/jobs/claim')).json();
+      await t.call('POST', `/api/jobs/${job.id}/finish`, { status, result });
+    };
+    await run('a1', 'failed', { error: 'exited 1', log_tail: ["::error::The AI review can't run: OpenAI 429 insufficient_quota. Submissions are waiting; fix the key or credit."] });
+    expect(t.slack.alerts.map(a => a.title)).toEqual(['Submission review: the AI can’t run (key or credit); submissions are waiting']);
+    await run('a2', 'done', {});                 // the next runs pass (already alerted)
+    await run('a3', 'failed', { error: 'exited 1', log_tail: ['Site 500'] });   // an ordinary failure still waits for 4
+    expect(t.slack.alerts).toHaveLength(1);
+  });
+
   it('one of a kind at a time: Pull Now twice queues one collect; a worker back after a day finds one review', async () => {
     const t = await start();
     const login = await (await fetch(t.base + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },

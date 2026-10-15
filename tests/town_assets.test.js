@@ -128,4 +128,19 @@ describe('a new town never serves Victoria’s data from docs/', () => {
     const res = await fetch(base + '/social/latest/kit.json');
     expect(res.status).toBe(404);
   });
+
+  // express.static decodes %-escapes, so other spellings must be caught too.
+  it('no URL spelling reaches Victoria’s raw events, social kit, homepage or submit form', async () => {
+    for (const p of ['/%65vents.json', '/EVENTS.JSON']) {
+      const res = await fetch(base + p);
+      expect(await res.json()).toEqual({ last_updated: null, events: [] });
+    }
+    for (const p of ['/%73ocial/latest/index.html', '/Social/latest/kit.json']) {
+      expect((await fetch(base + p, { redirect: 'manual' })).status).toBe(404);
+    }
+    for (const [p, to] of [['/index', '/'], ['/%69ndex.html', '/'], ['/%73ubmit', '/submit'], ['/%73ubmit.html', '/submit']]) {
+      const res = await fetch(base + p, { redirect: 'manual' });
+      expect([res.status, res.headers.get('location')]).toEqual([301, to]);
+    }
+  });
 });
