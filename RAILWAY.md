@@ -233,8 +233,8 @@ instead of GitHub Actions, so it needs no GitHub Environment, no
 `GITHUB_TOKEN` and no copied cron secrets, and a collect publishes without
 a commit or a redeploy.
 
-1. **On the town's web service:** `JOBS_SECRET` = `${{ secret(48) }}`
-   (Railway generates it; nobody sees or copies it) and
+1. **On the town's web service:** `JOBS_SECRET` = `${{SUBMISSION_REVIEW_SECRET}}`
+   (a reference to the town's own fresh secret, so nothing is copied) and
    `JOBS_ON_RAILWAY=1`. Its scheduler and Pull Now then queue jobs in the
    town's database (`server/jobs.js`).
 2. **Project-shared variables (once, for every town):** `APIFY_TOKEN`,
