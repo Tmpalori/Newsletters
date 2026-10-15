@@ -30,11 +30,14 @@ let tmpDir, server, baseUrl, store, sent, nlApi;
 const TURNSTILE_PASS = async () => ({ ok: true, json: async () => ({ success: true }) });
 let autoToken = false;
 
+// Each app gets its own outbox: a welcome email the previous test's app sends
+// late (after its response) must not land in the next test's `sent`.
 function fakeResend() {
-  sent = { single: [], batches: [] };
+  const box = { single: [], batches: [] };
+  sent = box;
   return {
-    send: async (msg) => { sent.single.push(msg); return { id: 'e1' }; },
-    batch: async (msgs, key) => { sent.batches.push({ msgs, key }); return { data: msgs.map((_, i) => ({ id: `b${i}` })) }; }
+    send: async (msg) => { box.single.push(msg); return { id: 'e1' }; },
+    batch: async (msgs, key) => { box.batches.push({ msgs, key }); return { data: msgs.map((_, i) => ({ id: `b${i}` })) }; }
   };
 }
 
@@ -49,7 +52,7 @@ async function startApp(extra = {}) {
     storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, now: () => NOW,
     siteUrl: 'https://www.thevic361.com', adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c',
     resendApiKey: 're_test', newsletterAddress: '123 Main St, Victoria, TX 77901',
-    newsletterCronSecret: 'cron-secret', resend: fakeResend(), ...extra
+    newsletterCronSecret: 'cron-secret', ...(extra.resend ? {} : { resend: fakeResend() }), ...extra
   });
   const { app } = made;
   nlApi = made.newsletter;

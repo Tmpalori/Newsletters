@@ -105,9 +105,11 @@ Each phase is its own PR with tests. Victoria's output must not change
       `Dockerfile.jobs` (Python, its requirements, ffmpeg later for reels).
 - [x] Jobs: weekly collect, event check, submission review. Social kit and
       ads report come with a town's Meta accounts (phase 2b).
-- [ ] Railway: `thecrane308-jobs` service, its references, shared project
+- [x] Railway: `thecrane308-jobs` service, its references, shared project
       variables for the shared keys; then `JOBS_ON_RAILWAY=1` on Kearney and
       `"workflows": false` in its `town.json` so GitHub stops collecting it.
+      (The shared APIFY_TOKEN, OPENAI_API_KEY and GEMINI_API_KEY values are
+      the owner's to paste in once.)
 - [x] Docs: RAILWAY.md "New town" rewritten for this setup; LAUNCH.md's
       GitHub steps removed for new towns.
 
@@ -142,7 +144,11 @@ Each phase is its own PR with tests. Victoria's output must not change
       events a day in a 17-day window: Medford 19, Shoals 9.4, Kearney 8,
       Tupelo 7; Kearney's first full run with FB/IG was 12 against
       Victoria's 15.)
-- [ ] Tupelo, Medford, The Shoals.
+- [x] Tupelo, Medford, The Shoals: web, jobs and Postgres services, domains
+      and Cloudflare DNS (apex redirects to www), registered in HQ
+      (`HQ_TOWN_<SLUG>`, `HQ_SSO_<SLUG>`, `HQ_REPLY_<SLUG>`), first collect
+      run on the jobs worker (October 15, 2026). A town that boots after its
+      Wednesday or Sunday collect window gets its first collect from Pull Now.
 
 ### Phase 5: Victoria moves (after the others run cleanly for 2+ weeks)
 
