@@ -14,6 +14,7 @@ import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
 import { createJobs, kindForWorkflow, upcomingCount } from '../server/jobs.js';
+import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
 const SECRET = 's'.repeat(40);
@@ -190,7 +191,9 @@ describe('jobs API', () => {
 });
 
 describe('the scheduler with jobs on Railway', () => {
-  it('queues the jobs the worker runs instead of starting GitHub workflows, and leaves the rest', async () => {
+  afterEach(() => useTown(VICTORIA));
+
+  async function run() {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-jobs-'));
     dirs.push(dir);
     const store = new FileStore(path.join(dir, 's.json'));
@@ -201,9 +204,21 @@ describe('the scheduler with jobs on Railway', () => {
       canQueue: job => Boolean(kindForWorkflow(job.workflow)) });
     await s.tick(new Date('2026-10-07T13:48:00Z'));     // ads, social kit and the review are due
     await s.tick(new Date('2026-10-07T20:30:00Z'));     // Wednesday's collect
-    expect(github.calls).toEqual([]);
+    return { github, queued };
+  }
+
+  it('queues the jobs the worker runs; Victoria\'s social kit and ads report still start on GitHub, on time', async () => {
+    const { github, queued } = await run();
+    expect(github.calls).toEqual(['meta-ads.yml', 'social-kit.yml']);
     expect(queued.map(q => q[0])).toEqual(['submission-review', 'collect', 'submission-review']);
     expect(new Set(queued.map(q => q[1])).size).toBe(3);
+  });
+
+  it('a town whose GitHub workflows are off starts nothing on GitHub', async () => {
+    useTown(townConfig({ TOWN: 'kearney' }));       // "workflows": false
+    const { github, queued } = await run();
+    expect(github.calls).toEqual([]);
+    expect(queued.map(q => q[0])).toEqual(['submission-review', 'collect', 'submission-review']);
   });
 });
 

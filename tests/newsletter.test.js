@@ -1692,8 +1692,10 @@ describe('reply ask and open counting', () => {
     const pixels = sent.batches.flatMap(b => b.msgs).map(m => m.html.match(/<img src="https:\/\/www\.thevic361\.com(\/email\/o\/[^"]+)"/)[1]);
     expect(pixels).toHaveLength(150);
     for (const p of pixels) await fetch(baseUrl + p); // all from 127.0.0.1, like Gmail's proxy
+    // Each open is saved after its response, one rewrite of the file store at
+    // a time; 150 of them took over 3 s on a CI runner.
     await vi.waitFor(async () => {
       expect(await store.countEmailOpens(['2026-10-05'])).toEqual({ '2026-10-05': 150 });
-    }, { timeout: 3000 });
-  });
+    }, { timeout: 20000, interval: 200 });
+  }, 30000);
 });
