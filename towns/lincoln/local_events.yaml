@@ -1,2 +1,813 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── The Star 402 — Local Events (Lincoln, NE) ──────────────────────────────
+# Manually curated events and recurring events for Lincoln and Lancaster
+# County.
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# Keep recurring events to genuinely interesting "things to do":
+# not daily restaurant specials or repeated toddler sessions.
+#
+# The town feeds already pull events.unl.edu (Lied, Sheldon, Kimball, Husker
+# soccer), the Zoo Bar and Crescent Moon calendars, Lincoln Stars, Nebraska
+# Wesleyan, Francie & Finch and the Capitol, and the collector dedups, so
+# entries here are the backbone: weekly staples that must never drop off,
+# plus big one-time dates we want to plan ahead for (Husker home games and
+# Pinnacle Bank Arena shows have no machine-readable feed).
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#   town: "Raymond"  a nearby-town event (only big ones belong here)
+# Each day shows its best 15 events Mon–Thu and 20 Fri–Sun.
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line.
+# Haymarket Farmers' Market ended its 2026 season Oct 10; add it back for
+# May 2027 (Saturdays 8 AM - noon, 7th & P St).
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── MONDAY ────────────────────────────────────────────────────────────
+
+  - name: "Comedy Night at Duffy's"
+    day: monday
+    time: ""
+    venue: "Duffy's Tavern"
+    address: "1412 O St"
+    description: "Live stand-up every Monday at the downtown bar that has hosted everyone from Nirvana to Bright Eyes. Local comics plus touring acts passing through."
+    icons: [drinks, community]
+    free: false
+    url: "https://www.duffyslincoln.com"
+    favorite: true
+    # VERIFIED: duffyslincoln.com home page 2026-10-15 ('live comedy on Monday night'); start time not listed
+
+  - name: "Trivia Night at the Barred Owl"
+    day: monday
+    time: "7:00 PM"
+    venue: "Barred Owl at The Scarlet Hotel"
+    address: "2101 Transformation Dr, 6th Floor"
+    description: "America's Pub Quiz team trivia at the Scarlet Hotel's rooftop bar on Nebraska Innovation Campus."
+    icons: [drinks, community, free]
+    free: true
+    url: "https://americaspubquiz.com/events/nebraska/lincoln-league"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026); also listed on events.unl.edu Oct 19, 26, Nov 2
+
+  - name: "Bluegrass Jam at the Zoo Bar"
+    day: monday
+    time: "7:30 PM – 9:30 PM"
+    venue: "Zoo Bar"
+    address: "136 N 14th St"
+    description: "All pickers welcome: bring a banjo, fiddle or guitar and join the circle, or grab a drink and listen."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://zoobar.com"
+    # VERIFIED: Zoo Bar Google Calendar (zoobarevents) 2026-10-15 (weekly through Nov 2026) (listed Oct 19)
+
+  # ── TUESDAY ───────────────────────────────────────────────────────────
+
+  - name: "Trivia at Bison Witches"
+    day: tuesday
+    time: "7:00 PM"
+    venue: "Bison Witches Bar & Deli"
+    address: "1320 P St #100"
+    description: "Weekly team trivia downtown with bread bowls and drink specials."
+    icons: [drinks, food, free]
+    free: true
+    url: "https://www.bisonwitcheslincoln.com"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026)
+
+  - name: "Trivia at The Tam"
+    day: tuesday
+    time: "7:00 PM"
+    venue: "The Tam"
+    address: "105 S 25th St"
+    description: "Neighborhood bar trivia night, America's Pub Quiz style."
+    icons: [drinks, free]
+    free: true
+    url: "https://americaspubquiz.com/events/nebraska/lincoln-league"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026)
+
+  - name: "Shake a Tail Feather Tuesday"
+    day: tuesday
+    time: "9:00 PM – 11:55 PM"
+    venue: "Zoo Bar"
+    address: "136 N 14th St"
+    description: "Weekly late-night soul, funk and R&B dance party at Lincoln's legendary blues bar."
+    icons: [music, drinks]
+    free: false
+    url: "https://zoobar.com"
+    favorite: true
+    # VERIFIED: Zoo Bar Google Calendar (zoobarevents) 2026-10-15 (weekly through Nov 2026) (Oct 20, 27, Nov 3, 10)
+
+  # ── WEDNESDAY ─────────────────────────────────────────────────────────
+
+  - name: "Writers' Night: Open Mic"
+    day: wednesday
+    time: "6:30 PM – 9:00 PM"
+    venue: "Crescent Moon Coffee"
+    address: "140 N 8th St"
+    description: "Poetry and prose open mic in the Haymarket, hosted by Jeff Martinson. Sign up at 6:30. Free; buy a drink if you take a seat."
+    icons: [arts, community, free]
+    free: true
+    url: "https://www.crescentmooncoffee.com/events"
+    favorite: true
+    # VERIFIED: crescentmooncoffee.com/events 2026-10-15 (weekly through Dec 2026)
+
+  - name: "Trivia at HopCat"
+    day: wednesday
+    time: "7:00 PM"
+    venue: "HopCat Lincoln"
+    address: "601 P St"
+    description: "Weekly team trivia in the Haymarket with a huge craft beer list and Cosmik Fries."
+    icons: [drinks, food, free]
+    free: true
+    url: "https://www.hopcat.com/lincoln"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026)
+
+  - name: "Trivia at Brewsky's East"
+    day: wednesday
+    time: "7:00 PM"
+    venue: "Brewsky's Food & Spirits East"
+    address: "2840 S 70th St"
+    description: "Wednesday team trivia at the south Lincoln sports bar."
+    icons: [drinks, food, free]
+    free: true
+    url: "https://www.brewskys.com"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026)
+
+  # ── THURSDAY ──────────────────────────────────────────────────────────
+
+  - name: "Songwriters' Night: Open Mic"
+    day: thursday
+    time: "6:30 PM – 9:00 PM"
+    venue: "Crescent Moon Coffee"
+    address: "140 N 8th St"
+    description: "Lincoln's long-running singer-songwriter open mic, hosted by Mark Lowe. Sign up at 6 PM; first-timers welcome."
+    icons: [music, community, free]
+    free: true
+    url: "https://www.crescentmooncoffee.com/events"
+    favorite: true
+    # VERIFIED: crescentmooncoffee.com/events 2026-10-15 (weekly through Dec 2026)
+
+  - name: "The Jazzocracy at the Zoo Bar"
+    day: thursday
+    time: "7:00 PM – 9:00 PM"
+    venue: "Zoo Bar"
+    address: "136 N 14th St"
+    description: "Weekly early-evening jazz set before the late show."
+    icons: [music, drinks]
+    free: false
+    url: "https://zoobar.com"
+    # VERIFIED: Zoo Bar Google Calendar (zoobarevents) 2026-10-15 (weekly through Nov 2026) (Oct 22, 29, Nov 5, 12)
+
+  - name: "Live Band Karaoke at the Zoo Bar"
+    day: thursday
+    time: "9:30 PM – 11:55 PM"
+    venue: "Zoo Bar"
+    address: "136 N 14th St"
+    description: "Sing your pick with a full live band behind you. A Lincoln Thursday tradition."
+    icons: [music, drinks]
+    free: false
+    url: "https://zoobar.com"
+    favorite: true
+    # VERIFIED: Zoo Bar Google Calendar (zoobarevents) 2026-10-15 (weekly through Nov 2026) (Oct 22, 29, Nov 5, 12); also Visit Nebraska 'Stage Fright Cures' guide
+
+  - name: "Trivia at Barrymore's"
+    day: thursday
+    time: "7:00 PM"
+    venue: "Barrymore's"
+    address: "124 N 13th St"
+    description: "Thursday trivia at the cocktail bar tucked behind the Rococo Theatre."
+    icons: [drinks, free]
+    free: true
+    url: "https://www.facebook.com/barrymoreslincoln"
+    # VERIFIED: americaspubquiz.com Lincoln league listing 2026-10-15 (weekly, Oct 15 - Nov 12 2026) (off Oct 15 for volleyball)
+
+  # ── SATURDAY ──────────────────────────────────────────────────────────
+
+  - name: "Zoo Lights Powered by LES"
+    day: saturday
+    time: "5:30 PM – 9:30 PM"
+    venue: "Lincoln Children's Zoo"
+    address: "1222 S 27th St"
+    description: "One of the Midwest's biggest holiday light shows: choreographed light shows, light tunnels, holiday train rides, s'mores and cocoa. Timed tickets; buy ahead."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.lincolnzoo.org/events/zoo-lights.html"
+    start_date: "2026-11-21"
+    end_date: "2026-12-26"
+    favorite: true
+    # VERIFIED: lincolnzoo.org/events/zoo-lights.html 2026-10-15 (nightly Nov 20 - Dec 30 2026, 5:30-9:30 pm; closed Thanksgiving, Dec 24-25). Saturdays listed here; opening night is a one-time entry
+
+
+# ─── ONE-TIME EVENTS ─────────────────────────────────────────────────────────
+# Dated events in order.
+events:
+
+  - date: "2026-10-17"
+    name: "Husker Volleyball vs. No. 13 Purdue"
+    time: "4:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    big: true
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-10-17"
+    name: "PBR: Ram Challenger Series"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Professional bull riding comes to the arena."
+    icons: [community]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-10-21"
+    name: "Halloween in the Haymarket"
+    time: "5:30 PM – 8:00 PM"
+    venue: "Railyard and Iron Horse Park"
+    address: "Canopy St"
+    description: "Free family trick-or-treat party: Canopy Street closes and Haymarket businesses hand out candy, with games and entertainment at the Railyard. Costumes encouraged."
+    icons: [family, community, free]
+    free: true
+    url: "https://downtownlincoln.org/haymarket/events/halloween-in-the-haymarket"
+    big: true
+    # VERIFIED: downtownlincoln.org Halloween in the Haymarket 2026 page 2026-10-15
+
+  - date: "2026-10-22"
+    name: "Husker Volleyball vs. UCLA"
+    time: "6:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-10-24"
+    name: "Husker Volleyball vs. USC"
+    time: "8:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-10-26"
+    name: "Chris Stapleton's All-American Road Show"
+    time: "7:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Chris Stapleton (rescheduled date) with Ricky Skaggs and Kentucky Thunder."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    big: true
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-10-30"
+    name: "Ella Langley"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Country star Ella Langley with Kameron Marlowe and Gabriella Rose."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    big: true
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-10-31"
+    name: "Husker Football vs. Washington"
+    time: ""
+    venue: "Memorial Stadium"
+    address: "1 Memorial Stadium Dr"
+    description: "Halloween home game in the Sea of Red. Kickoff time TBA; watch huskers.com for the TV slot."
+    icons: [outdoors, community]
+    free: false
+    url: "https://huskers.com/sports/football/schedule"
+    big: true
+    # VERIFIED: huskers.com football schedule 2026-10-15 (home game, kickoff TBA)
+
+  - date: "2026-11-02"
+    name: "Husker Men's Basketball vs. Le Moyne"
+    time: "6:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-02"
+    name: "Husker Women's Basketball vs. San Jose State"
+    time: "12:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-06"
+    name: "First Friday Artwalk"
+    time: "5:00 PM – 10:00 PM"
+    venue: "Downtown Lincoln galleries"
+    address: "Haymarket and downtown, 7th to 17th St"
+    description: "Gallery openings and receptions across downtown and the Haymarket: Burkholder Project, Parrish Studios, Metro Gallery, Sheldon and more. Free to wander."
+    icons: [arts, community, free]
+    free: true
+    url: "https://downtownlincoln.org/explore/first-friday"
+    # VERIFIED: downtownlincoln.org/explore/first-friday 2026-10-15 (first Friday monthly, ~5-10 PM); Metro Gallery 2026 First Friday schedule lists Nov 6
+
+  - date: "2026-11-07"
+    name: "Husker Women's Basketball vs. Western Illinois"
+    time: "2:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-08"
+    name: "Husker Wrestling vs. Wyoming"
+    time: "3:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2026-11-10"
+    name: "Husker Women's Basketball vs. North Carolina A&T"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-11"
+    name: "Husker Men's Basketball vs. Lindenwood"
+    time: "8:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-12"
+    name: "Husker Volleyball vs. Illinois"
+    time: "6:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-11-14"
+    name: "Hot Wheels Monster Trucks Live Glow-N-Fire"
+    time: ""
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Glow-in-the-dark monster truck show for the whole family. Showtimes on the arena site."
+    icons: [family]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15 (Nov 14-15)
+
+  - date: "2026-11-14"
+    name: "Husker Volleyball vs. Iowa"
+    time: ""
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports. Time TBA."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-11-15"
+    name: "Hot Wheels Monster Trucks Live Glow-N-Fire"
+    time: ""
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Glow-in-the-dark monster truck show for the whole family. Showtimes on the arena site."
+    icons: [family]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15 (Nov 14-15)
+
+  - date: "2026-11-17"
+    name: "Husker Volleyball vs. Minnesota"
+    time: "7:30 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "No. 1 Nebraska volleyball at home in the Devaney Center, one of the loudest gyms in college sports."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/volleyball/schedule"
+    # VERIFIED: huskers.com volleyball schedule 2026-10-15
+
+  - date: "2026-11-17"
+    name: "Husker Women's Basketball vs. Mount St. Mary's"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-18"
+    name: "Husker Men's Basketball vs. South Dakota"
+    time: "7:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-19"
+    name: "Zac Brown Band"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Zac Brown Band with special guest Grace Potter."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    big: true
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-11-20"
+    name: "Third Day, Chris Tomlin and TobyMac"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Three Christian music headliners on one bill."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-11-20"
+    name: "Zoo Lights Opening Night"
+    time: "5:30 PM – 9:30 PM"
+    venue: "Lincoln Children's Zoo"
+    address: "1222 S 27th St"
+    description: "Zoo Lights Powered by LES opens: light shows set to holiday music, light tunnels, 30+ lit animals, train rides, s'mores and cocoa. Runs nightly through Dec 30 (closed Thanksgiving, Dec 24-25). Timed tickets."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.lincolnzoo.org/events/zoo-lights.html"
+    big: true
+    # VERIFIED: lincolnzoo.org/events/zoo-lights.html 2026-10-15 (Nov 20 - Dec 30 2026)
+
+  - date: "2026-11-21"
+    name: "Husker Football vs. Ohio State"
+    time: ""
+    venue: "Memorial Stadium"
+    address: "1 Memorial Stadium Dr"
+    description: "Final home game of the season against Ohio State. Kickoff time TBA."
+    icons: [outdoors, community]
+    free: false
+    url: "https://huskers.com/sports/football/schedule"
+    big: true
+    # VERIFIED: huskers.com football schedule 2026-10-15 (home game, kickoff TBA)
+
+  - date: "2026-11-24"
+    name: "Husker Women's Basketball vs. Kansas City"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-25"
+    name: "Husker Men's Basketball vs. Southern"
+    time: "4:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-01"
+    name: "Husker Women's Basketball vs. Omaha"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-02"
+    name: "Husker Men's Basketball vs. Ohio State"
+    time: "7:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-04"
+    name: "First Friday Artwalk"
+    time: "5:00 PM – 10:00 PM"
+    venue: "Downtown Lincoln galleries"
+    address: "Haymarket and downtown, 7th to 17th St"
+    description: "Gallery openings and receptions across downtown and the Haymarket: Burkholder Project, Parrish Studios, Metro Gallery, Sheldon and more. Free to wander."
+    icons: [arts, community, free]
+    free: true
+    url: "https://downtownlincoln.org/explore/first-friday"
+    # VERIFIED: downtownlincoln.org/explore/first-friday 2026-10-15 (first Friday monthly, ~5-10 PM); Metro Gallery 2026 First Friday schedule lists Nov 6
+
+  - date: "2026-12-05"
+    name: "Breakfast with Santa"
+    time: "8:00 AM – 11:00 AM"
+    venue: "Courtyard Marriott Haymarket"
+    address: "8th & R St"
+    description: "Hot breakfast by Lazlo's, selfies with Santa, swag bags, a coloring contest and Santa's mailbox. $15 ages 4+, free 3 and under."
+    icons: [family, food]
+    free: false
+    url: "https://downtownlincoln.org/haymarket/events/breakfast-with-santa"
+    # VERIFIED: downtownlincoln.org Breakfast with Santa 2026 page 2026-10-15
+
+  - date: "2026-12-05"
+    name: "Christmas Together: Amy Grant, Michael W. Smith and CeCe Winans"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Holiday concert with three Christian and pop favorites."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-12-06"
+    name: "Holiday Carols Concert"
+    time: "2:00 PM"
+    venue: "Nebraska State Capitol Rotunda"
+    address: "1445 K St"
+    description: "Free holiday carols under the Capitol's mosaic dome."
+    icons: [music, free]
+    free: true
+    url: "https://capitol.nebraska.gov"
+    # VERIFIED: capitol.nebraska.gov events calendar (tribe feed) 2026-10-15
+
+  - date: "2026-12-08"
+    name: "Husker Women's Basketball vs. North Dakota"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-10"
+    name: "Jonas Brothers: The Burning Up Tour, All Over Again"
+    time: "7:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "The Jonas Brothers with special guest Magnus Ferrell."
+    icons: [music]
+    free: false
+    url: "https://www.pinnaclebankarena.com"
+    big: true
+    # VERIFIED: pinnaclebankarena.com events listing 2026-10-15
+
+  - date: "2026-12-12"
+    name: "Husker Women's Basketball vs. Texas A&M"
+    time: "11:00 AM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-17"
+    name: "Husker Men's Basketball vs. Mount St. Mary's"
+    time: "6:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-19"
+    name: "Husker Wrestling vs. Campbell"
+    time: "6:00 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2026-12-20"
+    name: "Husker Men's Basketball vs. FDU"
+    time: "3:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-20"
+    name: "Husker Wrestling vs. Virginia"
+    time: "1:30 PM"
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2026-12-29"
+    name: "Husker Women's Basketball vs. Washington"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-12-30"
+    name: "Husker Men's Basketball vs. New Haven"
+    time: "1:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-02"
+    name: "Husker Men's Basketball vs. Michigan State"
+    time: "2:45 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-05"
+    name: "Husker Men's Basketball vs. Michigan"
+    time: "6:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-10"
+    name: "Husker Women's Basketball vs. Michigan State"
+    time: "3:30 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-13"
+    name: "Husker Women's Basketball vs. Michigan"
+    time: "6:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-15"
+    name: "Husker Wrestling vs. Rutgers"
+    time: ""
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center. Time TBA."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2027-01-16"
+    name: "Husker Men's Basketball vs. Iowa"
+    time: "7:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-17"
+    name: "Husker Women's Basketball vs. Ohio State"
+    time: ""
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket. Time TBA."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-22"
+    name: "Husker Men's Basketball vs. UCLA"
+    time: "8:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska men's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/mens-basketball/schedule"
+    # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2027-01-24"
+    name: "Husker Wrestling vs. Illinois"
+    time: ""
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center. Time TBA."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2027-01-29"
+    name: "Husker Wrestling vs. Indiana"
+    time: ""
+    venue: "Bob Devaney Sports Center"
+    address: "1600 Court St"
+    description: "Nebraska wrestling dual at the Devaney Center. Time TBA."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/wrestling/schedule"
+    # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2027-01-31"
+    name: "Husker Women's Basketball vs. Oregon"
+    time: "1:00 PM"
+    venue: "Pinnacle Bank Arena"
+    address: "400 Pinnacle Arena Dr"
+    description: "Nebraska women's basketball at home in the Haymarket."
+    icons: [community]
+    free: false
+    url: "https://huskers.com/sports/womens-basketball/schedule"
+    # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
