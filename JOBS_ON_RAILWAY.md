@@ -89,25 +89,25 @@ Each phase is its own PR with tests. Victoria's output must not change
 
 ### Phase 2: the jobs worker (Kearney first)
 
-- [ ] Database: `job_queue` (id, job, slot, status, queued/started/finished,
+- [x] Database: `job_queue` (id, job, slot, status, queued/started/finished,
       result json) and `town_files` (name, json, updated) on both stores.
-- [ ] Web: `server/jobs.js` with internal routes, `JOBS_SECRET` only:
+- [x] Web: `server/jobs.js` with internal routes, `JOBS_SECRET` only:
       `POST /api/jobs/claim`, `POST /api/jobs/:id/finish`,
       `GET|PUT /api/jobs/files/:name`. A finished collect auto-publishes.
-- [ ] Web: `autopublish` and the admin Sources tab read candidates and
+- [x] Web: `autopublish` and the admin Sources tab read candidates and
       metadata from `town_files` first, the bundled file second (Victoria
       keeps her files until phase 5).
-- [ ] Web: the scheduler queues jobs instead of dispatching GitHub when
+- [x] Web: the scheduler queues jobs instead of dispatching GitHub when
       `JOBS_ON_RAILWAY=1`; Pull Now likewise; a stuck job (worker gone) is
       released after its time limit and alerts once.
-- [ ] Worker: `scripts/jobs_worker.py` (poll, run, report, upload) and
+- [x] Worker: `scripts/jobs_worker.py` (poll, run, report, upload) and
       `Dockerfile.jobs` (Python, its requirements, ffmpeg later for reels).
-- [ ] Jobs: weekly collect, event check, submission review. Social kit and
+- [x] Jobs: weekly collect, event check, submission review. Social kit and
       ads report come with a town's Meta accounts (phase 2b).
 - [ ] Railway: `thecrane308-jobs` service, its references, shared project
       variables for the shared keys; then `JOBS_ON_RAILWAY=1` on Kearney and
       `"workflows": false` in its `town.json` so GitHub stops collecting it.
-- [ ] Docs: RAILWAY.md "New town" rewritten for this setup; LAUNCH.md's
+- [x] Docs: RAILWAY.md "New town" rewritten for this setup; LAUNCH.md's
       GitHub steps removed for new towns.
 
 ### Phase 2b: social kit and ads on the worker

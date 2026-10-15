@@ -225,6 +225,50 @@ check passes, including 10+ upcoming events, a collect in the last 8 days
 and workflows on), its manual list, and `python3 scripts/live_check.py`
 for Victoria before and after.
 
+## Jobs on Railway (a town's jobs service)
+
+JOBS_ON_RAILWAY.md is the plan; this is the setup. A town on it runs its
+collect, event check and submission review on its own **jobs service**
+instead of GitHub Actions, so it needs no GitHub Environment, no
+`GITHUB_TOKEN` and no copied cron secrets, and a collect publishes without
+a commit or a redeploy.
+
+1. **On the town's web service:** `JOBS_SECRET` = `${{ secret(48) }}`
+   (Railway generates it; nobody sees or copies it) and
+   `JOBS_ON_RAILWAY=1`. Its scheduler and Pull Now then queue jobs in the
+   town's database (`server/jobs.js`).
+2. **Project-shared variables (once, for every town):** `APIFY_TOKEN`,
+   `OPENAI_API_KEY`, `GEMINI_API_KEY`. These three are the only shared
+   secrets: every town already uses the same accounts, capped per town by
+   `limits` in its `town.json`. Never share a town's own secrets.
+3. **The jobs service:** a new service named `<domain>-jobs` from this repo
+   (`main`), in `production` only, built from `Dockerfile.jobs`, no domain,
+   watch paths `/*.py`, `/scripts/**`, `/requirements.txt`,
+   `/Dockerfile.jobs`, `/towns/<slug>/**`, `/towns/*/town.json`. Its
+   variables, all references, so nothing is copied:
+   - `TOWN=<slug>`, `SITE_URL=https://www.<domain>`
+   - `JOBS_SECRET=${{<web>.JOBS_SECRET}}`
+   - `EVENT_CHECK_SECRET`, `SUBMISSION_REVIEW_SECRET`,
+     `NEWSLETTER_CRON_SECRET`, `SLACK_TOWN_TAG` and the `SLACK_*`
+     webhooks: `${{<web>.<NAME>}}` each
+   - `OPS_REPORT_URL=https://www.<domain>`,
+     `OPS_REPORT_SECRET=${{<web>.SUBMISSION_REVIEW_SECRET}}`
+   - `APIFY_TOKEN`, `OPENAI_API_KEY`, `GEMINI_API_KEY`:
+     `${{shared.<NAME>}}`
+   - `FB_POSTS_ENABLED=1`, `IG_POSTS_ENABLED=1` (the collector's other
+     sources are on by default)
+4. **Stop GitHub collecting it:** `"workflows": false` in
+   `towns/<slug>/town.json` (a PR), so GitHub's scheduled collect skips
+   the town.
+5. **Check:** Pull Now in the town's admin queues a collect; the jobs
+   service's log shows it start, and the site says "Collect done" in Slack
+   when the new events are live. The hourly site check alerts if the
+   worker stops asking for work for 30 minutes, and a job that never
+   finishes is started once more and alerted.
+
+The social kit and the ads report move later (JOBS_ON_RAILWAY.md 2b); a
+town on jobs doesn't run them until then.
+
 ## HQ dashboard (its own repo and project)
 
 The dashboard that shows every town on one screen is `tmpalori/tristen-hq`,

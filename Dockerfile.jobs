@@ -1,0 +1,10 @@
+# The town's jobs worker (scripts/jobs_worker.py, JOBS_ON_RAILWAY.md): its
+# own Railway service, "<domain>-jobs", built from this file. The web
+# service keeps building with Railpack; this file is only for the worker.
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-u", "scripts/jobs_worker.py"]

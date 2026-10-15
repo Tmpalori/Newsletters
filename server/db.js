@@ -968,6 +968,83 @@ class FileStore {
     return (data.scheduler_runs || []).find(r => r.job === job && r.slot === slot) || null;
   }
 
+  // ─── Jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md) ───
+  // The town's job queue (the scheduler and Pull Now add, the jobs worker
+  // claims and finishes) and the files a job hands the site (candidates,
+  // collection metadata, enrichment cache), which used to be commits.
+  async enqueueJob(kind, slot, args = {}, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!Array.isArray(data.jobs)) data.jobs = [];
+      const dup = data.jobs.find(j => j.kind === kind && j.slot === slot);
+      if (dup) return { queued: false, id: dup.id };
+      const id = (data.jobs.reduce((m, j) => Math.max(m, j.id), 0) || 0) + 1;
+      data.jobs.push({ id, kind, slot, args, status: 'queued', queued_at: now.toISOString(), started_at: null, finished_at: null, result: null });
+      data.jobs = data.jobs.slice(-500);
+      await this._write(data);
+      return { queued: true, id };
+    });
+  }
+
+  async claimJob(now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const job = (data.jobs || []).find(j => j.status === 'queued');
+      if (!job) return null;
+      Object.assign(job, { status: 'running', started_at: now.toISOString() });
+      await this._write(data);
+      return { ...job };
+    });
+  }
+
+  async finishJob(id, { status, result = null }, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const job = (data.jobs || []).find(j => j.id === Number(id) && j.status === 'running');
+      if (!job) return null;
+      Object.assign(job, { status, result, finished_at: now.toISOString() });
+      await this._write(data);
+      return { ...job };
+    });
+  }
+
+  // Running jobs past their time limit ({kind: ms}, default for the rest):
+  // the worker died or was redeployed mid-run. Marked failed and returned.
+  async expireJobs(now = new Date(), limits = {}, fallbackMs = 30 * 60 * 1000) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const out = [];
+      for (const j of data.jobs || []) {
+        if (j.status !== 'running') continue;
+        if (Date.parse(j.started_at) + (limits[j.kind] || fallbackMs) > now.getTime()) continue;
+        Object.assign(j, { status: 'failed', finished_at: now.toISOString(), result: { error: 'timed out: the jobs worker stopped answering' } });
+        out.push({ ...j });
+      }
+      if (out.length) await this._write(data);
+      return out;
+    });
+  }
+
+  async listJobs(limit = 50) {
+    const data = await this._read();
+    return (data.jobs || []).slice(-limit).reverse().map(j => ({ ...j }));
+  }
+
+  async getTownFile(name) {
+    const data = await this._read();
+    const f = (data.town_files || {})[name];
+    return f ? { data: f.data, updated_at: f.updated_at } : null;
+  }
+
+  async setTownFile(name, value, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.town_files || typeof data.town_files !== 'object') data.town_files = {};
+      data.town_files[name] = { data: value, updated_at: now.toISOString() };
+      await this._write(data);
+    });
+  }
+
   // ─── Contact form messages (server/contact.js) ───
   async saveContactMessage(msg) {
     return this._withWrite(async () => {
@@ -1122,6 +1199,13 @@ class FileStore {
 const BLANK_SUBMITTER = { submitter_first_name: '', submitter_last_name: '', submitter_phone: '' };
 const OPEN_REWARD = new Set(['pending', 'held', 'failed', 'manual']);
 const FORGOTTEN = 'Skipped: the person asked us to delete their data.';
+
+// A job_queue row as the rest of the code sees it (ISO dates, numeric id).
+function jobRow(r) {
+  const iso = v => (v ? new Date(v).toISOString() : null);
+  return { id: Number(r.id), kind: r.kind, slot: r.slot, args: r.args || {}, status: r.status,
+    queued_at: iso(r.queued_at), started_at: iso(r.started_at), finished_at: iso(r.finished_at), result: r.result || null };
+}
 
 // A claimed slot can be taken again when its run asked for a retry and the
 // time has come, or when it has said "running" for 30 minutes (the process
@@ -2119,6 +2203,88 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT job, slot, status, attempts, started_at, finished_at, retry_at, detail FROM scheduler_runs WHERE job = $1 AND slot = $2', [job, slot]);
     return r.rows[0] || null;
+  }
+
+  // ─── Jobs on Railway: see FileStore. The tables are created on first
+  // use, not in ready(), so a database whose town never runs jobs on
+  // Railway (Victoria's, until she moves) gets no new table.
+  async _jobTables() {
+    await this.ready();
+    if (!this._jobTablesPromise) {
+      this._jobTablesPromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS job_queue (
+          id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, slot TEXT NOT NULL, args JSONB NOT NULL DEFAULT '{}'::jsonb,
+          status TEXT NOT NULL, queued_at TIMESTAMPTZ NOT NULL, started_at TIMESTAMPTZ, finished_at TIMESTAMPTZ,
+          result JSONB, UNIQUE (kind, slot));
+        CREATE TABLE IF NOT EXISTS town_files (name TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL);
+      `).catch(err => { this._jobTablesPromise = null; throw err; });
+    }
+    await this._jobTablesPromise;
+  }
+
+  async enqueueJob(kind, slot, args = {}, now = new Date()) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      INSERT INTO job_queue (kind, slot, args, status, queued_at) VALUES ($1, $2, $3::jsonb, 'queued', $4)
+      ON CONFLICT (kind, slot) DO NOTHING RETURNING id`, [kind, slot, JSON.stringify(args || {}), now.toISOString()]);
+    if (r.rows[0]) return { queued: true, id: Number(r.rows[0].id) };
+    const dup = await this.pool.query('SELECT id FROM job_queue WHERE kind = $1 AND slot = $2', [kind, slot]);
+    return { queued: false, id: dup.rows[0] ? Number(dup.rows[0].id) : null };
+  }
+
+  async claimJob(now = new Date()) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      UPDATE job_queue SET status = 'running', started_at = $1
+       WHERE id = (SELECT id FROM job_queue WHERE status = 'queued' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)
+      RETURNING *`, [now.toISOString()]);
+    return r.rows[0] ? jobRow(r.rows[0]) : null;
+  }
+
+  async finishJob(id, { status, result = null }, now = new Date()) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      UPDATE job_queue SET status = $2, result = $3::jsonb, finished_at = $4
+       WHERE id = $1 AND status = 'running' RETURNING *`, [Number(id), status, JSON.stringify(result), now.toISOString()]);
+    return r.rows[0] ? jobRow(r.rows[0]) : null;
+  }
+
+  async expireJobs(now = new Date(), limits = {}, fallbackMs = 30 * 60 * 1000) {
+    await this._jobTables();
+    // A month of history is plenty (the review alone runs 96 times a day).
+    await this.pool.query("DELETE FROM job_queue WHERE status IN ('done', 'failed') AND finished_at < $1::timestamptz - interval '30 days'", [now.toISOString()]);
+    const running = await this.pool.query("SELECT id, kind, started_at FROM job_queue WHERE status = 'running'");
+    const out = [];
+    for (const j of running.rows) {
+      if (new Date(j.started_at).getTime() + (limits[j.kind] || fallbackMs) > now.getTime()) continue;
+      const r = await this.pool.query(`
+        UPDATE job_queue SET status = 'failed', finished_at = $2, result = $3::jsonb
+         WHERE id = $1 AND status = 'running' RETURNING *`,
+      [j.id, now.toISOString(), JSON.stringify({ error: 'timed out: the jobs worker stopped answering' })]);
+      if (r.rows[0]) out.push(jobRow(r.rows[0]));
+    }
+    return out;
+  }
+
+  async listJobs(limit = 50) {
+    await this._jobTables();
+    const r = await this.pool.query('SELECT * FROM job_queue ORDER BY id DESC LIMIT $1', [limit]);
+    return r.rows.map(jobRow);
+  }
+
+  async getTownFile(name) {
+    await this._jobTables();
+    const r = await this.pool.query('SELECT data, updated_at FROM town_files WHERE name = $1', [name]);
+    const row = r.rows[0];
+    return row ? { data: row.data, updated_at: new Date(row.updated_at).toISOString() } : null;
+  }
+
+  async setTownFile(name, value, now = new Date()) {
+    await this._jobTables();
+    await this.pool.query(`
+      INSERT INTO town_files (name, data, updated_at) VALUES ($1, $2::jsonb, $3)
+      ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+    [name, JSON.stringify(value), now.toISOString()]);
   }
 
   // ─── Contact form messages (server/contact.js) ───
