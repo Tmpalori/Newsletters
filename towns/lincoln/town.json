@@ -48,5 +48,156 @@
     "seward",
     "columbus",
     "council bluffs"
-  ]
+  ],
+  "areaName": "Lincoln and Lancaster County",
+  "hashtags": "#LincolnNE #LNK #StarCity #TheStar402",
+  "siteNameHtml": "The Star <span>402</span>",
+  "feeds": [
+    {
+      "name": "unl",
+      "type": "ics",
+      "url": "https://events.unl.edu/upcoming/?format=ics&limit=1000",
+      "timeout": 60,
+      "exclude": "^(?!.*(Lied Center|Sheldon Museum|Great Plains Art Museum|Kimball Recital|Westbrook Music|Johnny Carson Theater|Howell Theat|Temple Building|Morrill Hall|State Museum|Mueller Planetarium|Hibner Soccer|Francie & Finch|Gallery of Miniatures|Student Observatory|Reptile Night|First Friday|Husker (Soccer|Volleyball|Softball|Baseball|Wrestling|Gymnastics|Swimming|Track)))|\\b(seminars?|meetings?|webinar|workshops?|training|deadline|registration|info session|livestream|book club|symposium|conference|drop-in|advising|orientation|commencement|faculty|staff|students? only|defen[cs]e|dissertation|Life in Lincoln|Zoom|online)\\b",
+      "rename": [
+        [
+          "\\\\([:;,])",
+          "\\1"
+        ]
+      ],
+      "rename_venue": [
+        [
+          " Room\\b.*$",
+          ""
+        ],
+        [
+          "^The Lied Center",
+          "Lied Center"
+        ],
+        [
+          "\\\\([:;,])",
+          "\\1"
+        ]
+      ]
+    },
+    {
+      "name": "zoo_bar",
+      "type": "ics",
+      "url": "https://calendar.google.com/calendar/ical/zoobarevents%40gmail.com/public/basic.ics",
+      "venue": "Zoo Bar",
+      "address": "136 N 14th St",
+      "exclude": "^open$|^closed\\b|private (party|event)",
+      "rename": [
+        [
+          "^Shithook Live Band Karaoke!?$",
+          "Live Band Karaoke"
+        ],
+        [
+          " *-? *\\$\\d+.*$",
+          ""
+        ],
+        [
+          " *\\(no cover( charge)?\\)",
+          ""
+        ],
+        [
+          " +-$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "crescent_moon",
+      "type": "squarespace",
+      "url": "https://www.crescentmooncoffee.com/events?format=json",
+      "venue": "Crescent Moon Coffee",
+      "address": "140 N 8th St",
+      "exclude": "closed",
+      "rename": [
+        [
+          " \\d{1,2}(:\\d\\d)?-\\d{1,2}(:\\d\\d)? ?(pm)?$",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "lincoln_stars",
+      "type": "ics",
+      "url": "https://www.lincolnstars.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\|.*Lincoln, NE)",
+      "rename": [
+        [
+          "^\\[[WLT]\\] ",
+          ""
+        ],
+        [
+          " Men's Ice Hockey +",
+          " vs. "
+        ],
+        [
+          " - .*$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Lincoln, NE,? *",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "nwu_athletics",
+      "type": "ics",
+      "url": "https://nwusports.com/calendar.ashx/calendar.ics",
+      "exclude": "^(?!.*\\b(Football|Basketball|Volleyball)\\b.*\\|\\s*Lincoln, Ne)",
+      "rename": [
+        [
+          "^Nebraska Wesleyan University ",
+          "Nebraska Wesleyan "
+        ],
+        [
+          " - .*$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Lincoln, Neb?\\.?,? *",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "francie_finch",
+      "type": "tribe",
+      "url": "https://www.francieandfinch.com",
+      "sparse": true,
+      "venue": "Francie & Finch Bookshop",
+      "address": "130 S 13th St"
+    },
+    {
+      "name": "nebraska_capitol",
+      "type": "tribe",
+      "url": "https://capitol.nebraska.gov",
+      "sparse": true,
+      "exclude": "^(?!.*\\b(concerts?|carols?|tree lighting|recital|choirs?|orchestra|festival)\\b)|closed",
+      "venue": "Nebraska State Capitol",
+      "address": "1445 K St",
+      "rename_venue": [
+        [
+          "^2nd Floor Rotunda$",
+          "Nebraska State Capitol Rotunda"
+        ],
+        [
+          "^Capitol Grounds$",
+          "Nebraska State Capitol"
+        ]
+      ]
+    }
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  }
 }
