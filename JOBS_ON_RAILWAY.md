@@ -115,11 +115,26 @@ Each phase is its own PR with tests. Victoria's output must not change
 
 ### Phase 2b: social kit and ads on the worker
 
-- [ ] Kit images and reels stored in the town's database (or a Railway
-      bucket) and served from `/social/` on the town's own site, which
-      Instagram needs for image URLs.
-- [ ] `social_post.py` and `meta_ads.py` run on the worker with the town's
-      own Meta settings.
+- [x] Kit images and reels stored in the town's database (`social_files`,
+      made on first use; only the latest kit is kept, 20 MB a file and 60 MB
+      a kit at most) and served from `/social/latest/<name>` on the town's
+      own site, which Instagram needs for image URLs. The worker uploads a
+      kit under its build id and publishes it whole (`PUT
+      /api/jobs/social/:build/:name`, `POST /api/jobs/social/:build/publish`);
+      a town with no kit, and Victoria's `docs/social` files, stay 404s on
+      every other domain.
+- [x] `social_post.py` runs on the worker (job `social-kit`, queued daily at
+      8:47 AM town time once the town has collected; Monday posts the week,
+      Thursday the weekend and today with a paid pick, other days today)
+      with the town's own Meta settings (`META_TOWN` and the page id pinned
+      in `town.json`; Facebook only until an Instagram id is pinned) and
+      only with `SOCIAL_AUTOPOST=1` on the jobs service. What went out is
+      kept on the site (`social_posted`), saved before each publish call, so
+      a retry or restart never posts twice; a failed post alerts like any
+      failed job. Victoria's social kit stays on GitHub until phase 5.
+      Pinned pages: Medford, Shoals, Lincoln, Virginia Beach. The jobs image
+      now has Chromium (branded slides) and ffmpeg (the weekend Reel).
+- [ ] `meta_ads.py` (the daily ads report) on the worker.
 
 ### Phase 3: HQ sees everything
 

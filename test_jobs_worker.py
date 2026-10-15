@@ -193,3 +193,232 @@ def test_reading_a_file_waits_out_a_redeploy_and_a_missing_one_is_none(monkeypat
     assert site.session.calls == 3                              # 502, a dropped connection, then 200
     site = jw.Site("https://x.example", "s" * 40, session=Session([404]))
     assert site.get_file("candidates") is None and site.session.calls == 1
+
+
+# ─── The social kit on the worker (JOBS_ON_RAILWAY.md 2b) ───────────────────
+# Another town's kit is built, handed to its site and, with SOCIAL_AUTOPOST=1,
+# posted with social_post.py's own code. Meta is faked: nothing is posted.
+
+import importlib  # noqa: E402
+from datetime import date as _date  # noqa: E402
+
+import requests  # noqa: E402
+
+MEDFORD_PAGE = "1444476842072503"
+
+
+@pytest.fixture
+def medford(monkeypatch):
+    """jobs_worker and social_post reloaded as Medford; Victoria put back after."""
+    import town as town_mod
+    monkeypatch.setenv("TOWN", "medford")
+    monkeypatch.delenv("SITE_URL", raising=False)
+    for name in ("META_PAGE_ID", "META_PAGE_TOKEN", "IG_USER_ID", "META_TOWN", "SOCIAL_AUTOPOST"):
+        monkeypatch.delenv(name, raising=False)
+    importlib.reload(town_mod)
+    import social_post
+    importlib.reload(social_post)
+    monkeypatch.setattr(social_post, "RETRY_DELAYS", (0, 0))
+    importlib.reload(jw)
+    yield jw, social_post
+    monkeypatch.delenv("TOWN")
+    importlib.reload(town_mod)
+    importlib.reload(social_post)
+    importlib.reload(jw)
+
+
+class _Resp:
+    def __init__(self, body=None, status=200, raw=b""):
+        self._body, self.status_code, self.ok, self.text = body, status, status < 400, json.dumps(body)
+
+    def json(self):
+        return self._body
+
+
+class SocialSite(FakeSite):
+    """A town site that keeps the uploaded kit and serves the published one."""
+
+    def __init__(self, files=None):
+        super().__init__(files=files)
+        self.builds, self.live, self.uploads, self.posted_saves = {}, None, [], []
+
+    def put_social(self, build, name, body):
+        self.uploads.append(name)
+        self.builds.setdefault(build, {})[name] = body
+        return {"ok": True}
+
+    def publish_social(self, build):
+        self.live = build
+        return {"ok": True}
+
+    def put_file(self, name, data):
+        if name == "social_posted":
+            self.posted_saves.append(json.loads(json.dumps(data)))
+        return super().put_file(name, data)
+
+
+class Meta:
+    """Graph calls recorded and answered; the site's /social/latest/ read from
+    the SocialSite (social_post waits for the kit there)."""
+
+    def __init__(self, site, raise_on=None):
+        self.site, self.calls, self.raise_on = site, [], raise_on or {}
+
+    def request(self, method, url, data=None, params=None, timeout=None, headers=None):
+        path = url.split("/", 4)[-1]
+        self.calls.append((method, path))
+        for suffix, exc in self.raise_on.items():
+            if path.endswith(suffix):
+                raise exc
+        if method == "GET" and (params or {}).get("fields") == "access_token":
+            return _Resp({"id": path})
+        if path.endswith("/photos") or path.endswith("/media"):
+            return _Resp({"id": f"id{len(self.calls)}"})
+        if path.endswith("/feed") or path.endswith("/media_publish"):
+            return _Resp({"id": "post1"})
+        return _Resp({"status_code": "FINISHED"})
+
+    def _live(self, url):
+        name = url.split("/social/latest/")[-1].split("?")[0]
+        return (self.site.builds.get(self.site.live) or {}).get(name)
+
+    def get(self, url, timeout=None):
+        body = self._live(url)
+        return _Resp(json.loads(body) if body else {}, 200 if body else 404)
+
+    def head(self, url, timeout=None):
+        return _Resp(None, 200 if self._live(url) else 404)
+
+
+def fake_kit_build(kinds_seen, featured=0):
+    """Stands in for social_kit.py: writes a kit for the kinds asked."""
+    def run(args, timeout, env=None):
+        out = args[args.index("--out") + 1]
+        kinds = args[args.index("--kinds") + 1].split(",")
+        kinds_seen.append(kinds)
+        kits = {}
+        for k in kinds:
+            for ext in ("png", "jpg"):
+                with open(os.path.join(out, f"{k}-1.{ext}"), "wb") as f:
+                    f.write(b"IMG")
+            kits[k] = {"slides": [f"{k}-1.png"], "slides_jpg": [f"{k}-1.jpg"], "events": 4,
+                       "featured": featured if k == "today" else 0,
+                       "captions": {"facebook": f"{k} in Medford", "instagram": f"{k} IG"}}
+        with open(os.path.join(out, "kit.json"), "w") as f:
+            json.dump({"generated_for": "2026-10-15", "build": env["SOCIAL_BUILD"], "kits": kits}, f)
+        with open(os.path.join(out, "outreach-slack.txt"), "w") as f:
+            f.write("📣 venues" if "week" in kinds else "")
+        with open(os.path.join(out, "reel.txt"), "w") as f:
+            f.write("leftover")
+        return 0, ["built"]
+    return run
+
+
+POSTING = {"SOCIAL_AUTOPOST": "1", "META_TOWN": "medford", "META_PAGE_ID": MEDFORD_PAGE, "META_PAGE_TOKEN": "tok"}
+THU, MON, TUE = _date(2026, 10, 15), _date(2026, 10, 12), _date(2026, 10, 13)
+
+
+def test_social_plan_follows_the_github_days():
+    assert jw.social_plan(MON) == (["week", "weekend", "today"], "week", False)
+    assert jw.social_plan(THU) == (["weekend", "today"], "weekend", True)
+    assert jw.social_plan(TUE) == (["today"], "today", False)
+
+
+def test_victorias_kit_never_runs_on_the_worker():
+    status, result = jw.job_social_kit(SocialSite(), run=fake_kit_build([]), env={}, today=TUE)
+    assert status == "failed" and "GitHub" in result["error"]
+
+
+def test_builds_and_hands_over_the_kit_without_posting_when_autopost_is_off(medford):
+    w, _ = medford
+    site, seen = SocialSite(), []
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build(seen), env={**POSTING, "SOCIAL_AUTOPOST": "0"}, today=MON, session=meta)
+    assert status == "done" and seen == [["week", "weekend", "today"]]
+    assert site.uploads[-1] == "kit.json" and "reel.txt" not in site.uploads
+    assert {"week-1.png", "week-1.jpg", "today-1.jpg", "outreach-slack.txt"} <= set(site.uploads)
+    assert site.live == result["build"]
+    assert result["outreach"] == "📣 venues" and "off" in result["posted"]
+    assert meta.calls == [] and site.posted_saves == []
+
+
+def test_posts_to_the_towns_page_facebook_only_and_saves_before_publishing(medford):
+    w, _ = medford
+    site = SocialSite()
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE, session=meta)
+    assert status == "done", result
+    assert ("POST", f"{MEDFORD_PAGE}/feed") in meta.calls
+    assert not any("media" in p for _, p in meta.calls)                       # no Instagram id: Facebook only
+    # "pending" reached the site before the publish call, then the post id.
+    assert site.posted_saves[0] == {"2026-10-15:today": {"facebook": "pending"}}
+    assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}}
+
+
+def test_a_retry_or_restart_never_posts_twice(medford):
+    w, _ = medford
+    site = SocialSite()
+    assert w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE, session=Meta(site))[0] == "done"
+    again = Meta(site)
+    status, _ = w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE, session=again)
+    assert status == "done"
+    assert not any(p.endswith("/feed") for _, p in again.calls)
+
+
+def test_a_publish_that_may_have_gone_out_is_never_retried(medford):
+    w, _ = medford
+    site = SocialSite()
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE,
+                                      session=Meta(site, raise_on={"/feed": requests.ReadTimeout()}))
+    assert status == "failed" and "may have posted" in result["error"]
+    assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "pending"}}
+    retry = Meta(site)
+    assert w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE, session=retry)[0] == "done"
+    assert not any(p.endswith("/feed") for _, p in retry.calls)
+
+
+def test_nothing_is_published_when_the_pending_mark_cant_be_saved(medford):
+    w, _ = medford
+
+    class Down(SocialSite):
+        def put_file(self, name, data):
+            raise requests.ConnectionError("site down")
+    site = Down()
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=TUE, session=meta)
+    assert status == "failed" and "couldn't save" in result["error"]
+    assert not any(p.endswith("/feed") for _, p in meta.calls)
+
+
+def test_thursday_posts_the_weekend_and_today_only_with_a_paid_pick(medford):
+    w, _ = medford
+    site = SocialSite()
+    meta = Meta(site)
+    assert w.job_social_kit(site, run=fake_kit_build([]), env=POSTING, today=THU, session=meta)[0] == "done"
+    assert sorted(site.files["social_posted"]) == ["2026-10-15:weekend"]
+    site2 = SocialSite()
+    assert w.job_social_kit(site2, run=fake_kit_build([], featured=1), env=POSTING, today=THU, session=Meta(site2))[0] == "done"
+    assert sorted(site2.files["social_posted"]) == ["2026-10-15:today", "2026-10-15:weekend"]
+
+
+@pytest.mark.parametrize("env, why", [
+    ({**POSTING, "META_TOWN": ""}, "aren't medford's own"),
+    ({**POSTING, "META_PAGE_ID": "999"}, "aren't medford's own"),          # Victoria's page, say
+    ({**POSTING, "IG_USER_ID": "777"}, "Instagram id"),                    # an Instagram id medford doesn't pin
+    ({**POSTING, "META_PAGE_TOKEN": ""}, "META_PAGE_TOKEN"),
+])
+def test_switched_on_but_not_the_towns_own_settings_fails_loudly_and_posts_nothing(medford, env, why):
+    w, _ = medford
+    site = SocialSite()
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=env, today=TUE, session=meta)
+    assert status == "failed" and why in result["error"]
+    assert site.live == result["build"]          # the kit is still on the site
+    assert meta.calls == []
+
+
+def test_a_failed_build_hands_over_nothing(medford):
+    w, _ = medford
+    site = SocialSite()
+    status, result = w.job_social_kit(site, run=lambda args, timeout, env=None: (1, ["boom"]), env=POSTING, today=TUE)
+    assert status == "failed" and "code 1" in result["error"] and site.uploads == []
