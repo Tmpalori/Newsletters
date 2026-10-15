@@ -104,7 +104,7 @@ describe('jobs API', () => {
     expect((await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done' })).status).toBe(404);  // once
   });
 
-  it('failures alert once per streak (the 15-minute review after an hour) and say when it works again', async () => {
+  it('a failed collect or check alerts every time; the 15-minute review once its failures reach an hour; then says it works again', async () => {
     const t = await start();
     const run = async (kind, slot, status, result) => {
       await t.store.enqueueJob(kind, slot, {}, NOW);
@@ -114,10 +114,10 @@ describe('jobs API', () => {
     await run('event-check', 'e1', 'failed', { error: 'exited 1', log_tail: ['x'.repeat(5000), 'Site 500'] });
     expect(t.slack.alerts).toEqual([expect.objectContaining({ title: 'Event check failed', text: expect.stringContaining('Site 500') })]);
     expect(t.slack.alerts[0].text.length).toBeLessThan(1000);
-    await run('event-check', 'e2', 'failed', { error: 'exited 1' });
-    expect(t.slack.alerts).toHaveLength(1);
+    await run('event-check', 'e2', 'failed', { error: 'exited 1' });            // Thursday's fails too: said again
+    expect(t.slack.alerts).toHaveLength(2);
     for (let i = 1; i <= 5; i++) await run('submission-review', `s${i}`, 'failed', { error: 'OpenAI 401' });
-    expect(t.slack.alerts.map(a => a.title)).toEqual(['Event check failed', 'Submission review failed']);
+    expect(t.slack.alerts.map(a => a.title)).toEqual(['Event check failed', 'Event check failed', 'Submission review failed']);
     await run('submission-review', 's6', 'done', {});
     expect(t.slack.notes.map(n => n.title)).toContain('✅ Submission review working again');
   });
@@ -143,19 +143,43 @@ describe('jobs API', () => {
     expect((await fetch(off.base + '/api/jobs/files/candidates', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: big })).status).toBe(404);
   });
 
-  it('a run the worker never finished is failed, started once more and said once', async () => {
+  it('a run the worker never finished is failed and started once more; the second try failing is said too', async () => {
     let now = NOW;
     const t = await start({ now: () => now });
     await t.store.enqueueJob('collect', 'sun', {}, NOW);
     await t.call('POST', '/api/jobs/claim');
     now = new Date(NOW.getTime() + 61 * 60 * 1000);
+    expect((await t.call('POST', '/api/jobs/claim')).status).toBe(204);      // a collect has 75 minutes
+    now = new Date(NOW.getTime() + 76 * 60 * 1000);
     const again = await (await t.call('POST', '/api/jobs/claim')).json();
     expect(again.job).toMatchObject({ kind: 'collect', slot: 'sun-retry' });
     expect(t.slack.alerts.map(a => a.title)).toEqual(["Weekly event collect didn't finish"]);
     expect(t.slack.alerts[0].text).toContain('started again');
-    now = new Date(now.getTime() + 61 * 60 * 1000);
+    now = new Date(now.getTime() + 76 * 60 * 1000);
     expect((await t.call('POST', '/api/jobs/claim')).status).toBe(204);      // a retry isn't retried
-    expect(t.slack.alerts).toHaveLength(1);                                   // one streak, one alert
+    expect(t.slack.alerts).toHaveLength(2);
+    expect(t.slack.alerts[1].text).toContain('already ran twice');
+  });
+
+  it("a collect whose events didn't publish says so, not 'live'", async () => {
+    const t = await start();
+    await t.store.enqueueJob('collect', 'sun', {}, NOW);
+    const { job } = await (await t.call('POST', '/api/jobs/claim')).json();
+    await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'done', result: { upcoming: 120, published: { ok: false, error: 'publish-failed', message: 'db write failed' } } });
+    expect(t.slack.alerts.map(a => a.title)).toEqual(["Collect finished but its events didn't publish"]);
+    expect(t.slack.alerts[0].text).toContain('db write failed');
+    expect(t.slack.notes.map(n => n.title)).not.toContain('🗓️ Collect done');
+  });
+
+  it('a worker busy with a long collect is not silent; past the job\'s limit it is', async () => {
+    let now = NOW;
+    const t = await start({ now: () => now });
+    await t.store.enqueueJob('collect', 'sun', {}, NOW);
+    await t.call('POST', '/api/jobs/claim');
+    now = new Date(NOW.getTime() + 45 * 60 * 1000);                           // still collecting
+    expect((await t.healthCheck(now)).problems).not.toContain('jobs_worker');
+    now = new Date(NOW.getTime() + 80 * 60 * 1000);
+    expect((await t.healthCheck(now)).problems).toContain('jobs_worker');
   });
 
   it('the hourly check alerts when the worker stops asking for work', async () => {

@@ -96,11 +96,13 @@ class Site:
         _retry(go)
 
     def get_file(self, name):
-        r = self.session.get(self._url(f"/api/jobs/files/{name}"), headers=self.headers, timeout=HTTP_TIMEOUT)
-        if r.status_code == 404:
-            return None
-        r.raise_for_status()
-        return r.json().get("data")
+        def go():
+            r = self.session.get(self._url(f"/api/jobs/files/{name}"), headers=self.headers, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("data")
+        return _retry(go)
 
     def put_file(self, name, data):
         def go():
