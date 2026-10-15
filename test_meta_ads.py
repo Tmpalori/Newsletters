@@ -338,3 +338,11 @@ def test_a_quiet_week_still_sends_the_days(monkeypatch):
             return super().request(method, url, **k)
     assert ma.main(["report"], session=Quiet(spend="0")) == 0
     assert len(posted) == 1 and len(posted[0]["days"]) == 30
+
+
+def test_another_town_never_uses_ads_credentials_not_its_own(monkeypatch, capsys):
+    monkeypatch.setenv("META_ADS_TOKEN", "tok")
+    monkeypatch.setattr(ma, "meta_allowed", lambda: False)
+    monkeypatch.setattr(ma, "Api", lambda *a, **k: pytest.fail("no Graph call for another town's credentials"))
+    assert ma.main(["report", "--scheduled"]) == 0
+    assert "aren't this town's" in capsys.readouterr().out

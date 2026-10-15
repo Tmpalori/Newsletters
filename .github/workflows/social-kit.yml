@@ -209,6 +209,9 @@ jobs:
           META_PAGE_ID: ${{ secrets.META_PAGE_ID }}
           META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          # Another town's Meta settings count only when its Environment says
+          # they're its own (town.py meta_allowed); Victoria's are repo-level.
+          META_TOWN: ${{ vars.META_TOWN }}
           # A scheduled dispatch picks the kind by weekday, like the cron.
           DISPATCH_KIND: ${{ !inputs.scheduled && inputs.kind || '' }}
         run: |

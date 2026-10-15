@@ -152,6 +152,14 @@ describe('workflows for another town (until its GitHub Environment exists)', () 
     expect(townWorkflowsReady(bay, { TOWN_WORKFLOWS: '1' })).toBe(true);
   });
 
+  it('town.json "workflows": true turns them on too (one switch with GitHub\'s collect); TOWN_WORKFLOWS=0 turns them off', async () => {
+    const { townWorkflowsReady } = await import('../server/town.js');
+    const ready = { ...bay, workflows: true };
+    expect(townWorkflowsReady(ready, {})).toBe(true);
+    expect(townWorkflowsReady(ready, { TOWN_WORKFLOWS: '0' })).toBe(false);
+    expect(townWorkflowsReady(VICTORIA, { TOWN_WORKFLOWS: '0' })).toBe(true);
+  });
+
   it("another town's Pull Now answers 409 instead of dispatching", async () => {
     const http = (await import('node:http')).default;
     const calls = [];

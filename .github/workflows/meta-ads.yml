@@ -128,6 +128,9 @@ jobs:
           META_ADS_TOKEN: ${{ secrets.META_ADS_TOKEN || secrets.META_PAGE_TOKEN }}
           META_ADS_TOKEN_SOURCE: ${{ secrets.META_ADS_TOKEN && 'ads' || 'page' }}
           META_AD_ACCOUNT_ID: ${{ vars.META_AD_ACCOUNT_ID }}
+          # Another town's Meta settings count only when its Environment says
+          # they're its own (town.py meta_allowed); Victoria's are repo-level.
+          META_TOWN: ${{ vars.META_TOWN }}
           # The daily report sends each day's spend to the site (Admin →
           # Growth): Railway's ADS_SPEND_SECRET, else the submission review
           # secret it falls back to.

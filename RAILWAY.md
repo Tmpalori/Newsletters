@@ -185,15 +185,18 @@ copy a value from Victoria's project, or from another town's: a copied
     open the admin signed in). HQ is its own repo and Railway project
     (`tmpalori/tristen-hq`, project Tristen HQ): it holds no town data and
     reads each town through its key.
-12. **`TOWN_WORKFLOWS=1` only after** the town's GitHub Environment exists
-    (MULTI_CITY_PLAN.md 3.3: its `SITE_URL`, Meta page and Instagram,
-    `NTFY_TOPIC`, cron secrets, `SLACK_TOWN_TAG`). Before that the town
-    starts no collect, social kit, submission review or event check, since
-    they would run on Victoria's repo-level settings. At the same time, add
-    `"workflows": true` to `towns/<slug>/town.json` (a PR): the scheduled
-    Sunday and Wednesday collects then run the town beside Victoria, each
-    in its own job, and Event Check follows each town whose collect
-    succeeded. 3.5 must be done before launch too.
+12. **Workflows: one switch.** Once the town's GitHub Environment exists
+    (MULTI_CITY_PLAN.md 3.3: `SITE_URL`, `SLACK_TOWN_TAG` and the four cron
+    secrets), add `"workflows": true` to `towns/<slug>/town.json` (a PR).
+    That turns on both GitHub's scheduled Sunday and Wednesday collect for
+    the town and the site's own scheduler and Pull Now (`TOWN_WORKFLOWS`
+    is no longer needed; `TOWN_WORKFLOWS=0` turns a town off). Until the
+    town's first collect lands, its scheduler starts only the collect and
+    it sends no auto-publish, "0 upcoming" or missed-collect alerts. The
+    social kit and the ads report use Meta credentials only when the
+    Environment also sets `META_TOWN=<slug>` (a missing Environment secret
+    falls back to Victoria's repo-level one), so set `META_TOWN` with the
+    town's own Meta page, Instagram and ad account, never before.
 13. **Optional:** `META_PIXEL_ID` (the town's own pixel); the GA stream is
     `gaId` in `town.json` (a PR).
 14. **Domain.** Add `www.<domain>` as a custom domain and CNAME it to the
@@ -204,7 +207,8 @@ copy a value from Victoria's project, or from another town's: a copied
 15. **PR environments** are off for the Newsletters project (see the top
     of this section); check they still are.
 16. **Watch paths** (MULTI_CITY_PLAN.md 2.6): the service watches
-    `/server/**`, `/docs/**`, `/package.json`, `/package-lock.json`,
+    `/server/**`, `/docs/**` except Victoria's bot files
+    (`!/docs/social/**`, `!/docs/events.json`), `/package.json`, `/package-lock.json`,
     `/.nvmrc`, `/railpack.json`, `/town.py`, `/towns/<slug>/**` and
     `/towns/*/town.json` (the inbound email filter reads every town's
     domain), so the bot commits of other towns (and Victoria's) don't

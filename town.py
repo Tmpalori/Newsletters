@@ -204,6 +204,18 @@ def site_url(town=None, env=None):
     return url
 
 
+def meta_allowed(town=None, env=None):
+    """Whether this run may use the Meta (Facebook, Instagram, ads)
+    credentials it was given. Victoria's are the repo-level ones. Another
+    town's count only when its own settings say they're its own
+    (META_TOWN=<slug>): a missing GitHub Environment secret falls back to
+    Victoria's repo-level one, which would post the town's kit on Victoria's
+    page or read Victoria's ad account."""
+    env = os.environ if env is None else env
+    town = town or TOWN
+    return town["id"] == VICTORIA["id"] or env.get("META_TOWN", "").strip().lower() == town["id"]
+
+
 def tz(town=None):
     """The town's timezone (None without zoneinfo)."""
     return ZoneInfo((town or TOWN)["timezone"]) if ZoneInfo else None

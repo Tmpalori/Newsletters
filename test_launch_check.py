@@ -131,7 +131,7 @@ def test_an_empty_or_stale_town_fails(tmp_path, monkeypatch, capsys):
     assert run(tmp_path, monkeypatch, get, seed=False) == 1
     out = capsys.readouterr().out
     for line in ["❌ at least 10 upcoming events (3)", "❌ a collect in the last 8 days (12 days ago)",
-                 "❌ its workflows are on (TOWN_WORKFLOWS=1 after its GitHub Environment) (says None)",
+                 "❌ its workflows are on (\"workflows\": true in town.json, after its GitHub Environment) (says None)",
                  "❌ towns/bay/venues.json is seeded (0 venues)"]:
         assert line in out, line
 

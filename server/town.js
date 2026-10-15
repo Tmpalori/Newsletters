@@ -234,10 +234,14 @@ export function townInputs(inputs, t = town) {
 // Whether this town may start GitHub workflows. Until its own GitHub
 // Environment exists (MULTI_CITY_PLAN.md 3.3) a workflow run as another
 // town would still use the repo-level settings, which are Victoria's
-// (SITE_URL, secrets, Facebook page). Victoria always may; another town
-// only once TOWN_WORKFLOWS=1 is set, after its Environment is in place.
+// (SITE_URL, secrets, Facebook page). Victoria always may; another town once
+// its town.json says "workflows": true (the same switch GitHub's scheduled
+// collect reads, set when its Environment exists) or TOWN_WORKFLOWS=1.
+// TOWN_WORKFLOWS=0 turns a town's off whatever town.json says.
 export function townWorkflowsReady(t = town, env = process.env) {
-  return t.id === VICTORIA.id || String(env.TOWN_WORKFLOWS || '').trim() === '1';
+  if (t.id === VICTORIA.id) return true;
+  const flag = String(env.TOWN_WORKFLOWS || '').trim();
+  return flag === '1' || (t.workflows === true && flag !== '0');
 }
 
 // The process's town. A live binding: modules that import it see useTown's

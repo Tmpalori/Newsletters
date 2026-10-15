@@ -343,3 +343,16 @@ def test_victorias_venue_links_stay_in_victoria(town_as):
     assert vic.fill_gaps([dict(ev)], templates=False)[0]["url"] == "https://www.victoriatx.gov/1330/Parks-Recreation"
     ce = town_as(DENVER, slug="denver")
     assert ce.fill_gaps([dict(ev)], templates=False)[0].get("url", "") == ""
+
+
+def test_meta_credentials_count_only_for_their_own_town(tmp_path):
+    # A town without its own Meta secrets inherits Victoria's repo-level ones
+    # in GitHub; it must never post or read ads with them.
+    vic = town_mod.town_config({})
+    assert town_mod.meta_allowed(vic, {})
+    (tmp_path / "bay").mkdir()
+    (tmp_path / "bay" / "town.json").write_text(json.dumps(BAY))
+    bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
+    assert not town_mod.meta_allowed(bay, {})
+    assert not town_mod.meta_allowed(bay, {"META_TOWN": "victoria"})
+    assert town_mod.meta_allowed(bay, {"META_TOWN": " Bay "})

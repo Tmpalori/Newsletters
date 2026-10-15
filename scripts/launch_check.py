@@ -17,7 +17,8 @@ its live site, GET only, nothing posted and no key needed (HQ's aside):
     uptime check's own floor) and a collect in the last 8 days
     (`collected_at`, the candidates auto-publish last put live);
   - /api/config says the town's workflows are on (`town_workflows`:
-    TOWN_WORKFLOWS=1, set once its GitHub Environment exists);
+    "workflows": true in its town.json, set once its GitHub Environment
+    exists);
   - towns/<slug>/venues.json is seeded (the collector never borrows
     Victoria's);
   - HQ: /api/hq/summary answers with HQ_API_KEY as this town.
@@ -59,7 +60,7 @@ MAX_COLLECT_AGE_DAYS = 8
 MANUAL = """
 Must be done before launch (MULTI_CITY_PLAN.md; each one blocks a launch):
   [ ] 3.3 the town's GitHub Environment (SITE_URL, Meta, NTFY, cron secrets,
-      SLACK_TOWN_TAG), then TOWN_WORKFLOWS=1 on its Railway service
+      SLACK_TOWN_TAG), then "workflows": true in its town.json (a PR)
   [ ] 3.4 its own scheduled collects (town matrix, staggered crons,
       fail-fast: false; Event Check gated on the town)
   [ ] 3.5 the workflows' gates call the town's own SITE_URL
@@ -120,10 +121,10 @@ def check(town, site, hq_key="", get=fetch, now=None, venues_path=None):
     add(t.get("domain") == town["domain"], f"its domain is {town['domain']} (says {t.get('domain')!r})")
     add(config.get("github_events_path") == f"towns/{slug}/public/events.json",
         f"publishes to towns/{slug}/public/events.json (says {config.get('github_events_path')!r})")
-    # Until TOWN_WORKFLOWS=1 the town starts no collect, social kit, review
+    # Until "workflows": true the town starts no collect, social kit, review
     # or event check (server/town.js townWorkflowsReady).
     add(config.get("town_workflows") is True,
-        "its workflows are on (TOWN_WORKFLOWS=1 after its GitHub Environment)" +
+        "its workflows are on (\"workflows\": true in town.json, after its GitHub Environment)" +
         ("" if config.get("town_workflows") is True else f" (says {config.get('town_workflows')!r})"))
 
     if venues_path:

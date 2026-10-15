@@ -179,7 +179,8 @@ export function schedulerEnabled(env = process.env) {
 }
 
 /**
- * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now) }, each async.
+ * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now), collected() }, each async.
+ *   collected() → whether the town has ever collected (only the collect workflow starts until it has)
  *   newsletter() → { ok, error?, retry?, message? } (see index.js)
  *   sponsorReports / health may be missing: the job is then skipped.
  */
@@ -271,11 +272,25 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
     return status;
   }
 
+  // A town that has never collected has nothing for the event check, the
+  // social kit, the ads report or the submission review to work on, and
+  // they'd only fail and alert: until its first collect lands, only the
+  // collect starts. (handlers.collected: Victoria's is always true.)
+  async function waitsForFirstCollect(job, known) {
+    if (!job.workflow || job.name.startsWith('weekly-collect') || typeof handlers.collected !== 'function') return false;
+    if (known.collected === undefined) {
+      try { known.collected = Boolean(await handlers.collected()); } catch { known.collected = true; }
+    }
+    return !known.collected;
+  }
+
   async function tick(now = nowFn()) {
     state.lastTick = now.toISOString();
+    const known = {};
     for (const job of jobs) {
       const slot = dueSlot(job, now);
       if (!slot || busy.has(job.name) || !available(job)) continue;
+      if (await waitsForFirstCollect(job, known)) continue;
       if (!persisted(job) && memory.get(job.name) === slot) continue;
       busy.add(job.name);
       try {

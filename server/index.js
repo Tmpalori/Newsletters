@@ -445,7 +445,7 @@ export async function createApp(opts = {}) {
       // GITHUB_TOKEN. The actual trigger endpoint also enforces this. Note:
       // this is presence-only — the token may be present but invalid; the UI
       // surfaces that distinction via the trigger-collect response.
-      sources_trigger_enabled: github.isConfigured(),
+      sources_trigger_enabled: github.isConfigured() && townWorkflowsReady(),
       // GitHub Actions page for the Weekly Collect workflow. The admin Sources
       // tab links to this as a manual fallback when one-click Pull Now isn't
       // available (no token, invalid token, etc.).
@@ -1410,7 +1410,7 @@ export async function createApp(opts = {}) {
       return res.status(409).json({
         ok: false,
         error: 'town-workflows-not-ready',
-        message: "This town's GitHub workflows aren't set up yet (its GitHub Environment, then TOWN_WORKFLOWS=1 in Railway), so Pull Now is off. Save & Publish is unaffected.",
+        message: "This town's GitHub workflows aren't on yet (its GitHub Environment, then \"workflows\": true in its town.json), so Pull Now is off. Save & Publish is unaffected.",
         actions_url: actionsUrl(),
         save_publish_unaffected: true
       });
@@ -2446,12 +2446,12 @@ export async function createApp(opts = {}) {
   }
   if (autoOnBoot) {
     const t = setTimeout(() => {
-      runAutoPublish().then(r => {
-        // A town whose workflows aren't on yet has never collected, so it has
-        // no candidates.json: expected until launch, not an alert (it fired
-        // on every deploy of main). Victoria is always ready.
-        if (r && !r.ok && r.error === 'no-candidates' && !townWorkflowsReady()) {
-          console.log('[auto-publish] no candidates yet; this town has not collected (TOWN_WORKFLOWS is off)');
+      runAutoPublish().then(async r => {
+        // A town that has never collected has no candidates.json: expected
+        // until its first collect, not an alert (it fired on every deploy of
+        // main). Victoria has always collected.
+        if (r && !r.ok && r.error === 'no-candidates' && town.id !== VICTORIA.id && !(await hasCollected())) {
+          console.log('[auto-publish] no candidates yet; this town has not collected');
           return;
         }
         // e.g. candidates.json unreadable: run() reports it rather than throwing.
@@ -2508,6 +2508,7 @@ export async function createApp(opts = {}) {
           : undefined,
       // Daily: personal-data retention (server/privacy.js).
       privacyPurge: now => purgePersonalData(store, now),
+      collected: () => hasCollected(),
       health: async now => {
         await retryAutoPublish();
         // Hourly: the one "tap to confirm" reminder to yesterday's
@@ -2527,6 +2528,16 @@ export async function createApp(opts = {}) {
     res.set('Cache-Control', 'no-store').json({ ok: true, ...out });
   }));
 
+  // Whether the town has ever collected: auto-publish records when the
+  // candidates it published were collected. Victoria always has.
+  function collectedPayload(pub) {
+    return town.id === VICTORIA.id || Boolean(pub && pub.auto_publish && pub.auto_publish.from);
+  }
+  async function hasCollected() {
+    if (town.id === VICTORIA.id) return true;
+    try { return collectedPayload(await store.getPublished()); } catch { return true; }
+  }
+
   // Hourly in-process check (the uptime workflow only runs every few
   // hours): database reachable, events coming up, collector not stalled.
   // Alerts when a problem appears, again daily while it lasts, and says
@@ -2545,10 +2556,11 @@ export async function createApp(opts = {}) {
     } catch (err) {
       problems.db = `The database is unreachable (${err.message}); the site is serving the old bundled event list.`;
     }
-    // A town that can't collect yet (TOWN_WORKFLOWS off) has no events by
-    // design, so "only 0 upcoming" and "stale" would alert every day until
-    // launch. The other checks (database, Slack, subscribers) still run.
-    if (pub && townWorkflowsReady()) {
+    // A town that hasn't collected yet, or can't (its workflows are off), has
+    // no events by design, so "only 0 upcoming", "stale" and "missed collect"
+    // would alert every day until launch. The other checks (database, Slack,
+    // subscribers) still run.
+    if (pub && townWorkflowsReady() && collectedPayload(pub)) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
