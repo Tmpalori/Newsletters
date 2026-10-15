@@ -179,11 +179,12 @@ export function schedulerEnabled(env = process.env) {
 }
 
 /**
- * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now) }, each async.
+ * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now), collected() }, each async.
+ *   collected() → whether the town has ever collected (only the collect workflow starts until it has)
  *   newsletter() → { ok, error?, retry?, message? } (see index.js)
  *   sponsorReports / health may be missing: the job is then skipped.
  */
-export function createScheduler({ store, github, slack = null, nowFn = () => new Date(), handlers = {}, siteUrl = '', jobs = JOBS, log = console }) {
+export function createScheduler({ store, github, slack = null, nowFn = () => new Date(), handlers = {}, siteUrl = '', jobs = JOBS, log = console, queueJob = null, canQueue = () => false }) {
   checkTownSchedule(jobs);
   const memory = new Map(); // job → last in-memory slot
   const busy = new Set();
@@ -224,8 +225,19 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
     }
   }
 
+  // Jobs on Railway (server/jobs.js): the town's jobs worker runs it.
+  async function queue(job, slot) {
+    try {
+      await queueJob(job, slot);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message };
+    }
+  }
+
   // Run one job's body. → { ok, final?, message? }
-  async function runJob(job, now) {
+  async function runJob(job, now, slot) {
+    if (job.workflow && queueJob) return queue(job, slot);
     if (job.workflow) return dispatch(job, now);
     const fn = { newsletter: handlers.newsletter, 'newsletter-weekend': handlers.newsletterWeekend, 'sponsor-reports': handlers.sponsorReports,
       'privacy-purge': handlers.privacyPurge, health: handlers.health }[job.name];
@@ -240,6 +252,9 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
   // Whether a job can run at all here; otherwise it isn't claimed, so a
   // fallback (GitHub's cron) still does it.
   function available(job) {
+    // With jobs on Railway only what the worker runs starts; the rest
+    // (social kit, ads report) waits for their move (JOBS_ON_RAILWAY.md 2b).
+    if (job.workflow && queueJob) return canQueue(job);
     if (job.workflow) return Boolean(github && github.isConfigured()) && townWorkflowsReady();
     if (job.name === 'newsletter') return typeof handlers.newsletter === 'function' && (!handlers.newsletterReady || handlers.newsletterReady());
     if (job.name === 'newsletter-weekend') return typeof handlers.newsletterWeekend === 'function' && (!handlers.newsletterWeekendReady || handlers.newsletterWeekendReady());
@@ -252,7 +267,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
   async function runPersisted(job, slot, now) {
     const claim = await store.claimJobRun(job.name, slot, now);
     if (!claim.claimed) return null;
-    const out = await runJob(job, now);
+    const out = await runJob(job, now, slot);
     const attempts = claim.attempts || 1;
     const retries = job.retryMins || (job.workflow ? [2, 5] : []);
     let status = out.ok ? 'done' : 'failed';
@@ -271,11 +286,25 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
     return status;
   }
 
+  // A town that has never collected has nothing for the event check, the
+  // social kit, the ads report or the submission review to work on, and
+  // they'd only fail and alert: until its first collect lands, only the
+  // collect starts. (handlers.collected: Victoria's is always true.)
+  async function waitsForFirstCollect(job, known) {
+    if (!job.workflow || job.name.startsWith('weekly-collect') || typeof handlers.collected !== 'function') return false;
+    if (known.collected === undefined) {
+      try { known.collected = Boolean(await handlers.collected()); } catch { known.collected = true; }
+    }
+    return !known.collected;
+  }
+
   async function tick(now = nowFn()) {
     state.lastTick = now.toISOString();
+    const known = {};
     for (const job of jobs) {
       const slot = dueSlot(job, now);
       if (!slot || busy.has(job.name) || !available(job)) continue;
+      if (await waitsForFirstCollect(job, known)) continue;
       if (!persisted(job) && memory.get(job.name) === slot) continue;
       busy.add(job.name);
       try {
@@ -283,7 +312,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
           await runPersisted(job, slot, now);
         } else {
           memory.set(job.name, slot);
-          const out = await runJob(job, now);
+          const out = await runJob(job, now, slot);
           if (!out.ok) log.warn(`[scheduler] ${job.name} ${slot}:`, out.message || out.error || '');
           // Failing an hour straight (4 runs of a 15-minute job) is broken,
           // not a blip: once, and a note when it works again.

@@ -49,7 +49,7 @@ export function keyOk(header, key) {
 // and is named in `failed` (only present when something failed), so HQ
 // shows "database down" rather than a green row of zeros (0 subscribers,
 // $0) that would also drop the town out of the network totals.
-export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health }) {
+export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null }) {
   const now = nowFn();
   const today = localDateStr(now);
   const failed = [];
@@ -82,6 +82,9 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   for (const o of orders) if (o && !o.test) byStatus[o.status] = (byStatus[o.status] || 0) + 1;
   const s = await safe(setup, { checks: [], status: {} }, 'setup');
   const h = await safe(health, null, 'health');
+  // Jobs on Railway only (server/jobs.js): each job's last run and the
+  // worker's last check-in, so HQ and the owner's assistant see them.
+  const jobsOut = getJobs ? await safe(getJobs, null, 'jobs') : null;
   // A configured database that doesn't answer its ping fails the store's
   // reads too (and setupReport swallows those): say so.
   if (h && h.database === false && h.database_configured && !failed.includes('database')) failed.push('database');
@@ -132,7 +135,34 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     submissions_waiting: s.status.pending_submissions ?? null,
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,
-    setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') }
+    setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') },
+    ...(getJobs ? { jobs: jobsOut } : {})
+  };
+}
+
+// The jobs part of the summary (from jobs.stats()): per job, its last run
+// (status, when, how long, and a collect's counts and warnings), what's
+// queued and running, failures in the last day, and when the worker last
+// asked for work (worker_since: this process's start, so HQ can tell a
+// worker silent since a redeploy). No personal data: counts, source names
+// and the collector's own warnings.
+export function jobsSummary(st) {
+  const last = {};
+  for (const [kind, j] of Object.entries((st && st.last) || {})) {
+    const r = j.result || {};
+    last[kind] = {
+      status: j.status, finished_at: j.finished_at, seconds: Number.isFinite(r.seconds) ? r.seconds : null,
+      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {} } : {}),
+      ...(j.status === 'failed' ? { error: String(r.error || '').slice(0, 300) } : {})
+    };
+  }
+  return {
+    worker_last_seen: st.worker_last_seen || null,
+    worker_since: st.worker_since || null,
+    queued: st.queued || 0,
+    running: st.running || [],
+    failed_24h: st.failed_24h || 0,
+    last
   };
 }
 

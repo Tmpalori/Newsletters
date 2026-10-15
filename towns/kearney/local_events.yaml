@@ -207,7 +207,7 @@ recurring:
     venue: "Tri-City BMX Track"
     address: "3710 30th Ave"
     description: "USA BMX racing. Registration 1–2 PM, racing right after. Free to watch."
-    icons: [sports, outdoors, family]
+    icons: [outdoors, family]
     free: true
     url: "https://www.usabmx.com/events/640462"
     end_date: "2026-10-31"
@@ -533,7 +533,7 @@ events:
     venue: "Kearney Cancer Center, Yanney Park"
     address: "Yanney Heritage Park"
     description: "KRMC and Cancer Partners of Nebraska's annual run/walk honoring everyone touched by cancer."
-    icons: [sports, outdoors, community]
+    icons: [outdoors, community]
     free: false
     url: "https://www.facebook.com/events/1299620982103114"
     # VERIFIED: Visit Kearney calendar 2026-10-14
@@ -589,7 +589,7 @@ events:
     venue: "Kearney Country Club"
     address: "2800 19th Ave"
     description: "Kearney has hosted Nebraska's state high school cross country meet for 50 years. The biggest meet of the year."
-    icons: [sports, outdoors]
+    icons: [outdoors]
     free: false
     url: "https://nsaahome.org/cross-country/"
     big: true
@@ -786,7 +786,7 @@ events:
     venue: "Ron & Carol Cope Stadium"
     address: "University Dr & 29th St"
     description: "State title games at UNK: D3 (8-man) at 1 PM, D6 (6-man) under the lights at 7 PM."
-    icons: [sports]
+    icons: [outdoors]
     free: false
     url: "https://nsaahome.org/football/"
     # VERIFIED: Visit Kearney calendar 2026-10-14
@@ -808,7 +808,7 @@ events:
     venue: "Kearney Family YMCA"
     address: "4500 6th Ave"
     description: "Thanksgiving morning run/walk at the Y."
-    icons: [sports, family, community]
+    icons: [family, community]
     free: false
     url: "https://www.facebook.com/photo?fbid=1362392272726022"
     big: true

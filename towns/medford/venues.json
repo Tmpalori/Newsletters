@@ -1,1 +1,1134 @@
-[]
+[
+ {
+  "name": "Craterian Theater at The Collier Center",
+  "category": "Performing Arts Theater",
+  "facebook_page": "https://www.facebook.com/craterian",
+  "facebook_events": "https://www.facebook.com/craterian/events",
+  "event_potential": "Touring concerts, Rogue Valley Symphony, TMTO musicals, Gingerbread Jubilee; 100+ shows a year (also in craterian tribe feed)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "craterian"
+  ],
+  "instagram_url": "https://www.instagram.com/craterian/",
+  "website": "https://craterian.org"
+ },
+ {
+  "name": "The Holly Theatre",
+  "category": "Historic Theater / Concert Venue",
+  "facebook_page": "https://www.facebook.com/HollyTheatre",
+  "facebook_events": "https://www.facebook.com/HollyTheatre/events",
+  "event_potential": "Restored 1930 movie palace: national touring acts (Lyle Lovett, Chris Botti, Jinkx & DeLa), films; site is Wix with no feed",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "holly_theatre"
+  ],
+  "instagram_url": "https://www.instagram.com/holly_theatre/",
+  "website": "https://www.hollytheatre.org"
+ },
+ {
+  "name": "Oregon Shakespeare Festival",
+  "category": "Theater Festival",
+  "facebook_page": "https://www.facebook.com/osfashland",
+  "facebook_events": "https://www.facebook.com/osfashland/events",
+  "event_potential": "Repertory season Mar to late Oct in three Ashland theatres; holiday programming; no feed (custom site)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "osfashland"
+  ],
+  "instagram_url": "https://www.instagram.com/osfashland/",
+  "website": "https://www.osfashland.org"
+ },
+ {
+  "name": "Dangerous Lee's Local 31 Pub",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/local31pub",
+  "facebook_events": "https://www.facebook.com/local31pub/events",
+  "event_potential": "Karaoke Tue & Wed, Thursday trivia and jams, touring bands Fri/Sat, Fluid Druids Saturday happy hour",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; schedule on local31pub.ai",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "local31pub"
+  ],
+  "instagram_url": "https://www.instagram.com/local31pub/",
+  "website": "https://local31pub.ai"
+ },
+ {
+  "name": "The Rocky Tonk Saloon",
+  "category": "Bar / Live Music / Country",
+  "facebook_page": "https://www.facebook.com/therockytonk",
+  "facebook_events": "https://www.facebook.com/therockytonk/events",
+  "event_potential": "National-act concerts, line dancing, Thursday comedy open mic, bar bingo; 333 E Main St Medford",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "therockytonk"
+  ],
+  "instagram_url": "https://www.instagram.com/therockytonk/"
+ },
+ {
+  "name": "Common Block Brewing Co.",
+  "category": "Brewery / Live Music",
+  "facebook_page": "https://www.facebook.com/commonblockbrewing",
+  "facebook_events": "https://www.facebook.com/commonblockbrewing/events",
+  "event_potential": "Downtown Medford brewpub: live music, Bales & Ales and seasonal parties",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "commonblockbrew"
+  ],
+  "instagram_url": "https://www.instagram.com/commonblockbrew/",
+  "website": "https://commonblockbrewing.com"
+ },
+ {
+  "name": "The Copper Plank",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/thecopperplank",
+  "facebook_events": "https://www.facebook.com/thecopperplank/events",
+  "event_potential": "Live bands Fri/Sat (Scott Pemberton, Ghost Ballads), trivia; 202 N Central Ave Medford",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "thecopperplank"
+  ],
+  "instagram_url": "https://www.instagram.com/thecopperplank/",
+  "website": "https://www.thecopperplank.com"
+ },
+ {
+  "name": "Grape Street Bar and Grill",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/grapestbar",
+  "facebook_events": "https://www.facebook.com/grapestbar/events",
+  "event_potential": "Southern Oregon Jazz Orchestra 2nd/4th Wed, Rogue Blues Society jam 1st/3rd Wed, DJs and food trucks",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "thegrapestreetbar"
+  ],
+  "instagram_url": "https://www.instagram.com/thegrapestreetbar/"
+ },
+ {
+  "name": "Oberon's Restaurant and Bar",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/oberonsashland",
+  "facebook_events": "https://www.facebook.com/oberonsashland/events",
+  "event_potential": "Shakespeare-themed cocktail bar with live music almost every night; 45 N Main St Ashland",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "oberonsashland"
+  ],
+  "instagram_url": "https://www.instagram.com/oberonsashland/",
+  "website": "https://oberonsashland.com"
+ },
+ {
+  "name": "RoxyAnn Winery",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/RoxyAnnWinery",
+  "facebook_events": "https://www.facebook.com/RoxyAnnWinery/events",
+  "event_potential": "Friday Music + Wine Series, comedy third Wednesdays, music bingo, open mic (also in roxyann tribe feed)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "roxyann_winery"
+  ],
+  "instagram_url": "https://www.instagram.com/roxyann_winery/",
+  "website": "https://roxyann.com"
+ },
+ {
+  "name": "Dunbar Farms",
+  "category": "Winery / Farm / Live Music",
+  "facebook_page": "https://www.facebook.com/dunbarfarmsofmedford",
+  "facebook_events": "https://www.facebook.com/dunbarfarmsofmedford/events",
+  "event_potential": "Thursday Irish music, Fri/Sat bands 5:30-7:30, harvest dinners; 2881 Hillcrest Rd",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no IG found",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://www.dunbarfarms.com"
+ },
+ {
+  "name": "Rogue X",
+  "category": "Community Center / Event Hall",
+  "facebook_page": "https://www.facebook.com/MedfordSportsAndEventsCenter",
+  "facebook_events": "https://www.facebook.com/MedfordSportsAndEventsCenter/events",
+  "event_potential": "City of Medford aquatics and events center: holiday bazaars, Merry Market, Breakfast with Santa, Harvest & Hallow",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "roguex_medford"
+  ],
+  "instagram_url": "https://www.instagram.com/roguex_medford/",
+  "website": "https://www.medfordoregon.gov"
+ },
+ {
+  "name": "Jackson County Expo",
+  "category": "Fairgrounds / Event Center",
+  "facebook_page": "https://www.facebook.com/attheexpo",
+  "facebook_events": "https://www.facebook.com/attheexpo/events",
+  "event_potential": "Jackson County Fair, flea markets, holiday market, rodeos, concerts (also in expo tribe feed)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "attheexpo"
+  ],
+  "instagram_url": "https://www.instagram.com/attheexpo/",
+  "website": "https://attheexpo.com"
+ },
+ {
+  "name": "Britt Music & Arts Festival",
+  "category": "Outdoor Amphitheater / Festival",
+  "facebook_page": "https://www.facebook.com/BrittFestivals",
+  "facebook_events": "https://www.facebook.com/BrittFestivals/events",
+  "event_potential": "Summer concert season on the Jacksonville hillside (Jun-Sep); off-season announcements",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "brittfestival"
+  ],
+  "instagram_url": "https://www.instagram.com/brittfestival/",
+  "website": "https://britt.org"
+ },
+ {
+  "name": "Rogue Valley Growers & Crafters Market",
+  "category": "Farmers Market",
+  "facebook_page": "https://www.facebook.com/rvgrowersmarket",
+  "facebook_events": "https://www.facebook.com/rvgrowersmarket/events",
+  "event_potential": "Ashland Tue + Sat, Medford Thu markets Mar-Nov; seasonal specials",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "rvgrowersmarket"
+  ],
+  "instagram_url": "https://www.instagram.com/rvgrowersmarket/",
+  "website": "https://www.rvgrowersmarket.com"
+ },
+ {
+  "name": "Downtown Medford Association",
+  "category": "Downtown Association",
+  "facebook_page": "https://www.facebook.com/dmamedford",
+  "facebook_events": "https://www.facebook.com/dmamedford/events",
+  "event_potential": "Third Friday Medford, Forks & Friends restaurant week, Winter Lights tie-ins",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "downtownmedfordor"
+  ],
+  "instagram_url": "https://www.instagram.com/downtownmedfordor/",
+  "website": "https://downtownmedford.org"
+ },
+ {
+  "name": "Camelot Theatre",
+  "category": "Community Theater",
+  "facebook_page": "https://www.facebook.com/CamelotTheatre",
+  "facebook_events": "https://www.facebook.com/CamelotTheatre/events",
+  "event_potential": "Musicals, plays and Spotlight tribute concerts in Talent year-round",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "camelottheatre"
+  ],
+  "instagram_url": "https://www.instagram.com/camelottheatre/",
+  "website": "https://camelottheatre.org"
+ },
+ {
+  "name": "Oregon Cabaret Theatre",
+  "category": "Dinner Theater",
+  "facebook_page": "https://www.facebook.com/oregoncabaret",
+  "facebook_events": "https://www.facebook.com/oregoncabaret/events",
+  "event_potential": "Year-round musicals and comedies with dinner in Ashland; holiday show",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; site blocks bots (403)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "oregoncabaret"
+  ],
+  "instagram_url": "https://www.instagram.com/oregoncabaret/",
+  "website": "https://www.oregoncabaret.com"
+ },
+ {
+  "name": "Collaborative Theatre Project",
+  "category": "Community Theater",
+  "facebook_page": "https://www.facebook.com/CTPOregon",
+  "facebook_events": "https://www.facebook.com/CTPOregon/events",
+  "event_potential": "Plays and musicals in downtown Medford",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "ctporegon"
+  ],
+  "instagram_url": "https://www.instagram.com/ctporegon/",
+  "website": "https://ctpmedford.org"
+ },
+ {
+  "name": "Rogue Valley Symphony",
+  "category": "Orchestra",
+  "facebook_page": "https://www.facebook.com/RVSymphony",
+  "facebook_events": "https://www.facebook.com/RVSymphony/events",
+  "event_potential": "Masterworks series at Craterian, SOU Recital Hall and Grants Pass; holiday concerts",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; site blocks bots (403)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "rvsymphony"
+  ],
+  "instagram_url": "https://www.instagram.com/rvsymphony/",
+  "website": "https://rvsymphony.org"
+ },
+ {
+  "name": "ScienceWorks Hands-On Museum",
+  "category": "Museum / Family",
+  "facebook_page": "https://www.facebook.com/scienceworksmuseum",
+  "facebook_events": "https://www.facebook.com/scienceworksmuseum/events",
+  "event_potential": "Monster Ball, family science nights, camps; hosts Tuesday growers market lot",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "scienceworksmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/scienceworksmuseum/",
+  "website": "https://www.scienceworksmuseum.org"
+ },
+ {
+  "name": "Southern Oregon Historical Society",
+  "category": "Museum / History",
+  "facebook_page": "https://www.facebook.com/SouthernOregonHistoricalSociety",
+  "facebook_events": "https://www.facebook.com/SouthernOregonHistoricalSociety/events",
+  "event_potential": "Hanley Farm events, Halloween History Prowl, Windows in Time talks (also in sohs tribe feed)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "so.oregonhistoricalsociety"
+  ],
+  "instagram_url": "https://www.instagram.com/so.oregonhistoricalsociety/",
+  "website": "https://sohs.org"
+ },
+ {
+  "name": "Schneider Museum of Art",
+  "category": "Art Museum",
+  "facebook_page": "https://www.facebook.com/schneidermoa",
+  "facebook_events": "https://www.facebook.com/schneidermoa/events",
+  "event_potential": "Exhibition openings, artist talks at SOU",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "schneidermoa"
+  ],
+  "instagram_url": "https://www.instagram.com/schneidermoa/",
+  "website": "https://sma.sou.edu"
+ },
+ {
+  "name": "Ashland Independent Film Festival",
+  "category": "Film Festival / Screenings",
+  "facebook_page": "https://www.facebook.com/ashlandfilm",
+  "facebook_events": "https://www.facebook.com/ashlandfilm/events",
+  "event_potential": "Spring festival plus year-round seasonal film series at the Varsity",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "ashlandfilm"
+  ],
+  "instagram_url": "https://www.instagram.com/ashlandfilm/",
+  "website": "https://www.ashlandfilm.org"
+ },
+ {
+  "name": "Prism Medford",
+  "category": "LGBTQ+ Bar / Nightclub",
+  "facebook_page": "https://www.facebook.com/prismmedford",
+  "facebook_events": "https://www.facebook.com/prismmedford/events",
+  "event_potential": "Queer nightlife: dance nights, drag, trivia, karaoke, touring shows (Magic Hunks); 123 S Front St",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "prismmedford"
+  ],
+  "instagram_url": "https://www.instagram.com/prismmedford/"
+ },
+ {
+  "name": "Walkabout Brewing",
+  "category": "Brewery / Live Music",
+  "facebook_page": "https://www.facebook.com/walkaboutbrewingco",
+  "facebook_events": "https://www.facebook.com/walkaboutbrewingco/events",
+  "event_potential": "Live music, trivia nights and comedy at the Mason Way taproom",
+  "confidence": "high",
+  "notes": "FB events link and IG from official website (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "walkaboutbrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/walkaboutbrewing/",
+  "website": "https://walkaboutbrewing.com"
+ },
+ {
+  "name": "Callahan's Mountain Lodge",
+  "category": "Lodge / Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/callahans",
+  "facebook_events": "https://www.facebook.com/callahans/events",
+  "event_potential": "Live music every weekend (5-9 PM), holiday events; 7100 Old Hwy 99 S Ashland",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "callahansmountainlodge"
+  ],
+  "instagram_url": "https://www.instagram.com/callahansmountainlodge/"
+ },
+ {
+  "name": "Tap & Vine at 559",
+  "category": "Taproom / Live Music",
+  "facebook_page": "https://www.facebook.com/2393757170859271",
+  "facebook_events": "https://www.facebook.com/2393757170859271/events",
+  "event_potential": "Patio live music several nights a week at The Village Medford Center",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15) (FB is a numeric page id)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "tapandvine559"
+  ],
+  "instagram_url": "https://www.instagram.com/tapandvine559/",
+  "website": "https://tapandvine559.com"
+ },
+ {
+  "name": "Pheasant Fields Farm",
+  "category": "Farm / Seasonal Attraction",
+  "facebook_page": "https://www.facebook.com/pheasantfieldsfarmoregon",
+  "facebook_events": "https://www.facebook.com/pheasantfieldsfarmoregon/events",
+  "event_potential": "Harvest Festival weekends Sep-Oct, Fright After Dark, spring events; 1865 Camp Baker Rd",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "pheasantfieldsfarm"
+  ],
+  "instagram_url": "https://www.instagram.com/pheasantfieldsfarm/",
+  "website": "https://www.pheasantfieldsfarm.com"
+ },
+ {
+  "name": "Jefferson Spirits",
+  "category": "Cocktail Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/jeffersonspirits",
+  "facebook_events": "https://www.facebook.com/jeffersonspirits/events",
+  "event_potential": "Downtown Medford cocktail bar with live music and events; Blind Tiger Medicine Room",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15); IG on site points to sister bar, left out",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://www.jeffersonspirits.com"
+ },
+ {
+  "name": "Bloomsbury Books",
+  "category": "Bookstore / Author Events",
+  "facebook_page": "https://www.facebook.com/BloomsburyBooksAshland",
+  "facebook_events": "https://www.facebook.com/BloomsburyBooksAshland/events",
+  "event_potential": "Several author talks a week, Ashland Mystery Fest",
+  "confidence": "high",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://bloomsburybooks.com"
+ },
+ {
+  "name": "Resistance Wine Company",
+  "category": "Wine Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/resistancewineco",
+  "facebook_events": "https://www.facebook.com/resistancewineco/events",
+  "event_potential": "Thurs-date Night, Friday pizza night, weekend jazz (listed on ashland.news)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "resistancewineco"
+  ],
+  "instagram_url": "https://www.instagram.com/resistancewineco/",
+  "website": "https://resistancewineco.com"
+ },
+ {
+  "name": "Grizzly Peak Winery",
+  "category": "Winery / Events",
+  "facebook_page": "https://www.facebook.com/GrizzlyPeakWinery",
+  "facebook_events": "https://www.facebook.com/GrizzlyPeakWinery/events",
+  "event_potential": "Rogue Theater Company shows, music (also in tribe feed)",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "grizzlypeakwinery"
+  ],
+  "instagram_url": "https://www.instagram.com/grizzlypeakwinery/",
+  "website": "https://grizzlypeakwinery.com"
+ },
+ {
+  "name": "Caldera Brewing",
+  "category": "Brewery / Restaurant",
+  "facebook_page": "https://www.facebook.com/calderabrewery",
+  "facebook_events": "https://www.facebook.com/calderabrewery/events",
+  "event_potential": "Taphouse events, release parties in Ashland",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "calderabrewing"
+  ],
+  "instagram_url": "https://www.instagram.com/calderabrewing/",
+  "website": "https://www.calderabrewing.com"
+ },
+ {
+  "name": "4 Daughters Irish Pub",
+  "category": "Pub / Trivia",
+  "facebook_page": "https://www.facebook.com/4DaughtersIrishPub",
+  "facebook_events": "https://www.facebook.com/4DaughtersIrishPub/events",
+  "event_potential": "Trivia nights, live music, St Patrick's Day; downtown Medford",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "4daughtersirishpub"
+  ],
+  "instagram_url": "https://www.instagram.com/4daughtersirishpub/",
+  "website": "https://4daughtersirishpub.com"
+ },
+ {
+  "name": "Kaleidoscope Pizzeria & Pub",
+  "category": "Pizza Pub / Live Music",
+  "facebook_page": "https://www.facebook.com/KaleidoscopePizzeria",
+  "facebook_events": "https://www.facebook.com/KaleidoscopePizzeria/events",
+  "event_potential": "Live music and family nights in Medford",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "Kscopepizza"
+  ],
+  "instagram_url": "https://www.instagram.com/Kscopepizza/",
+  "website": "https://kaleidoscopepizza.com"
+ },
+ {
+  "name": "Medford Rogues",
+  "category": "Collegiate Summer Baseball",
+  "facebook_page": "https://www.facebook.com/MedfordRoguesBaseball",
+  "facebook_events": "https://www.facebook.com/MedfordRoguesBaseball/events",
+  "event_potential": "Home games at Harry & David Field Jun-Aug; off-season events",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "medfordrogues"
+  ],
+  "instagram_url": "https://www.instagram.com/medfordrogues/",
+  "website": "https://medfordrogues.com"
+ },
+ {
+  "name": "Rogue Valley Family YMCA",
+  "category": "Community / Fitness",
+  "facebook_page": "https://www.facebook.com/RogueValleyFamilyYMCA",
+  "facebook_events": "https://www.facebook.com/RogueValleyFamilyYMCA/events",
+  "event_potential": "Party with a Purpose dueling pianos, family bingo nights, youth sports",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "RogueValleyFamilyYMCA"
+  ],
+  "instagram_url": "https://www.instagram.com/RogueValleyFamilyYMCA/",
+  "website": "https://rvymca.org"
+ },
+ {
+  "name": "Ashland Food Co-op",
+  "category": "Grocery / Classes",
+  "facebook_page": "https://www.facebook.com/ashlandfoodcoop",
+  "facebook_events": "https://www.facebook.com/ashlandfoodcoop/events",
+  "event_potential": "Cooking classes, community events",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "ashlandfoodcoop"
+  ],
+  "instagram_url": "https://www.instagram.com/ashlandfoodcoop/",
+  "website": "https://ashland.food.coop"
+ },
+ {
+  "name": "Medford Food Co-op",
+  "category": "Grocery / Community",
+  "facebook_page": "https://www.facebook.com/MedfordFoodCoop",
+  "facebook_events": "https://www.facebook.com/MedfordFoodCoop/events",
+  "event_potential": "Heart of the Rogue festival, community days",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "medfordfoodcoop"
+  ],
+  "instagram_url": "https://www.instagram.com/medfordfoodcoop/",
+  "website": "https://www.medfordfood.coop"
+ },
+ {
+  "name": "Mt. Ashland Ski Area",
+  "category": "Ski Area / Outdoors",
+  "facebook_page": "https://www.facebook.com/mtashlandskiarea",
+  "facebook_events": "https://www.facebook.com/mtashlandskiarea/events",
+  "event_potential": "Opening day, holiday events, race series, summer concerts",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "mt_ashland_ski_area"
+  ],
+  "instagram_url": "https://www.instagram.com/mt_ashland_ski_area/",
+  "website": "https://www.mtashland.com"
+ },
+ {
+  "name": "Ashland Springs Hotel",
+  "category": "Hotel / Events",
+  "facebook_page": "https://www.facebook.com/ashlandspringshotel",
+  "facebook_events": "https://www.facebook.com/ashlandspringshotel/events",
+  "event_potential": "Lark's dinners, holiday teas and events downtown Ashland",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "ashlandspringshotel"
+  ],
+  "instagram_url": "https://www.instagram.com/ashlandspringshotel/",
+  "website": "https://www.ashlandspringshotel.com"
+ },
+ {
+  "name": "Ashland Hills Hotel & Suites",
+  "category": "Hotel / Comedy / Events",
+  "facebook_page": "https://www.facebook.com/ashlandhillshotelandsuites",
+  "facebook_events": "https://www.facebook.com/ashlandhillshotelandsuites/events",
+  "event_potential": "World Famous Comedy weekends, dances, conferences",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "Ashland_Hills_Hotel"
+  ],
+  "instagram_url": "https://www.instagram.com/Ashland_Hills_Hotel/",
+  "website": "https://www.ashlandhillshotel.com"
+ },
+ {
+  "name": "Rogue Valley Metaphysical Library",
+  "category": "Library / Lectures",
+  "facebook_page": "https://www.facebook.com/RogueValleyMetaphysicalLibrary",
+  "facebook_events": "https://www.facebook.com/RogueValleyMetaphysicalLibrary/events",
+  "event_potential": "Tuesday lecture series, Halloween open house",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://rvml.org"
+ },
+ {
+  "name": "Talent Maker City",
+  "category": "Makerspace",
+  "facebook_page": "https://www.facebook.com/talentmakercity",
+  "facebook_events": "https://www.facebook.com/talentmakercity/events",
+  "event_potential": "Community craft nights 1st/3rd Tue, workshops in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "talentmakercity"
+  ],
+  "instagram_url": "https://www.instagram.com/talentmakercity/",
+  "website": "https://www.talentmakercity.org"
+ },
+ {
+  "name": "Rogue Valley Wine Country",
+  "category": "Wine Association",
+  "facebook_page": "https://www.facebook.com/roguevalleywinecountry",
+  "facebook_events": "https://www.facebook.com/roguevalleywinecountry/events",
+  "event_potential": "Regional wine events, harvest celebrations, winery news",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "roguevalleywinecountry"
+  ],
+  "instagram_url": "https://www.instagram.com/roguevalleywinecountry/",
+  "website": "https://roguevalleywine.com"
+ },
+ {
+  "name": "Applegate Valley Wine Trail",
+  "category": "Wine Association",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Uncorked barrel tour (Nov 21), spring and fall trail weekends",
+  "confidence": "medium",
+  "notes": "No verified FB/IG; website listed on Travel Medford",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://applegatevalley.wine"
+ },
+ {
+  "name": "Del Rio Vineyards & Winery",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/delriovineyards",
+  "facebook_events": "https://www.facebook.com/delriovineyards/events",
+  "event_potential": "Sunday afternoon live music 3-5 PM, Gold Hill",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "delriovineyards"
+  ],
+  "instagram_url": "https://www.instagram.com/delriovineyards/",
+  "website": "https://delriovineyards.com"
+ },
+ {
+  "name": "DANCIN Vineyards",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/DANCINVineyards",
+  "facebook_events": "https://www.facebook.com/DANCINVineyards/events",
+  "event_potential": "Friday evening music, pizza nights",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "dancinvineyards"
+  ],
+  "instagram_url": "https://www.instagram.com/dancinvineyards/",
+  "website": "https://www.dancin.com"
+ },
+ {
+  "name": "Kriselle Cellars",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/KriselleCellars",
+  "facebook_events": "https://www.facebook.com/KriselleCellars/events",
+  "event_potential": "Summer and fall music on the deck, White City",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "krisellecellars"
+  ],
+  "instagram_url": "https://www.instagram.com/krisellecellars/",
+  "website": "https://krisellecellars.com"
+ },
+ {
+  "name": "Paschal Winery & Vineyard",
+  "category": "Winery / Workshops",
+  "facebook_page": "https://www.facebook.com/PaschalWinery",
+  "facebook_events": "https://www.facebook.com/PaschalWinery/events",
+  "event_potential": "Workshops, live music, holiday events in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "paschalwinery"
+  ],
+  "instagram_url": "https://www.instagram.com/paschalwinery/",
+  "website": "https://www.paschalwinery.com"
+ },
+ {
+  "name": "Naumes Suncrest Winery",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/NaumesSuncrestWinery",
+  "facebook_events": "https://www.facebook.com/NaumesSuncrestWinery/events",
+  "event_potential": "Weekend music, wreath and floral classes in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "naumessuncrestwinery"
+  ],
+  "instagram_url": "https://www.instagram.com/naumessuncrestwinery/",
+  "website": "https://www.naumessuncrestwinery.com"
+ },
+ {
+  "name": "StoneRiver Vineyards",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/stonerivervineyards",
+  "facebook_events": "https://www.facebook.com/stonerivervineyards/events",
+  "event_potential": "Saturday music 5-7 PM, Sunday music bingo",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "stonerivervineyards"
+  ],
+  "instagram_url": "https://www.instagram.com/stonerivervineyards/",
+  "website": "https://www.stonerivervineyards.com"
+ },
+ {
+  "name": "Trium Wines",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/Trium-Wines-79187043390",
+  "facebook_events": "https://www.facebook.com/Trium-Wines-79187043390/events",
+  "event_potential": "Friday music 5-7 PM in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.triumwines.com"
+ },
+ {
+  "name": "Valley View Winery",
+  "category": "Winery",
+  "facebook_page": "https://www.facebook.com/valleyviewwinery",
+  "facebook_events": "https://www.facebook.com/valleyviewwinery/events",
+  "event_potential": "Tasting-room events in the Applegate/Jacksonville area",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "valleyviewwinery"
+  ],
+  "instagram_url": "https://www.instagram.com/valleyviewwinery/",
+  "website": "https://valleyviewwinery.com"
+ },
+ {
+  "name": "Quady North",
+  "category": "Winery / Tasting Room",
+  "facebook_page": "https://www.facebook.com/QuadyNorth",
+  "facebook_events": "https://www.facebook.com/QuadyNorth/events",
+  "event_potential": "Jacksonville tasting room events, release parties",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "quadynorth"
+  ],
+  "instagram_url": "https://www.instagram.com/quadynorth/",
+  "website": "https://www.quadynorth.com"
+ },
+ {
+  "name": "Ledger David Cellars",
+  "category": "Winery / Live Music",
+  "facebook_page": "https://www.facebook.com/LedgerDavidCellars",
+  "facebook_events": "https://www.facebook.com/LedgerDavidCellars/events",
+  "event_potential": "Live music and tastings in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://ledgerdavid.com"
+ },
+ {
+  "name": "Weisinger Family Winery",
+  "category": "Winery",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Tasting room events in Ashland",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "weisingerfamilywinery"
+  ],
+  "instagram_url": "https://www.instagram.com/weisingerfamilywinery/",
+  "website": "https://www.weisingers.com"
+ },
+ {
+  "name": "Belle Fiore Winery",
+  "category": "Winery / Live Music",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Saturday evening music (Vanessa Finney Duo), dinners",
+  "confidence": "medium",
+  "notes": "IG from official website; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "belle_fiore"
+  ],
+  "instagram_url": "https://www.instagram.com/belle_fiore/",
+  "website": "https://belle-fiore.com"
+ },
+ {
+  "name": "Rogue Creamery",
+  "category": "Cheese Shop / Events",
+  "facebook_page": "https://www.facebook.com/RogueCreamery",
+  "facebook_events": "https://www.facebook.com/RogueCreamery/events",
+  "event_potential": "Cheese releases, Oregon Cheese Fest tie-ins, Central Point",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "roguecreamery"
+  ],
+  "instagram_url": "https://www.instagram.com/roguecreamery/",
+  "website": "https://roguecreamery.com"
+ },
+ {
+  "name": "Crater Rock Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/CraterRockMuseum",
+  "facebook_events": "https://www.facebook.com/CraterRockMuseum/events",
+  "event_potential": "Rock and gem shows, family days in Central Point",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "crater_rock_museum"
+  ],
+  "instagram_url": "https://www.instagram.com/crater_rock_museum/",
+  "website": "https://craterrock.com"
+ },
+ {
+  "name": "Butte Creek Mill",
+  "category": "Historic Mill / Market",
+  "facebook_page": "https://www.facebook.com/ButteCreekMill",
+  "facebook_events": "https://www.facebook.com/ButteCreekMill/events",
+  "event_potential": "Holiday Market & Bazaar (Nov 21-22), heritage days, Eagle Point",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "ButteCreekMill"
+  ],
+  "instagram_url": "https://www.instagram.com/ButteCreekMill/",
+  "website": "https://buttecreekmill.com"
+ },
+ {
+  "name": "Eagle Point Chamber of Commerce",
+  "category": "Chamber of Commerce",
+  "facebook_page": "https://www.facebook.com/eaglepointchamber",
+  "facebook_events": "https://www.facebook.com/eaglepointchamber/events",
+  "event_potential": "Downtown Hoedown, Cars & Coffee, community events (in tribe feed)",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://eaglepointchamber.org"
+ },
+ {
+  "name": "Jacksonville Oregon Chamber of Commerce",
+  "category": "Chamber / Visitor Center",
+  "facebook_page": "https://www.facebook.com/JacksonvilleOregon",
+  "facebook_events": "https://www.facebook.com/JacksonvilleOregon/events",
+  "event_potential": "Haunted History tours, Victorian Christmas, Soup Stroll; site blocks bots",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://jacksonvilleoregon.org"
+ },
+ {
+  "name": "Bigham Knoll Campus",
+  "category": "Event Venue",
+  "facebook_page": "https://www.facebook.com/BighamKnoll",
+  "facebook_events": "https://www.facebook.com/BighamKnoll/events",
+  "event_potential": "Schoolhouse events and Black Barn Farm Kitchen in Jacksonville",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Bigham Farms",
+  "category": "Farm / Pumpkin Patch",
+  "facebook_page": "https://www.facebook.com/BighamFarms",
+  "facebook_events": "https://www.facebook.com/BighamFarms/events",
+  "event_potential": "Pumpkin patch, hayrides and corn maze every October weekend",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Varsity Theatre",
+  "category": "Movie Theater",
+  "facebook_page": "https://www.facebook.com/catheatres.VarsityTheatre",
+  "facebook_events": "https://www.facebook.com/catheatres.VarsityTheatre/events",
+  "event_potential": "AIFF screenings, special premieres; FB shows a 'Closing Soon' tag, verify",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://catheatres.com"
+ },
+ {
+  "name": "Liquid Lounge",
+  "category": "Bar / Trivia / Comedy",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Wednesday trivia, third-Thursday comedy (in travel_ashland feed)",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted search; FB not confirmed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "liquidloungeashland"
+  ],
+  "instagram_url": "https://www.instagram.com/liquidloungeashland/"
+ },
+ {
+  "name": "Art Bop Beer Co",
+  "category": "Brewery / Arts",
+  "facebook_page": "https://www.facebook.com/artbopbeerco",
+  "facebook_events": "https://www.facebook.com/artbopbeerco/events",
+  "event_potential": "Zine socials, art nights in Talent",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "artbopbeerco"
+  ],
+  "instagram_url": "https://www.instagram.com/artbopbeerco/"
+ },
+ {
+  "name": "Curtain Call Cabaret & Lounge",
+  "category": "Cabaret / Comedy / Trivia",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Midweek Mayhem trivia + comedy open mic Wednesdays, karaoke, brunch shows; 120 E 6th St",
+  "confidence": "medium",
+  "notes": "No FB/IG found; site rate-limited (429); schedule from RV Times",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.curtaincallcollective.com"
+ },
+ {
+  "name": "Randall Theatre Company / Ghostlight Playhouse",
+  "category": "Community Theater",
+  "facebook_page": "https://www.facebook.com/randalltheatre",
+  "facebook_events": "https://www.facebook.com/randalltheatre/events",
+  "event_potential": "Pay-what-you-want main stage shows, Ghostlight Playhouse social nights and karaoke; 3rd & Front St",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "randalltheatrecompany"
+  ],
+  "instagram_url": "https://www.instagram.com/randalltheatrecompany/"
+ },
+ {
+  "name": "Teen Musical Theater of Oregon",
+  "category": "Youth Theater",
+  "facebook_page": "https://www.facebook.com/teenmusicaltheateroforegon",
+  "facebook_events": "https://www.facebook.com/teenmusicaltheateroforegon/events",
+  "event_potential": "TMTO's Annie at the Craterian Dec 12-19",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The Rrrink",
+  "category": "Ice Rink",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Public skating, Rogue Valley Royals hockey, Steel Noir on-ice cabaret; 1349 Center Dr",
+  "confidence": "medium",
+  "notes": "IG from instagram.com-restricted search; FB page is a numeric /p/ profile, left out",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "therrrink"
+  ],
+  "instagram_url": "https://www.instagram.com/therrrink/"
+ },
+ {
+  "name": "Children's Museum of Southern Oregon",
+  "category": "Museum / Family",
+  "facebook_page": "https://www.facebook.com/KidTimeMedford",
+  "facebook_events": "https://www.facebook.com/KidTimeMedford/events",
+  "event_potential": "Family events, open Tue-Sun at 413 W Main St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thechildrensmuseumofsouthernor"
+  ],
+  "instagram_url": "https://www.instagram.com/thechildrensmuseumofsouthernor/",
+  "website": "https://www.tcmso.org"
+ },
+ {
+  "name": "Martino's and Macaroni's",
+  "category": "Restaurant / Lounge / Jazz",
+  "facebook_page": "https://www.facebook.com/macaronisandmartinos",
+  "facebook_events": "https://www.facebook.com/macaronisandmartinos/events",
+  "event_potential": "Paul Schmeling Band jazz every Monday 7-9 PM, 58 E Main St Ashland",
+  "confidence": "medium",
+  "notes": "FB/IG from facebook.com/instagram.com-restricted web search 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "macaronisandmartinos"
+  ],
+  "instagram_url": "https://www.instagram.com/macaronisandmartinos/"
+ }
+]

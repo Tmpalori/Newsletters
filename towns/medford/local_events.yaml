@@ -1,2 +1,1008 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── The Rogue 541 — Local Events (Medford & the Rogue Valley, OR) ──────────
+# Manually curated events and recurring events for Medford, Ashland,
+# Central Point, Jacksonville, Phoenix, Talent and Eagle Point.
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# The town feeds already pull ashland.news, travelashland.com, craterian.org,
+# events.sou.edu, the City of Ashland (events + recreation), Jackson County
+# Library, the Jacksonville Review Google calendar, SOHS, RoxyAnn Winery,
+# Grizzly Peak Winery, the Eagle Point Chamber and the Jackson County Expo.
+# Entries here cover what those miss: Medford bars, comedy, markets, the
+# Holly Theatre, Rogue X, and the big holiday dates. Travel Medford's
+# 226-event calendar has no supported feed type yet, so its notable
+# one-time items are copied here.
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line.
+#   "RV Times roundup" = rv-times.com "Things to Do in the Rogue Valley"
+#     (Sept. 28-Oct. 12 and Oct. 12-26, 2026 editions), read 2026-10-15.
+#   "Travel Medford calendar" = travelmedford.org/events agenda view
+#     (Oct 15 2026 - Jan 31 2027), read 2026-10-15.
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── MONDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Paul Schmeling Band at Martino's"
+    day: monday
+    time: "7:00 PM – 9:00 PM"
+    venue: "Martino's Restaurant and Lounge"
+    address: "58 E Main St, Ashland"
+    description: "Monday-night jazz standards from pianist Paul Schmeling's band in a downtown Ashland lounge."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    favorite: true
+    # VERIFIED: RV Times roundup 2026-10-15 (every Monday, listed Sept 28 – Oct 26 2026)
+
+  # ── TUESDAY ─────────────────────────────────────────────────────────────
+
+  - name: "Ashland Tuesday Growers & Crafters Market"
+    day: tuesday
+    time: "8:30 AM – 1:30 PM"
+    venue: "ScienceWorks parking lot"
+    address: "1500 E Main St, Ashland"
+    description: "Rogue Valley Growers & Crafters Market: local produce, bread, flowers, artisan food and crafts every Tuesday through the end of the outdoor season."
+    icons: [food, shopping, outdoors, family, free]
+    free: true
+    url: "https://www.rvgrowersmarket.com/"
+    favorite: true
+    end_date: "2026-11-24"
+    # VERIFIED: rvgrowersmarket.com + RV Times roundup 2026-10-15 ("every Tuesday through Nov. 24")
+
+  - name: "Bingo at the Medford Senior Center"
+    day: [tuesday, saturday]
+    time: "11:00 AM (doors 10:00 AM)"
+    venue: "Medford Senior Center"
+    address: "510 E Main St"
+    description: "Long-running bingo for adults 18+. Games $1 to $8, daubers $1 to $2."
+    icons: [community]
+    free: false
+    url: "https://medfordseniorcenter.org/bingo-medford-oregon-seniors/"
+    # VERIFIED: RV Times roundup 2026-10-15 (Tuesdays and Saturdays) + medfordseniorcenter.org
+
+  - name: "Karaoke Night at Local 31 Pub"
+    day: [tuesday, wednesday]
+    time: "9:00 PM – midnight"
+    venue: "Dangerous Lee's Local 31 Pub"
+    address: "31 Water St, Ashland"
+    description: "Krank It Up Karaoke with KJs Li'l Bit and The Great Martini, two nights a week by Ashland Creek."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://local31pub.ai/ashland-live-music/"
+    favorite: true
+    # VERIFIED: local31pub.ai event list (Tue & Wed through Nov 18 2026) + RV Times roundup 2026-10-15
+
+  # ── WEDNESDAY ───────────────────────────────────────────────────────────
+
+  - name: "Midweek Mayhem: Trivia + Comedy Open Mic"
+    day: wednesday
+    time: "6:30 PM trivia, 8:00 PM open mic"
+    venue: "Curtain Call Cabaret & Lounge"
+    address: "120 E 6th St"
+    description: "Team trivia downtown, then the Comedy Lab open mic takes the stage at 8."
+    icons: [drinks, community]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    favorite: true
+    # VERIFIED: RV Times roundup 2026-10-15 (every Wednesday, both editions)
+
+  - name: "Comedy Open Mic at Chadwick's"
+    day: wednesday
+    time: "7:00 PM – 9:00 PM (sign-ups 6:15 PM)"
+    venue: "Chadwick's Sports Bar & Pub"
+    address: "2300 Biddle Rd (Rogue Regency Inn)"
+    description: "Local comics try new material; sign up at 6:15 for a spot."
+    icons: [drinks, community]
+    free: false
+    url: "https://rv-times.com/2026/09/28/things-to-do-in-the-rogue-valley-sept-28-oct-12/"
+    # VERIFIED: RV Times roundup Sept 28 – Oct 12 edition, read 2026-10-15 (Wednesdays)
+
+  # ── THURSDAY ────────────────────────────────────────────────────────────
+
+  - name: "Medford Thursday Growers & Crafters Market"
+    day: thursday
+    time: "8:30 AM – 1:30 PM"
+    venue: "Hawthorne Park"
+    address: "501 E Main St"
+    description: "Rogue Valley Growers & Crafters Market in Medford: farm produce, baked goods, flowers and handmade goods."
+    icons: [food, shopping, outdoors, family, free]
+    free: true
+    url: "https://www.rvgrowersmarket.com/"
+    favorite: true
+    end_date: "2026-11-19"
+    # VERIFIED: rvgrowersmarket.com + Travel Medford calendar + RV Times roundup 2026-10-15 ("every Thursday through Nov. 19")
+
+  - name: "Traditional Irish Music at Dunbar Farms"
+    day: thursday
+    time: "5:30 PM – 7:30 PM"
+    venue: "Dunbar Farms Rocky Knoll Winery"
+    address: "2881 Hillcrest Rd"
+    description: "A company of local musicians jams traditional Irish and Celtic tunes in the tasting room. Family friendly and free."
+    icons: [music, drinks, family, free]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    favorite: true
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Oct 15, 22, 29) + RV Times roundup (every Thursday)
+
+  - name: "Comedy Open Mic at the Rocky Tonk Saloon"
+    day: thursday
+    time: "8:30 PM (sign-ups 8:00 PM)"
+    venue: "Rocky Tonk Saloon"
+    address: "333 E Main St"
+    description: "Weekly comedy open mic hosted by Jason Webb in downtown Medford."
+    icons: [drinks, community]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (every Thursday, both editions)
+
+  # ── FRIDAY / SATURDAY ───────────────────────────────────────────────────
+
+  - name: "Comedy Club at Chadwick's"
+    day: [friday, saturday]
+    time: "8:00 PM – 10:00 PM"
+    venue: "Chadwick's Sports Bar & Pub"
+    address: "2300 Biddle Rd (Rogue Regency Inn)"
+    description: "Touring and regional stand-up every weekend. $15, 21+."
+    icons: [drinks]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    favorite: true
+    # VERIFIED: RV Times roundup 2026-10-15 (Fridays and Saturdays, both editions)
+
+  - name: "Jacksonville Wine Trolley"
+    day: [friday, saturday, sunday]
+    time: "12:00 PM – 6:30 PM"
+    venue: "Jacksonville-area wineries"
+    address: "Downtown Jacksonville"
+    description: "Hop-on, hop-off trolley between Jacksonville-area tasting rooms. $30 day pass, $45 three-day, $15 happy-hour pass after 3 PM."
+    icons: [drinks, outdoors]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    end_date: "2026-10-31"
+    # VERIFIED: RV Times roundup 2026-10-15 (Fri–Sun through Oct 31)
+
+  - name: "Fright After Dark at Pheasant Fields Farm"
+    day: [friday, saturday]
+    time: "Evening"
+    venue: "Pheasant Fields Farm"
+    address: "1865 Camp Baker Rd"
+    description: "Five separate haunted attractions across the farm, each with its own story. Not a single haunted house; a whole night of scares."
+    icons: [outdoors]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    start_date: "2026-10-16"
+    end_date: "2026-10-31"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Oct 16, 17, 23, 24, 25, 29, 30, 31)
+
+  # ── SATURDAY ────────────────────────────────────────────────────────────
+
+  - name: "Medford Cars & Coffee"
+    day: saturday
+    time: "9:00 AM – 10:30 AM"
+    venue: "Southern Oregon Orthopedics lot"
+    address: "2780 E Barnett Rd"
+    description: "Weekly car meet: classics, hot rods and exotics. Canceled for rain or snow."
+    icons: [community, free, family]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    favorite: true
+    # VERIFIED: RV Times roundup 2026-10-15 (every Saturday, both editions)
+
+  - name: "Ashland Saturday Market"
+    day: saturday
+    time: "8:30 AM – 1:00 PM"
+    venue: "Oak Street, downtown Ashland"
+    address: "100 block of Oak St, Ashland"
+    description: "Rogue Valley Growers & Crafters Saturday market between Main St and Lithia Way."
+    icons: [food, shopping, outdoors, family, free]
+    free: true
+    url: "https://www.rvgrowersmarket.com/"
+    end_date: "2026-10-31"
+    # VERIFIED: rvgrowersmarket.com + RV Times roundup 2026-10-15 (Saturdays through Oct 31)
+
+  - name: "Lithia Artisans Market"
+    day: [saturday, sunday]
+    time: "10:00 AM – 5:00 PM"
+    venue: "Calle Guanajuato"
+    address: "Behind the Plaza, Ashland"
+    description: "50+ local artisans along Ashland Creek: jewelry, pottery, woodwork, clothing and art."
+    icons: [shopping, arts, outdoors, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    end_date: "2026-10-25"
+    # VERIFIED: RV Times roundup 2026-10-15 (weekends through October; last full weekend Oct 24–25)
+
+  - name: "Pheasant Fields Farm Harvest Festival"
+    day: [saturday, sunday]
+    time: "Daytime"
+    venue: "Pheasant Fields Farm"
+    address: "1865 Camp Baker Rd"
+    description: "Pumpkin patch, corn maze and farm fun every fall weekend."
+    icons: [family, outdoors, food]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    end_date: "2026-10-31"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Oct 17, 18, 24, 25, 31)
+
+  - name: "The Fluid Druids at Local 31 Pub"
+    day: saturday
+    time: "4:30 PM – 6:30 PM"
+    venue: "Dangerous Lee's Local 31 Pub"
+    address: "31 Water St, Ashland"
+    description: "Saturday happy-hour set from the house band before the night's headliners."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://local31pub.ai/ashland-live-music/"
+    end_date: "2026-11-14"
+    # VERIFIED: local31pub.ai event list 2026-10-15 (every Saturday Oct 17 – Nov 14)
+
+  - name: "Selfies With Santa"
+    day: [saturday, sunday]
+    time: "Daytime"
+    venue: "The Village Medford Center"
+    address: "Medford Center"
+    description: "Free photos with Santa at The Village on holiday weekends."
+    icons: [family, free, community]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    start_date: "2026-11-28"
+    end_date: "2026-12-20"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 28–29, Dec 5–6, 12–13, 19–20)
+
+  # ── SUNDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Ashland Fire & Flow"
+    day: sunday
+    time: "8:00 PM – 11:00 PM"
+    venue: "The Plaza"
+    address: "Downtown Ashland"
+    description: "Fire spinners and flow artists light up the Plaza every Sunday night. Free; donations welcome."
+    icons: [arts, outdoors, free, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (every Sunday, both editions)
+
+events:
+
+  # ── Monthly series ──────────────────────────────────────────────────────
+
+  - date: "2026-10-16"
+    name: "Third Friday Medford"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Downtown Medford"
+    address: "Downtown Medford"
+    description: "Monthly downtown night: shop specials, gallery openings, and artists and musicians in local businesses."
+    icons: [arts, shopping, music, community, free]
+    free: true
+    url: "https://downtownmedford.org/events/third-friday-medford/"
+    # VERIFIED: downtownmedford.org 2026-10-15 ("Every Third Friday, 4-8pm")
+
+  - date: "2026-11-20"
+    name: "Third Friday Medford"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Downtown Medford"
+    address: "Downtown Medford"
+    description: "Monthly downtown night: shop specials, gallery openings, and artists and musicians in local businesses."
+    icons: [arts, shopping, music, community, free]
+    free: true
+    url: "https://downtownmedford.org/events/third-friday-medford/"
+    # VERIFIED: downtownmedford.org 2026-10-15 ("Every Third Friday, 4-8pm")
+
+  - date: "2026-12-18"
+    name: "Third Friday Medford"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Downtown Medford"
+    address: "Downtown Medford"
+    description: "Monthly downtown night: shop specials, gallery openings, and artists and musicians in local businesses."
+    icons: [arts, shopping, music, community, free]
+    free: true
+    url: "https://downtownmedford.org/events/third-friday-medford/"
+    # VERIFIED: downtownmedford.org 2026-10-15 ("Every Third Friday, 4-8pm")
+
+  - date: "2027-01-15"
+    name: "Third Friday Medford"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Downtown Medford"
+    address: "Downtown Medford"
+    description: "Monthly downtown night: shop specials, gallery openings, and artists and musicians in local businesses."
+    icons: [arts, shopping, music, community, free]
+    free: true
+    url: "https://downtownmedford.org/events/third-friday-medford/"
+    # VERIFIED: downtownmedford.org 2026-10-15 ("Every Third Friday, 4-8pm")
+
+  - date: "2026-11-06"
+    name: "First Friday Art Walk"
+    time: "5:00 PM – 8:00 PM"
+    venue: "Downtown Ashland galleries"
+    address: "Downtown Ashland"
+    description: "The Ashland Gallery Association's monthly art walk: openings, artists on hand, and a map at ashlandgalleries.com."
+    icons: [arts, community, free]
+    free: true
+    url: "https://ashlandgalleries.com/pages/first-friday-artwalk"
+    # VERIFIED: Ashland Gallery Association listings via ijpr.org 2026 (first Friday monthly, 5–8 PM) checked 2026-10-15
+
+  - date: "2026-12-04"
+    name: "First Friday Art Walk"
+    time: "5:00 PM – 8:00 PM"
+    venue: "Downtown Ashland galleries"
+    address: "Downtown Ashland"
+    description: "The Ashland Gallery Association's monthly art walk: openings, artists on hand, and a map at ashlandgalleries.com."
+    icons: [arts, community, free]
+    free: true
+    url: "https://ashlandgalleries.com/pages/first-friday-artwalk"
+    # VERIFIED: Ashland Gallery Association listings via ijpr.org 2026 (first Friday monthly, 5–8 PM) checked 2026-10-15
+
+  - date: "2026-10-28"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2026-11-11"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2026-11-25"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2026-12-09"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2027-01-13"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2027-01-27"
+    name: "Southern Oregon Jazz Orchestra"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "An 18-piece big band swings through the standards on the second and fourth Wednesdays."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (2nd and 4th Wednesdays monthly)
+
+  - date: "2026-10-21"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays; listed Oct 21)
+
+  - date: "2026-11-04"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2026-11-18"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2026-12-02"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2026-12-16"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2027-01-06"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2027-01-20"
+    name: "Rogue Blues Society Jam"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Grape Street Bar & Grill"
+    address: "31 S Grape St"
+    description: "Open blues jam on the first and third Wednesdays. Bring an instrument or just listen. Free; donations welcome."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (1st and 3rd Wednesdays monthly)
+
+  - date: "2026-10-16"
+    name: "Third Friday Stand-Up at the Branding Iron"
+    time: "9:00 PM"
+    venue: "Branding Iron Lounge"
+    address: "1701 N Riverside Ave"
+    description: "Free monthly stand-up comedy show. 21+."
+    icons: [drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Friday monthly)
+
+  - date: "2026-11-20"
+    name: "Third Friday Stand-Up at the Branding Iron"
+    time: "9:00 PM"
+    venue: "Branding Iron Lounge"
+    address: "1701 N Riverside Ave"
+    description: "Free monthly stand-up comedy show. 21+."
+    icons: [drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Friday monthly)
+
+  - date: "2026-12-18"
+    name: "Third Friday Stand-Up at the Branding Iron"
+    time: "9:00 PM"
+    venue: "Branding Iron Lounge"
+    address: "1701 N Riverside Ave"
+    description: "Free monthly stand-up comedy show. 21+."
+    icons: [drinks, free]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Friday monthly)
+
+  - date: "2026-10-17"
+    name: "West Coast Swing Dance Party"
+    time: "8:00 PM (lesson 7:15 PM)"
+    venue: "Verve Pilates and Fitness Studio"
+    address: "205 N Phoenix Rd, Ste 315"
+    description: "Monthly West Coast Swing social with a lesson first. $15."
+    icons: [music, community]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Saturday monthly)
+
+  - date: "2026-11-21"
+    name: "West Coast Swing Dance Party"
+    time: "8:00 PM (lesson 7:15 PM)"
+    venue: "Verve Pilates and Fitness Studio"
+    address: "205 N Phoenix Rd, Ste 315"
+    description: "Monthly West Coast Swing social with a lesson first. $15."
+    icons: [music, community]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Saturday monthly)
+
+  - date: "2026-12-19"
+    name: "West Coast Swing Dance Party"
+    time: "8:00 PM (lesson 7:15 PM)"
+    venue: "Verve Pilates and Fitness Studio"
+    address: "205 N Phoenix Rd, Ste 315"
+    description: "Monthly West Coast Swing social with a lesson first. $15."
+    icons: [music, community]
+    free: false
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (third Saturday monthly)
+
+  - date: "2026-10-23"
+    name: "SOSA Open Mic at Pony Espresso"
+    time: "5:30 PM (sign-ups 5:00 PM)"
+    venue: "Pony Espresso"
+    address: "545 N 5th St, Jacksonville"
+    description: "Monthly open mic for original music, hosted by the Southern Oregon Songwriters Association."
+    icons: [music, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (fourth Friday monthly)
+
+  - date: "2027-01-22"
+    name: "SOSA Open Mic at Pony Espresso"
+    time: "5:30 PM (sign-ups 5:00 PM)"
+    venue: "Pony Espresso"
+    address: "545 N 5th St, Jacksonville"
+    description: "Monthly open mic for original music, hosted by the Southern Oregon Songwriters Association."
+    icons: [music, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (fourth Friday monthly)
+
+  - date: "2026-10-25"
+    name: "Classical Vespers"
+    time: "5:00 PM"
+    venue: "First Presbyterian Church"
+    address: "85 S Holly St"
+    description: "Free monthly classical concert in downtown Medford. Donations welcome."
+    icons: [music, free, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (fourth Sunday monthly)
+
+  - date: "2026-11-22"
+    name: "Classical Vespers"
+    time: "5:00 PM"
+    venue: "First Presbyterian Church"
+    address: "85 S Holly St"
+    description: "Free monthly classical concert in downtown Medford. Donations welcome."
+    icons: [music, free, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (fourth Sunday monthly)
+
+  - date: "2027-01-24"
+    name: "Classical Vespers"
+    time: "5:00 PM"
+    venue: "First Presbyterian Church"
+    address: "85 S Holly St"
+    description: "Free monthly classical concert in downtown Medford. Donations welcome."
+    icons: [music, free, community]
+    free: true
+    url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
+    # VERIFIED: RV Times roundup 2026-10-15 (fourth Sunday monthly)
+
+  # ── October ─────────────────────────────────────────────────────────────
+
+  - date: "2026-10-16"
+    name: "Forks & Friends Stroll"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Downtown Medford"
+    address: "Downtown Medford"
+    description: "Kickoff for Downtown Medford Restaurant Week: sample bites from local chefs with wine, beer, spirits and mocktails as you stroll downtown. Restaurant Week specials run through Oct 25."
+    icons: [food, drinks, community]
+    free: false
+    url: "https://downtownmedford.org/events/"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15 (stroll Oct 16; restaurant week Oct 16–25)
+
+  - date: "2026-10-17"
+    name: "Bales & Ales at Common Block"
+    time: "12:00 PM – 5:00 PM"
+    venue: "Common Block Brewing Co."
+    address: "315 E 5th St"
+    description: "Pumpkin carving and live music on the patio, with a free pumpkin with purchase."
+    icons: [family, drinks, music, food]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar + RV Times roundup 2026-10-15
+
+  - date: "2026-10-18"
+    name: "Giant Flea Market at The Expo"
+    time: "9:00 AM – 2:00 PM"
+    venue: "Jackson County Expo"
+    address: "21 Peninger Rd, Central Point"
+    description: "Hundreds of tables of antiques, collectibles, tools and treasures."
+    icons: [shopping, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-19"
+    name: "Spooktacular Bingo at The Expo"
+    time: "5:00 PM"
+    venue: "Jackson County Expo"
+    address: "21 Peninger Rd, Central Point"
+    description: "Halloween-themed bingo night at the fairgrounds."
+    icons: [community, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-24"
+    name: "Monster Ball at ScienceWorks"
+    time: "Evening"
+    venue: "ScienceWorks Hands-On Museum"
+    address: "1500 E Main St, Ashland"
+    description: "ScienceWorks' Halloween costume party with hands-on spooky science."
+    icons: [family, community]
+    free: false
+    url: "https://www.scienceworksmuseum.org/"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-24"
+    name: "\"In Our Nature\" Screening + Talk"
+    time: "6:00 PM (doors 5:00 PM)"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "Film screening with a post-film talk with Griff Griffith. $10 to $20."
+    icons: [arts, outdoors]
+    free: false
+    url: "https://www.hollytheatre.org/"
+    # VERIFIED: Travel Medford calendar + RV Times roundup 2026-10-15
+
+  - date: "2026-10-25"
+    name: "Lyle Lovett & His Small Large Band"
+    time: "7:30 PM (doors 7:00 PM)"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "The Texas songwriter and his big band at Medford's restored 1930 movie palace. $79 to $115."
+    icons: [music, arts]
+    free: false
+    url: "https://www.hollytheatre.org/"
+    big: true
+    # VERIFIED: Travel Medford calendar + RV Times roundup 2026-10-15
+
+  - date: "2026-10-25"
+    name: "Medford Railroad Park Run Day"
+    time: "11:00 AM – 3:00 PM"
+    venue: "Medford Railroad Park"
+    address: "799 Berrydale Ave"
+    description: "Last run day of the season: ride the miniature trains and tour the model railroad layouts. Free; donations welcome."
+    icons: [family, outdoors, free]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar + RV Times roundup 2026-10-15 (2nd and 4th Sundays through Oct 25)
+
+  - date: "2026-10-25"
+    name: "Day of the Dead Race"
+    time: "Morning"
+    venue: "Talent City Hall"
+    address: "110 E Main St, Talent"
+    description: "A costumed fun run through the streets of Talent."
+    icons: [outdoors, community, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-29"
+    name: "Fright After Dark at Pheasant Fields Farm"
+    time: "Evening"
+    venue: "Pheasant Fields Farm"
+    address: "1865 Camp Baker Rd"
+    description: "Five separate haunted attractions across the farm, each with its own story."
+    icons: [outdoors]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Thursday Oct 29 night added to the weekend run)
+
+  - date: "2026-10-30"
+    name: "Harvest & Hallow at Rogue X"
+    time: "4:00 PM – 8:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Two-day fall market from Gather Production Co. with local makers, food and Halloween fun. Continues Oct 31, 10 AM – 6 PM."
+    icons: [shopping, family, food]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-31"
+    name: "Harvest & Hallow at Rogue X"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Fall market from Gather Production Co. with local makers, food and Halloween fun."
+    icons: [shopping, family, food]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-10-31"
+    name: "Halloween Spooktacular at The Village"
+    time: "Daytime"
+    venue: "The Village Medford Center"
+    address: "Medford Center"
+    description: "Free Halloween trick-or-treating and family fun at The Village."
+    icons: [family, free, community]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  # ── November ────────────────────────────────────────────────────────────
+
+  - date: "2026-11-07"
+    name: "Barnstormer's Holiday Bazaar"
+    time: "9:00 AM – 5:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Holiday craft bazaar with local vendors. Continues Sunday, 10 AM – 4 PM."
+    icons: [shopping, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 7–8)
+
+  - date: "2026-11-08"
+    name: "Barnstormer's Holiday Bazaar"
+    time: "10:00 AM – 4:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Holiday craft bazaar with local vendors."
+    icons: [shopping, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 7–8)
+
+  - date: "2026-11-07"
+    name: "YMCA Party with a Purpose: Dueling Pianos"
+    time: "Evening"
+    venue: "Rogue Valley YMCA"
+    address: "522 W 6th St"
+    description: "The Y's fundraiser party with dueling pianos."
+    icons: [music, community, drinks]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-11-13"
+    name: "Southern Oregon Holiday Market"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Jackson County Expo"
+    address: "21 Peninger Rd, Central Point"
+    description: "Big three-day holiday gift market at The Expo. Sat 10–6, Sun 10–3."
+    icons: [shopping, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 13–15)
+
+  - date: "2026-11-14"
+    name: "Southern Oregon Holiday Market"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Jackson County Expo"
+    address: "21 Peninger Rd, Central Point"
+    description: "Big three-day holiday gift market at The Expo."
+    icons: [shopping, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 13–15)
+
+  - date: "2026-11-15"
+    name: "Southern Oregon Holiday Market"
+    time: "10:00 AM – 3:00 PM"
+    venue: "Jackson County Expo"
+    address: "21 Peninger Rd, Central Point"
+    description: "Last day of the three-day holiday gift market at The Expo."
+    icons: [shopping, family]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 13–15)
+
+  - date: "2026-11-13"
+    name: "Serial Killer Speakeasy"
+    time: "Evening"
+    venue: "The District Wine Bar"
+    address: "Medford"
+    description: "Touring immersive true-crime cocktail experience. Also Nov 14."
+    icons: [drinks, arts]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 13–14)
+
+  - date: "2026-11-20"
+    name: "Chris Botti"
+    time: "8:00 PM"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "The Grammy-winning trumpeter brings his band to the Holly."
+    icons: [music, arts]
+    free: false
+    url: "https://www.hollytheatre.org/"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-11-21"
+    name: "Applegate Valley Uncorked Barrel Tour"
+    time: "11:00 AM – 4:00 PM"
+    venue: "Applegate Valley Wine Trail"
+    address: "Applegate Valley wineries"
+    description: "Self-guided barrel-tasting tour of Applegate Valley wineries."
+    icons: [drinks, outdoors]
+    free: false
+    url: "https://applegatevalley.wine/events-2/"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-11-21"
+    name: "Butte Creek Mill Holiday Market & Bazaar"
+    time: "9:00 AM – 4:00 PM"
+    venue: "Butte Creek Mill"
+    address: "402 N Royal Ave, Eagle Point"
+    description: "Holiday vendors at Oregon's historic water-powered grist mill. Also Nov 22."
+    icons: [shopping, family, community]
+    free: true
+    url: "https://buttecreekmill.com/"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 21–22)
+
+  - date: "2026-11-22"
+    name: "Butte Creek Mill Holiday Market & Bazaar"
+    time: "9:00 AM – 4:00 PM"
+    venue: "Butte Creek Mill"
+    address: "402 N Royal Ave, Eagle Point"
+    description: "Holiday vendors at Oregon's historic water-powered grist mill."
+    icons: [shopping, family, community]
+    free: true
+    url: "https://buttecreekmill.com/"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 21–22)
+
+  - date: "2026-11-21"
+    name: "Rogue Maker's Holiday Fair"
+    time: "10:00 AM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Local makers' holiday fair. Also Nov 22."
+    icons: [shopping, arts, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 21–22)
+
+  - date: "2026-11-22"
+    name: "Rogue Maker's Holiday Fair"
+    time: "10:00 AM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Local makers' holiday fair."
+    icons: [shopping, arts, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 21–22)
+
+  - date: "2026-11-21"
+    name: "Gingerbread Jubilee"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Craterian Theater at The Collier Center"
+    address: "23 S Central Ave"
+    description: "The Craterian's annual gingerbread house showcase and holiday family fair. Runs Nov 21–23."
+    icons: [family, arts, community]
+    free: false
+    url: "https://craterian.org/"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 21–23)
+
+  - date: "2026-11-27"
+    name: "Ashland Festival of Light"
+    time: "3:00 PM; Santa's Parade 5:00 PM"
+    venue: "The Plaza"
+    address: "Downtown Ashland"
+    description: "Ashland's holiday kickoff: music on the Plaza, Santa's Parade down East Main, then the Grand Illumination of downtown's lights."
+    icons: [family, community, free, music]
+    free: true
+    url: "https://business.ashlandchamber.com/events/Details/2026-festival-of-light-celebration-1946929"
+    big: true
+    # VERIFIED: Ashland Chamber GrowthZone event page 2026-10-15 (opens Nov 27, 3 PM)
+
+  - date: "2026-11-27"
+    name: "Merry Market & Christmas Faire"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Thanksgiving-weekend holiday market. Also Nov 28."
+    icons: [shopping, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 27–28)
+
+  - date: "2026-11-28"
+    name: "Merry Market & Christmas Faire"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Thanksgiving-weekend holiday market."
+    icons: [shopping, family]
+    free: true
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Nov 27–28)
+
+  # ── December ────────────────────────────────────────────────────────────
+
+  - date: "2026-12-03"
+    name: "The Nutcracker: Symphony of Lights"
+    time: "7:00 PM"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "A light-show take on the Tchaikovsky holiday classic."
+    icons: [music, arts, family]
+    free: false
+    url: "https://www.hollytheatre.org/"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-12-05"
+    name: "Winter Lights Festival"
+    time: "5:00 PM – 8:00 PM"
+    venue: "Pear Blossom Park"
+    address: "312 E 4th St"
+    description: "Medford's free holiday celebration: tree lighting, music, treats and Santa downtown."
+    icons: [family, community, free, music]
+    free: true
+    url: "https://www.medfordoregon.gov/Events-directory/Winter-Lights-Festival-2026"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15 + City of Medford Fall 2026 Activity Guide news item (Dec 5, Pear Blossom Park)
+
+  - date: "2026-12-12"
+    name: "Breakfast with Santa"
+    time: "Morning"
+    venue: "Rogue X"
+    address: "901 Rossanley Dr"
+    description: "Pancakes, crafts and photos with Santa."
+    icons: [family, food, community]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-12-16"
+    name: "The Jinkx & DeLa Holiday Show"
+    time: "8:00 PM"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "Drag superstars Jinkx Monsoon and BenDeLaCreme's touring holiday comedy-musical."
+    icons: [arts, music]
+    free: false
+    url: "https://www.hollytheatre.org/"
+    big: true
+    # VERIFIED: Travel Medford calendar 2026-10-15
+
+  - date: "2026-12-18"
+    name: "Southern Oregon Repertory Singers: A Scattered Light"
+    time: "Evening"
+    venue: "The Holly Theatre"
+    address: "226 W 6th St"
+    description: "The Repertory Singers' holiday concert. Repeats Dec 19–20 at the SOU Music Recital Hall in Ashland."
+    icons: [music, arts]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-15 (Dec 18 Holly; Dec 19–20 SOU)

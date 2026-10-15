@@ -41,7 +41,7 @@ import requests
 sys.path.insert(0, os.path.dirname(__file__))
 import slack_notify  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url  # noqa: E402
+from town import TOWN, meta_allowed, site_url  # noqa: E402
 
 # One place for the Graph/Marketing API version. The GRAPH_API_VERSION repo
 # variable (passed in meta-ads.yml) overrides it, so moving off a version
@@ -384,6 +384,9 @@ def main(argv=None, session=None):
     ap.add_argument("--scheduled", action="store_true", help="the daily run: ads not set up yet doesn't fail it")
     args = ap.parse_args(argv)
 
+    if not meta_allowed(use="ads"):
+        print(f"These Meta ads settings aren't {TOWN['id']}'s own (META_TOWN and the ad account its town.json pins); nothing to do.")
+        return 0
     token = os.environ.get("META_ADS_TOKEN", "").strip()
     if not token:
         print("META_ADS_TOKEN / META_PAGE_TOKEN not set; nothing to do.")

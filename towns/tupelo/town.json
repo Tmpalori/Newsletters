@@ -45,7 +45,61 @@
     {
       "name": "visit_tupelo",
       "type": "cards",
-      "url": "https://www.tupelo.net/events/"
+      "url": "https://www.tupelo.net/events/",
+      "exclude": "\\| Virtual$|Huddleween|Free Meal|\\bNOT A SHOW TICKET\\b",
+      "rename": [
+        [
+          "^Live Music: Karaoke$",
+          "Karaoke Night"
+        ],
+        [
+          "^Live Music: ",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Holland['’]?s Bar and Grill$",
+          "Holland's Bar and Grill"
+        ],
+        [
+          "^The DEPOT$",
+          "The Depot"
+        ],
+        [
+          "^Huntington Bank Arena, .*$",
+          "Huntington Bank Arena"
+        ],
+        [
+          "^Tupelo Furniture Market - Buil.*$",
+          "Tupelo Furniture Market"
+        ],
+        [
+          "^Elvis Presley Birthplace & Mus.*$",
+          "Elvis Presley Birthplace & Museum"
+        ],
+        [
+          "^Check-In: ",
+          ""
+        ]
+      ]
+    },
+    {
+      "name": "blue_canoe",
+      "type": "tribe",
+      "url": "https://bluecanoebar.com",
+      "timeout": 30
+    },
+    {
+      "name": "link_centre",
+      "type": "tribe",
+      "url": "https://link-centre.org",
+      "rename_venue": [
+        [
+          "^(Margaret Anne Murphey Lobby|Reception Hall|Concert Hall|Black Box Theatre|Ballroom|Gallery)$",
+          "Link Centre"
+        ]
+      ]
     },
     {
       "name": "lee_county_library",
@@ -56,12 +110,17 @@
     {
       "name": "cdf_chamber",
       "type": "ics",
-      "url": "https://cdfms.chambermaster.com/Events/CalendarSync/Category.ics?id=6"
+      "url": "https://cdfms.chambermaster.com/Events/CalendarSync/Category.ics?id=6",
+      "exclude": "ribbon cutting|board meeting|committee"
     },
     {
       "name": "tupelo_parks_rec",
       "type": "tribe",
       "url": "https://tupeloparksandrec.org"
     }
-  ]
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  }
 }

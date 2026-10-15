@@ -204,6 +204,32 @@ def site_url(town=None, env=None):
     return url
 
 
+def meta_allowed(town=None, env=None, use="post"):
+    """Whether this run may use the Meta (Facebook, Instagram, ads)
+    settings it was given. Victoria's are the repo-level ones. Another
+    town's count only when its settings say they're its own
+    (META_TOWN=<slug>) and the ids match the ones its town.json pins
+    ("meta": {"page_id", "ig_user_id", "ad_account_id"}): a GitHub
+    Environment missing one of them falls back to Victoria's repo-level
+    value, which would post the town's kit on Victoria's page or read her
+    ad account. use: "post" (page, Instagram) or "ads" (ad account)."""
+    env = os.environ if env is None else env
+    town = town or TOWN
+    if town["id"] == VICTORIA["id"]:
+        return True
+    if env.get("META_TOWN", "").strip().lower() != town["id"]:
+        return False
+    pins = town.get("meta") if isinstance(town.get("meta"), dict) else {}
+    pin = lambda k: str(pins.get(k) or "").strip()
+    got = lambda k: env.get(k, "").strip()
+    if use == "ads":
+        account = lambda v: v.removeprefix("act_")
+        return bool(pin("ad_account_id")) and account(got("META_AD_ACCOUNT_ID")) == account(pin("ad_account_id"))
+    if not pin("page_id") or got("META_PAGE_ID") != pin("page_id"):
+        return False
+    return not got("IG_USER_ID") or got("IG_USER_ID") == pin("ig_user_id")
+
+
 def tz(town=None):
     """The town's timezone (None without zoneinfo)."""
     return ZoneInfo((town or TOWN)["timezone"]) if ZoneInfo else None

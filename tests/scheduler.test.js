@@ -174,6 +174,27 @@ describe('createScheduler', () => {
     }
   });
 
+  it('a town that has never collected starts only its collect', async () => {
+    const bay = townConfig({}, { town: { id: 'bay', siteName: 'The Bay 979', domain: 'thebay979.com', city: 'Bay City', state: 'TX', stateName: 'Texas', timezone: 'America/Chicago' } });
+    useTown(bay);
+    process.env.TOWN_WORKFLOWS = '1';
+    try {
+      let collected = false;
+      const github = fakeGithub();
+      const s = createScheduler({ store: await freshStore(), github, log: quiet, handlers: { collected: async () => collected } });
+      await s.tick(new Date('2026-10-07T13:48:00Z'));        // ads, social kit, review due: none start
+      expect(github.calls).toEqual([]);
+      await s.tick(new Date('2026-10-07T20:30:00Z'));        // Wednesday's collect
+      expect(github.calls.map(c => c.file)).toEqual(['weekly-collect.yml']);
+      collected = true;
+      await s.tick(new Date('2026-10-07T20:46:00Z'));
+      expect(github.calls.map(c => c.file)).toContain('submission-review.yml');
+    } finally {
+      delete process.env.TOWN_WORKFLOWS;
+      useTown(VICTORIA);
+    }
+  });
+
   it('leaves dispatch jobs to GitHub\'s cron when no token is set', async () => {
     const store = await freshStore();
     const github = fakeGithub({ configured: false });

@@ -35,9 +35,10 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary, keyOk } from './hq.js';
+import { registerHq, buildSummary, keyOk, jobsSummary } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
+import { createJobs, kindForWorkflow } from './jobs.js';
 import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
@@ -297,6 +298,14 @@ export async function createApp(opts = {}) {
   });
   const store = storeBundle.store;
   inboxStore = store;
+  // The town's jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md): off
+  // (404, nothing queued) unless JOBS_ON_RAILWAY=1 and JOBS_SECRET are set.
+  const jobs = opts.jobs || createJobs({
+    store, slack, siteUrl, env: opts.jobsEnv || process.env,
+    nowFn: () => (opts.now || (() => new Date()))(),
+    // AUTO_PUBLISH=0 (the owner publishes by hand) holds the new candidates for the admin.
+    publish: () => ((opts.jobsEnv || process.env).AUTO_PUBLISH === '0' ? null : publishFresh())
+  });
   // Pings from before the store existed (a database alert at boot), and any
   // a database outage held back, go in now and every 2 minutes after.
   slack.flushInbox();
@@ -412,8 +421,11 @@ export async function createApp(opts = {}) {
   const smallJson = express.json({ limit: '64kb' });
   const sponsorEditJson = express.json({ limit: '600kb' });
   const publishJson = express.json({ limit: '2mb' });
-  app.use((req, res, next) => (/^\/api\/admin\/sponsors\/[^/]+$/.test(req.path) ? sponsorEditJson
-    : req.path === '/api/admin/publish-events' ? publishJson : smallJson)(req, res, next));
+  // The jobs API (server/jobs.js) parses its own bodies, after its secret
+  // checks out: a collect's candidates are a few MB.
+  app.use((req, res, next) => (req.path.startsWith('/api/jobs/') ? next()
+    : (/^\/api\/admin\/sponsors\/[^/]+$/.test(req.path) ? sponsorEditJson
+      : req.path === '/api/admin/publish-events' ? publishJson : smallJson)(req, res, next)));
   // The sponsor checkout form can carry a logo (a data URL, shrunk in the
   // browser), so it alone gets a bigger limit.
   const smallForms = express.urlencoded({ extended: false, limit: '64kb' });
@@ -445,7 +457,7 @@ export async function createApp(opts = {}) {
       // GITHUB_TOKEN. The actual trigger endpoint also enforces this. Note:
       // this is presence-only — the token may be present but invalid; the UI
       // surfaces that distinction via the trigger-collect response.
-      sources_trigger_enabled: github.isConfigured(),
+      sources_trigger_enabled: jobs.enabled || (github.isConfigured() && townWorkflowsReady()),
       // GitHub Actions page for the Weekly Collect workflow. The admin Sources
       // tab links to this as a manual fallback when one-click Pull Now isn't
       // available (no token, invalid token, etc.).
@@ -454,7 +466,7 @@ export async function createApp(opts = {}) {
       // Another town only: whether it may start workflows yet (TOWN_WORKFLOWS=1
       // once its GitHub Environment exists), for scripts/launch_check.py. A
       // flag, no secret. Victoria's config stays exactly as it was.
-      ...(town.id !== VICTORIA.id ? { town_workflows: townWorkflowsReady() } : {})
+      ...(town.id !== VICTORIA.id ? { town_workflows: jobs.enabled || townWorkflowsReady(), jobs_on_railway: jobs.enabled } : {})
     });
   });
 
@@ -846,7 +858,7 @@ export async function createApp(opts = {}) {
       if (patch.status === 'duplicate') {
         let collector = [];
         try {
-          const c = await readJsonFile(candidatesFile);
+          const c = await readCandidates();
           collector = Array.isArray(c && c.events) ? c.events : [];
         } catch (_) { /* no candidates: unpublish as before */ }
         const listed = k => {
@@ -900,13 +912,36 @@ export async function createApp(opts = {}) {
   // editor sees them in the picker without needing a separate "Pull approved"
   // round trip.
   const candidatesFile = opts.candidatesFile || CANDIDATES_FILE;
+  // The collector's latest candidates: the bundled candidates.json (a
+  // commit), or with jobs on Railway the copy the last collect handed the
+  // site, whichever was collected later. Victoria (no jobs on Railway)
+  // reads only the file, as before.
+  async function readCandidates() {
+    let fromFile = null;
+    let fileErr = null;
+    try { fromFile = await readJsonFile(candidatesFile); } catch (err) { fileErr = err; }
+    // A failed read of the collect's copy fails the whole read: falling back
+    // to the bundled file would publish an older collect over a newer one.
+    const fromJobs = jobs.enabled ? (((await store.getTownFile('candidates')) || {}).data || null) : null;
+    const at = c => Date.parse((c && c.last_updated) || '') || 0;
+    if (fromJobs && (!fromFile || at(fromJobs) >= at(fromFile))) return fromJobs;
+    if (fileErr) throw fileErr;
+    return fromFile;
+  }
   app.get('/api/admin/candidates', requireAdmin, async (req, res) => {
     let sha = null;
     let events = [];
     let source = 'unknown';
     let warning = null;
 
-    if (github.isConfigured()) {
+    if (jobs.enabled) {
+      try {
+        const got = await readCandidates();
+        events = Array.isArray(got && got.events) ? got.events : [];
+        source = 'jobs';
+      } catch (_) { /* fall through to GitHub / the file */ }
+    }
+    if (source !== 'jobs' && github.isConfigured()) {
       try {
         const got = await github.getJsonFile(PATHS.candidates);
         sha = got.sha;
@@ -918,7 +953,7 @@ export async function createApp(opts = {}) {
       }
     }
 
-    if (source !== 'github') {
+    if (source !== 'github' && source !== 'jobs') {
       try {
         const local = await readJsonFile(candidatesFile);
         events = Array.isArray(local && local.events) ? local.events : [];
@@ -1002,7 +1037,7 @@ export async function createApp(opts = {}) {
     const found = [];
     const add = list => { for (const e of list || []) if (e && eventKeyOf(e) === key) found.push(e); };
     try { add(((await store.getPublished()) || {}).events); } catch (_) { /* unreadable: unknown */ }
-    try { add((await readJsonFile(candidatesFile)).events); } catch (_) { /* none */ }
+    try { add((await readCandidates()).events); } catch (_) { /* none */ }
     try {
       for (const ed of await store.listEventEdits()) {
         if (ed.original_key === key || eventKeyOf(ed.payload || {}) === key) found.push(ed.payload || {});
@@ -1376,7 +1411,14 @@ export async function createApp(opts = {}) {
   const metadataFile = opts.collectionMetadataFile || COLLECTION_METADATA_FILE;
   app.get(hqPaths('/api/admin/sources'), adminOrHq, async (req, res) => {
     try {
-      const read = await readMetadataFile(metadataFile);
+      let read = await readMetadataFile(metadataFile);
+      // With jobs on Railway the last collect handed its metadata to the
+      // site; it wins when it's newer than the bundled file.
+      if (jobs.enabled) {
+        const f = await store.getTownFile('collection_metadata').catch(() => null);
+        const ran = m => Date.parse((m && m.last_run_at) || '') || 0;
+        if (f && f.data && (!read || ran(f.data) >= ran(read.meta))) read = { meta: f.data, mtime: new Date(f.updated_at) };
+      }
       const payload = buildSourcesPayload({
         metadata: read ? read.meta : null,
         mtime: read ? read.mtime : null,
@@ -1406,11 +1448,21 @@ export async function createApp(opts = {}) {
   // and a `save_publish_unaffected: true` flag so the UI never implies that the
   // public site failed to publish — Save & Publish does not depend on this token.
   app.post('/api/admin/trigger-collect', requireAdmin, async (req, res) => {
+    // Jobs on Railway: queue it for the town's jobs worker.
+    if (jobs.enabled) {
+      try {
+        const q = await jobs.enqueue('collect', `manual-${nowFn().toISOString()}`);
+        if (!q.queued) return res.json({ ok: true, queued: false, already: true, message: 'A collect is already queued or running; its events publish as soon as it finishes.' });
+        return res.json({ ok: true, queued: true, message: 'Collect queued. It takes about half an hour; the new events publish as soon as it finishes.' });
+      } catch (err) {
+        return res.status(500).json({ ok: false, error: 'queue-failed', message: err.message, save_publish_unaffected: true });
+      }
+    }
     if (!townWorkflowsReady()) {
       return res.status(409).json({
         ok: false,
         error: 'town-workflows-not-ready',
-        message: "This town's GitHub workflows aren't set up yet (its GitHub Environment, then TOWN_WORKFLOWS=1 in Railway), so Pull Now is off. Save & Publish is unaffected.",
+        message: "This town's GitHub workflows aren't on yet (its GitHub Environment, then \"workflows\": true in its town.json), so Pull Now is off. Save & Publish is unaffected.",
         actions_url: actionsUrl(),
         save_publish_unaffected: true
       });
@@ -1871,6 +1923,9 @@ export async function createApp(opts = {}) {
     getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : [])
   });
 
+  // The town's jobs worker (server/jobs.js): claim, finish, hand over files.
+  jobs.register(app);
+
   // GitHub workflows' alerts into the owner inbox (server/opsReport.js).
   registerOpsReport(app, {
     secret: opts.opsReportSecret ?? (process.env.OPS_REPORT_SECRET || submissionReviewSecret),
@@ -2327,7 +2382,7 @@ export async function createApp(opts = {}) {
   // new candidates go live without anyone opening the admin. Production
   // only, so PR environments and tests never publish on their own.
   const autoPublish = createAutoPublish({
-    store, candidatesFile, readJsonFile, siteUrl, slack, archiveEvents,
+    store, candidatesFile, readJsonFile: f => (f === candidatesFile ? readCandidates() : readJsonFile(f)), siteUrl, slack, archiveEvents,
     nowFn: () => (opts.now || (() => new Date()))()
   });
   app.post('/api/admin/auto-publish', requireAdmin, async (req, res, next) => {
@@ -2444,14 +2499,19 @@ export async function createApp(opts = {}) {
     if (!autoRun) autoRun = autoPublish.run().finally(() => { autoRun = null; });
     return autoRun;
   }
+  // A run that reads the candidates now: one already under way may have read
+  // the old ones (the jobs worker's upload of new candidates).
+  function publishFresh() {
+    return (autoRun || Promise.resolve()).catch(() => {}).then(() => runAutoPublish());
+  }
   if (autoOnBoot) {
     const t = setTimeout(() => {
-      runAutoPublish().then(r => {
-        // A town whose workflows aren't on yet has never collected, so it has
-        // no candidates.json: expected until launch, not an alert (it fired
-        // on every deploy of main). Victoria is always ready.
-        if (r && !r.ok && r.error === 'no-candidates' && !townWorkflowsReady()) {
-          console.log('[auto-publish] no candidates yet; this town has not collected (TOWN_WORKFLOWS is off)');
+      runAutoPublish().then(async r => {
+        // A town that has never collected has no candidates.json: expected
+        // until its first collect, not an alert (it fired on every deploy of
+        // main). Victoria has always collected.
+        if (r && !r.ok && r.error === 'no-candidates' && town.id !== VICTORIA.id && !(await hasCollected())) {
+          console.log('[auto-publish] no candidates yet; this town has not collected');
           return;
         }
         // e.g. candidates.json unreadable: run() reports it rather than throwing.
@@ -2495,6 +2555,9 @@ export async function createApp(opts = {}) {
   // GitHub workflows, because GitHub's own cron runs hours late.
   const scheduler = opts.scheduler || createScheduler({
     store, github, slack, siteUrl, nowFn: () => nowFn(),
+    // Jobs on Railway: the town's workflow jobs go to its jobs worker.
+    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(kindForWorkflow(job.workflow), slot) : null,
+    canQueue: job => Boolean(kindForWorkflow(job.workflow)),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
       newsletterReady: () => newsletter.enabled && newsletter.autosend,
@@ -2508,6 +2571,7 @@ export async function createApp(opts = {}) {
           : undefined,
       // Daily: personal-data retention (server/privacy.js).
       privacyPurge: now => purgePersonalData(store, now),
+      collected: () => hasCollected(),
       health: async now => {
         await retryAutoPublish();
         // Hourly: the one "tap to confirm" reminder to yesterday's
@@ -2527,11 +2591,28 @@ export async function createApp(opts = {}) {
     res.set('Cache-Control', 'no-store').json({ ok: true, ...out });
   }));
 
+  // Whether the town has ever collected: auto-publish records when the
+  // candidates it published were collected. Victoria always has.
+  function collectedPayload(pub) {
+    return town.id === VICTORIA.id || Boolean(pub && pub.auto_publish && pub.auto_publish.from);
+  }
+  // Or candidates exist (a town that publishes by hand, AUTO_PUBLISH=0, or
+  // whose published list was wiped).
+  async function hasCollected(pub) {
+    if (town.id === VICTORIA.id) return true;
+    try {
+      if (collectedPayload(pub === undefined ? await store.getPublished() : pub)) return true;
+      return Boolean(((await readCandidates().catch(() => null)) || {}).last_updated);
+    } catch { return true; }
+  }
+
   // Hourly in-process check (the uptime workflow only runs every few
   // hours): database reachable, events coming up, collector not stalled.
   // Alerts when a problem appears, again daily while it lasts, and says
   // when it clears.
   const healthState = new Map(); // problem key → last alerted (ms)
+  const bootedAt = nowFn().getTime();
+  const JOBS_WORKER_SILENT_MS = 30 * 60 * 1000;
   async function healthCheck(now) {
     const problems = {};
     if (missingDatabase) problems.nodb = NO_DATABASE;
@@ -2539,16 +2620,26 @@ export async function createApp(opts = {}) {
     // own (shown in the admin checklist too; see slackRefusedText).
     const slackDead = slackRefusedText();
     if (slackDead) problems.slack = slackDead;
+    // Jobs on Railway: a run the worker never finished alerts (once, in
+    // jobs.expire), and so does a worker that has stopped asking for work.
+    if (jobs.enabled) {
+      try { await jobs.expire(now); } catch (err) { console.warn('[jobs] expire failed:', err.message); }
+      const polled = jobs.state.lastPollAt ? Date.parse(jobs.state.lastPollAt) : bootedAt;
+      if (now.getTime() - polled > JOBS_WORKER_SILENT_MS) {
+        problems.jobs_worker = `The jobs worker hasn't asked for work since ${jobs.state.lastPollAt || 'this deploy started'}, so collects and checks aren't running. Check the town's jobs service in Railway.`;
+      }
+    }
     let pub = null;
     try {
       pub = (await store.getPublished()) || {};
     } catch (err) {
       problems.db = `The database is unreachable (${err.message}); the site is serving the old bundled event list.`;
     }
-    // A town that can't collect yet (TOWN_WORKFLOWS off) has no events by
-    // design, so "only 0 upcoming" and "stale" would alert every day until
-    // launch. The other checks (database, Slack, subscribers) still run.
-    if (pub && townWorkflowsReady()) {
+    // A town that hasn't collected yet, or can't (its workflows are off), has
+    // no events by design, so "only 0 upcoming", "stale" and "missed collect"
+    // would alert every day until launch. The other checks (database, Slack,
+    // subscribers) still run.
+    if (pub && (jobs.enabled || townWorkflowsReady()) && await hasCollected(pub)) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
@@ -2612,12 +2703,22 @@ export async function createApp(opts = {}) {
       const last = healthState.get(key);
       if (last == null || t - last >= 86400000) {
         healthState.set(key, t);
-        slack.alert(`health-${key}-${t}`, 'Site check', text, `${siteUrl}/admin.html`);
+        // Once a day per problem across restarts too: every deploy used to
+        // forget it and say it again (a town redeploys several times a day).
+        let first = true;
+        try {
+          const day = localDateStr(now);
+          first = (await store.claimJobRun(`alert:health-${key}`, day, now)).claimed;
+          if (first) await store.finishJobRun(`alert:health-${key}`, day, { status: 'done' });
+        } catch { /* alert anyway */ }
+        if (first) slack.alert(`health-${key}-${t}`, 'Site check', text, `${siteUrl}/admin.html`);
       }
     }
     for (const key of [...healthState.keys()]) {
       if (!problems[key]) {
         healthState.delete(key);
+        // Cleared: if it comes back today, it's said again.
+        try { await store.finishJobRun(`alert:health-${key}`, localDateStr(now), { status: 'retry' }); } catch { /* best effort */ }
         slack.notify({ title: '✅ Site check: back to normal', text: `Cleared: ${key}`, channel: 'alerts' });
       }
     }
@@ -2719,7 +2820,7 @@ export async function createApp(opts = {}) {
       status.auto_published_at = (pub.auto_publish && pub.auto_publish.at) || null;
       status.published_at = pub.last_updated || null;
     } catch { /* leave blank */ }
-    try { status.collected_at = (await readJsonFile(candidatesFile)).last_updated || null; } catch { /* none */ }
+    try { status.collected_at = (await readCandidates()).last_updated || null; } catch { /* none */ }
     try { status.pending_submissions = (await store.list({ status: 'pending' })).length; } catch { /* none */ }
     try {
       if (typeof store.countSubscribers === 'function') status.subscribers = (await store.countSubscribers()).active || 0;
@@ -2759,6 +2860,7 @@ export async function createApp(opts = {}) {
       getEvents: async () => [...(((await getPublicPayload()) || {}).events || []), ...(await listArchived().catch(() => []))],
       getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : []),
       setup: setupReport,
+      getJobs: jobs.enabled ? async () => jobsSummary(await jobs.stats()) : null,
       // database: Postgres configured and answering a ping now (3 s), not
       // just configured: a town whose database is down must not read healthy.
       health: async () => {

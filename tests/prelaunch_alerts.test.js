@@ -1,9 +1,10 @@
 // @vitest-environment node
 //
-// A town that can't collect yet (TOWN_WORKFLOWS off) has no candidates.json
-// and no events by design. Its auto-publish on boot and the hourly check's
-// "only 0 upcoming" used to alert on every deploy of main; they stay quiet
-// until the town's workflows are on. Victoria still alerts as before.
+// A town that hasn't collected yet has no candidates.json and no events by
+// design. Its auto-publish on boot and the hourly check's "only 0 upcoming"
+// used to alert on every deploy of main (and did, on Kearney, the moment its
+// workflows were turned on before its first collect); they stay quiet until
+// the town has collected and its workflows are on. Victoria alerts as before.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { createApp } from '../server/index.js';
@@ -21,15 +22,17 @@ function fakeSlack() {
   return { alerts, enabled: true, notify: async () => true, alert: async (k, t, text) => { alerts.push({ k, t, text }); return true; } };
 }
 
-async function boot({ town = VICTORIA, workflows = false } = {}) {
+async function boot({ town = VICTORIA, workflows = false, collected = false, candidates = null } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-prelaunch-'));
+  const store = new FileStore(path.join(dir, 's.json'));
+  if (collected) await store.setPublished({ events: [], auto_publish: { from: '2026-10-04T20:30:00Z' } });
   const eventsFile = path.join(dir, 'events.json');
   await fs.writeFile(eventsFile, JSON.stringify({ events: [] }));
   if (workflows) process.env.TOWN_WORKFLOWS = '1';
   const slack = fakeSlack();
   const app = await createApp({
-    storeBundle: { kind: 'file', store: new FileStore(path.join(dir, 's.json')) }, eventsFile,
-    candidatesFile: path.join(dir, 'missing-candidates.json'),
+    storeBundle: { kind: 'file', store }, eventsFile,
+    candidatesFile: candidates ? await (async () => { const f = path.join(dir, 'candidates.json'); await fs.writeFile(f, JSON.stringify(candidates)); return f; })() : path.join(dir, 'missing-candidates.json'),
     ...(town === VICTORIA ? {} : { town }),
     trustProxy: false, slack, now: () => NOW, startScheduler: false,
     siteUrl: town === VICTORIA ? 'https://www.thevic361.com' : `https://www.${town.domain}`,
@@ -49,9 +52,25 @@ describe('alerts before a town can collect', () => {
     expect((await healthCheck(NOW)).problems).not.toContain('upcoming');
   });
 
-  it('the same town once its workflows are on: alerts as usual', async () => {
+  it('workflows on but no collect yet: still quiet', async () => {
     const { slack, healthCheck } = await boot({ town: BAY, workflows: true });
+    expect(slack.alerts.filter(a => a.k === 'auto-publish')).toEqual([]);
+    expect((await healthCheck(NOW)).problems).not.toContain('upcoming');
+  });
+
+  it('collected but workflows off: no "0 upcoming" (it can\'t collect again)', async () => {
+    const { healthCheck } = await boot({ town: BAY, collected: true });
+    expect((await healthCheck(NOW)).problems).not.toContain('upcoming');
+  });
+
+  it('the same town once it has collected and its workflows are on: alerts as usual', async () => {
+    const { slack, healthCheck } = await boot({ town: BAY, workflows: true, collected: true });
     expect(slack.alerts.find(a => a.k === 'auto-publish').t).toBe('Auto-publish could not run');
+    expect((await healthCheck(NOW)).problems).toContain('upcoming');
+  });
+
+  it('a town that collected but publishes by hand (no auto_publish yet) counts as collected', async () => {
+    const { healthCheck } = await boot({ town: BAY, workflows: true, candidates: { last_updated: '2026-10-04T20:30:00Z', events: [] } });
     expect((await healthCheck(NOW)).problems).toContain('upcoming');
   });
 

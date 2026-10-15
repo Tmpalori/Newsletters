@@ -32,7 +32,7 @@ import time
 import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url, tz, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
+from town import TOWN, meta_allowed, site_url, tz, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 SITE = site_url()
 # One place for the Graph API version. The GRAPH_API_VERSION repo variable
@@ -266,6 +266,9 @@ def main(argv=None, session=None):
     args = ap.parse_args(argv)
     session = session or requests.Session()
 
+    if not meta_allowed():
+        print(f"These Meta settings aren't {TOWN['id']}'s own (META_TOWN and the page and Instagram ids its town.json pins); not posting.")
+        return 0
     page_id = os.environ.get("META_PAGE_ID", "").strip()
     token = os.environ.get("META_PAGE_TOKEN", "").strip()
     ig_user = os.environ.get("IG_USER_ID", "").strip()
