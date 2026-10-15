@@ -46,43 +46,133 @@
     {
       "name": "ashland_news",
       "type": "tribe",
-      "url": "https://ashland.news"
+      "url": "https://ashland.news",
+      "exclude": "committee|commission|council meeting|\\bmeeting\\b|town hall|sunday service|meditat|evensong|taize|spiritual healing|job/resume|woodcarvers|genealog|interest group|vaccination|^free family classes|\\| online$|for older adults|adults 50\\+|for mobility"
     },
     {
       "name": "travel_ashland",
       "type": "tribe",
-      "url": "https://travelashland.com"
+      "url": "https://travelashland.com",
+      "rename": [
+        [
+          "\\bTriva\\b",
+          "Trivia"
+        ]
+      ]
     },
     {
       "name": "craterian",
       "type": "tribe",
-      "url": "https://craterian.org"
-    },
-    {
-      "name": "jacksonville_chamber",
-      "type": "tribe",
-      "url": "https://jacksonvilleoregon.org"
+      "url": "https://craterian.org",
+      "rename_venue": [
+        [
+          "^Craterian Theater at The Colli.*",
+          "Craterian Theater at The Collier Center"
+        ]
+      ]
     },
     {
       "name": "sou",
       "type": "localist",
-      "url": "https://events.sou.edu"
+      "url": "https://events.sou.edu",
+      "exclude": "sign in to download|\\bclubs?\\b|meeting|meetup|seminar|drop-in|outdoor program|fellowship|therapy dog|headshots|career|internship|livestream|student tour|sandbox|breakfast|kickball|society|game night|social$|Cross Country",
+      "rename": [
+        [
+          "^Southern Oregon University ",
+          "SOU "
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^Ashland, Ore\\.,? *",
+          ""
+        ],
+        [
+          "Schneider Musem",
+          "Schneider Museum"
+        ],
+        [
+          "^Lithia Motors P.*",
+          "Lithia Motors Pavilion"
+        ]
+      ]
     },
     {
       "name": "ashland_city_events",
       "type": "ics",
-      "url": "https://ashlandoregon.gov/common/modules/iCalendar/iCalendar.aspx?catID=27&feed=calendar"
+      "url": "https://ashlandoregon.gov/common/modules/iCalendar/iCalendar.aspx?catID=27&feed=calendar",
+      "exclude": "transportation system plan|engagement opp"
     },
     {
-      "name": "ashland_nature_center",
+      "name": "ashland_recreation",
       "type": "ics",
-      "url": "https://ashlandoregon.gov/common/modules/iCalendar/iCalendar.aspx?catID=24&feed=calendar"
+      "url": "https://ashlandoregon.gov/common/modules/iCalendar/iCalendar.aspx?catID=29&feed=calendar",
+      "rename_venue": [
+        [
+          "^North Mountain Park > .*",
+          "North Mountain Park Nature Center"
+        ],
+        [
+          " - .*$",
+          ""
+        ]
+      ]
     },
     {
       "name": "jackson_county_library",
       "type": "ics",
       "url": "https://jcls.libcal.com/ical_subscribe.php?src=p&cid=3210",
       "library": true
+    },
+    {
+      "name": "jacksonville_review",
+      "type": "ics",
+      "url": "https://calendar.google.com/calendar/ical/g14ud6t411s1b7vfd2khmarl3s%40group.calendar.google.com/public/basic.ics",
+      "exclude": "council|meeting|work session|commission|\\bHARC\\b|planning|blood drive|grants pass"
+    },
+    {
+      "name": "sohs",
+      "type": "tribe",
+      "url": "https://sohs.org"
+    },
+    {
+      "name": "roxyann_winery",
+      "type": "tribe",
+      "url": "https://roxyann.com",
+      "exclude": "member monday",
+      "rename": [
+        [
+          "^(FREE )?MUSIC \\+ WINE SERIES FEATURING ",
+          "Music + Wine Series: "
+        ]
+      ]
+    },
+    {
+      "name": "grizzly_peak_winery",
+      "type": "tribe",
+      "url": "https://grizzlypeakwinery.com"
+    },
+    {
+      "name": "eagle_point_chamber",
+      "type": "tribe",
+      "url": "https://eaglepointchamber.org",
+      "exclude": "board of directors|luncheon|we know a guy|ribbon cutting|mixer|elementary|pto"
+    },
+    {
+      "name": "jackson_county_expo",
+      "type": "tribe",
+      "url": "https://attheexpo.com",
+      "exclude": "\\bsales?\\b|blowout|schoolin|\\bspa\\b",
+      "rename_venue": [
+        [
+          " @ The Expo$",
+          " at The Expo"
+        ]
+      ]
     }
-  ]
+  ],
+  "limits": {
+    "FB_POSTS_MAX_VENUES": 30,
+    "IG_POSTS_MAX_VENUES": 15
+  }
 }
