@@ -260,6 +260,45 @@ def repo_path(key, town=None):
     return os.path.join(ROOT, town_paths(town)[key])
 
 
+def town_asset(name, town=None):
+    """An absolute path to one of the town's own brand files (logo-512.png,
+    skyline.svg…), or None. Victoria's are in docs/; another town's in
+    towns/<slug>/public/, and a file it lacks is None, never Victoria's
+    copy: the server's static overlay falls through to docs/, but a social
+    slide drawn with Victoria's logo would post her brand on another page."""
+    t = town or TOWN
+    path = os.path.join(ROOT, town_paths(t)["social"].split("social/")[0], name)
+    return path if os.path.isfile(path) else None
+
+
+# The site's shared look (docs/style.css): Victoria's, and the fallback for
+# a town without a BRAND.md palette.
+SITE_PALETTE = {"ink": "#1F1A3D", "paper": "#FFF4D6", "primary": "#4B3FD1", "highlight": "#FFC93C", "accent": "#FF8FC0"}
+
+
+def brand_palette(town=None):
+    """The town's colors for its social slides: the first JSON block of
+    towns/<slug>/BRAND.md ("primary", "accent", "paper", "ink",
+    "highlight"), each a #RRGGBB; missing ones (and Victoria) keep the
+    site's. Read here rather than added to town.json, so the brand kit
+    stays the one place the palette is written down."""
+    t = town or TOWN
+    out = dict(SITE_PALETTE)
+    if t["id"] == VICTORIA["id"]:
+        return out
+    try:
+        with open(os.path.join(ROOT, "towns", t["id"], "BRAND.md"), encoding="utf-8") as f:
+            m = re.search(r"```json\s*(\{.*?\})\s*```", f.read(), re.S)
+        raw = json.loads(m.group(1)) if m else {}
+    except (OSError, ValueError):
+        raw = {}
+    for k in out:
+        v = raw.get(k) if isinstance(raw, dict) else None
+        if isinstance(v, str) and re.match(r"^#[0-9A-Fa-f]{6}$", v):
+            out[k] = v.upper()
+    return out
+
+
 # The process's town.
 TOWN = town_config()
 
