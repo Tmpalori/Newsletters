@@ -74,7 +74,8 @@ Each phase is its own PR with tests. Victoria's output must not change
 ### Phase 1: safety and quiet (now)
 
 - [x] **Meta guard.** The social kit post and the ads report act for a town
-      only with credentials marked as that town's (`META_TOWN=<slug>` in its
+      only with credentials marked as that town's (`META_TOWN=<slug>` and the
+      ids pinned in its `town.json` `"meta"`; in its
       settings); Victoria unchanged. Inherited repo-level Meta secrets can
       never post or read ads for another town.
 - [x] **Quiet until the first collect.** A town that has never collected

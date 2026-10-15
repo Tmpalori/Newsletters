@@ -267,7 +267,7 @@ def main(argv=None, session=None):
     session = session or requests.Session()
 
     if not meta_allowed():
-        print(f"META_TOWN isn't {TOWN['id']}: these Meta credentials aren't this town's; not posting.")
+        print(f"These Meta settings aren't {TOWN['id']}'s own (META_TOWN and the page and Instagram ids its town.json pins); not posting.")
         return 0
     page_id = os.environ.get("META_PAGE_ID", "").strip()
     token = os.environ.get("META_PAGE_TOKEN", "").strip()

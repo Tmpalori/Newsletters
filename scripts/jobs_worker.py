@@ -46,7 +46,28 @@ from town import TOWN, repo_path, site_url, town_paths  # noqa: E402
 # JOB_KINDS in server/jobs.js). The collect's own budget is 50 minutes.
 TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60}
 LOG_TAIL = 60
+LINE_MAX = 500          # a log line's length in a report (one line can be megabytes)
 HTTP_TIMEOUT = 60
+RETRY_WAITS = (5, 20, 60)   # a web redeploy takes about a minute
+
+# The script running now, so SIGTERM (a redeploy of this service) can stop it.
+CURRENT = {"proc": None, "stopping": False}
+
+
+def _retry(fn, sleep=None):
+    """fn(), tried again after RETRY_WAITS when the site doesn't answer or
+    answers 5xx (it redeploys several times a day); a 4xx is final."""
+    for wait in (*RETRY_WAITS, None):
+        try:
+            return fn()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code < 500 or wait is None:
+                raise
+        except requests.RequestException:
+            if wait is None:
+                raise
+        print(f"[jobs] the site didn't answer; trying again in {wait} s", flush=True)
+        (sleep or time.sleep)(wait)
 
 
 class Site:
@@ -68,9 +89,11 @@ class Site:
         return r.json().get("job")
 
     def finish(self, job_id, status, result):
-        r = self.session.post(self._url(f"/api/jobs/{job_id}/finish"), headers=self.headers,
-                              json={"status": status, "result": result}, timeout=HTTP_TIMEOUT)
-        r.raise_for_status()
+        def go():
+            r = self.session.post(self._url(f"/api/jobs/{job_id}/finish"), headers=self.headers,
+                                  json={"status": status, "result": result}, timeout=HTTP_TIMEOUT)
+            r.raise_for_status()
+        _retry(go)
 
     def get_file(self, name):
         r = self.session.get(self._url(f"/api/jobs/files/{name}"), headers=self.headers, timeout=HTTP_TIMEOUT)
@@ -80,35 +103,52 @@ class Site:
         return r.json().get("data")
 
     def put_file(self, name, data):
-        r = self.session.put(self._url(f"/api/jobs/files/{name}"), headers=self.headers, json=data, timeout=300)
-        r.raise_for_status()
-        return r.json()
+        def go():
+            r = self.session.put(self._url(f"/api/jobs/files/{name}"), headers=self.headers, json=data, timeout=300)
+            r.raise_for_status()
+            return r.json()
+        return _retry(go)
 
 
 def run_script(args, timeout, env=None, out=sys.stdout):
     """Run a script, echoing its output (Railway's log) and keeping the tail.
-    → (exit code, last LOG_TAIL lines); stopped at `timeout` seconds even
-    when it prints nothing, which is exit code 124."""
+    → (exit code, last LOG_TAIL lines, each at most LINE_MAX characters);
+    stopped at `timeout` seconds even when it prints nothing (exit code
+    124), and with everything it started (its own process group)."""
     tail = deque(maxlen=LOG_TAIL)
-    proc = subprocess.Popen(args, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    proc = subprocess.Popen(args, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, errors="replace", bufsize=1, start_new_session=True)
+    CURRENT["proc"] = proc
     timed_out = threading.Event()
+
+    def kill():
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
 
     def stop():
         timed_out.set()
-        proc.kill()
+        kill()
     watchdog = threading.Timer(timeout, stop)
     watchdog.daemon = True
     watchdog.start()
     try:
         for line in proc.stdout:
             out.write(line)
-            tail.append(line.rstrip("\n"))
+            tail.append(line.rstrip("\n")[:LINE_MAX])
         code = proc.wait()
     finally:
         watchdog.cancel()
+        if proc.poll() is None:
+            kill()
+            proc.wait()
+        CURRENT["proc"] = None
     if timed_out.is_set():
         tail.append(f"[jobs] stopped after {max(1, timeout // 60)} minute(s)")
         return 124, list(tail)
+    if CURRENT["stopping"]:
+        tail.append("[jobs] stopped: this jobs service is redeploying")
     return code, list(tail)
 
 
@@ -197,7 +237,8 @@ JOBS = {"collect": job_collect, "event-check": job_event_check, "submission-revi
 
 
 def run_one(site, job, run=run_script, clock=time.monotonic):
-    """Run a claimed job and report it. → its status."""
+    """Run a claimed job and report it. → its status. A run cut short by a
+    redeploy says so (the site queues it again, quietly)."""
     fn = JOBS.get(job.get("kind"))
     started = clock()
     print(f"[jobs] {job.get('kind')} #{job.get('id')} ({job.get('slot')}) started", flush=True)
@@ -209,7 +250,13 @@ def run_one(site, job, run=run_script, clock=time.monotonic):
         except Exception as e:      # noqa: BLE001 - any failure is reported, never lost
             status, result = "failed", {"error": f"{type(e).__name__}: {e}"}
     result["seconds"] = round(clock() - started)
-    site.finish(job["id"], status, result)
+    if CURRENT["stopping"] and status == "failed":
+        result["interrupted"] = True
+    try:
+        site.finish(job["id"], status, result)
+    except requests.RequestException as e:
+        # The site expires the run later and queues it again.
+        print(f"[jobs] couldn't report {job.get('kind')} #{job.get('id')} ({e})", flush=True)
     print(f"[jobs] {job.get('kind')} #{job.get('id')}: {status} in {result['seconds']} s", flush=True)
     return status
 
@@ -221,17 +268,27 @@ def main(argv=None, site=None, sleep=time.sleep, once=False):
         return 1
     site = site or Site(site_url(), secret)
     poll = int(os.environ.get("JOBS_POLL_SECONDS", "30") or 30)
-    stopping = {"now": False}
-    signal.signal(signal.SIGTERM, lambda *_: stopping.update(now=True))
+    def on_term(*_):
+        CURRENT["stopping"] = True
+        proc = CURRENT["proc"]
+        if proc and proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+    signal.signal(signal.SIGTERM, on_term)
     print(f"[jobs] {TOWN['id']}: asking {site.base} for work every {poll} s", flush=True)
-    while not stopping["now"]:
+    while not CURRENT["stopping"]:
         try:
             job = site.claim()
         except requests.RequestException as e:
             print(f"[jobs] the site didn't answer ({e}); trying again", flush=True)
             job = None
         if job:
-            run_one(site, job)
+            try:
+                run_one(site, job)
+            except Exception as e:      # noqa: BLE001 - the worker never dies of one job
+                print(f"[jobs] {job.get('kind')} #{job.get('id')} broke the worker loop: {e}", flush=True)
         else:
             sleep(poll)
         if once:

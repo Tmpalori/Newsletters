@@ -347,12 +347,20 @@ def test_victorias_venue_links_stay_in_victoria(town_as):
 
 def test_meta_credentials_count_only_for_their_own_town(tmp_path):
     # A town without its own Meta secrets inherits Victoria's repo-level ones
-    # in GitHub; it must never post or read ads with them.
+    # in GitHub, one setting at a time; it must never post or read ads with them.
     vic = town_mod.town_config({})
-    assert town_mod.meta_allowed(vic, {})
+    assert town_mod.meta_allowed(vic, {}) and town_mod.meta_allowed(vic, {}, use="ads")
     (tmp_path / "bay").mkdir()
-    (tmp_path / "bay" / "town.json").write_text(json.dumps(BAY))
+    (tmp_path / "bay" / "town.json").write_text(json.dumps({**BAY, "meta": {"page_id": "111", "ig_user_id": "222", "ad_account_id": "act_333"}}))
     bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
-    assert not town_mod.meta_allowed(bay, {})
-    assert not town_mod.meta_allowed(bay, {"META_TOWN": "victoria"})
-    assert town_mod.meta_allowed(bay, {"META_TOWN": " Bay "})
+    own = {"META_TOWN": "bay", "META_PAGE_ID": "111", "IG_USER_ID": "222", "META_AD_ACCOUNT_ID": "333"}
+    assert town_mod.meta_allowed(bay, own) and town_mod.meta_allowed(bay, own, use="ads")
+    assert not town_mod.meta_allowed(bay, {**own, "META_TOWN": ""})
+    assert not town_mod.meta_allowed(bay, {**own, "META_PAGE_ID": "999"})            # Victoria's page
+    assert not town_mod.meta_allowed(bay, {**own, "IG_USER_ID": "999"})
+    assert town_mod.meta_allowed(bay, {**own, "IG_USER_ID": ""})                     # Facebook only
+    assert not town_mod.meta_allowed(bay, {**own, "META_AD_ACCOUNT_ID": ""}, use="ads")
+    assert not town_mod.meta_allowed(bay, {**own, "META_AD_ACCOUNT_ID": "act_999"}, use="ads")
+    (tmp_path / "bay" / "town.json").write_text(json.dumps(BAY))                    # nothing pinned
+    bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
+    assert not town_mod.meta_allowed(bay, own) and not town_mod.meta_allowed(bay, own, use="ads")

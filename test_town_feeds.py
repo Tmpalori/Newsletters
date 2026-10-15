@@ -328,3 +328,24 @@ def test_lineup_reads_each_act_on_its_day_at_its_venue():
         ("2026-10-17", "8:00 PM", "Kevin Padron", "Lava Room"),
     ]
     assert town_feeds.check_feeds([{"name": "music", "type": "lineup", "url": "https://x.example/music/"}])
+
+
+@pytest.mark.parametrize("start,end,expected", [
+    ("8", "11", ((20, 0), (23, 0))),          # an unmarked set is at night
+    ("9", "close", ((21, 0), None)),
+    ("7:30", "10pm", ((19, 30), (22, 0))),
+    ("11", "1pm", ((11, 0), (13, 0))),        # borrowing pm would run backwards
+    ("12", "2pm", ((12, 0), (14, 0))),
+    ("11am", "1pm", ((11, 0), (13, 0))),
+    ("10pm", "close", ((22, 0), None)),
+    ("12am", "", ((0, 0), None)),
+])
+def test_lineup_set_times(start, end, expected):
+    assert town_feeds._set_times(start, end) == expected
+
+
+def test_rename_replacements_are_checked_too():
+    with pytest.raises(ValueError, match="replacement"):
+        town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": [["(a)", "\\2"]]}])
+    with pytest.raises(ValueError, match="replacement"):
+        town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename_venue": [["a", "\\g<x>"]]}])

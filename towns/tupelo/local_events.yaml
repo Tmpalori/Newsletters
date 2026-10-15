@@ -107,7 +107,7 @@ recurring:
     venue: "Fleet Feet Tupelo"
     address: "323 W Main St"
     description: "Free weekly group run from the downtown store, two start times. All paces welcome, walkers too; no registration, just show up."
-    icons: [sports, outdoors, free]
+    icons: [outdoors, free]
     free: true
     url: "https://www.fleetfeet.com/s/tupelo/run-with-us"
     # VERIFIED: fleetfeet.com/s/tupelo/run-with-us 2026-10-15 ("Every Friday, 5:00 AM and 5:30 AM")
@@ -237,7 +237,7 @@ events:
     venue: "Ballard Park"
     address: "Rutherford Rd"
     description: "An evening color run/walk with a zombie twist at Ballard Park. Register on RunSignup."
-    icons: [sports, outdoors, family]
+    icons: [outdoors, family]
     free: false
     url: "https://runsignup.com/Race/Register/?raceId=214105"
     # VERIFIED: AllEvents listing (allevents.in/tupelo/zombie-color-5k-run-walk) 2026-10-15

@@ -18,13 +18,14 @@
  * the routes answer 404 and nothing here runs: Victoria is unchanged.
  */
 import crypto from 'node:crypto';
+import express from 'express';
 
 // What the worker can run, the workflow it replaces, and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
 export const JOB_KINDS = {
   collect: { workflow: 'weekly-collect.yml', label: 'Weekly event collect', limitMs: 60 * 60 * 1000 },
   'event-check': { workflow: 'event-check.yml', label: 'Event check', limitMs: 20 * 60 * 1000 },
-  'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000 }
+  'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 }
 };
 
 // Files a job may hand the site: the collect's outputs and the submission
@@ -66,11 +67,33 @@ export function upcomingCount(candidates, now, days = 14) {
  */
 export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console }) {
   const cfg = jobsConfig(env);
-  const state = { lastPollAt: null };
+  const state = { lastPollAt: null, since: nowFn().toISOString() };
+  const failStreak = new Map();   // kind → failed runs in a row
 
+  // Not while one of the same kind is already queued or running: a worker
+  // that was down comes back to one review, not a day of them, and a second
+  // Pull Now doesn't start a second collect.
   async function enqueue(kind, slot, args = {}) {
     if (!JOB_KINDS[kind]) throw new Error(`unknown job ${kind}`);
-    return store.enqueueJob(kind, slot, args, nowFn());
+    return store.enqueueJob(kind, slot, args, nowFn(), { unlessPending: true });
+  }
+
+  // Failures alert once per streak, not once per run: the 15-minute review
+  // after an hour of failures, anything else at once; and say when it's
+  // working again.
+  function failed(job, text, title = `${JOB_KINDS[job.kind].label} failed`) {
+    const n = (failStreak.get(job.kind) || 0) + 1;
+    failStreak.set(job.kind, n);
+    if (slack && n === (JOB_KINDS[job.kind].alertAfter || 1)) {
+      slack.alert(`job-${job.kind}-failing`, title, text, `${siteUrl}/admin.html`);
+    }
+  }
+  function worked(job) {
+    const n = failStreak.get(job.kind) || 0;
+    failStreak.set(job.kind, 0);
+    if (slack && n >= (JOB_KINDS[job.kind].alertAfter || 1)) {
+      slack.notify({ title: `✅ ${JOB_KINDS[job.kind].label} working again`, text: `After ${n} failed run${n === 1 ? '' : 's'}.`, channel: 'alerts' });
+    }
   }
 
   // A run past its time limit: the worker stopped answering (a redeploy or
@@ -82,26 +105,28 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     for (const job of stale) {
       const again = !String(job.slot).endsWith('-retry');
       if (again) await enqueue(job.kind, `${job.slot}-retry`, job.args || {});
-      if (slack) {
-        slack.alert(`job-${job.kind}-${job.id}`, `${JOB_KINDS[job.kind].label} didn't finish`,
-          'The jobs worker stopped answering in the middle of it (a redeploy or a crash). ' +
-          (again ? 'It has been started again.' : 'It already ran twice; it runs again at its next time. Check the jobs service in Railway.'),
-          `${siteUrl}/admin.html`);
-      }
+      failed(job, "The jobs worker stopped answering in the middle of it (a redeploy or a crash). " +
+        (again ? 'It has been started again.' : 'It already ran twice; it runs again at its next time. Check the jobs service in Railway.'),
+      `${JOB_KINDS[job.kind].label} didn't finish`);
     }
     return stale;
   }
 
   async function finished(job, result) {
     const r = result || {};
-    if (job.status === 'failed') {
-      if (slack) {
-        const tail = Array.isArray(r.log_tail) ? r.log_tail.slice(-8).join('\n') : '';
-        slack.alert(`job-${job.kind}-${job.id}`, `${JOB_KINDS[job.kind].label} failed`,
-          `${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`, `${siteUrl}/admin.html`);
+    // Cut short by a redeploy of the jobs service: run it again, quietly.
+    if (job.status === 'failed' && r.interrupted === true) {
+      if (!String(job.slot).endsWith('-retry')) {
+        await enqueue(job.kind, `${job.slot}-retry`, job.args || {});
+        return;
       }
+    }
+    if (job.status === 'failed') {
+      const tail = Array.isArray(r.log_tail) ? r.log_tail.slice(-8).map(l => String(l).slice(0, 300)).join('\n') : '';
+      failed(job, `${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`);
       return;
     }
+    worked(job);
     if (job.kind !== 'collect') return;
     // What the GitHub collect said in Slack, and the event check after it.
     if (slack) {
@@ -119,6 +144,10 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       if (!secretOk(bearer(req), cfg.secret)) return res.status(401).json({ ok: false, error: 'unauthorized' });
       return next();
     };
+    // The global JSON parser skips /api/jobs/ (index.js); each route parses
+    // only once the secret checked out, with room for a collect's files.
+    const finishJson = express.json({ limit: '1mb' });
+    const fileJson = express.json({ limit: '16mb' });
     const wrap = fn => (req, res) => fn(req, res).catch(err => {
       log.error('[jobs]', req.method, req.path, err.message);
       res.status(500).json({ ok: false, error: 'jobs-failed', message: err.message });
@@ -133,7 +162,7 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       res.json({ ok: true, job: { id: job.id, kind: job.kind, slot: job.slot, args: job.args || {} } });
     }));
 
-    app.post('/api/jobs/:id/finish', guard, wrap(async (req, res) => {
+    app.post('/api/jobs/:id/finish', guard, finishJson, wrap(async (req, res) => {
       const status = req.body && req.body.status === 'done' ? 'done' : 'failed';
       const result = req.body && typeof req.body.result === 'object' && req.body.result ? req.body.result : null;
       const job = await store.finishJob(req.params.id, { status, result }, nowFn());
@@ -149,7 +178,7 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       res.json({ ok: true, data: f.data, updated_at: f.updated_at });
     }));
 
-    app.put('/api/jobs/files/:name', guard, wrap(async (req, res) => {
+    app.put('/api/jobs/files/:name', guard, fileJson, wrap(async (req, res) => {
       const name = req.params.name;
       if (!JOB_FILES.includes(name)) return res.status(404).json({ ok: false, error: 'unknown-file' });
       const body = req.body;
@@ -158,11 +187,25 @@ export function createJobs({ store, slack = null, publish = async () => null, si
         return res.status(400).json({ ok: false, error: 'not-a-candidates-file' });
       }
       await store.setTownFile(name, body, nowFn());
-      // New candidates publish now (no commit, no redeploy).
-      const published = name === 'candidates' ? await publish() : null;
+      // New candidates publish now (no commit, no redeploy). The file is
+      // stored either way: a failed publish is retried by the hourly check,
+      // so it doesn't fail the upload (or the collect).
+      let published = null;
+      if (name === 'candidates') {
+        try { published = await publish(); } catch (err) {
+          log.warn('[jobs] publish after upload failed:', err.message);
+          published = { ok: false, error: 'publish-failed', message: err.message };
+        }
+      }
       res.json({ ok: true, ...(published ? { published } : {}) });
     }));
   }
 
-  return { enabled: cfg.enabled, enqueue, expire, register, state, listJobs: n => store.listJobs(n) };
+  // HQ's view (server/hq.js jobsSummary): each kind's last run however long
+  // ago, and when the worker last asked for work since this process started.
+  async function stats() {
+    return { ...(await store.jobStats(nowFn())), worker_last_seen: state.lastPollAt, worker_since: state.since };
+  }
+
+  return { enabled: cfg.enabled, enqueue, expire, register, state, stats, listJobs: n => store.listJobs(n) };
 }

@@ -84,11 +84,14 @@ def check_feeds(feeds):
             if not isinstance(rules, list) or not all(
                     isinstance(r, list) and len(r) == 2 and all(isinstance(x, str) for x in r) for r in rules):
                 raise ValueError(f"feed {name}: {key} must be a list of [pattern, replacement]")
-            for pattern, _ in rules:
+            for pattern, repl in rules:
                 try:
-                    re.compile(pattern)
-                except re.error:
-                    raise ValueError(f"feed {name}: {key} pattern {pattern!r} is not a regular expression")
+                    # "|" lets it match the empty string, so the replacement
+                    # is expanded and a bad group reference ("\\2" with one
+                    # group) fails here, not in the middle of a collect.
+                    re.compile(f"(?:{pattern})|").sub(repl, "", count=1)
+                except (re.error, IndexError):
+                    raise ValueError(f"feed {name}: {key} pattern {pattern!r} or its replacement is not valid")
         t = f.get("timeout", 15)
         if not isinstance(t, int) or isinstance(t, bool) or not 5 <= t <= 240:
             raise ValueError(f"feed {name}: timeout must be 5-240 seconds")
@@ -477,17 +480,33 @@ _ACT = re.compile(rf"^[-–•]\s*(.+?)\s*:?\s+({_CLOCK})(?:\s*[-–]\s*({_CLOCK
 
 
 def _clock(text, ampm=None):
-    """'7:30', 'pm' → time; ampm is the other end's when this one has none."""
+    """'7:30', 'pm' → (hour, minute); ampm is the other end's when this one
+    has none, else evening (a lineup's unmarked "8-11" is a night set)."""
     m = re.match(r"(\d{1,2})(?::(\d{2}))?\s*([ap])?", (text or "").strip().lower())
     if not m:
         return None
-    h, mi, half = int(m.group(1)), int(m.group(2) or 0), m.group(3) or ampm
-    if half is None:
-        half = "a" if 7 <= h <= 11 else "p"       # bands play at night; a morning gig says so
+    h, mi, half = int(m.group(1)), int(m.group(2) or 0), m.group(3) or ampm or "p"
     if h > 12 or mi > 59:
         return None
-    h = h % 12 + (12 if half == "p" else 0)
-    return h, mi
+    return h % 12 + (12 if half == "p" else 0), mi
+
+
+def _set_times(start_text, end_text):
+    """((h, m) start, (h, m) end or None) for '7-9pm', '11-1pm', '9-close'."""
+    has = lambda t: re.search(r"\d\s*([ap])", (t or "").lower())
+    end_half = has(end_text) and has(end_text).group(1)
+    start_half = has(start_text) and has(start_text).group(1)
+    e = _clock(end_text) if end_text and end_text != "close" else None
+    s = _clock(start_text, None if start_half else end_half)
+    # "11-1pm": the start borrowed pm, but 11 PM to 1 PM runs backwards:
+    # it's 11 AM.
+    if s and e and not start_half and s > e and s[0] >= 12:
+        s = (s[0] - 12, s[1])
+    # An end at or before the start ("6-9" read 6 PM to 9 PM is fine; "10-2"
+    # runs past midnight) is dropped rather than shown wrong.
+    if s and e and e <= s:
+        e = None
+    return s, e
 
 
 def parse_lineup(page_html, tz, start, end):
@@ -519,10 +538,7 @@ def parse_lineup(page_html, tz, start, end):
         if a and venue:
             if not (start <= day <= end):
                 continue
-            ends = (a.group(3) or "").lower()
-            end_half = re.search(r"([ap])", ends)
-            s_clock = _clock(a.group(2), end_half.group(1) if end_half and not re.search(r"[ap]", a.group(2).lower()) else None)
-            e_clock = _clock(ends) if ends and ends != "close" else None
+            s_clock, e_clock = _set_times(a.group(2), (a.group(3) or "").lower())
             s_dt = datetime(day.year, day.month, day.day, *s_clock, tzinfo=tz) if s_clock else None
             e_dt = datetime(day.year, day.month, day.day, *e_clock, tzinfo=tz) if e_clock else None
             events.append(_event(day, a.group(1).strip(" -–:"), s_dt, e_dt, venue=venue))

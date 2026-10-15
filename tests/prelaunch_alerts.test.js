@@ -22,7 +22,7 @@ function fakeSlack() {
   return { alerts, enabled: true, notify: async () => true, alert: async (k, t, text) => { alerts.push({ k, t, text }); return true; } };
 }
 
-async function boot({ town = VICTORIA, workflows = false, collected = false } = {}) {
+async function boot({ town = VICTORIA, workflows = false, collected = false, candidates = null } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-prelaunch-'));
   const store = new FileStore(path.join(dir, 's.json'));
   if (collected) await store.setPublished({ events: [], auto_publish: { from: '2026-10-04T20:30:00Z' } });
@@ -32,7 +32,7 @@ async function boot({ town = VICTORIA, workflows = false, collected = false } = 
   const slack = fakeSlack();
   const app = await createApp({
     storeBundle: { kind: 'file', store }, eventsFile,
-    candidatesFile: path.join(dir, 'missing-candidates.json'),
+    candidatesFile: candidates ? await (async () => { const f = path.join(dir, 'candidates.json'); await fs.writeFile(f, JSON.stringify(candidates)); return f; })() : path.join(dir, 'missing-candidates.json'),
     ...(town === VICTORIA ? {} : { town }),
     trustProxy: false, slack, now: () => NOW, startScheduler: false,
     siteUrl: town === VICTORIA ? 'https://www.thevic361.com' : `https://www.${town.domain}`,
@@ -66,6 +66,11 @@ describe('alerts before a town can collect', () => {
   it('the same town once it has collected and its workflows are on: alerts as usual', async () => {
     const { slack, healthCheck } = await boot({ town: BAY, workflows: true, collected: true });
     expect(slack.alerts.find(a => a.k === 'auto-publish').t).toBe('Auto-publish could not run');
+    expect((await healthCheck(NOW)).problems).toContain('upcoming');
+  });
+
+  it('a town that collected but publishes by hand (no auto_publish yet) counts as collected', async () => {
+    const { healthCheck } = await boot({ town: BAY, workflows: true, candidates: { last_updated: '2026-10-04T20:30:00Z', events: [] } });
     expect((await healthCheck(NOW)).problems).toContain('upcoming');
   });
 

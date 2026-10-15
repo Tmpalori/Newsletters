@@ -123,3 +123,64 @@ def test_run_script_keeps_the_tail_and_stops_at_the_timeout(tmp_path):
     assert code == 0 and tail[-1] == "99" and len(tail) == jw.LOG_TAIL
     code, tail = jw.run_script([sys.executable, "-c", "import time; time.sleep(5)"], 1, out=out)
     assert code == 124 and "stopped after" in tail[-1]
+
+
+class Resp:
+    def __init__(self, code, body=None):
+        self.status_code, self._body = code, body or {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise jw.requests.HTTPError(f"{self.status_code}", response=self)
+
+    def json(self):
+        return self._body
+
+
+class Session:
+    def __init__(self, codes):
+        self.codes = list(codes)
+        self.calls = 0
+
+    def _next(self, *a, **k):
+        self.calls += 1
+        code = self.codes.pop(0)
+        if code is None:
+            raise jw.requests.ConnectionError("reset")
+        return Resp(code, {"ok": True})
+    post = put = get = _next
+
+
+def test_reports_and_uploads_wait_out_a_redeploy_but_not_a_refusal(monkeypatch):
+    monkeypatch.setattr(jw.time, "sleep", lambda s: None)
+    site = jw.Site("https://x.example", "s" * 40, session=Session([502, None, 200]))
+    site.finish(1, "done", {})
+    assert site.session.calls == 3
+    site = jw.Site("https://x.example", "s" * 40, session=Session([404]))
+    with pytest.raises(jw.requests.HTTPError):
+        site.finish(1, "done", {})
+    assert site.session.calls == 1
+    site = jw.Site("https://x.example", "s" * 40, session=Session([503, 200]))
+    assert site.put_file("candidates", {}) == {"ok": True}
+
+
+def test_a_report_the_site_refuses_doesnt_stop_the_worker():
+    class Refusing(FakeSite):
+        def finish(self, *a):
+            raise jw.requests.HTTPError("404")
+    assert jw.run_one(Refusing(), {"id": 1, "kind": "event-check", "slot": "s"}, run=lambda a, t, e=None: (0, [])) == "done"
+
+
+def test_run_script_caps_lines_survives_odd_bytes_and_stops_what_it_started(tmp_path):
+    import io
+    import time as _t
+    out = io.StringIO()
+    code, tail = jw.run_script([sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'x' * 5000 + b'\\n\\xff\\xfe bad\\n')"], 30, out=out)
+    assert code == 0 and len(tail[0]) == jw.LINE_MAX and "bad" in tail[1]
+    marker = tmp_path / "alive"
+    child = f"import time; time.sleep(4); open({str(marker)!r}, 'w').write('x')"
+    started = _t.monotonic()
+    code, tail = jw.run_script([sys.executable, "-c", f"import subprocess, sys, time; subprocess.Popen([sys.executable, '-c', {child!r}]); time.sleep(30)"], 1, out=out)
+    assert code == 124 and _t.monotonic() - started < 10
+    _t.sleep(4.5)
+    assert not marker.exists()          # the grandchild went with it

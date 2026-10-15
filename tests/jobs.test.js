@@ -103,12 +103,43 @@ describe('jobs API', () => {
     expect((await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done' })).status).toBe(404);  // once
   });
 
-  it('a failed job alerts with the end of its log', async () => {
+  it('failures alert once per streak (the 15-minute review after an hour) and say when it works again', async () => {
     const t = await start();
-    await t.store.enqueueJob('submission-review', 's1', {}, NOW);
-    const { job } = await (await t.call('POST', '/api/jobs/claim')).json();
-    await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'exited 1', log_tail: ['OpenAI 401'] } });
-    expect(t.slack.alerts).toEqual([expect.objectContaining({ title: 'Submission review failed', text: expect.stringContaining('OpenAI 401') })]);
+    const run = async (kind, slot, status, result) => {
+      await t.store.enqueueJob(kind, slot, {}, NOW);
+      const { job } = await (await t.call('POST', '/api/jobs/claim')).json();
+      await t.call('POST', `/api/jobs/${job.id}/finish`, { status, result });
+    };
+    await run('event-check', 'e1', 'failed', { error: 'exited 1', log_tail: ['x'.repeat(5000), 'Site 500'] });
+    expect(t.slack.alerts).toEqual([expect.objectContaining({ title: 'Event check failed', text: expect.stringContaining('Site 500') })]);
+    expect(t.slack.alerts[0].text.length).toBeLessThan(1000);
+    await run('event-check', 'e2', 'failed', { error: 'exited 1' });
+    expect(t.slack.alerts).toHaveLength(1);
+    for (let i = 1; i <= 5; i++) await run('submission-review', `s${i}`, 'failed', { error: 'OpenAI 401' });
+    expect(t.slack.alerts.map(a => a.title)).toEqual(['Event check failed', 'Submission review failed']);
+    await run('submission-review', 's6', 'done', {});
+    expect(t.slack.notes.map(n => n.title)).toContain('✅ Submission review working again');
+  });
+
+  it('one of a kind at a time: Pull Now twice queues one collect; a worker back after a day finds one review', async () => {
+    const t = await start();
+    const login = await (await fetch(t.base + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: LONG.adminUsername, password: LONG.adminPassword }) })).json();
+    const auth = { Authorization: `Bearer ${login.token}` };
+    expect((await (await fetch(t.base + '/api/admin/trigger-collect', { method: 'POST', headers: auth })).json()).queued).toBe(true);
+    expect((await (await fetch(t.base + '/api/admin/trigger-collect', { method: 'POST', headers: auth })).json()).already).toBe(true);
+    const jobs = createJobs({ store: t.store, env: ON, nowFn: () => NOW });
+    for (let i = 0; i < 5; i++) await jobs.enqueue('submission-review', `r${i}`);
+    expect((await t.store.listJobs()).map(j => j.kind).sort()).toEqual(['collect', 'submission-review']);
+  });
+
+  it('a body is only read once the secret checks out', async () => {
+    const t = await start();
+    const big = JSON.stringify({ events: [], last_updated: 'x', pad: 'x'.repeat(2 * 1024 * 1024) });
+    const r = await fetch(t.base + '/api/jobs/files/candidates', { method: 'PUT', headers: { Authorization: 'Bearer wrong', 'Content-Type': 'application/json' }, body: big });
+    expect(r.status).toBe(401);
+    const off = await start({ env: {} });
+    expect((await fetch(off.base + '/api/jobs/files/candidates', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: big })).status).toBe(404);
   });
 
   it('a run the worker never finished is failed, started once more and said once', async () => {
@@ -123,7 +154,7 @@ describe('jobs API', () => {
     expect(t.slack.alerts[0].text).toContain('started again');
     now = new Date(now.getTime() + 61 * 60 * 1000);
     expect((await t.call('POST', '/api/jobs/claim')).status).toBe(204);      // a retry isn't retried
-    expect(t.slack.alerts).toHaveLength(2);
+    expect(t.slack.alerts).toHaveLength(1);                                   // one streak, one alert
   });
 
   it('the hourly check alerts when the worker stops asking for work', async () => {
@@ -187,22 +218,29 @@ describe('helpers', () => {
 });
 
 describe('HQ sees the jobs', () => {
-  it('jobsSummary: each job\'s last run, the worker\'s check-in and the day\'s failures', async () => {
+  it('jobsSummary: each kind\'s last run however long ago, the worker\'s check-in and the day\'s failures', async () => {
     const { jobsSummary } = await import('../server/hq.js');
+    const t = await start();
     const now = new Date('2026-10-08T12:00:00Z');
-    const out = jobsSummary([
-      { kind: 'submission-review', status: 'queued' },
-      { kind: 'collect', status: 'running', started_at: '2026-10-08T11:50:00Z' },
-      { kind: 'event-check', status: 'failed', finished_at: '2026-10-08T03:00:00Z', result: { error: 'exited 1', seconds: 4 } },
-      { kind: 'collect', status: 'done', finished_at: '2026-10-07T20:50:00Z', result: { upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 }, seconds: 1800 } },
-      { kind: 'collect', status: 'done', finished_at: '2026-10-04T20:50:00Z', result: { upcoming: 1 } }
-    ], { lastPollAt: '2026-10-08T11:59:30Z', now });
-    expect(out).toEqual({
-      worker_last_seen: '2026-10-08T11:59:30Z', queued: 1, failed_24h: 1,
-      running: [{ kind: 'collect', started_at: '2026-10-08T11:50:00Z' }],
+    const old = new Date('2026-10-04T20:00:00Z');
+    await t.store.enqueueJob('collect', 'sun', {}, old);
+    const c = await t.store.claimJob(old);
+    await t.store.finishJob(c.id, { status: 'done', result: { upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 }, seconds: 1800 } }, old);
+    for (let i = 0; i < 300; i++) {          // a busy week of reviews doesn't push the collect out
+      await t.store.enqueueJob('submission-review', `s${i}`, {}, now);
+      const j = await t.store.claimJob(now);
+      await t.store.finishJob(j.id, { status: 'done', result: { seconds: 2 } }, now);
+    }
+    await t.store.enqueueJob('event-check', 'e', {}, now);
+    const e = await t.store.claimJob(now);
+    await t.store.finishJob(e.id, { status: 'failed', result: { error: 'exited 1', seconds: 4 } }, now);
+    const out = jobsSummary({ ...(await t.store.jobStats(now)), worker_last_seen: '2026-10-08T11:59:30Z', worker_since: '2026-10-08T09:00:00Z' });
+    expect(out).toMatchObject({
+      worker_last_seen: '2026-10-08T11:59:30Z', worker_since: '2026-10-08T09:00:00Z', queued: 0, failed_24h: 1, running: [],
       last: {
-        'event-check': { status: 'failed', finished_at: '2026-10-08T03:00:00Z', seconds: 4, error: 'exited 1' },
-        collect: { status: 'done', finished_at: '2026-10-07T20:50:00Z', seconds: 1800, upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 } }
+        'event-check': { status: 'failed', seconds: 4, error: 'exited 1' },
+        collect: { status: 'done', seconds: 1800, upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 } },
+        'submission-review': { status: 'done', seconds: 2 }
       }
     });
   });
@@ -219,8 +257,52 @@ describe('HQ sees the jobs', () => {
       expect(off).not.toHaveProperty('jobs');
       const on = await summary(ON);
       expect(on.body.jobs).toMatchObject({ worker_last_seen: null, queued: 0, last: {} });
+      expect(on.body.jobs.worker_since).toBeTruthy();
     } finally {
       delete process.env.HQ_API_KEY;
     }
+  });
+});
+
+describe('review fixes', () => {
+  it('a health problem that clears and comes back the same day is said again (Victoria too)', async () => {
+    const t = await start({ env: {} });
+    const at = h => new Date(NOW.getTime() + h * 3600000);
+    const many = Array.from({ length: 40 }, (_, i) => ({ date: '2026-10-09', name: `E${i}`, venue: 'V', icons: [] }));
+    await t.healthCheck(at(0));
+    const said = () => t.slack.alerts.filter(a => a.text && /upcoming events/.test(a.text)).length;
+    expect(said()).toBe(1);
+    await t.store.setPublished({ events: many, auto_publish: { from: '2026-10-07T00:00:00Z' } });
+    expect((await t.healthCheck(at(1))).problems).not.toContain('upcoming');
+    await t.store.setPublished({ events: [], auto_publish: { from: '2026-10-07T00:00:00Z' } });
+    await t.healthCheck(at(2));
+    expect(said()).toBe(2);
+  });
+
+  it("a failed read of the collect's copy never falls back to an older bundled file", async () => {
+    const t = await start();
+    await fs.writeFile(path.join(t.dir, 'candidates.json'), JSON.stringify({ last_updated: '2026-09-01T00:00:00Z', events: [{ date: '2026-10-09', name: 'Old', venue: 'X', icons: [] }] }));
+    await t.store.setTownFile('candidates', CANDIDATES, NOW);
+    t.store.getTownFile = async () => { throw new Error('pool timeout'); };
+    const login = await (await fetch(t.base + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: LONG.adminUsername, password: LONG.adminPassword }) })).json();
+    const r = await (await fetch(t.base + '/api/admin/auto-publish', { method: 'POST', headers: { Authorization: `Bearer ${login.token}` } })).json();
+    expect(r.ok).toBe(false);
+    const live = await (await fetch(t.base + '/events.json')).json();
+    expect(live.events.map(e => e.name)).not.toContain('Old');
+  });
+});
+
+describe('worker hiccups', () => {
+  it('a run cut short by a redeploy is queued again quietly, once', async () => {
+    const t = await start();
+    await t.store.enqueueJob('collect', 'sun', {}, NOW);
+    const { job } = await (await t.call('POST', '/api/jobs/claim')).json();
+    await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'exited -15', interrupted: true } });
+    expect(t.slack.alerts).toEqual([]);
+    const again = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+    expect(again).toMatchObject({ kind: 'collect', slot: 'sun-retry' });
+    await t.call('POST', `/api/jobs/${again.id}/finish`, { status: 'failed', result: { error: 'exited -15', interrupted: true } });
+    expect(t.slack.alerts).toHaveLength(1);                 // the retry cut short too: said
   });
 });

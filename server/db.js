@@ -972,12 +972,17 @@ class FileStore {
   // The town's job queue (the scheduler and Pull Now add, the jobs worker
   // claims and finishes) and the files a job hands the site (candidates,
   // collection metadata, enrichment cache), which used to be commits.
-  async enqueueJob(kind, slot, args = {}, now = new Date()) {
+  // unlessPending: not when a job of the same kind is already queued or
+  // running (a worker that was down doesn't come back to a pile of them,
+  // and a second Pull Now doesn't start a second collect).
+  async enqueueJob(kind, slot, args = {}, now = new Date(), { unlessPending = false } = {}) {
     return this._withWrite(async () => {
       const data = await this._read();
       if (!Array.isArray(data.jobs)) data.jobs = [];
       const dup = data.jobs.find(j => j.kind === kind && j.slot === slot);
       if (dup) return { queued: false, id: dup.id };
+      const pending = unlessPending && data.jobs.find(j => j.kind === kind && (j.status === 'queued' || j.status === 'running'));
+      if (pending) return { queued: false, id: pending.id, pending: true };
       const id = (data.jobs.reduce((m, j) => Math.max(m, j.id), 0) || 0) + 1;
       data.jobs.push({ id, kind, slot, args, status: 'queued', queued_at: now.toISOString(), started_at: null, finished_at: null, result: null });
       data.jobs = data.jobs.slice(-500);
@@ -1028,6 +1033,21 @@ class FileStore {
   async listJobs(limit = 50) {
     const data = await this._read();
     return (data.jobs || []).slice(-limit).reverse().map(j => ({ ...j }));
+  }
+
+  // For HQ: each kind's last finished run however long ago, what's queued
+  // and running, and the failures in the last day.
+  async jobStats(now = new Date()) {
+    const jobs = ((await this._read()).jobs || []).slice().reverse();
+    const last = {};
+    for (const j of jobs) if (!last[j.kind] && (j.status === 'done' || j.status === 'failed')) last[j.kind] = { ...j };
+    const day = now.getTime() - 86400000;
+    return {
+      last,
+      queued: jobs.filter(j => j.status === 'queued').length,
+      running: jobs.filter(j => j.status === 'running').map(j => ({ kind: j.kind, started_at: j.started_at })),
+      failed_24h: jobs.filter(j => j.status === 'failed' && Date.parse(j.finished_at) >= day).length
+    };
   }
 
   async getTownFile(name) {
@@ -2222,12 +2242,18 @@ class PgStore {
     await this._jobTablesPromise;
   }
 
-  async enqueueJob(kind, slot, args = {}, now = new Date()) {
+  async enqueueJob(kind, slot, args = {}, now = new Date(), { unlessPending = false } = {}) {
     await this._jobTables();
     const r = await this.pool.query(`
-      INSERT INTO job_queue (kind, slot, args, status, queued_at) VALUES ($1, $2, $3::jsonb, 'queued', $4)
-      ON CONFLICT (kind, slot) DO NOTHING RETURNING id`, [kind, slot, JSON.stringify(args || {}), now.toISOString()]);
+      INSERT INTO job_queue (kind, slot, args, status, queued_at)
+      SELECT $1, $2, $3::jsonb, 'queued', $4
+       WHERE NOT $5::boolean OR NOT EXISTS (SELECT 1 FROM job_queue WHERE kind = $1 AND status IN ('queued', 'running'))
+      ON CONFLICT (kind, slot) DO NOTHING RETURNING id`, [kind, slot, JSON.stringify(args || {}), now.toISOString(), Boolean(unlessPending)]);
     if (r.rows[0]) return { queued: true, id: Number(r.rows[0].id) };
+    if (unlessPending) {
+      const p = await this.pool.query("SELECT id FROM job_queue WHERE kind = $1 AND status IN ('queued', 'running') ORDER BY id LIMIT 1", [kind]);
+      if (p.rows[0]) return { queued: false, id: Number(p.rows[0].id), pending: true };
+    }
     const dup = await this.pool.query('SELECT id FROM job_queue WHERE kind = $1 AND slot = $2', [kind, slot]);
     return { queued: false, id: dup.rows[0] ? Number(dup.rows[0].id) : null };
   }
@@ -2270,6 +2296,20 @@ class PgStore {
     await this._jobTables();
     const r = await this.pool.query('SELECT * FROM job_queue ORDER BY id DESC LIMIT $1', [limit]);
     return r.rows.map(jobRow);
+  }
+
+  async jobStats(now = new Date()) {
+    await this._jobTables();
+    const last = await this.pool.query(`
+      SELECT DISTINCT ON (kind) * FROM job_queue WHERE status IN ('done', 'failed') ORDER BY kind, id DESC`);
+    const live = await this.pool.query("SELECT kind, status, started_at FROM job_queue WHERE status IN ('queued', 'running') ORDER BY id");
+    const failed = await this.pool.query("SELECT COUNT(*)::int AS n FROM job_queue WHERE status = 'failed' AND finished_at >= $1::timestamptz - interval '1 day'", [now.toISOString()]);
+    return {
+      last: Object.fromEntries(last.rows.map(r => [r.kind, jobRow(r)])),
+      queued: live.rows.filter(r => r.status === 'queued').length,
+      running: live.rows.filter(r => r.status === 'running').map(r => ({ kind: r.kind, started_at: new Date(r.started_at).toISOString() })),
+      failed_24h: failed.rows[0].n
+    };
   }
 
   async getTownFile(name) {

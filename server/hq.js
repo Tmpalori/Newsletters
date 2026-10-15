@@ -140,26 +140,28 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   };
 }
 
-// The jobs part of the summary: per job, its last run (status, when, how
-// long, and a collect's counts and warnings), plus failures in the last day.
-// No personal data: counts, source names and the collector's own warnings.
-export function jobsSummary(jobs, { lastPollAt = null, now = new Date() } = {}) {
+// The jobs part of the summary (from jobs.stats()): per job, its last run
+// (status, when, how long, and a collect's counts and warnings), what's
+// queued and running, failures in the last day, and when the worker last
+// asked for work (worker_since: this process's start, so HQ can tell a
+// worker silent since a redeploy). No personal data: counts, source names
+// and the collector's own warnings.
+export function jobsSummary(st) {
   const last = {};
-  for (const j of jobs) {
-    if (last[j.kind] || (j.status !== 'done' && j.status !== 'failed')) continue;
+  for (const [kind, j] of Object.entries((st && st.last) || {})) {
     const r = j.result || {};
-    last[j.kind] = {
+    last[kind] = {
       status: j.status, finished_at: j.finished_at, seconds: Number.isFinite(r.seconds) ? r.seconds : null,
-      ...(j.kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {} } : {}),
+      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {} } : {}),
       ...(j.status === 'failed' ? { error: String(r.error || '').slice(0, 300) } : {})
     };
   }
-  const day = now.getTime() - 86400000;
   return {
-    worker_last_seen: lastPollAt,
-    queued: jobs.filter(j => j.status === 'queued').length,
-    running: jobs.filter(j => j.status === 'running').map(j => ({ kind: j.kind, started_at: j.started_at })),
-    failed_24h: jobs.filter(j => j.status === 'failed' && Date.parse(j.finished_at) >= day).length,
+    worker_last_seen: st.worker_last_seen || null,
+    worker_since: st.worker_since || null,
+    queued: st.queued || 0,
+    running: st.running || [],
+    failed_24h: st.failed_24h || 0,
     last
   };
 }

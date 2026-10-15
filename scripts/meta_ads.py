@@ -384,8 +384,8 @@ def main(argv=None, session=None):
     ap.add_argument("--scheduled", action="store_true", help="the daily run: ads not set up yet doesn't fail it")
     args = ap.parse_args(argv)
 
-    if not meta_allowed():
-        print(f"META_TOWN isn't {TOWN['id']}: these Meta credentials aren't this town's; nothing to do.")
+    if not meta_allowed(use="ads"):
+        print(f"These Meta ads settings aren't {TOWN['id']}'s own (META_TOWN and the ad account its town.json pins); nothing to do.")
         return 0
     token = os.environ.get("META_ADS_TOKEN", "").strip()
     if not token:

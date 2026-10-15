@@ -541,7 +541,7 @@ def test_an_unconfirmed_reel_publish_does_not_post_the_carousel_too(tmp_path, mo
 def test_another_town_never_posts_with_credentials_not_its_own(tmp_path, monkeypatch):
     monkeypatch.setenv("META_PAGE_ID", "p")
     monkeypatch.setenv("META_PAGE_TOKEN", "t")
-    monkeypatch.setattr(sp, "meta_allowed", lambda: False)
+    monkeypatch.setattr(sp, "meta_allowed", lambda **k: False)
     sess = FakeSession()
     assert sp.main(["--kind", "weekend", "--kit-dir", str(write_kit(tmp_path)), "--no-wait"], session=sess) == 0
     assert sess.calls == []

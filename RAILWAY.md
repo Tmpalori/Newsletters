@@ -193,10 +193,12 @@ copy a value from Victoria's project, or from another town's: a copied
     is no longer needed; `TOWN_WORKFLOWS=0` turns a town off). Until the
     town's first collect lands, its scheduler starts only the collect and
     it sends no auto-publish, "0 upcoming" or missed-collect alerts. The
-    social kit and the ads report use Meta credentials only when the
-    Environment also sets `META_TOWN=<slug>` (a missing Environment secret
-    falls back to Victoria's repo-level one), so set `META_TOWN` with the
-    town's own Meta page, Instagram and ad account, never before.
+    social kit and the ads report use Meta settings only when the
+    Environment also sets `META_TOWN=<slug>` and its page, Instagram and ad
+    account ids match the ones `town.json` pins (`"meta": {"page_id",
+    "ig_user_id", "ad_account_id"}`): a missing Environment secret falls
+    back to Victoria's repo-level one. Set them with the town's own Meta
+    page, Instagram and ad account, never before.
 13. **Optional:** `META_PIXEL_ID` (the town's own pixel); the GA stream is
     `gaId` in `town.json` (a PR).
 14. **Domain.** Add `www.<domain>` as a custom domain and CNAME it to the

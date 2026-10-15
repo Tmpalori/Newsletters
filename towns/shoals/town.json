@@ -102,7 +102,7 @@
       "name": "una",
       "type": "tribe",
       "url": "https://apps.una.edu",
-      "exclude": "\\b(meetings?|practice|shuttle|snap available|study|sessions?|faculty|staff|workshops?|group|luncheon|lunch & lift|webinar|panel|training|screenings?|applications?|due tonight|senate|club|interest|kickback|tailgate|breakfast|mass and meal|midweek|church|worship|internship|biometric|nursing|research|abroad|post-tenure|pedagogy|conversation partners|table|success|career|bites & insights|i’m fine|wellness|clinic|simulation|connections|professional|online event)\\b|\\bx\\b|^(?!.*(recital|showcase|\\bvs\\.?\\b|concert|festival|parade|walk)).*private location|^(AI, Explained|Poker Night|Vision Board|COBT|Going Gilman|School Spirit|Put Your Pride|BBQ with Bankers|Germany on Campus|Haunted GUC)",
+      "exclude": "\\b(meetings?|practice|shuttle|snap available|study|sessions?|staff meeting|workshops?|group|luncheon|lunch & lift|webinar|panel|training|screenings?|applications?|due tonight|senate|club|interest|kickback|tailgate|breakfast|mass and meal|midweek|church|worship|internship|biometric|nursing|research|abroad|post-tenure|pedagogy|conversation partners|table|success|career|bites & insights|i’m fine|wellness|clinic|simulation|connections|professional|online event)\\b|\\bx\\b|^(?!.*(recital|showcase|\\bvs\\.?\\b|concert|festival|parade|walk|reading|writers|finals|solo)).*private location|^(AI, Explained|Poker Night|Vision Board|COBT|Going Gilman|School Spirit|Put Your Pride|BBQ with Bankers|Germany on Campus|Haunted GUC)",
       "rename_venue": [
         [
           "^The event will be held on the ",
