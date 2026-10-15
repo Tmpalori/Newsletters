@@ -52,8 +52,8 @@ export const VICTORIA = Object.freeze({
   // Money and limits. Amounts are in cents (what Stripe charges); the
   // price text on pages and emails is generated from them (dollars()).
   business: Object.freeze({
-    weeklyAmount: 30000,                        // weekly sponsor
-    pickAmount: { weekday: 4900, weekend: 8900 },   // a pick, Mon–Thu / Fri–Sun
+    weeklyAmount: 14900,                        // weekly sponsor
+    pickAmount: { weekday: 2900, weekend: 3900 },   // a pick, Mon–Thu / Fri–Sun
     pickCap: { weekday: 3, weekend: 4 },        // picks sold per day
     dayMax: { weekday: 15, weekend: 20 },       // events the curator lists per day
     picks: { weekday: 2, weekend: 3 },          // editor's picks per day
