@@ -185,3 +185,42 @@ describe('helpers', () => {
     expect(createJobs({ store: {}, env: { JOBS_ON_RAILWAY: '1' } }).enabled).toBe(false);
   });
 });
+
+describe('HQ sees the jobs', () => {
+  it('jobsSummary: each job\'s last run, the worker\'s check-in and the day\'s failures', async () => {
+    const { jobsSummary } = await import('../server/hq.js');
+    const now = new Date('2026-10-08T12:00:00Z');
+    const out = jobsSummary([
+      { kind: 'submission-review', status: 'queued' },
+      { kind: 'collect', status: 'running', started_at: '2026-10-08T11:50:00Z' },
+      { kind: 'event-check', status: 'failed', finished_at: '2026-10-08T03:00:00Z', result: { error: 'exited 1', seconds: 4 } },
+      { kind: 'collect', status: 'done', finished_at: '2026-10-07T20:50:00Z', result: { upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 }, seconds: 1800 } },
+      { kind: 'collect', status: 'done', finished_at: '2026-10-04T20:50:00Z', result: { upcoming: 1 } }
+    ], { lastPollAt: '2026-10-08T11:59:30Z', now });
+    expect(out).toEqual({
+      worker_last_seen: '2026-10-08T11:59:30Z', queued: 1, failed_24h: 1,
+      running: [{ kind: 'collect', started_at: '2026-10-08T11:50:00Z' }],
+      last: {
+        'event-check': { status: 'failed', finished_at: '2026-10-08T03:00:00Z', seconds: 4, error: 'exited 1' },
+        collect: { status: 'done', finished_at: '2026-10-07T20:50:00Z', seconds: 1800, upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 } }
+      }
+    });
+  });
+
+  it('a town on jobs reports them in /api/hq/summary; one without has no jobs key', async () => {
+    const key = 'h'.repeat(40);
+    const summary = async env => {
+      const t = await start({ env });
+      return { t, body: await (await fetch(t.base + '/api/hq/summary', { headers: { Authorization: `Bearer ${key}` } })).json() };
+    };
+    process.env.HQ_API_KEY = key;
+    try {
+      const { body: off } = await summary({});
+      expect(off).not.toHaveProperty('jobs');
+      const on = await summary(ON);
+      expect(on.body.jobs).toMatchObject({ worker_last_seen: null, queued: 0, last: {} });
+    } finally {
+      delete process.env.HQ_API_KEY;
+    }
+  });
+});
