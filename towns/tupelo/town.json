@@ -116,7 +116,8 @@
     {
       "name": "tupelo_parks_rec",
       "type": "tribe",
-      "url": "https://tupeloparksandrec.org"
+      "url": "https://tupeloparksandrec.org",
+      "sparse": true
     }
   ],
   "limits": {

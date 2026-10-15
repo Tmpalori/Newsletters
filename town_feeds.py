@@ -29,7 +29,9 @@ or venues to drop, "timeout": seconds (5-240) for a slow site, "venue" and
 "rename": [[pattern, replacement], ...] regular expressions (case-insensitive)
 applied to each name in order (a college sports feed's "University of
 Nebraska - Kearney Football" to "UNK Football"), and "rename_venue" the same
-for venues ("Kearney, NE, Cope Stadium" to "Cope Stadium").
+for venues ("Kearney, NE, Cope Stadium" to "Cope Stadium"). "sparse": true
+for a calendar with only a few events a season (a parks department): two
+empty weeks are normal, so they don't warn.
 
 Each parser is pure: text or JSON in, events out, in the town's timezone and
 inside [start, end] (dates). The collector adds icons and its own checks.
@@ -69,8 +71,9 @@ def check_feeds(feeds):
             raise ValueError(f'feed {name}: type must be one of {", ".join(TYPES)}')
         if not isinstance(url, str) or not url.startswith("https://"):
             raise ValueError(f"feed {name}: url must start with https://")
-        if not isinstance(f.get("library", False), bool):
-            raise ValueError(f"feed {name}: library must be true or false")
+        for key in ("library", "sparse"):
+            if not isinstance(f.get(key, False), bool):
+                raise ValueError(f"feed {name}: {key} must be true or false")
         if "exclude" in f:
             try:
                 re.compile(f["exclude"])
@@ -570,6 +573,17 @@ def _on_day(day, t):
 
 # ─── Fetching ───────────────────────────────────────────────────────────────
 
+def _json(resp):
+    """A JSON feed's body. A page that isn't JSON (a firewall's challenge)
+    says what came back, so the warning shows why."""
+    try:
+        return resp.json()
+    except ValueError:
+        head = re.sub(r"\s+", " ", resp.text or "")[:80]
+        kind = resp.headers.get("content-type", "?")
+        raise ValueError(f"not JSON: HTTP {resp.status_code} {kind}: {head!r}") from None
+
+
 def fetch_feed(feed, get, tz, start, end):
     """One feed's events. `get(url)` returns a response (raises on HTTP
     errors). Pagination stops at MAX_PAGES."""
@@ -580,21 +594,21 @@ def fetch_feed(feed, get, tz, start, end):
     if kind == "tribe":
         page_url, pages = tribe_url(url, start, end), 0
         while page_url and pages < MAX_PAGES:
-            got, page_url = parse_tribe(get(page_url).json(), tz, start, end)
+            got, page_url = parse_tribe(_json(get(page_url)), tz, start, end)
             events.extend(got)
             pages += 1
         return events
     if kind == "localist":
         page, total = 1, 1
         while page <= min(total, MAX_PAGES):
-            got, total = parse_localist(get(localist_url(url, start, end, page)).json(), tz, start, end)
+            got, total = parse_localist(_json(get(localist_url(url, start, end, page))), tz, start, end)
             events.extend(got)
             page += 1
         return events
     if kind == "lineup":
         return parse_lineup(get(url).text, tz, start, end)
     if kind == "squarespace":
-        return parse_squarespace(get(url).json(), tz, start, end, base=squarespace_base(url))
+        return parse_squarespace(_json(get(url)), tz, start, end, base=squarespace_base(url))
     if kind == "growthzone":
         base = url.rstrip("/")
         months = sorted({date(start.year, start.month, 1), date(end.year, end.month, 1)})
