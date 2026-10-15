@@ -303,7 +303,8 @@ export async function createApp(opts = {}) {
   const jobs = opts.jobs || createJobs({
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
     nowFn: () => (opts.now || (() => new Date()))(),
-    publish: () => runAutoPublish()
+    // AUTO_PUBLISH=0 (the owner publishes by hand) holds the new candidates for the admin.
+    publish: () => ((opts.jobsEnv || process.env).AUTO_PUBLISH === '0' ? null : runAutoPublish())
   });
   // Pings from before the store existed (a database alert at boot), and any
   // a database outage held back, go in now and every 2 minutes after.
