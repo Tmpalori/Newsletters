@@ -85,12 +85,6 @@
       ]
     },
     {
-      "name": "blue_canoe",
-      "type": "tribe",
-      "url": "https://bluecanoebar.com",
-      "timeout": 30
-    },
-    {
       "name": "link_centre",
       "type": "tribe",
       "url": "https://link-centre.org",

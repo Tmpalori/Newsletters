@@ -23,7 +23,9 @@ import express from 'express';
 // What the worker can run, the workflow it replaces, and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
 export const JOB_KINDS = {
-  collect: { workflow: 'weekly-collect.yml', label: 'Weekly event collect', limitMs: 60 * 60 * 1000 },
+  // The collector's own budget is 55 minutes, then its uploads (which wait
+  // out a web redeploy): 75 minutes before the site gives up on it.
+  collect: { workflow: 'weekly-collect.yml', label: 'Weekly event collect', limitMs: 75 * 60 * 1000 },
   'event-check': { workflow: 'event-check.yml', label: 'Event check', limitMs: 20 * 60 * 1000 },
   'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 }
 };
@@ -67,7 +69,9 @@ export function upcomingCount(candidates, now, days = 14) {
  */
 export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console }) {
   const cfg = jobsConfig(env);
-  const state = { lastPollAt: null, since: nowFn().toISOString() };
+  // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
+  // job (and doesn't ask), it's alive until that job's time limit.
+  const state = { lastPollAt: null, busyUntil: null, since: nowFn().toISOString() };
   const failStreak = new Map();   // kind → failed runs in a row
 
   // Not while one of the same kind is already queued or running: a worker
@@ -78,13 +82,15 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     return store.enqueueJob(kind, slot, args, nowFn(), { unlessPending: true });
   }
 
-  // Failures alert once per streak, not once per run: the 15-minute review
-  // after an hour of failures, anything else at once; and say when it's
-  // working again.
+  // A failed collect or event check alerts every time (they run a few times
+  // a week); the 15-minute review once its failures reach an hour, so a
+  // short OpenAI blip isn't an alert. A second try that fails again always
+  // alerts. And say when it's working again.
   function failed(job, text, title = `${JOB_KINDS[job.kind].label} failed`) {
     const n = (failStreak.get(job.kind) || 0) + 1;
     failStreak.set(job.kind, n);
-    if (slack && n === (JOB_KINDS[job.kind].alertAfter || 1)) {
+    const after = JOB_KINDS[job.kind].alertAfter || 1;
+    if (slack && (after === 1 || n === after || String(job.slot).endsWith('-retry'))) {
       slack.alert(`job-${job.kind}-failing`, title, text, `${siteUrl}/admin.html`);
     }
   }
@@ -128,6 +134,13 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     }
     worked(job);
     if (job.kind !== 'collect') return;
+    // The upload was stored but its publish failed: the events aren't live.
+    if (r.published && r.published.ok === false) {
+      if (slack) slack.alert('job-collect-publish', 'Collect finished but its events didn\'t publish',
+        `${String(r.published.message || r.published.error || 'The publish failed.').slice(0, 300)} The hourly check tries again; Save & Publish in admin publishes now.`, `${siteUrl}/admin.html`);
+      await enqueue('event-check', `after-collect-${job.id}`);
+      return;
+    }
     // What the GitHub collect said in Slack, and the event check after it.
     if (slack) {
       const n = Number.isFinite(r.upcoming) ? r.upcoming : '?';
@@ -156,9 +169,11 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     app.post('/api/jobs/claim', guard, wrap(async (req, res) => {
       const now = nowFn();
       state.lastPollAt = now.toISOString();
+      state.busyUntil = null;
       await expire(now);
       const job = await store.claimJob(now);
       if (!job) return res.status(204).end();
+      state.busyUntil = new Date(now.getTime() + JOB_KINDS[job.kind].limitMs).toISOString();
       res.json({ ok: true, job: { id: job.id, kind: job.kind, slot: job.slot, args: job.args || {} } });
     }));
 
@@ -166,6 +181,8 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       const status = req.body && req.body.status === 'done' ? 'done' : 'failed';
       const result = req.body && typeof req.body.result === 'object' && req.body.result ? req.body.result : null;
       const job = await store.finishJob(req.params.id, { status, result }, nowFn());
+      state.lastPollAt = nowFn().toISOString();
+      state.busyUntil = null;
       if (!job) return res.status(404).json({ ok: false, error: 'not-running' });
       try { await finished(job, result); } catch (err) { log.warn('[jobs] after finish:', err.message); }
       res.json({ ok: true });

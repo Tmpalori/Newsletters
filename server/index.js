@@ -176,7 +176,10 @@ export async function createApp(opts = {}) {
   // Owner pings in Slack (server/slack.js); a no-op until SLACK_WEBHOOK_URL is set.
   // Every ping is also kept in the owner inbox for HQ (server/inbox.js).
   let inboxStore = null;
-  const rawSlack = opts.slack || createSlack(slackConfig(process.env, opts));
+  // Every town's messages carry its tag: SLACK_TOWN_TAG, else its city (as
+  // scripts/slack_notify.py does), so the shared channels read the same.
+  const townTag = opts.slackTownTag ?? ((process.env.SLACK_TOWN_TAG || '').trim() || town.city);
+  const rawSlack = opts.slack || createSlack(slackConfig(process.env, { ...opts, slackTownTag: townTag }));
   const slack = withInbox(rawSlack, () => inboxStore);
   const canonicalHost = new URL(siteUrl).host;
   const apexHost = canonicalHost.replace(/^www\./, '');
@@ -2628,7 +2631,10 @@ export async function createApp(opts = {}) {
     if (jobs.enabled) {
       try { await jobs.expire(now); } catch (err) { console.warn('[jobs] expire failed:', err.message); }
       const polled = jobs.state.lastPollAt ? Date.parse(jobs.state.lastPollAt) : bootedAt;
-      if (now.getTime() - polled > JOBS_WORKER_SILENT_MS) {
+      // A worker running a job doesn't ask for work; it's alive until that
+      // job's time limit (past it, jobs.expire above says so).
+      const busy = jobs.state.busyUntil && now.getTime() < Date.parse(jobs.state.busyUntil);
+      if (!busy && now.getTime() - polled > JOBS_WORKER_SILENT_MS) {
         problems.jobs_worker = `The jobs worker hasn't asked for work since ${jobs.state.lastPollAt || 'this deploy started'}, so collects and checks aren't running. Check the town's jobs service in Railway.`;
       }
     }
@@ -2646,13 +2652,13 @@ export async function createApp(opts = {}) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
-        problems.upcoming = `Only ${upcoming} upcoming events are on the site. Check the Weekly Collect run and the Sources tab.`;
+        problems.upcoming = `Only ${upcoming} upcoming events are on the site. Check the ${jobs.enabled ? 'last collect in the jobs service\'s Railway logs' : 'Weekly Collect run'} and the Sources tab.`;
       }
       const from = Date.parse((pub.auto_publish && pub.auto_publish.from) || '');
       const age = Number.isFinite(from) ? Math.floor((now.getTime() - from) / 86400000) : null;
       // Collect runs Sunday and Wednesday, so 4 days is the normal maximum.
       if (age != null && age >= STALE_COLLECT_DAYS) {
-        problems.stale = `No new events collected in ${age} days. The collector or auto-publish may be broken: check the Weekly Collect workflow.`;
+        problems.stale = `No new events collected in ${age} days. The collector or auto-publish may be broken: check ${jobs.enabled ? 'the town\'s jobs service in Railway (Pull Now runs a collect)' : 'the Weekly Collect workflow'}.`;
       }
       // A collect that should have landed hours ago (GitHub skipped or
       // queued it, the run failed, or the deploy didn't publish it).
@@ -2660,7 +2666,9 @@ export async function createApp(opts = {}) {
       if (missed) {
         const day = missed.job === 'weekly-collect' ? 'Sunday' : 'Wednesday';
         problems.collect = `${day}'s event collect (${startLabel(missed.job)}) hasn't come in after ${COLLECT_LATE_HOURS} hours, so the site still shows the last collect's events. ` +
-          `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`;
+          (jobs.enabled
+            ? 'Start it by hand with Pull Now in admin (Sources); if it fails again, its jobs service\'s Railway logs say why.'
+            : `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`);
       }
     }
     // A list that sent to people last time and now has nobody active: the
@@ -2775,7 +2783,9 @@ export async function createApp(opts = {}) {
         fix: `Replies to news@ go to Slack once Resend receives for ${town.domain}: in Resend, turn on receiving for the domain and add its MX record; add a webhook (event email.received) to ` + siteUrl +
           '/api/email/inbound and put its signing secret in Railway as RESEND_WEBHOOK_SECRET. (Or set NEWSLETTER_REPLY_TO to an inbox you read.)' },
       { key: 'scheduler', label: 'Event collect, social posts, event check, ads report and AI review start on time',
-        ok: github.isConfigured() && !scheduler.state.dispatchBlocked, level: 'recommended',
+        // With jobs on Railway the worker runs the collect, check and review
+        // on time; a town's GitHub token is only for its social kit and ads.
+        ok: (jobs.enabled && !townWorkflowsReady()) || (github.isConfigured() && !scheduler.state.dispatchBlocked), level: 'recommended',
         fix: scheduler.state.dispatchBlocked
           ? `GitHub refused the token (HTTP ${scheduler.state.dispatchBlocked.status}). Give GITHUB_TOKEN in Railway Actions: write (and Contents: write) on this repo.`
           : 'Set GITHUB_TOKEN in Railway: a fine-grained token on this repo with Actions: write and Contents: write. Without it these wait for GitHub\'s own schedule, which runs hours late (the newsletter is sent on time either way).' },

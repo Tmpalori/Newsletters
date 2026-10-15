@@ -6,7 +6,7 @@
   "facebook_events": "https://www.facebook.com/BlueCanoeTupelo/events",
   "event_potential": "Original live music 4-6 nights a week since 2011 (touring + regional acts), 46 taps; 2006 N Gloster St",
   "confidence": "high",
-  "notes": "FB/IG links from the venue's own website (bluecanoebar.com); its Events Calendar is also a town feed",
+  "notes": "FB/IG links from the venue's own website (bluecanoebar.com); its Events Calendar can't be read from Railway (bot check), so its Fri/Sat shows are a weekly entry in local_events.yaml",
   "source": "seed",
   "tier": "HIGH",
   "instagrams": [

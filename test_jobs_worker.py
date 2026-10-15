@@ -184,3 +184,12 @@ def test_run_script_caps_lines_survives_odd_bytes_and_stops_what_it_started(tmp_
     assert code == 124 and _t.monotonic() - started < 10
     _t.sleep(4.5)
     assert not marker.exists()          # the grandchild went with it
+
+
+def test_reading_a_file_waits_out_a_redeploy_and_a_missing_one_is_none(monkeypatch):
+    monkeypatch.setattr(jw.time, "sleep", lambda s: None)
+    site = jw.Site("https://x.example", "s" * 40, session=Session([502, None, 200]))
+    assert site.get_file("enrichment_cache") is None         # the fake answers {"ok": true}: no data
+    assert site.session.calls == 3                              # 502, a dropped connection, then 200
+    site = jw.Site("https://x.example", "s" * 40, session=Session([404]))
+    assert site.get_file("candidates") is None and site.session.calls == 1

@@ -15,7 +15,7 @@
 # The town feed already pulls tupelo.net (Visit Tupelo: Woody's and
 # Holland's karaoke, Jobos Thursday music, Brick and Spoon weekend brunch
 # music, Elvis Birthplace Blues Friday, Backline shows through late Oct,
-# arena shows, the Christmas parade), bluecanoebar.com (Blue Canoe shows),
+# arena shows, the Christmas parade),
 # link-centre.org, the Lee County Library, the CDF chamber and Tupelo Parks,
 # and the collector dedups, so entries here are what those feeds miss:
 # weekly staples that must never drop off, plus one-time dates found on
@@ -32,6 +32,23 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 recurring:
+
+  # ── WEEKLY: Blue Canoe ──────────────────────────────────────────────────
+  # Named generically so the collector merges it into the act when Facebook
+  # names one; bluecanoebar.com's calendar can't be read from Railway (a bot
+  # check), so this keeps its weekend shows on the calendar.
+
+  - name: "Live Music at Blue Canoe"
+    day: [friday, saturday]
+    time: "8:30 PM"
+    venue: "Blue Canoe"
+    address: "2006 N Gloster St"
+    description: "Tupelo's original live-music bar: touring and regional acts on the stage most weekend nights, plus 46 taps."
+    icons: [music, drinks]
+    free: false
+    url: "https://bluecanoebar.com/"
+    favorite: true
+    # VERIFIED: bluecanoebar.com events calendar 2026-10-15 (every listed Friday and Saturday Sep – Nov 2026 at 8:30 PM, 13 of 13; e.g. Huge Ghost Oct 16, Music by KOTA Oct 17)
 
   # ── DAILY (October) ─────────────────────────────────────────────────────
 
