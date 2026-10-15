@@ -277,6 +277,9 @@ town on jobs doesn't run them until then.
 
 ## New town, the simple way (jobs on Railway)
 
+The full owner-and-agent checklist (brand art, email, Stripe, Meta, ads,
+monitoring) is [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md); this section is its Railway part.
+
 What an agent does end to end with the Railway connector and the Cloudflare
 API, once the town's files are in `towns/<slug>/` (feeds, venues, local
 events) and merged:
