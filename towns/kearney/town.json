@@ -103,5 +103,10 @@
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15
   },
-  "workflows": false
+  "workflows": false,
+  "schedule": {
+    "newsletter": "07:48",
+    "newsletter-weekend": "07:05",
+    "sponsor-reports": "09:05"
+  }
 }

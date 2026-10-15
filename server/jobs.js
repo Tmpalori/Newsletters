@@ -84,15 +84,16 @@ export function createJobs({ store, slack = null, publish = async () => null, si
 
   // A failed collect or event check alerts every time (they run a few times
   // a week); the 15-minute review once its failures reach an hour, so a
-  // short OpenAI blip isn't an alert. A second try that fails again always
-  // alerts. And say when it's working again.
-  function failed(job, text, title = `${JOB_KINDS[job.kind].label} failed`) {
+  // short OpenAI blip isn't an alert. And say when it's working again.
+  function failed(job, text, title = `${JOB_KINDS[job.kind].label} failed`, urgent = false) {
     const n = (failStreak.get(job.kind) || 0) + 1;
     failStreak.set(job.kind, n);
     const after = JOB_KINDS[job.kind].alertAfter || 1;
-    // Keyed per run: a second try failing minutes after "started again"
-    // is news, not a repeat for the 15-minute dedupe to drop.
-    if (slack && (after === 1 || n === after || String(job.slot).endsWith('-retry'))) {
+    // Keyed per run: a collect or check retry failing minutes after "started
+    // again" is news, not a repeat for the 15-minute dedupe to drop. A review
+    // keeps to its streak, retries included, so a worker crash-looping
+    // mid-review alerts once, not every run.
+    if (slack && (urgent || after === 1 || n === after)) {
       slack.alert(`job-${job.kind}-${job.id}`, title, text, `${siteUrl}/admin.html`);
     }
   }
@@ -131,7 +132,12 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     }
     if (job.status === 'failed') {
       const tail = Array.isArray(r.log_tail) ? r.log_tail.slice(-8).map(l => String(l).slice(0, 300)).join('\n') : '';
-      failed(job, `${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`);
+      // While the AI is down, review_submissions.py fails only one run in 6
+      // hours (ai_down_alert) and the runs between pass, so the streak never
+      // reaches alertAfter: that run alerts on its own.
+      const aiDown = job.kind === 'submission-review' && /The AI review can't run/.test(tail);
+      failed(job, `${r.error || 'The script exited with an error.'}${tail ? `\n${tail}` : ''}`,
+        aiDown ? 'Submission review: the AI can’t run (key or credit); submissions are waiting' : undefined, aiDown);
       return;
     }
     worked(job);

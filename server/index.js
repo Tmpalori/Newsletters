@@ -2937,13 +2937,21 @@ export async function createApp(opts = {}) {
   // docs/ holds Victoria's own data next to the shared site files: its
   // bundled events.json and its social kit. Another town without its own
   // copy gets an empty list and a 404, never Victoria's events or posts.
+  // Decide on the path express.static will use (it decodes %-escapes and
+  // normalizes), so /%65vents.json, /index or /%73ubmit can't reach
+  // Victoria's raw docs/ copies: her events, social kit, homepage (with her
+  // GA tag) and submit form. Those pages are routed above by exact spelling.
   if (town.id !== VICTORIA.id) {
     app.use((req, res, next) => {
-      if (req.path === '/events.json') {
+      let p = req.path;
+      try { p = path.posix.normalize(decodeURIComponent(p)); } catch (_) { return next(); }
+      if (/^\/events\.json$/i.test(p)) {
         res.set('Cache-Control', 'no-store');
         return res.json({ last_updated: null, events: [] });
       }
-      if (req.path.startsWith('/social/')) return res.status(404).type('text/plain').send('Not found');
+      if (/^\/social(\/|$)/i.test(p)) return res.status(404).type('text/plain').send('Not found');
+      if (/^\/index(\.html)?$/i.test(p)) return res.redirect(301, '/');
+      if (/^\/submit(\.html)?$/i.test(p)) return res.redirect(301, '/submit');
       next();
     });
   }

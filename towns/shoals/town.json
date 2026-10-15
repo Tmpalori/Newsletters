@@ -168,5 +168,10 @@
   "limits": {
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15
+  },
+  "schedule": {
+    "newsletter": "07:58",
+    "newsletter-weekend": "07:15",
+    "sponsor-reports": "09:15"
   }
 }
