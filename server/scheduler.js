@@ -237,7 +237,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
 
   // Run one job's body. → { ok, final?, message? }
   async function runJob(job, now, slot) {
-    if (job.workflow && queueJob) return queue(job, slot);
+    if (job.workflow && queueJob && canQueue(job)) return queue(job, slot);
     if (job.workflow) return dispatch(job, now);
     const fn = { newsletter: handlers.newsletter, 'newsletter-weekend': handlers.newsletterWeekend, 'sponsor-reports': handlers.sponsorReports,
       'privacy-purge': handlers.privacyPurge, health: handlers.health }[job.name];
@@ -252,9 +252,10 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
   // Whether a job can run at all here; otherwise it isn't claimed, so a
   // fallback (GitHub's cron) still does it.
   function available(job) {
-    // With jobs on Railway only what the worker runs starts; the rest
-    // (social kit, ads report) waits for their move (JOBS_ON_RAILWAY.md 2b).
-    if (job.workflow && queueJob) return canQueue(job);
+    // With jobs on Railway what the worker runs is queued for it; the rest
+    // (social kit, ads report; JOBS_ON_RAILWAY.md 2b) still starts on GitHub
+    // where the town's workflows are on (Victoria), on time.
+    if (job.workflow && queueJob && canQueue(job)) return true;
     if (job.workflow) return Boolean(github && github.isConfigured()) && townWorkflowsReady();
     if (job.name === 'newsletter') return typeof handlers.newsletter === 'function' && (!handlers.newsletterReady || handlers.newsletterReady());
     if (job.name === 'newsletter-weekend') return typeof handlers.newsletterWeekend === 'function' && (!handlers.newsletterWeekendReady || handlers.newsletterWeekendReady());

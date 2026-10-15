@@ -47,7 +47,31 @@ env:
   SLACK_TOWN_TAG: ${{ inputs.town && inputs.town != 'victoria' && vars.SLACK_TOWN_TAG || '' }}
 
 jobs:
+  # A town whose jobs run on Railway (JOBS_ON_RAILWAY.md; its /api/config
+  # says jobs_on_railway) reviews its submissions on its own jobs worker, so
+  # the cron here stands down for it. An unreachable site means review, as
+  # before; a run by hand always reviews.
+  gate:
+    environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - id: g
+        env:
+          EVENT: ${{ github.event_name }}
+          SITE: ${{ vars.SITE_URL || 'https://www.thevic361.com' }}
+        run: |
+          run=true
+          if [ "$EVENT" = "schedule" ] && curl -fsS --max-time 20 "$SITE/api/config" | grep -q '"jobs_on_railway":true'; then
+            echo "The site's jobs run on Railway; its jobs worker reviews submissions. Skipping."; run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   review:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     # The town's GitHub Environment (its SITE_URL, cron secrets, Meta ids);
     # none for Victoria, which keeps the repo-level settings.
     environment: ${{ inputs.town && inputs.town != 'victoria' && inputs.town || '' }}

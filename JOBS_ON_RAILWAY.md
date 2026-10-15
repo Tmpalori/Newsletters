@@ -152,9 +152,18 @@ Each phase is its own PR with tests. Victoria's output must not change
 
 ### Phase 5: Victoria moves (after the others run cleanly for 2+ weeks)
 
-- [ ] `TheVic361-jobs`, `JOBS_ON_RAILWAY=1`, a live check before and after.
+- [x] `thevic361-jobs`, `JOBS_ON_RAILWAY=1`, a live check before and after
+      (moved early, October 15 2026, at the owner's request). Her collect,
+      event check and submission review run on the worker with the same
+      settings her GitHub collect used (Facebook and Instagram posts on,
+      the rest at the code defaults). GitHub's fallback crons stand down
+      for her: the collect and event check because the site ran the slot,
+      the submission review because her /api/config says jobs_on_railway.
 - [ ] Her GitHub workflows, repo secrets and `GITHUB_TOKEN` retired; the
-      workflow files deleted except `tests.yml`.
+      workflow files deleted except `tests.yml`. Waits on phase 2b: her
+      social kit and ads report still run on GitHub, which the site starts
+      on time (the scheduler dispatches what the worker can't run when the
+      town's workflows are on), and the weekly digest (phase 3).
 - [ ] Cleanups found in the October 2026 audit: Railway healthcheck path,
       the malformed `NODE_ENV` variable, separate event-check, review and
       ads secrets, the apex domain still on Squarespace, and the

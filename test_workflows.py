@@ -666,3 +666,14 @@ def test_failure_alerts_cover_timeouts_and_cancels():
             continue
         text = open(path).read()
         assert "if: failure()\n" not in text, path
+
+
+def test_submission_review_cron_stands_down_for_a_town_on_railway_jobs():
+    # JOBS_ON_RAILWAY.md: a town whose /api/config says jobs_on_railway
+    # reviews on its own jobs worker; GitHub's 15-minute cron skips it, and a
+    # run by hand (or an unreachable site) still reviews.
+    wf = load("submission-review.yml")
+    gate = wf["jobs"]["gate"]["steps"][0]["run"]
+    assert '"$EVENT" = "schedule"' in gate and '"jobs_on_railway":true' in gate and "run=false" in gate
+    assert wf["jobs"]["review"]["needs"] == "gate"
+    assert wf["jobs"]["review"]["if"] == "needs.gate.outputs.run == 'true'"
