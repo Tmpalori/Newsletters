@@ -65,7 +65,10 @@ jobs:
           # A town whose jobs run on Railway (JOBS_ON_RAILWAY.md) no longer
           # commits its candidates here: read its live list from the site.
           src="./$TOWN_CANDIDATES"
-          if curl -fsS --max-time 20 "$SITE/api/config" | grep -q '"jobs_on_railway":true'; then
+          # A site that doesn't answer fails the step (and alerts), rather
+          # than quietly mailing an old list.
+          cfg=$(curl -fsS --max-time 20 "$SITE/api/config")
+          if printf '%s' "$cfg" | grep -q '"jobs_on_railway":true'; then
             curl -fsS --max-time 60 -o live-events.json "$SITE/events.json?all=1"
             src=./live-events.json
           fi

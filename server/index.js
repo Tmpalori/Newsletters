@@ -307,7 +307,15 @@ export async function createApp(opts = {}) {
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
     nowFn: () => (opts.now || (() => new Date()))(),
     // AUTO_PUBLISH=0 (the owner publishes by hand) holds the new candidates for the admin.
-    publish: () => ((opts.jobsEnv || process.env).AUTO_PUBLISH === '0' ? null : publishFresh())
+    // A publish that fails is retried hourly, which says when it caught up.
+    publish: async () => {
+      if ((opts.jobsEnv || process.env).AUTO_PUBLISH === '0') return null;
+      try {
+        const r = await publishFresh();
+        if (r && r.ok === false) autoFailed = true;
+        return r;
+      } catch (err) { autoFailed = true; throw err; }
+    }
   });
   // Pings from before the store existed (a database alert at boot), and any
   // a database outage held back, go in now and every 2 minutes after.
@@ -2633,7 +2641,7 @@ export async function createApp(opts = {}) {
       const polled = jobs.state.lastPollAt ? Date.parse(jobs.state.lastPollAt) : bootedAt;
       // A worker running a job doesn't ask for work; it's alive until that
       // job's time limit (past it, jobs.expire above says so).
-      const busy = jobs.state.busyUntil && now.getTime() < Date.parse(jobs.state.busyUntil);
+      const busy = await jobs.busy(now).catch(() => false);
       if (!busy && now.getTime() - polled > JOBS_WORKER_SILENT_MS) {
         problems.jobs_worker = `The jobs worker hasn't asked for work since ${jobs.state.lastPollAt || 'this deploy started'}, so collects and checks aren't running. Check the town's jobs service in Railway.`;
       }

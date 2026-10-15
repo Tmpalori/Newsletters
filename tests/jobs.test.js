@@ -161,6 +161,28 @@ describe('jobs API', () => {
     expect(t.slack.alerts[1].text).toContain('already ran twice');
   });
 
+  it('a second try failing minutes after "started again" is its own alert (not deduped away)', async () => {
+    let now = NOW;
+    const t = await start({ now: () => now });
+    await t.store.enqueueJob('event-check', 'mon', {}, NOW);
+    await t.call('POST', '/api/jobs/claim');
+    now = new Date(NOW.getTime() + 21 * 60 * 1000);
+    const { job } = await (await t.call('POST', '/api/jobs/claim')).json();    // the retry
+    now = new Date(now.getTime() + 2 * 60 * 1000);
+    await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'exited 1' } });
+    expect(t.slack.alerts.map(a => a.title)).toEqual(["Event check didn't finish", 'Event check failed']);
+    expect(new Set(t.slack.alerts.map(a => a.key)).size).toBe(2);
+  });
+
+  it('after a web redeploy mid-collect the worker is still busy, not silent (from the database)', async () => {
+    const t = await start();
+    await t.store.enqueueJob('collect', 'sun', {}, NOW);
+    await t.call('POST', '/api/jobs/claim');
+    const fresh = createJobs({ store: t.store, env: ON, nowFn: () => NOW });    // a new process: nothing in memory
+    expect(await fresh.busy(new Date(NOW.getTime() + 45 * 60 * 1000))).toBe(true);
+    expect(await fresh.busy(new Date(NOW.getTime() + 80 * 60 * 1000))).toBe(false);
+  });
+
   it("a collect whose events didn't publish says so, not 'live'", async () => {
     const t = await start();
     await t.store.enqueueJob('collect', 'sun', {}, NOW);

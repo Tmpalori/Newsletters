@@ -90,8 +90,10 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     const n = (failStreak.get(job.kind) || 0) + 1;
     failStreak.set(job.kind, n);
     const after = JOB_KINDS[job.kind].alertAfter || 1;
+    // Keyed per run: a second try failing minutes after "started again"
+    // is news, not a repeat for the 15-minute dedupe to drop.
     if (slack && (after === 1 || n === after || String(job.slot).endsWith('-retry'))) {
-      slack.alert(`job-${job.kind}-failing`, title, text, `${siteUrl}/admin.html`);
+      slack.alert(`job-${job.kind}-${job.id}`, title, text, `${siteUrl}/admin.html`);
     }
   }
   function worked(job) {
@@ -218,11 +220,21 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     }));
   }
 
+  // Whether the worker is busy with a job, so not asking for work: within
+  // the job's limit since it was claimed. From the database too, so a web
+  // redeploy mid-collect doesn't make a busy worker look silent.
+  async function busy(now) {
+    if (state.busyUntil && now.getTime() < Date.parse(state.busyUntil)) return true;
+    const st = await store.jobStats(now);
+    return (Array.isArray(st && st.running) ? st.running : []).some(r =>
+      r && JOB_KINDS[r.kind] && now.getTime() - Date.parse(r.started_at) < JOB_KINDS[r.kind].limitMs);
+  }
+
   // HQ's view (server/hq.js jobsSummary): each kind's last run however long
   // ago, and when the worker last asked for work since this process started.
   async function stats() {
     return { ...(await store.jobStats(nowFn())), worker_last_seen: state.lastPollAt, worker_since: state.since };
   }
 
-  return { enabled: cfg.enabled, enqueue, expire, register, state, stats, listJobs: n => store.listJobs(n) };
+  return { enabled: cfg.enabled, enqueue, expire, register, state, stats, busy, listJobs: n => store.listJobs(n) };
 }
