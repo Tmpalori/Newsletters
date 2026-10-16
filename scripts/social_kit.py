@@ -288,8 +288,28 @@ def sponsor_lines(sponsor, start, platform):
     return [text, ""]
 
 
-def captions(groups, start, end, kind, handles=None, sponsor=None):
-    """Return {'facebook': str, 'instagram': str} for a kit."""
+def thanks_lines(partners, today):
+    """The monthly Facebook thank-you to the town's category partners
+    (server/partners.js), promised on /advertise as "a monthly Facebook
+    thank-you with your link": in the kits built on the 1st of the month, so
+    the month's first post carries it. Each link goes through the site's
+    click-counted /go/p/<id>?src=social (the partner's monthly report counts
+    it). Facebook only: no town posts to Instagram yet, and nothing is
+    promised there. Never a price."""
+    if not partners or not today or today.day != 1:
+        return []
+    lines = [f"🙏 Thank you to our local partners for keeping {TOWN['site_name']} free:"]
+    for p in partners:
+        if not isinstance(p, dict) or not p.get("name") or not p.get("id"):
+            continue
+        label = f" ({p['label']})" if p.get("label") else ""
+        lines.append(f"• {p['name']}{label}: {SITE}/go/p/{p['id']}?src=social")
+    return lines + [""] if len(lines) > 1 else []
+
+
+def captions(groups, start, end, kind, handles=None, sponsor=None, partners=None, today=None):
+    """Return {'facebook': str, 'instagram': str} for a kit. partners: the
+    live category partners from /events.json (thanked on the 1st)."""
     title, _, path = TITLES[kind]
     total = sum(len(v) for v in groups.values())
     head = f"{title} ({_range_label(start, end)})" + (f": {total} event{'s' if total != 1 else ''}" if total else "")
@@ -300,11 +320,15 @@ def captions(groups, start, end, kind, handles=None, sponsor=None):
         bool(sponsor_lines(sponsor, start, "facebook"))
     if paid:
         head = f"{AD_TAG} {head}"
+    # The partners' thank-you is paid content too, on Facebook (the only
+    # caption that carries it).
+    thanks = thanks_lines(partners, today)
+    fb_head = f"{AD_TAG} {head}" if thanks and not paid else head
     tags = venue_tags(groups, handles or {})
     # Same call to action as the ad, the slides and the site: the newsletter.
     see_all = "👉 Full list: " if not total else "👉 Details: " if total == 1 else f"👉 See all {total}: "
     body = _body(groups, kind)
-    fb = "\n".join([head, ""] + sponsor_lines(sponsor, start, "facebook") + body + [f"{see_all}{SITE}{path}",
+    fb = "\n".join([fb_head, ""] + sponsor_lines(sponsor, start, "facebook") + body + thanks + [f"{see_all}{SITE}{path}",
                                           f"Don't miss a thing: get every event free in your inbox every Monday and Thursday 👉 {SITE}/subscribe", "", HASHTAGS])
 
     def ig_caption(body, tags):
@@ -612,7 +636,8 @@ def fetch_events(url, sleep=time.sleep):
 
 
 def fetch_payload(url, sleep=time.sleep):
-    """/events.json as {'events': [...], 'sponsor': {...} or None}."""
+    """/events.json as {'events': [...], 'sponsor': {...} or None,
+    'partners': [...live category partners]}."""
     req = urllib.request.Request(url, headers={"User-Agent": "TheVic361-SocialKit/1.0"})
     for i, wait in enumerate((*FETCH_BACKOFF, None)):
         try:
@@ -631,7 +656,15 @@ def fetch_payload(url, sleep=time.sleep):
             if isinstance(ev.get(k), str):
                 ev[k] = html.unescape(ev[k])
     sponsor = data.get("sponsor") if isinstance(data, dict) and isinstance(data.get("sponsor"), dict) else None
-    return {"events": events, "sponsor": sponsor}
+    return {"events": events, "sponsor": sponsor, "partners": live_partners(data)}
+
+
+def live_partners(data):
+    """The live category partners in /events.json's `partners` (absent until
+    a town has had one; a paused town has none)."""
+    p = data.get("partners") if isinstance(data, dict) else None
+    active = p.get("active") if isinstance(p, dict) else None
+    return [x for x in active if isinstance(x, dict)] if isinstance(active, list) else []
 
 
 def main(argv=None):
@@ -648,10 +681,10 @@ def main(argv=None):
     if args.events_file:
         with open(args.events_file) as f:
             data = json.load(f)
-        events, sponsor = data.get("events", []), data.get("sponsor")
+        events, sponsor, partners = data.get("events", []), data.get("sponsor"), live_partners(data)
     else:
         payload = fetch_payload(args.events_url)
-        events, sponsor = payload["events"], payload["sponsor"]
+        events, sponsor, partners = payload["events"], payload["sponsor"], payload["partners"]
     today = date.fromisoformat(args.today) if args.today else today_central()
     os.makedirs(args.out, exist_ok=True)
     for old in os.listdir(args.out):
@@ -678,7 +711,7 @@ def main(argv=None):
         # featured: Vic's Picks in the kit (the Thursday run posts "today"
         # too when it has one; see scripts/jobs_worker.py social_plan).
         kit = {"slides": slides, "slides_jpg": jpeg_copies(args.out, slides),
-               "captions": captions(groups, start, end, kind, handles, sponsor),
+               "captions": captions(groups, start, end, kind, handles, sponsor, partners, today),
                "events": sum(len(v) for v in groups.values()),
                # Paid picks only: the Thursday "today" post exists so a paid
                # pick that day is always posted, not for editor's picks.
