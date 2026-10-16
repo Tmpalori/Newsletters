@@ -353,12 +353,14 @@ def test_waits_for_the_jpegs_too(tmp_path, monkeypatch):
     assert [u.rsplit("/", 1)[1] for u in seen["urls"]] == ["weekend-1.png", "weekend-2.png", "weekend-1.jpg", "weekend-2.jpg"]
 
 
-def test_missing_ig_user_is_a_visible_warning(tmp_path, monkeypatch, capsys):
+def test_missing_ig_user_is_logged_but_not_a_warning(tmp_path, monkeypatch, capsys):
+    # Every town is Facebook only today: say so, without a warning each run.
     monkeypatch.setenv("META_PAGE_ID", "page9")
     monkeypatch.setenv("META_PAGE_TOKEN", "tok")
     monkeypatch.delenv("IG_USER_ID", raising=False)
     assert sp.main(["--kind", "weekend", "--kit-dir", str(write_kit(tmp_path)), "--no-wait"], session=FakeSession()) == 0
-    assert "::warning::IG_USER_ID not set" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "IG_USER_ID not set; skipping Instagram" in out and "::warning::" not in out
 
 
 def test_if_featured_posts_today_only_with_a_vics_pick(tmp_path, monkeypatch):

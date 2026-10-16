@@ -397,7 +397,8 @@ def main(argv=None, session=None, on_save=None):
         except PostError as e:
             failed("Facebook", "facebook", e)
     if not ig_user:
-        print("::warning::IG_USER_ID not set; skipping Instagram (Facebook only).")
+        # Facebook only is how every town runs today, not a fault.
+        print("IG_USER_ID not set; skipping Instagram (Facebook only).")
     elif not already("Instagram", "instagram"):
         try:
             ig_id = None

@@ -90,7 +90,23 @@ def test_outreach_lists_each_venue_once(tmp_path):
     ]
 
 
-def test_kinds_rebuild_keeps_other_kits(tmp_path):
+def test_no_reel_is_built_for_a_town_without_instagram(tmp_path, monkeypatch):
+    # The Reel only goes to Instagram; Facebook gets the photos.
+    import json as _json
+    import pytest
+    pytest.importorskip("PIL")
+    monkeypatch.delenv("IG_USER_ID", raising=False)
+    monkeypatch.setattr(sk, "make_reel", lambda *a, **k: pytest.fail("no Reel without Instagram"))
+    ev = tmp_path / "events.json"
+    ev.write_text(_json.dumps({"events": [
+        {"date": "2026-10-09", "name": "Show", "time": "8 PM", "venue": "Aero Crafters"}]}))
+    out = tmp_path / "out"
+    sk.main(["--events-file", str(ev), "--today", "2026-10-08", "--out", str(out), "--kinds", "weekend"])
+    assert "reel" not in _json.loads((out / "kit.json").read_text())["kits"]["weekend"]
+
+
+def test_kinds_rebuild_keeps_other_kits(tmp_path, monkeypatch):
+    monkeypatch.setenv("IG_USER_ID", "ig7")       # the Reel is Instagram's
     import json as _json
     import shutil as _shutil
     import pytest
