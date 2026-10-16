@@ -286,7 +286,7 @@ class _Tee:
 
 def social_plan(today):
     """(kits to build, kit to post, also post "today" when it has a paid
-    pick) for a day, as social-kit.yml does: Monday builds the week, the
+    pick) for a day: Monday builds the week, the
     weekend and today and posts the week; Thursday builds the weekend and
     today and posts the weekend (and today with a paid pick); other days
     today."""
@@ -393,7 +393,7 @@ def social_settings_problem(env):
 
 
 def _ads_env(env):
-    """meta-ads.yml's settings: the ads token, else the Page token; the
+    """The ads report's settings: the ads token, else the Page token; the
     spend secret, else the submission review secret (the site's fallback)."""
     env = dict(env)
     if not env.get("META_ADS_TOKEN", "").strip() and env.get("META_PAGE_TOKEN", "").strip():
@@ -405,7 +405,7 @@ def _ads_env(env):
 
 
 def job_meta_ads(site, run=run_script, env=None):
-    """The daily ads report (meta-ads.yml's scheduled run). The report goes
+    """The daily ads report (meta_ads.py report --scheduled). The report goes
     back to the site, which posts it to Slack; a town without its own ads
     settings does nothing (done, with why). A dead token, lost account
     access or a retired API version fails the job, which alerts."""
@@ -438,7 +438,7 @@ DIGEST_TO = "tristen.m.palori@gmail.com"
 
 
 def job_digest(site, run=run_script, env=None, session=None):
-    """Sunday night's digest of what's collected (weekly-digest.yml), from
+    """Sunday night's digest of what's collected (send_digest.py), from
     the site's live list, mailed to the owner. Without SMTP settings on the
     jobs service it does nothing (done, with why)."""
     env = dict(env if env is not None else os.environ)

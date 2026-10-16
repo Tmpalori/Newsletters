@@ -16,14 +16,14 @@ The system handles ~70% of event collection automatically:
 
 ## Weekly Cadence
 
-Times are Central daylight time (an hour earlier in winter). GitHub often starts scheduled jobs late, sometimes by an hour.
+Times are Central daylight time. The site's own scheduler starts each job on time; Victoria's jobs run on her Railway jobs service.
 
 | Time (Central) | What happens | Who does it |
 |---|---|---|
-| Sun + Wed 3:23 PM | `weekly-collect.yml` runs the event collector and writes `candidates.json`. A few minutes later the site redeploys and **auto-publishes** the new events; Slack says "Collect done". | Automated |
+| Sun + Wed 3:23 PM | The jobs service runs the event collector and hands the new candidates to the site, which **auto-publishes** them at once; Slack says "Collect done". | Automated |
 | Right after each collect | The event check looks over the live list, hides sure-thing junk and posts to Slack what it hid and anything to look at | Automated |
 | Every 15 min | AI review of free submissions: good ones go live (the submitter gets a "you're live" email), doubtful ones wait in the Submissions tab | Automated |
-| Sun ~9 PM | `weekly-digest.yml` emails a summary of what was collected (for awareness; the events are already live) | Automated |
+| Sun ~9 PM | The jobs service emails a summary of what was collected (for awareness; the events are already live) | Automated |
 | Mon 7:43 AM | Newsletter (the week) sends automatically (or press Send in admin) | Automated |
 | Thu 7:00 AM | Weekend newsletter (Friday–Sunday) sends automatically; readers can skip it and keep Mondays | Automated |
 | When Slack asks | Open [www.thevic361.com/admin.html](https://www.thevic361.com/admin.html): Home tab for what needs you, Events tab to edit or remove an event, then **Save & Publish** | **You** |
@@ -135,11 +135,7 @@ Add these to the Google Sheet as one-time events.
 ## Troubleshooting
 
 **"The site doesn't show my event"**
-→ Events are pulled from the Google Sheet during the Sunday and Wednesday 3:23 PM runs. If you add something after a run, it shows up after the next one, or right away if you add it in the admin Events tab or manually trigger the **Weekly Collect** workflow:
-
-```bash
-gh workflow run "Weekly Collect"
-```
+→ Events are pulled from the Google Sheet during the Sunday and Wednesday 3:23 PM runs. If you add something after a run, it shows up after the next one, or right away if you add it in the admin Events tab, or press **Pull Now** in the admin's Sources tab to start a collect (watch it in the jobs service's Railway log).
 
 **"There are duplicate events"**
 → The system deduplicates automatically. If you see a duplicate, it may have slightly different names from two sources. It'll usually resolve on the next run with AI cleanup.
@@ -189,8 +185,8 @@ Perplexity web search was removed in Oct 2026.
 
 Two optional pipelines pull recent posts from venue social pages and use
 OpenAI to extract dated events from the post text. Both are
-**off by default** and toggled by repo variables (Settings → Variables →
-Actions):
+**off by default** and toggled by variables on the town's Railway jobs
+service:
 
 - `FB_POSTS_ENABLED=1` — Facebook posts (50 posts × HIGH-confidence venues,
   30-day lookback). Apify actor: `apify/facebook-posts-scraper`.

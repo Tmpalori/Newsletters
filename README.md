@@ -2,22 +2,22 @@
 
 **Your Daily Guide to Victoria, TX**
 
-A community events board that automatically collects and displays things to do in Victoria, Texas. The website updates daily via GitHub Actions.
+A community events board that automatically collects and displays things to do in Victoria, Texas. The same code runs every town's site (`towns/`); each runs on Railway with its own jobs service, and GitHub only holds the code and runs the tests.
 
 ## How It Works
 
 1. **`collect_events.py`** gathers events from public Victoria calendars + your curated YAML file into `candidates.json`
-2. **GitHub Actions** runs the collector every Sunday evening (`weekly-collect.yml`) in **candidates-only** mode — it writes `candidates.json` but does NOT overwrite the curated fallback at `docs/events.json`
-3. At 9 PM Central Sunday, an informational digest email summarizes what was collected
-4. Candidates publish automatically after each run (Sunday and Wednesday; `server/autopublish.js`). Tristen can edit or remove events at `/admin.html`, and the Resend newsletter goes out Monday morning (the week) and Thursday morning (the weekend). **Save & Publish** writes the curated payload to Railway Postgres (the live source of truth) and, when `GITHUB_TOKEN` is configured, also commits `docs/events.json` as a fallback.
+2. The site's scheduler queues a collect Sunday and Wednesday afternoons, and the town's **Railway jobs service** runs the collector in **candidates-only** mode: it hands its candidates to the site and never overwrites the curated fallback at `docs/events.json`
+3. At 9 PM Sunday, an informational digest email summarizes what was collected (when the jobs service has SMTP settings)
+4. Candidates publish automatically after each run (`server/autopublish.js`). Tristen can edit or remove events at `/admin.html`, and the Resend newsletter goes out Monday morning (the week) and Thursday morning (the weekend). **Save & Publish** writes the curated payload to Railway Postgres (the live source of truth); nothing is committed to GitHub.
 5. **Railway** serves the live site; `events.json` is read from Postgres first, falling back to the bundled `docs/events.json` snapshot
 6. The website reads `events.json` and auto-displays the next 7 days
 
 ### Source of truth (`events.json`)
 
 - **Live, curated source:** Railway Postgres `published_events` row (`store.getPublished()`), written by the admin Save & Publish flow.
-- **Fallback snapshot:** `docs/events.json` in this repo. Only updated by Save & Publish (with `GITHUB_TOKEN`). The weekly collector workflow runs with `--candidates-only` so CI never overwrites this file with un-screened scraper output.
-- **`candidates.json`:** the full raw collector output for the admin to screen each week. Auto-committed by the weekly workflow.
+- **Fallback snapshot:** `docs/events.json` in this repo, Victoria's frozen copy, served only when her database has nothing published. The collector runs with `--candidates-only` so it never overwrites this file with un-screened scraper output.
+- **Candidates:** the full raw collector output for the admin to screen, handed by the jobs service to the site and kept in Postgres (`town_files`). The `candidates.json` in git is Victoria's last committed collect.
 
 ## Quick Start
 
@@ -49,10 +49,10 @@ python collect_events.py --output ./docs/events.json --local-dir . --skip-web
 | `facebook_venues.backup.json` | Snapshot of the legacy list, refreshed each run |
 | `local_events.yaml` | Recurring + manually curated events |
 | `extras.yaml` | "New & Notable" section + sponsor |
-| `docs/` | Website files (served by GitHub Pages) |
+| `docs/` | Website files (served by the Express server on Railway) |
 | `docs/events.json` | Curated fallback snapshot. Live data is served from Railway Postgres; this file is only used when Postgres has nothing or the site is served without the Express layer. Only the admin Save & Publish flow writes this file — the weekly collector skips it via `--candidates-only`. |
 | `candidates.json` | Full raw collector output (every event found this week), for admin screening. |
-| `.github/workflows/` | GitHub Actions for weekly automation |
+| `.github/workflows/` | `tests.yml` (both test suites on every PR) and the manual probes; no town's jobs run here |
 
 ## Venue Discovery
 
@@ -101,9 +101,9 @@ as posts ("live music tonight 8pm") that never become formal Event pages.
 Both are **off by default** until cost/quality is production-validated.
 They share the `_APIFY_LIMIT_TRIPPED` tombstone, so once Apify's monthly
 hard limit trips on any actor, the rest of the run skips its remaining
-Apify calls. Toggle each independently via repo variables
-`FB_POSTS_ENABLED` / `IG_POSTS_ENABLED` (Settings → Variables → Actions);
-no code change required.
+Apify calls. Toggle each independently with `FB_POSTS_ENABLED` /
+`IG_POSTS_ENABLED` on the town's Railway jobs service; no code change
+required.
 
 Cost shape: ≤ $0.50/run for FB-posts, ≤ $0.85/run for IG-posts when both
 are enabled.
@@ -138,17 +138,13 @@ weekly publish flow.
 - Backend: `server/index.js` (Express). Run `npm start` locally.
 - Admin login: `docs/admin.html` now signs in with username + password
   against the server (`ADMIN_USERNAME` / `ADMIN_PASSWORD` /
-  `ADMIN_SESSION_SECRET`). The server holds the GitHub publish token
-  (`GITHUB_TOKEN`), so the browser never needs a GitHub PAT.
+  `ADMIN_SESSION_SECRET`).
 - Admin Submissions tab: shares the same login session — no separate
   token needed.
-- `GITHUB_TOKEN` is **optional**. Without it, the admin still loads
-  candidates from the bundled `candidates.json` plus the approved-
-  submissions queue, and **Save & Publish** stores the published payload
-  in Railway (Postgres or JSON-file fallback) so the Railway public site
-  serves it from `/events.json`. With `GITHUB_TOKEN`, **Save & Publish**
-  also commits `docs/events.json` to `Tmpalori/thevic361@main` so GitHub
-  Pages stays in sync.
+- No `GITHUB_TOKEN`: the admin loads the last collect's candidates from
+  the database plus the approved-submissions queue, and **Save & Publish**
+  stores the published payload in Railway Postgres, which the site serves
+  from `/events.json`. Nothing is committed to GitHub.
 - Public-facing `events.json` strips submitter PII and admin-only
   metadata before publish.
 

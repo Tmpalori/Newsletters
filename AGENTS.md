@@ -11,15 +11,15 @@ The companion files `CLAUDE.md` and `.cursorrules` redirect to this document so 
 **The Vic 361** is a weekly community-events website for Victoria, TX (population ~65k). It collects events from public calendars and Apify-scraped Facebook/Instagram (OpenAI extracts events from posts and polishes descriptions) twice a week (Sunday and Wednesday afternoons); the site auto-publishes the new candidates when it redeploys, AI reviews free submissions and an event check hides obvious junk, and the owner steps in from the admin only for exceptions; the published list is served from Railway Postgres at [www.thevic361.com](https://www.thevic361.com).
 
 - **Live site:** [www.thevic361.com](https://www.thevic361.com) — Railway (Express + Postgres)
-- **Repo:** `Tmpalori/thevic361` (this repo)
+- **Repo:** `Tmpalori/Newsletters` (this repo; it was `Tmpalori/thevic361`, and GitHub still redirects the old name). One codebase for every town.
 - **Owner:** Tristen Palori ([tristen.m.palori@gmail.com](mailto:tristen.m.palori@gmail.com))
 
 Production hosting:
 
 - `www.thevic361.com` is a CNAME to `oln7ktx9.up.railway.app`. This is the canonical host (`SITE_URL`); always link to www.
-- Apex `thevic361.com` resolves to Squarespace (domain forwarding), not Railway. It forwards `/path` to `www.thevic361.com//path`, which 404s, so only the bare homepage works on the apex. The Express apex → www redirect in `server/index.js` never sees apex traffic today.
+- Apex `thevic361.com` resolves to Squarespace (domain forwarding), not Railway. It forwards `/path` to `www.thevic361.com//path`, which the server collapses to `/path` with a 301, but the forwarding drops the query string (so `?ref=` is lost on the apex). The Express apex → www redirect in `server/index.js` never sees apex traffic today.
 - DNS is managed in Squarespace.
-- Railway environments: `production`, `staging`, and PR-environments (auto-created per open PR, auto-destroyed on PR close). Each has its own forked Postgres.
+- Railway: one project, **Newsletters**, holds every town's web service, jobs service and Postgres. Environments: `production` (every town) and `staging` (Victoria's only, with its own forked Postgres). PR environments are off for the project (RAILWAY.md "New town on Railway"): a PR would copy every town and its database.
 
 ---
 
@@ -389,7 +389,7 @@ These files / behaviors are load-bearing and **must not change** in a normal PR.
 7. **The `--candidates-only` flag default behavior.** Default is *off* (so local runs still write `events.json`); the jobs worker explicitly sets it.
 8. **`server/auth.js` — the HMAC-SHA256 token format.** Single algorithm, no `alg` header. Do not switch to a JWT lib.
 9. **The legacy `ADMIN_TOKEN` fallback path.** Documented in `index.js`. Keep working.
-10. **The browser-side GitHub PAT path in `docs/admin.js`.** Intentional bypass for when server-side `GITHUB_TOKEN` isn't configured. When the server has admin login on, a leftover PAT in localStorage is ignored and an expired session shows the sign-in form. Only a 401 whose `error` is a session error signs the admin out; `/api/admin/trigger-collect` never answers 401 (it queues a collect, or 409 `jobs-not-on`).
+10. **The browser-side GitHub PAT path in `docs/admin.js`.** Dormant: every town runs jobs on Railway, which never commits to GitHub, so only a service without jobs (a local or staging copy) can reach it; it and `server/github.js` are marked for removal, so leave them alone until that PR. When the server has admin login on, a leftover PAT in localStorage is ignored and an expired session shows the sign-in form. Only a 401 whose `error` is a session error signs the admin out; `/api/admin/trigger-collect` never answers 401 (it queues a collect, or 409 `jobs-not-on`).
 
 ---
 
@@ -426,8 +426,8 @@ These tables are the full reference (`RAILWAY.md` covers Railway setup and smoke
 | `GITHUB_REPO` | the repo Railway deployed from (`RAILWAY_GIT_REPO_NAME`), else `thevic361` | Renaming the repo needs no change here |
 | `GITHUB_BRANCH` | `main` | |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY` | — | Required in production (setup checklist). When set, `/api/submissions` requires a Turnstile token and a newsletter signup that passes it joins at once; unset, every newsletter signup confirms by email |
-| `FB_POSTS_ENABLED`, `IG_POSTS_ENABLED` | — | Repo Variables (not secrets); `=1` to enable post-scrape pipelines in CI |
-| `FB_POSTS_MAX_VENUES`, `IG_POSTS_MAX_VENUES` | (collector defaults) | Caps to keep Apify costs bounded. These and the other collector knobs (`GEMINI_ENABLED`, `ENRICH_ENABLED`, `FLYER_IMAGES`, `EVENTBRITE_ENABLED`, `EVENTBRITE_MAX`, `FB_EVENTS_ALT_ENABLED`, `FB_EVENTS_MAX`) are repository variables passed through by `weekly-collect.yml`; unset means the default |
+| `FB_POSTS_ENABLED`, `IG_POSTS_ENABLED` | — | Jobs service; `=1` turns on the Facebook / Instagram post scrapes in the collect |
+| `FB_POSTS_MAX_VENUES`, `IG_POSTS_MAX_VENUES` | (collector defaults) | Caps to keep Apify costs bounded. These and the other collector knobs (`GEMINI_ENABLED`, `ENRICH_ENABLED`, `FLYER_IMAGES`, `EVENTBRITE_ENABLED`, `EVENTBRITE_MAX`, `FB_EVENTS_ALT_ENABLED`, `FB_EVENTS_MAX`) are jobs-service variables; unset means the default |
 | `ENRICH_ENABLED` | on | `=0` stops the Gemini gap-filling lookups for thin events |
 | `FLYER_IMAGES` | on | `=0` stops sending post images (flyers) to OpenAI with the post text |
 | `AUTO_PUBLISH` | on in production | `0` turns off publishing collector candidates on boot (server/autopublish.js) |
@@ -442,16 +442,16 @@ These tables are the full reference (`RAILWAY.md` covers Railway setup and smoke
 | `NEWSLETTER_AUTOSEND` | on | Railway. `0` stops both automatic sends, Monday and Thursday (the site scheduler) |
 | `NEWSLETTER_WEEKEND` | on | Railway. `0` stops the Thursday weekend issue for everyone (Monday's keeps going) |
 | `NEWSLETTER_CRON_SECRET` | — | Shared secret for `POST /api/newsletter/cron` (hand-started sends; the Monday send also emails last week's sponsor click reports) |
-| `SCHEDULER` | on in production | Railway. `0` turns off `server/scheduler.js` (then everything waits for GitHub's late cron) |
-| `OPENAI_MODEL` | `gpt-5-mini` | Repo Variable; overrides the collector's OpenAI model |
+| `SCHEDULER` | on in production | Railway. `0` turns off `server/scheduler.js` (then nothing runs on its own: no sends, collects or other jobs) |
+| `OPENAI_MODEL` | `gpt-5-mini` | Jobs service; overrides the collector's OpenAI model |
 | `SITE_URL` | the town's `siteUrl` (`https://www.thevic361.com`) | Canonical origin. Requests to the bare domain 301 here |
 | `TOWN` | unset (Victoria) | Which town this service is (`server/town.js`). Unset or `victoria` is The Vic 361 with today's values; any other slug reads `towns/<slug>/town.json` and the boot stops if it's missing or invalid. Never set it on Victoria's service |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | — | Turn on self-serve sponsor checkout (server/sponsors.js). Webhook endpoint: `https://www.thevic361.com/api/stripe/webhook` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`, `invoice.paid`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`, `radar.early_fraud_warning.created` (same list as Sponsor checkout). Use live keys in production; a test key there shows a Setup checklist warning |
 | `SLACK_WEBHOOK_URL` | — | Slack incoming webhook for owner pings (server/slack.js). Set it in Railway (production) and as a GitHub Actions secret for workflow alerts |
 | `SLACK_SALES_WEBHOOK_URL`, `SLACK_ACTIVITY_WEBHOOK_URL`, `SLACK_ALERTS_WEBHOOK_URL`, `SLACK_HYPE_WEBHOOK_URL`, `SLACK_INBOX_WEBHOOK_URL` | `SLACK_WEBHOOK_URL` | Optional per-channel webhooks (sales, hype, inbox: Railway; activity and alerts: Railway and GitHub secrets); hype falls back to sales, inbox to activity |
 | `META_PIXEL_ID` | — | Meta Pixel ID (digits, from Meta Events Manager). Turns on `/pixel.js` for ads (server/metaPixel.js) |
-| `EVENT_CHECK_SECRET` | `NEWSLETTER_CRON_SECRET` | Shared secret (Railway + GitHub) that lets the event check hide church events, non-events and exact duplicates (server/eventcheck.js). Unset: the check only reports |
-| `META_ADS_TOKEN` | `META_PAGE_TOKEN` | GitHub secret. System-user token with ads_read + ads_management for scripts/meta_ads.py (daily Slack ad report, status, pause/resume, budget) |
+| `EVENT_CHECK_SECRET` | `NEWSLETTER_CRON_SECRET` | Secret (web service; the jobs service references it) that lets the event check hide church events, non-events and exact duplicates (server/eventcheck.js). Unset: the check only reports |
+| `META_ADS_TOKEN` | `META_PAGE_TOKEN` | Jobs service. System-user token with ads_read + ads_management for scripts/meta_ads.py (daily Slack ad report, status, pause/resume, budget) |
 | `META_AD_ACCOUNT_ID` | — | Jobs service (e.g. `act_123`): the ad account `town.json` pins as `"meta".ad_account_id` (another town needs both); optional for Victoria, whose token sees one account |
 | `SUBMISSION_REVIEW_SECRET` | `EVENT_CHECK_SECRET`, then `NEWSLETTER_CRON_SECRET` | Secret (web service; the jobs service references it) for the AI submission review (server/submissionReview.js) |
 | `OPS_REPORT_SECRET` | the `SUBMISSION_REVIEW_SECRET` chain | Secret (web service; the jobs service and `tests.yml` use it) to put script and CI alerts in the owner inbox (`POST /api/ops/report`); it can only add an alert |
@@ -477,7 +477,7 @@ On the town's jobs service (`<web>-jobs`), never shared with another town; RAILW
 
 Only what the remaining workflows read: `SLACK_WEBHOOK_URL`, `SLACK_ALERTS_WEBHOOK_URL` and `OPS_REPORT_SECRET` (or `SUBMISSION_REVIEW_SECRET`, its fallback) plus the `SITE_URL` variable for `tests.yml`'s "main is broken" alert; `APIFY_TOKEN`, `GEMINI_API_KEY` and the `GEMINI_MODEL` variable for the manual probes and market scan. Nothing else: no town's jobs run on GitHub.
 
-PR/staging Railway environments do **not** automatically inherit `ADMIN_*` vars — set them per-environment or use Railway's shared variables feature.
+Victoria's `staging` environment does **not** automatically inherit `ADMIN_*` vars: set them there too. Never as project-shared variables: those would reach every town (RAILWAY.md "No shared variables for secrets").
 
 ---
 

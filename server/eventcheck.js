@@ -1,6 +1,6 @@
 /* server/eventcheck.js — Events hidden by the event check, and undoing it.
  *
- * scripts/sweep_events.py (run by .github/workflows/event-check.yml) looks
+ * scripts/sweep_events.py (the jobs worker's event-check job) looks
  * over the live list after each publish. The certain, rule-based findings
  * (church events, non-events, exact duplicates) it hides on its own through
  * POST /api/event-check/hide; judgment calls only go to Slack.

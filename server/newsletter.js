@@ -87,8 +87,8 @@ export function newsletterConfig(env = process.env, overrides = {}) {
   c.enabled = Boolean(c.apiKey);
   // The one switch for the automatic Monday send (Railway variable): on
   // unless NEWSLETTER_AUTOSEND=0. The site's scheduler (server/scheduler.js)
-  // sends at 7:43 AM Central; newsletter.yml's late GitHub cron is only a
-  // fallback and is told no when this is off.
+  // sends at the town's newsletter time (7:43 AM for Victoria); a hand
+  // send marked X-Cron-Scheduled is told no when this is off.
   c.autosend = String(overrides.newsletterAutosend ?? env.NEWSLETTER_AUTOSEND ?? '1') !== '0';
   // The Thursday weekend issue: on unless NEWSLETTER_WEEKEND=0.
   c.weekend = String(overrides.newsletterWeekend ?? env.NEWSLETTER_WEEKEND ?? '1') !== '0';

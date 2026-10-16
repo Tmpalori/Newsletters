@@ -1856,8 +1856,8 @@ export async function createApp(opts = {}) {
   // Cron secrets, one per endpoint: NEWSLETTER_CRON_SECRET (newsletter
   // send), EVENT_CHECK_SECRET (hide events), SUBMISSION_REVIEW_SECRET
   // (approve and publish submissions). The fallbacks below (and the same
-  // chain in event-check.yml / submission-review.yml) keep setups made
-  // before the later two existed working, but then one leaked value grants
+  // chain in the jobs worker's scripts) keep setups made before the later
+  // two existed working, but then one leaked value grants
   // all three, so the setup checklist flags a shared secret.
   const eventCheckSecret = opts.eventCheckSecret ??
     (process.env.EVENT_CHECK_SECRET || process.env.NEWSLETTER_CRON_SECRET || '');
@@ -1866,7 +1866,7 @@ export async function createApp(opts = {}) {
 
   // Growth (server/growth.js): Admin → Growth, and Meta's daily ad spend
   // from scripts/meta_ads.py. ADS_SPEND_SECRET, else the submission review
-  // secret (meta-ads.yml sends the same fallback); it can only add numbers.
+  // secret (the jobs worker sends the same fallback); it can only add numbers.
   const adsSpendSecret = opts.adsSpendSecret ?? (process.env.ADS_SPEND_SECRET || submissionReviewSecret);
   registerGrowth(app, {
     store, requireAdmin, adminOrHq, nowFn: () => (opts.now || (() => new Date()))(), secret: adsSpendSecret,

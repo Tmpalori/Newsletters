@@ -41,8 +41,9 @@ own).
    Then work down the
    admin Home tab's setup checklist, which says what each missing variable
    turns on (Slack, Resend newsletter, Stripe, cron secrets, Turnstile,
-   jobs on Railway). PR and staging environments don't inherit `ADMIN_*`
-   automatically; set them per environment or as shared variables.
+   jobs on Railway). Victoria's `staging` environment doesn't inherit
+   `ADMIN_*`; set them there too (never as project-shared variables, see
+   "New town on Railway"). PR environments are off.
 4. **Cron secrets** (`NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
    `SUBMISSION_REVIEW_SECRET`) live on the web service; the jobs service
    reads them as references (`${{<web>.<NAME>}}`), so nothing is copied.
@@ -105,7 +106,8 @@ curl -s $SITE/events.json | jq '.events | length'
 ```
 
 Use `www` (or the Railway domain), not the bare `thevic361.com`: the apex is
-forwarded by Squarespace and its deep links 404.
+forwarded by Squarespace, which drops the query string (the server
+collapses the `//path` it sends).
 
 Then sign in at `$SITE/admin.html`: the Home tab shows the setup checklist,
 upcoming events and anything waiting for you.
@@ -222,7 +224,7 @@ copy a value from Victoria's project, or from another town's: a copied
     Railway target. Make the apex redirect to `www` with the path kept (a
     DNS host's 301 that keeps paths, or the apex on Railway too, where the
     server redirects it). Don't repeat Victoria's Squarespace forwarding,
-    which breaks every deep link on the apex.
+    which doubles the slash and drops the query string (`?ref=`).
 15. **PR environments** are off for the Newsletters project (see the top
     of this section); check they still are.
 16. **Watch paths** (MULTI_CITY_PLAN.md 2.6): the service watches

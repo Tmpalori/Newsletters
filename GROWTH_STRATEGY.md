@@ -71,6 +71,8 @@ self-reported numbers; treat them as direction, not proof.
 | Victoria, TX (The Vic 361) | Running, ads on |
 | Medford, OR (The Rogue 541) | Running |
 | The Shoals, AL (Shoals Setlist) | Running |
+| Lincoln, NE (The Star 402) | Running |
+| Virginia Beach, VA (The Tide 757) | Running |
 | Kearney, NE (The Crane 308) | Paused: under 75k, no collects, no ads |
 | Tupelo, MS (Tupelo Current) | Paused: under 75k, no collects, no ads |
 

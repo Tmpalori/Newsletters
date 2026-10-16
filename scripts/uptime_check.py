@@ -124,8 +124,8 @@ def main(argv, fetch=fetch, sleep=time.sleep, now=None):
         found, body = problems(site, fetch)
     if body:
         # Next to the state file: the last feed served, kept in the cached
-        # state for a look after an alert. (The daily stale-feed check in
-        # uptime.yml fetches its own copy; it runs as a separate job.)
+        # state for a look after an alert. (scripts/feed_age.py fetches
+        # its own copy.)
         with open(os.path.join(os.path.dirname(state_file) or ".", "events.json"), "wb") as f:
             f.write(body)
     message, state = decide(load(state_file), found, now or dt.datetime.now(dt.timezone.utc))

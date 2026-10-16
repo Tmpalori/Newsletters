@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One look over the published events, after they go live, for anything off.
 
-Runs from .github/workflows/event-check.yml after each collect (once
+Runs as the jobs worker's event-check job after each collect (once
 auto-publish has updated the site) and on Monday morning before the
 newsletter. Reads the live /events.json, so it checks what people actually
 see, hand edits included, and posts one Slack message: what to look at, or
