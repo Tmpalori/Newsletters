@@ -35,7 +35,7 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary, keyOk, jobsSummary } from './hq.js';
+import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, kindForWorkflow, canRunOnWorker } from './jobs.js';
@@ -45,7 +45,7 @@ import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
 import { stripeConfig, createStripe, createSponsors, samplePreviews, renderLogoTooLargePage, sameEvent, eventWeekStats, LEAD_IN_DAYS } from './sponsors.js';
-import { slackConfig, createSlack } from './slack.js';
+import { slackConfig, createSlack, slackEscape } from './slack.js';
 import { createInbound, inboundConfig } from './inbound.js';
 import { registerContact } from './contact.js';
 import { renderEventCard, eventCardVersion } from './ogImage.js';
@@ -2809,6 +2809,10 @@ export async function createApp(opts = {}) {
     clientKey,
     inbox: (since, limit) => (typeof store.listInboxEvents === 'function' ? store.listInboxEvents(since, limit) : []),
     latestInbox: () => (typeof store.latestInboxId === 'function' ? store.latestInboxId() : null),
+    subscribers: async (after) => ({ name: town.siteName, total: (await store.countSubscribers()).active, ...(await store.listConfirmedSince(after, 500)) }),
+    // Straight to the #hype webhook: no [town] tag (it's every town's news)
+    // and not this town's owner inbox.
+    hype: (msg) => { const { title, blocks } = hypeBlocks(msg, slackEscape); return slack.post(title, blocks, 'hype'); },
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),

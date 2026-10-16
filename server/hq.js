@@ -6,7 +6,9 @@
  * <HQ_API_KEY>` gets in; an admin session never does, and the key opens no
  * admin route (requireAdmin doesn't know it). Read-only, counts and dates
  * only: no names, emails or addresses. GET /api/hq/inbox (same key) is the
- * exception: the owner's own messages, for HQ to pass on (server/inbox.js). Rate limited and cached 60 s, so a
+ * exception: the owner's own messages, for HQ to pass on (server/inbox.js);
+ * so is GET /api/hq/subscribers (new signups' emails), and POST /api/hq/hype
+ * posts HQ's combined subscriber ping to #hype. Rate limited and cached 60 s, so a
  * busy HQ can't load the database.
  */
 
@@ -166,15 +168,73 @@ export function jobsSummary(st) {
   };
 }
 
-export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, clientKey = req => req.ip }) {
+// Slack blocks for HQ's combined subscriber ping (POST /api/hq/hype): a
+// header, one section per newsletter (name, its total, the new emails), and
+// the total across all of them. Everything from HQ is escaped.
+export function hypeBlocks({ count, groups, allTotal = null }, escape) {
+  const n = v => (Number.isFinite(Number(v)) ? Number(v).toLocaleString('en-US') : '—');
+  const title = `📬 ${count} new subscriber${count === 1 ? '' : 's'}`;
+  const blocks = [{ type: 'header', text: { type: 'plain_text', text: title } }];
+  for (const g of groups) {
+    const emails = g.emails.slice(0, 50).map(e => escape(String(e).slice(0, 254)));
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*${escape(String(g.name).slice(0, 80))}* · ${n(g.total)} total\n${emails.join('\n')}`.slice(0, 2900) } });
+  }
+  if (allTotal != null) {
+    blocks.push({ type: 'divider' });
+    blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: `All newsletters: ${n(allTotal)} subscribers` }] });
+  }
+  return { title, blocks };
+}
+
+export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, subscribers = null, hype = null, clientKey = req => req.ip }) {
+  const allowed = (req, res) => {
+    if (!limiter.check(`hq:${clientKey(req)}`).ok) { res.status(429).json({ ok: false, error: 'rate-limited' }); return false; }
+    if (!keyOk(req.get('authorization'), key)) { res.status(401).json({ ok: false, error: 'unauthorized' }); return false; }
+    res.set('Cache-Control', 'no-store');
+    return true;
+  };
+  // New subscribers for HQ's combined Slack ping (tristen-hq src/subpings.js):
+  // active signups confirmed after `after` (an ISO time), oldest first, with
+  // the active total. Without `after`, none: just `latest`, the newest
+  // confirmed time, so HQ starts from now. Emails, like the inbox.
+  if (subscribers) app.get('/api/hq/subscribers', async (req, res, next) => {
+    if (!key) return next();
+    if (!allowed(req, res)) return;
+    const raw = String(req.query.after || '');
+    const after = raw && !Number.isNaN(Date.parse(raw)) && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(raw) ? raw : null;
+    if (raw && !after) return res.status(400).json({ ok: false, error: 'bad-after' });
+    try {
+      res.json({ ok: true, ...(await subscribers(after)) });
+    } catch (err) {
+      console.error('[hq] subscribers failed:', err.message);
+      res.status(500).json({ ok: false, error: 'subscribers-failed' });
+    }
+  });
+  // HQ's combined subscriber ping, posted to this town's #hype webhook
+  // (every town shares it; HQ has none of its own). HQ sends the data, the
+  // town lays it out and escapes it: { count, groups: [{ name, total,
+  // emails }], all_total }.
+  if (hype) app.post('/api/hq/hype', async (req, res, next) => {
+    if (!key) return next();
+    if (!allowed(req, res)) return;
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    const groups = Array.isArray(b.groups) ? b.groups.slice(0, 12).filter(g => g && typeof g.name === 'string' && Array.isArray(g.emails)) : [];
+    const count = Number(b.count);
+    if (!groups.length || !Number.isInteger(count) || count < 1) return res.status(400).json({ ok: false, error: 'bad-message' });
+    try {
+      const posted = await hype({ count, groups, allTotal: Number.isFinite(Number(b.all_total)) ? Number(b.all_total) : null });
+      res.status(posted ? 200 : 502).json({ ok: Boolean(posted) });
+    } catch (err) {
+      console.error('[hq] hype failed:', err.message);
+      res.status(500).json({ ok: false, error: 'hype-failed' });
+    }
+  });
   // The owner inbox (server/inbox.js): what pinged the owner since `since`
   // (an event id), oldest first, at most 200. Unlike the summary this has
   // people's names, emails and messages: it's for HQ to tell the owner.
   if (inbox) app.get('/api/hq/inbox', async (req, res, next) => {
     if (!key) return next();
-    if (!limiter.check(`hq:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
-    if (!keyOk(req.get('authorization'), key)) return res.status(401).json({ ok: false, error: 'unauthorized' });
-    res.set('Cache-Control', 'no-store');
+    if (!allowed(req, res)) return;
     const since = /^\d{1,15}$/.test(String(req.query.since || '')) ? Number(req.query.since) : 0;
     try {
       const events = await inbox(since, 200);
@@ -191,9 +251,7 @@ export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), b
   let cache = null;
   app.get('/api/hq/summary', async (req, res, next) => {
     if (!key) return next();
-    if (!limiter.check(`hq:${clientKey(req)}`).ok) return res.status(429).json({ ok: false, error: 'rate-limited' });
-    if (!keyOk(req.get('authorization'), key)) return res.status(401).json({ ok: false, error: 'unauthorized' });
-    res.set('Cache-Control', 'no-store');
+    if (!allowed(req, res)) return;
     const t = nowFn().getTime();
     if (cache && t - cache.at < (cache.body.failed ? FAILED_CACHE_MS : CACHE_MS)) return res.json(cache.body);
     try {
