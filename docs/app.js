@@ -344,7 +344,7 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
           // form can't reveal who's subscribed), so this device decides.
           var was = alreadySubscribed();
           try { localStorage.setItem(SUB_KEY, '1'); } catch (e2) { /* private mode */ }
-          if (!was && window.vic361Track) window.vic361Track('subscribe_click', { link_url: 'list-card' });
+          if (!was && window.vic361Track) window.vic361Track('subscribe_click', { link_url: 'list-card', lead: !!x.j.lead });
         }
       }).catch(function () {
         msg.textContent = 'Something went wrong. Try again.';

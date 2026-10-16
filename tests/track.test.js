@@ -81,6 +81,19 @@ describe('engaged page views', () => {
     expect(views()).toHaveLength(1);
   });
 
+  it('a signup is a Meta Lead only when the server said lead, and GA never sees the flag', async () => {
+    const fbq = vi.fn(), gtag = vi.fn();
+    vi.stubGlobal('fbq', fbq);
+    vi.stubGlobal('gtag', gtag);
+    load();
+    window.vic361Track('subscribe_click', { link_url: 'form', lead: false });
+    window.vic361Track('subscribe_click', { link_url: 'list-card' });
+    expect(fbq).not.toHaveBeenCalled();
+    window.vic361Track('subscribe_click', { link_url: 'form', lead: true });
+    expect(fbq).toHaveBeenCalledWith('track', 'Lead');
+    expect(gtag.mock.calls.map(c => c[2])).toEqual([{ link_url: 'form' }, { link_url: 'list-card' }, { link_url: 'form' }]);
+  });
+
   it('a tracked click sends the view first, then the click', async () => {
     load();
     window.vic361Track('subscribe_click', { link_url: 'form' });

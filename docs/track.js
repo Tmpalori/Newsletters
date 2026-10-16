@@ -31,7 +31,10 @@
 
   // Signup forms report subscribe_click with link_url 'form' or 'list-card'
   // once /api/subscribe accepts the email; plain Subscribe links don't.
-  // That success is the Lead that Meta ads optimize for (server/metaPixel.js).
+  // That success is the Lead that Meta ads optimize for (server/metaPixel.js),
+  // but only with lead: true, which the form passes on from the server's
+  // answer: a signup still waiting on its Confirm tap (or a honeypot hit)
+  // isn't a subscriber yet.
   var SIGNUP_DONE = { form: 1, 'list-card': 1 };
 
   // A link to our own /subscribe page (not /subscribe/confirm, not another site's /subscribe).
@@ -46,8 +49,13 @@
   // sponsor block, a paid Vic's Pick) carries the ad's id, so the sponsor's
   // report can count it. Only our beacon gets it, not Google Analytics.
   function track(type, params, el) {
+    var lead = !!(params && params.lead);
+    if (params && 'lead' in params) {
+      params = Object.assign({}, params);
+      delete params.lead;  // ours, not a Google Analytics parameter
+    }
     if (typeof window.gtag === 'function') window.gtag('event', type, params || {});
-    if (type === 'subscribe_click' && params && SIGNUP_DONE[params.link_url] && typeof window.fbq === 'function') {
+    if (type === 'subscribe_click' && lead && SIGNUP_DONE[params.link_url] && typeof window.fbq === 'function') {
       window.fbq('track', 'Lead');
     }
     sendView();  // a click is engagement; the view goes first

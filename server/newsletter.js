@@ -756,7 +756,7 @@ export function signupFormHtml({ source = 'footer', button = 'Subscribe' } = {})
 f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector('button');b.disabled=true;m.textContent='';
 (window.vicTurnstile?window.vicTurnstile.token(f):Promise.resolve('')).then(function(t){return fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:f.email.value,hp_field:f.hp_field.value,turnstile_token:t,source:window.vic361Source?window.vic361Source(f.getAttribute('data-source')):f.getAttribute('data-source'),ref:window.vic361Ref?window.vic361Ref():''})});})
 .then(function(r){return r.json().catch(function(){return{};}).then(function(j){return{ok:r.ok,j:j};});})
-.then(function(x){m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form'});}})
+.then(function(x){m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form',lead:!!x.j.lead});}})
 .catch(function(){m.textContent='Something went wrong. Try again.';}).then(function(){b.disabled=false;if(window.vicTurnstile)window.vicTurnstile.reset(f);});});})();
 </script>`;
 }
@@ -1165,9 +1165,15 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     // the form can't tell anyone who's subscribed or who owns a code.
     const almost = { ok: true, message: 'Almost there! Check your inbox and tap Confirm to start getting it.' };
     const confirmFirst = unverified || Boolean(ref);
+    // lead: the browser may count this as a Meta Lead (docs/track.js). Only
+    // a checked signup with no referral code, which joins right away; a
+    // signup that must tap Confirm first, or a honeypot hit, isn't a
+    // subscriber yet. It follows from the request alone, never the
+    // address's state, so it tells no one who's subscribed.
     const done = confirmFirst && config.enabled
       ? almost
-      : { ok: true, message: config.enabled ? "You're on the list! Check your inbox." : "You're on the list! Look for us Monday and Thursday mornings." };
+      : { ok: true, message: config.enabled ? "You're on the list! Check your inbox." : "You're on the list! Look for us Monday and Thursday mornings.",
+          ...(confirmFirst ? {} : { lead: true }) };
     try {
       const source = signupSource(body.source);
       const sub = await store.addSubscriber({ email, source, referredBy });
