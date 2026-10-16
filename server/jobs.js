@@ -21,7 +21,7 @@
  */
 import crypto from 'node:crypto';
 import express from 'express';
-import { town, VICTORIA } from './town.js';
+import { town } from './town.js';
 
 // What the worker can run, the workflow it replaces, and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
@@ -34,9 +34,16 @@ export const JOB_KINDS = {
   // Build the day's kit, hand it to the site (served at /social/latest/),
   // post it to the town's Facebook page (and Instagram). Up to 10 minutes
   // to build, then up to 10 waiting for the files, a Reel that takes 6 to
-  // process and Thursday's second post. Not Victoria's: her kit is
-  // committed to git and posted by social-kit.yml until she moves (phase 5).
-  'social-kit': { workflow: 'social-kit.yml', label: 'Social posts (Facebook/Instagram)', limitMs: 45 * 60 * 1000, notVictoria: true }
+  // process and Thursday's second post. Every town's, Victoria's included
+  // (JOBS_ON_RAILWAY.md phase 5).
+  'social-kit': { workflow: 'social-kit.yml', label: 'Social posts (Facebook/Instagram)', limitMs: 45 * 60 * 1000 },
+  // The daily Meta ads report (scripts/meta_ads.py report --scheduled):
+  // yesterday's and the week's results to Slack, the spend to the site. A
+  // town without its own ads settings does nothing.
+  'meta-ads': { workflow: 'meta-ads.yml', label: 'Meta ads report', limitMs: 10 * 60 * 1000 },
+  // Sunday night's digest email of what's collected (send_digest.py), to
+  // the owner. A town without SMTP settings on its jobs service does nothing.
+  digest: { workflow: 'weekly-digest.yml', label: 'Weekly digest email', limitMs: 10 * 60 * 1000 }
 };
 
 // Files a job may hand the site: the collect's outputs and the submission
@@ -50,11 +57,9 @@ export function kindForWorkflow(file) {
 }
 
 // Whether the scheduler hands this job to the town's jobs worker (when
-// jobs are on): a kind the worker runs, and the social kit only for a town
-// other than Victoria (hers stays on GitHub).
-export function canRunOnWorker(job, t = town) {
-  const kind = kindForWorkflow(job && job.workflow);
-  return Boolean(kind) && !(JOB_KINDS[kind].notVictoria && t.id === VICTORIA.id);
+// jobs are on): any kind the worker runs, for every town.
+export function canRunOnWorker(job) {
+  return Boolean(kindForWorkflow(job && job.workflow));
 }
 
 // The social kit's files: what social_kit.py writes, nothing else, and
@@ -97,7 +102,25 @@ export function upcomingCount(candidates, now, days = 14) {
  * publish(): runs auto-publish on the new candidates → its result
  * slack: { notify, alert } (the app's, so the owner inbox gets them too)
  */
-export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console }) {
+// The social kit's posted ids per "<day>:<kind>" and platform: the seed
+// (git) under the site's copy, which wins per platform.
+export function mergePosted(seed, own) {
+  const out = {};
+  for (const src of [seed, own]) {
+    if (!src || typeof src !== 'object' || Array.isArray(src)) continue;
+    for (const [slot, platforms] of Object.entries(src)) {
+      if (!platforms || typeof platforms !== 'object' || Array.isArray(platforms)) continue;
+      out[slot] = { ...(out[slot] || {}), ...platforms };
+    }
+  }
+  return out;
+}
+
+/**
+ * seeds: { <file>: async () => data|null } a file's state from before the
+ * town's jobs moved here (Victoria's docs/social/latest/posted.json).
+ */
+export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {} }) {
   const cfg = jobsConfig(env);
   // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
   // job (and doesn't ask), it's alive until that job's time limit.
@@ -180,6 +203,14 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       }
       return;
     }
+    if (job.kind === 'meta-ads') {
+      // The report meta_ads.py used to post to Slack itself.
+      if (slack && typeof r.report === 'string' && r.report.trim()) {
+        const [title, ...rest] = r.report.trim().split('\n');
+        slack.notify({ title: title.slice(0, 300), text: rest.join('\n').slice(0, 3000), link: typeof r.link === 'string' ? r.link : null, linkLabel: 'Ads Manager', channel: 'activity' });
+      }
+      return;
+    }
     if (job.kind !== 'collect') return;
     // The upload was stored but its publish failed: the events aren't live.
     if (r.published && r.published.ok === false) {
@@ -235,12 +266,10 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       res.json({ ok: true });
     }));
 
-    // The social kit (another town's only: Victoria's is in git). Each
-    // file is staged under the run's build id; publishing checks the kit's
-    // own files are all there, then switches /social/latest/ to it and drops
-    // every other build.
+    // The social kit. Each file is staged under the run's build id;
+    // publishing checks the kit's own files are all there, then switches
+    // /social/latest/ to it and drops every other build.
     const socialGuard = (req, res, next) => {
-      if (town.id === VICTORIA.id) return res.status(404).json({ ok: false, error: 'not-found' });
       if (!BUILD_ID.test(req.params.build)) return res.status(400).json({ ok: false, error: 'bad-build' });
       return next();
     };
@@ -273,10 +302,19 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     }));
 
     app.get('/api/jobs/files/:name', guard, wrap(async (req, res) => {
-      if (!JOB_FILES.includes(req.params.name)) return res.status(404).json({ ok: false, error: 'unknown-file' });
-      const f = await store.getTownFile(req.params.name);
-      if (!f) return res.status(404).json({ ok: false, error: 'none-yet' });
-      res.json({ ok: true, data: f.data, updated_at: f.updated_at });
+      const name = req.params.name;
+      if (!JOB_FILES.includes(name)) return res.status(404).json({ ok: false, error: 'unknown-file' });
+      const f = await store.getTownFile(name);
+      // What the town's GitHub runs kept in git (Victoria's posted.json):
+      // merged under the site's copy, so the day she moves never posts what
+      // GitHub already did.
+      let seed = null;
+      if (typeof seeds[name] === 'function') {
+        try { seed = await seeds[name](); } catch (err) { log.warn('[jobs] seed', name, err.message); }
+      }
+      if (!f && !seed) return res.status(404).json({ ok: false, error: 'none-yet' });
+      const data = seed ? mergePosted(seed, f ? f.data : null) : f.data;
+      res.json({ ok: true, data, updated_at: f ? f.updated_at : null });
     }));
 
     app.put('/api/jobs/files/:name', guard, fileJson, wrap(async (req, res) => {

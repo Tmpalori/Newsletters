@@ -181,10 +181,10 @@ describe('admin Sources tab rendering', () => {
     const btn = document.getElementById('sources-trigger');
     expect(btn.disabled).toBe(true);
     // Help copy reassures the user that Save & Publish is unaffected and
-    // points them at the GitHub Actions manual fallback.
+    // says why Pull Now is off (jobs not on Railway).
     const help = document.getElementById('sources-trigger-help').textContent;
     expect(help).toMatch(/Save & Publish/);
-    expect(help).toMatch(/manually|GitHub/i);
+    expect(help).toMatch(/Railway/);
   });
 
   it('renderSources reveals the GitHub Actions fallback link when actions_url is set', () => {

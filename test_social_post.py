@@ -16,6 +16,14 @@ def no_retry_wait(monkeypatch):
     monkeypatch.setattr(sp, "RETRY_DELAYS", (0, 0), raising=False)
 
 
+@pytest.fixture(autouse=True)
+def any_page(monkeypatch):
+    # These run as Victoria with made-up page ids ("page9"); her real pin
+    # (town.py VICTORIA "meta") is checked in test_town_python.py.
+    import town as town_mod
+    monkeypatch.setitem(town_mod.TOWN, "meta", {})
+
+
 class FakeResp:
     def __init__(self, body, status=200):
         self._body, self.status_code, self.ok, self.text = body, status, status < 400, json.dumps(body)
@@ -372,11 +380,8 @@ def test_if_featured_posts_today_only_with_a_vics_pick(tmp_path, monkeypatch):
     assert any(c[1] == "page9/feed" for c in sess.calls)
 
 
-def test_thursday_workflow_also_posts_today_with_a_pick():
-    wf = open(os.path.join(os.path.dirname(__file__), ".github", "workflows", "social-kit.yml")).read()
-    assert "social_post.py --kind today --if-featured" in wf
-    assert "'47 13 * * *'" in wf  # schedule unchanged
-
+# Thursday's extra "today" post with a pick: test_jobs_worker.py
+# test_thursday_posts_the_weekend_and_today_only_with_a_paid_pick.
 
 
 class FlakySession(FakeSession):

@@ -147,32 +147,9 @@ def test_candidates_only_does_not_overwrite_events_json(tmp_path, monkeypatch):
     assert "events" in cand
 
 
-def _weekly_collect_steps():
-    import yaml
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        ".github", "workflows", "weekly-collect.yml")
-    with open(path) as f:
-        wf = yaml.safe_load(f)
-    return [s for job in wf["jobs"].values() for s in job.get("steps", [])]
-
-
-def test_weekly_collect_workflow_runs_candidates_only():
-    """The test above pins main()'s flag; this pins that CI passes it."""
-    runs = [s.get("run", "") for s in _weekly_collect_steps()]
-    collector = [r for r in runs if "collect_events.py" in r]
-    assert collector, "weekly-collect.yml no longer runs collect_events.py"
-    for r in collector:
-        assert "--candidates-only" in r, "weekly-collect.yml must pass --candidates-only"
-
-
-def test_weekly_collect_workflow_never_stages_events_json():
-    import re
-    for step in _weekly_collect_steps():
-        # Drop comments: they mention docs/events.json to say it's left out.
-        code = "\n".join(line.split("#", 1)[0] for line in step.get("run", "").splitlines())
-        for cmd in re.findall(r"git\s+(?:add|commit)\b[^\n;&|]*", code):
-            assert "events.json" not in cmd.replace("candidates.json", ""), cmd
-            assert not re.search(r"\s(-A|--all|-a|\.)(\s|$)", cmd), f"broad git add/commit stages docs/events.json: {cmd}"
+# The collect itself runs on each town's jobs worker (scripts/jobs_worker.py
+# job_collect, which passes --candidates-only and uploads only candidates,
+# metadata and the enrichment cache): test_jobs_worker.py pins that.
 
 
 def test_safe_fetch_records_per_source_stats():

@@ -158,9 +158,12 @@ describe('workflows for another town (until its GitHub Environment exists)', () 
     expect(townWorkflowsReady(ready, {})).toBe(true);
     expect(townWorkflowsReady(ready, { TOWN_WORKFLOWS: '0' })).toBe(false);
     expect(townWorkflowsReady(VICTORIA, { TOWN_WORKFLOWS: '0' })).toBe(true);
+    // A town whose jobs run on Railway, Victoria included, never runs workflows.
+    expect(townWorkflowsReady(VICTORIA, { JOBS_ON_RAILWAY: '1' })).toBe(false);
+    expect(townWorkflowsReady(ready, { JOBS_ON_RAILWAY: '1', TOWN_WORKFLOWS: '1' })).toBe(false);
   });
 
-  it("another town's Pull Now answers 409 instead of dispatching", async () => {
+  it("Pull Now without jobs on Railway answers 409 instead of dispatching", async () => {
     const http = (await import('node:http')).default;
     const calls = [];
     const { app } = await boot({ town: BAY, siteUrl: OK.siteUrl, githubToken: 'gh', githubOwner: 'o', githubRepo: 'r',
@@ -173,7 +176,7 @@ describe('workflows for another town (until its GitHub Environment exists)', () 
         body: JSON.stringify({ username: 'a', password: 'b' }) })).json();
       const r = await fetch(base + '/api/admin/trigger-collect', { method: 'POST', headers: { Authorization: `Bearer ${login.token}` } });
       expect(r.status).toBe(409);
-      expect((await r.json()).error).toBe('town-workflows-not-ready');
+      expect((await r.json()).error).toBe('jobs-not-on');
       expect(calls.filter(u => /dispatches/.test(u))).toEqual([]);
     } finally {
       await new Promise(r => server.close(r));

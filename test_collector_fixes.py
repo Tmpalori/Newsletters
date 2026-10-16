@@ -308,27 +308,6 @@ def test_warning_summary_line_is_short():
     assert len(line) <= 400
 
 
-# ─── weekly-collect.yml ─────────────────────────────────────────────────────
-
-def _collect_workflow():
-    with open(os.path.join(HERE, ".github", "workflows", "weekly-collect.yml")) as f:
-        return yaml.safe_load(f)
-
-
-def test_workflow_passes_the_documented_knobs():
-    steps = _collect_workflow()["jobs"]["collect"]["steps"]
-    env = next(s for s in steps if s.get("name") == "Run event collector")["env"]
-    for knob in ("FB_POSTS_MAX_VENUES", "IG_POSTS_MAX_VENUES", "GEMINI_ENABLED", "ENRICH_ENABLED", "FLYER_IMAGES",
-                 "EVENTBRITE_ENABLED", "EVENTBRITE_MAX", "FB_EVENTS_ALT_ENABLED", "FB_EVENTS_MAX"):
-        assert env.get(knob) == "${{ vars.%s }}" % knob, knob
-
-
-def test_workflow_slack_step_reports_warnings():
-    steps = _collect_workflow()["jobs"]["collect"]["steps"]
-    run = next(s for s in steps if s.get("name") == "Tell Slack the candidates are ready")["run"]
-    assert "TOWN_COLLECTION_METADATA" in run and "warnings" in run  # the town's collection_metadata.json
-
-
 @pytest.mark.parametrize("knob", ["FB_POSTS_MAX_VENUES", "EVENTBRITE_MAX"])
 def test_empty_knob_means_default(monkeypatch, knob):
     monkeypatch.setenv(knob, "")

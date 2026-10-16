@@ -13,7 +13,11 @@ Jobs:
   event-check        scripts/sweep_events.py
   submission-review  scripts/review_submissions.py
   social-kit         scripts/social_kit.py, then scripts/social_post.py's
-                     posting (another town's; Victoria's stays on GitHub)
+                     posting (every town's, Victoria's included)
+  meta-ads           scripts/meta_ads.py report --scheduled (the daily ads
+                     report; nothing when the town has no ads settings)
+  digest             send_digest.py (Sunday night's email of what's
+                     collected; nothing without SMTP_EMAIL / SMTP_PASSWORD)
 
 Environment (on Railway, the secrets are references to the web service's
 own variables, so nothing is copied):
@@ -24,6 +28,11 @@ own variables, so nothing is copied):
                       kit and hands it to the site)
   META_TOWN, META_PAGE_ID, META_PAGE_TOKEN, IG_USER_ID (optional),
   GRAPH_API_VERSION   the town's own Meta settings (town.py meta_allowed)
+  META_ADS_TOKEN, META_AD_ACCOUNT_ID (optional) the ads report's; without
+                      META_ADS_TOKEN it uses META_PAGE_TOKEN
+  ADS_SPEND_SECRET    optional; else SUBMISSION_REVIEW_SECRET (the site's
+                      fallback): the ads report sends the daily spend
+  SMTP_EMAIL, SMTP_PASSWORD, DIGEST_TO (default the owner's) the digest
   plus what the scripts read: OPENAI_API_KEY, APIFY_TOKEN, GEMINI_API_KEY,
   EVENT_CHECK_SECRET, SUBMISSION_REVIEW_SECRET, the Slack webhooks...
 
@@ -51,7 +60,8 @@ from town import TOWN, VICTORIA, meta_allowed, repo_path, site_url, town_paths, 
 
 # How long each script may run (the site gives up a little later, see
 # JOB_KINDS in server/jobs.js). The collect's own budget is 50 minutes.
-TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60, "social-kit": 10 * 60}
+TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60, "social-kit": 10 * 60,
+            "meta-ads": 5 * 60, "digest": 5 * 60}
 LOG_TAIL = 60
 LINE_MAX = 500          # a log line's length in a report (one line can be megabytes)
 HTTP_TIMEOUT = 60
@@ -298,8 +308,6 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
     on the site (social_posted) and saved before each publish call, so a
     retry or a restart never posts twice."""
     env = dict(env if env is not None else os.environ)
-    if TOWN["id"] == VICTORIA["id"]:
-        return "failed", {"error": "Victoria's social kit runs on GitHub (social-kit.yml), not on the worker."}
     today = today or datetime.now(tz()).date()
     kinds, post_kind, extra_today = social_plan(today)
     build = f"w{int(time.time())}-{os.getpid()}"
@@ -378,9 +386,80 @@ def social_settings_problem(env):
     if not env.get("META_PAGE_ID", "").strip() or not env.get("META_PAGE_TOKEN", "").strip():
         return "META_PAGE_ID or META_PAGE_TOKEN isn't set on the jobs service"
     if not meta_allowed(env=env):
+        where = "town.py VICTORIA" if TOWN["id"] == VICTORIA["id"] else f"towns/{TOWN['id']}/town.json"
         return (f"the Meta settings aren't {TOWN['id']}'s own (META_TOWN={TOWN['id']} and the page id"
-                f"{' and Instagram id' if env.get('IG_USER_ID', '').strip() else ''} pinned in towns/{TOWN['id']}/town.json)")
+                f"{' and Instagram id' if env.get('IG_USER_ID', '').strip() else ''} pinned in {where})")
     return None
+
+
+def _ads_env(env):
+    """meta-ads.yml's settings: the ads token, else the Page token; the
+    spend secret, else the submission review secret (the site's fallback)."""
+    env = dict(env)
+    if not env.get("META_ADS_TOKEN", "").strip() and env.get("META_PAGE_TOKEN", "").strip():
+        env["META_ADS_TOKEN"] = env["META_PAGE_TOKEN"]
+    if not env.get("ADS_SPEND_SECRET", "").strip() and env.get("SUBMISSION_REVIEW_SECRET", "").strip():
+        env["ADS_SPEND_SECRET"] = env["SUBMISSION_REVIEW_SECRET"]
+    env.pop("GITHUB_OUTPUT", None)
+    return env
+
+
+def job_meta_ads(site, run=run_script, env=None):
+    """The daily ads report (meta-ads.yml's scheduled run). The report goes
+    back to the site, which posts it to Slack; a town without its own ads
+    settings does nothing (done, with why). A dead token, lost account
+    access or a retired API version fails the job, which alerts."""
+    env = _ads_env(env if env is not None else os.environ)
+    pins = TOWN.get("meta") if isinstance(TOWN.get("meta"), dict) else {}
+    if not env.get("META_ADS_TOKEN", "").strip():
+        return "done", {"skipped": "no ads settings (META_ADS_TOKEN / META_PAGE_TOKEN isn't set)"}
+    if not meta_allowed(env=env, use="ads"):
+        if TOWN["id"] != VICTORIA["id"] and not str(pins.get("ad_account_id") or "").strip():
+            return "done", {"skipped": f"no ad account pinned for {TOWN['id']} (\"meta\".ad_account_id)"}
+        return "failed", {"error": f"The Meta ads settings on the jobs service aren't {TOWN['id']}'s own "
+                                   "(META_TOWN and the ad account its settings pin); no report."}
+    with tempfile.TemporaryDirectory() as tmp:
+        out = os.path.join(tmp, "report.json")
+        code, tail = run([sys.executable, "-u", "scripts/meta_ads.py", "report", "--scheduled", "--result", out],
+                         TIMEOUTS["meta-ads"], env)
+        got = _read_json(out) or {}
+    if code != 0:
+        errors = [line.replace("::error::", "") for line in tail if line.startswith("::error::")]
+        return "failed", {"error": "Meta ads daily check failed: " + ("; ".join(errors)[:600] or "token or ad account access?"),
+                          "log_tail": tail}
+    result = {"log_tail": tail[-8:]}
+    if got.get("report"):
+        result["report"] = str(got["report"])
+        result["link"] = got.get("link")
+    return "done", result
+
+
+DIGEST_TO = "tristen.m.palori@gmail.com"
+
+
+def job_digest(site, run=run_script, env=None, session=None):
+    """Sunday night's digest of what's collected (weekly-digest.yml), from
+    the site's live list, mailed to the owner. Without SMTP settings on the
+    jobs service it does nothing (done, with why)."""
+    env = dict(env if env is not None else os.environ)
+    if not env.get("SMTP_EMAIL", "").strip() or not env.get("SMTP_PASSWORD", "").strip():
+        return "done", {"skipped": "SMTP_EMAIL / SMTP_PASSWORD aren't set on the jobs service"}
+    env.setdefault("SMTP_HOST", "smtp.gmail.com")
+    env.setdefault("SMTP_PORT", "587")
+    session = session or requests.Session()
+    def fetch():
+        r = session.get(f"{site_url()}/events.json?all=1", timeout=HTTP_TIMEOUT)
+        r.raise_for_status()
+        return r.json()
+    events = _retry(fetch)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "live-events.json")
+        _write_json(path, events)
+        code, tail = run([sys.executable, "-u", "send_digest.py", "--candidates", path,
+                          "--to", env.get("DIGEST_TO", "").strip() or DIGEST_TO, "--all-days"], TIMEOUTS["digest"], env)
+    if code != 0:
+        return "failed", {"error": f"The digest email exited with code {code}.", "log_tail": tail}
+    return "done", {"events": len((events or {}).get("events") or []), "log_tail": tail[-5:]}
 
 
 def _social_post_main(argv, session=None, on_save=None):
@@ -389,7 +468,8 @@ def _social_post_main(argv, session=None, on_save=None):
     return social_post.main(argv, session=session, on_save=on_save)
 
 
-JOBS = {"social-kit": job_social_kit, "collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review}
+JOBS = {"social-kit": job_social_kit, "collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review,
+        "meta-ads": job_meta_ads, "digest": job_digest}
 
 
 def run_one(site, job, run=run_script, clock=time.monotonic):

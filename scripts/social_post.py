@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Post the social kit to the Facebook Page and Instagram account.
 
-Runs from .github/workflows/social-kit.yml after the kit is committed and
-deployed, and only when the SOCIAL_AUTOPOST repo variable is 1. Monday
+Runs on the town's jobs worker (scripts/jobs_worker.py) after the kit is on
+the site, and only when SOCIAL_AUTOPOST is 1 on the jobs service. Monday
 posts "this week", Thursday posts "this weekend" (as a Reel on Instagram
 when the kit has one; Reels reach people who don't follow us yet), and
 the other days post "today". Thursday also posts "today" when it has a
 Vic's Pick (--if-featured), so a paid pick that day is always posted.
 
-Needs (GitHub Actions secrets):
+Needs (the jobs service's variables, with META_TOWN; town.py meta_allowed):
   META_PAGE_ID        Facebook Page id
   META_PAGE_TOKEN     a Page access token, or a system-user token with the
                       Page assigned (the Page's own token is looked up);
@@ -19,7 +19,7 @@ Needs (GitHub Actions secrets):
                       (optional; Facebook still posts without it)
 
 Instagram fetches images by URL, so the slides must be live on
-thevic361.com first; we wait for the deploy before posting. Instagram only
+the town's site first; we wait for them before posting. Instagram only
 accepts JPEG there, so it gets the kit's .jpg twins (slides_jpg).
 """
 import argparse

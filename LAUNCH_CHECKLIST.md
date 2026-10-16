@@ -2,7 +2,9 @@
 
 The current way to launch a town, end to end. It replaces the GitHub parts
 of MULTI_CITY_PLAN.md Phase 5: every town now runs its jobs on Railway
-(JOBS_ON_RAILWAY.md), so it needs no GitHub Environment or workflows.
+(JOBS_ON_RAILWAY.md), Victoria included, so it needs no GitHub
+Environment, workflows, secrets or `GITHUB_TOKEN`: GitHub only holds the
+code and runs the tests.
 **Agent** steps an agent session does with the repo, the Railway connector
 and the Cloudflare API; **Owner** steps need Tristen's accounts.
 
@@ -114,6 +116,15 @@ issue and tick it off.
         (default `v23.0`).
       Check: the next morning's run in the jobs service log ("Facebook:
       posted ..."), or a "Social posts (Facebook/Instagram) failed" alert.
+- [ ] Daily ads report (the jobs worker at 8:37 AM local: yesterday's and
+      the week's results to Slack activity, the spend to Admin → Growth).
+      It does nothing until the town's ad account is pinned in `town.json`
+      as `"meta".ad_account_id` (a PR) and its jobs service has
+      `META_AD_ACCOUNT_ID` (the same id) and `META_TOWN`; it uses
+      `META_ADS_TOKEN` (a system-user token with ads_read and
+      ads_management, the ad account assigned), else `META_PAGE_TOKEN`.
+      Check: an "📈 Meta ads" post in Slack activity the morning after the
+      first spend, or a "Meta ads report failed" alert.
 - [ ] Owner: a pixel per domain in Events Manager; Agent sets
       `META_PIXEL_ID` and checks a signup is recorded.
 - [ ] Ad video: Owner records a 12 to 15 s selfie (the town's name, three
@@ -132,6 +143,10 @@ issue and tick it off.
 - [ ] UptimeRobot (or similar) on `https://www.<domain>/api/health` and
       `https://hq.tristenpalori.com/health`, alerting Slack and a phone.
 - [ ] Turnstile: add `www.<domain>` to the widget.
+- [ ] Optional: the Sunday night digest email (the jobs worker at 9 PM
+      local mails the owner what's collected) needs `SMTP_EMAIL` and
+      `SMTP_PASSWORD` (a Gmail app password) on the town's jobs service;
+      without them the job does nothing. `DIGEST_TO` changes the recipient.
 
 ## 8. Launch checks (Agent)
 

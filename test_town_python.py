@@ -367,6 +367,20 @@ def test_meta_credentials_count_only_for_their_own_town(tmp_path):
     assert not town_mod.meta_allowed(bay, own) and not town_mod.meta_allowed(bay, own, use="ads")
 
 
+def test_victorias_meta_pin_keeps_another_towns_settings_off_her_jobs_service():
+    # JOBS_ON_RAILWAY.md phase 5: her page is pinned like another town's;
+    # META_TOWN may be unset (her old repo-level settings) or "victoria".
+    vic = town_mod.town_config({})
+    assert vic["meta"] == {"page_id": "1388965530960534"}
+    ok = {"META_PAGE_ID": "1388965530960534"}
+    assert town_mod.meta_allowed(vic, ok) and town_mod.meta_allowed(vic, {**ok, "META_TOWN": "victoria"})
+    assert not town_mod.meta_allowed(vic, {**ok, "META_TOWN": "medford"})
+    assert not town_mod.meta_allowed(vic, {"META_PAGE_ID": "1444476842072503"})          # Medford's page
+    assert not town_mod.meta_allowed(vic, {"META_PAGE_ID": "1444476842072503"}, use="ads")
+    # Her ads: the one account her token sees (no ad account pinned).
+    assert town_mod.meta_allowed(vic, {**ok, "META_AD_ACCOUNT_ID": "act_1"}, use="ads")
+
+
 @pytest.mark.parametrize("slug", ["medford", "shoals", "lincoln", "virginiabeach"])
 def test_a_towns_slides_use_its_own_logo_skyline_colors_and_words(slug, monkeypatch):
     """The social kit the town's jobs worker posts (JOBS_ON_RAILWAY.md 2b):
