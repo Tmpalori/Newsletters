@@ -326,26 +326,15 @@ describe('signup flow', () => {
     expect(welcome.html).toContain('Farmers Market');
     expect(welcome.html).toContain('Acme Tacos');
     expect(welcome.html).toContain('123 Main St, Victoria, TX 77901');
-    // One subscriber isn't a multiple of 5: no Slack ping.
-    expect(pings.filter(p => / subscribers$/.test(p.title))).toHaveLength(0);
+    expect(pings.filter(p => p.channel === 'hype')).toHaveLength(0);
   });
 
-  it('Slack pings once every 5 subscribers, with the total', async () => {
+  it('a signup alone never pings Slack: HQ posts every 10 across all newsletters', async () => {
     const pings = [];
     await startApp({ slack: { enabled: true, notify: async (m) => { pings.push(m); return true; }, alert: async () => {} } });
-    const subs = () => pings.filter(p => / subscribers$/.test(p.title));
-    for (let i = 1; i <= 4; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
+    for (let i = 1; i <= 10; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
     await new Promise(r => setTimeout(r, 50));
-    expect(subs()).toHaveLength(0);
-    await post('/api/subscribe', { email: 'fan5@example.com' });
-    await vi.waitFor(() => expect(subs()).toHaveLength(1), { timeout: 2000 });
-    expect(subs()[0]).toMatchObject({ channel: 'hype', title: '📬 The Vic 361: 5 subscribers' });
-    expect(subs()[0].fields).toEqual([['Newsletter', 'The Vic 361'], ['Total subscribers', 5]]);
-    expect(subs()[0].text).toBe('Newest 5:\nfan5@example.com\nfan4@example.com\nfan3@example.com\nfan2@example.com\nfan1@example.com');
-    for (let i = 6; i <= 10; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
-    await vi.waitFor(() => expect(subs()).toHaveLength(2), { timeout: 2000 });
-    expect(subs()[1].title).toBe('📬 The Vic 361: 10 subscribers');
-    expect(subs()[1].text).toBe('Newest 5:\nfan10@example.com\nfan9@example.com\nfan8@example.com\nfan7@example.com\nfan6@example.com');
+    expect(pings.filter(p => p.channel === 'hype')).toHaveLength(0);
   });
 
   it('a comeback must confirm from its own inbox: confirmation email, GET shows a button, POST activates', async () => {

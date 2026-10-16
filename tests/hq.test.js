@@ -180,3 +180,88 @@ describe('a town whose database is down', () => {
     expect(body.failed).toContain('database');
   });
 });
+
+describe('/api/hq/subscribers and /api/hq/hype (HQ\'s combined subscriber ping)', () => {
+  const confirm = async (email, at) => {
+    const sub = await store.addSubscriber({ email, source: 'web' });
+    await store.confirmSubscriber(sub.token);
+    if (at) {   // pin the time (FileStore keeps it in its JSON file)
+      const data = await store._read();
+      data.subscribers.find(x => x.email === email).confirmed_at = at;
+      await store._write(data);
+    }
+  };
+
+  it('starts from now: no after gives just the newest time; after gives the newer ones, oldest first', async () => {
+    await start({ hqApiKey: KEY });
+    expect((await get('/api/hq/subscribers')).status).toBe(401);
+    await confirm('a@example.com', '2026-10-09T10:00:00.000Z');
+    await confirm('b@example.com', '2026-10-09T11:00:00.000Z');
+    await store.importSubscribers(['imported@example.com'], 'import');   // a list import isn't a signup
+    const first = await (await get('/api/hq/subscribers', `Bearer ${KEY}`)).json();
+    expect(first).toMatchObject({ ok: true, latest: '2026-10-09T11:00:00.000Z', subscribers: [] });
+    expect(first.total).toBe(3);   // every active subscriber, imports too
+    await confirm('c@example.com', '2026-10-09T12:00:00.000Z');
+    const next = await (await get(`/api/hq/subscribers?after=${first.latest}`, `Bearer ${KEY}`)).json();
+    expect(next.subscribers).toEqual([{ email: 'c@example.com', confirmed_at: '2026-10-09T12:00:00.000Z' }]);
+    expect(next.latest).toBe('2026-10-09T12:00:00.000Z');
+    const older = await (await get('/api/hq/subscribers?after=2026-10-09T09:00:00.000Z', `Bearer ${KEY}`)).json();
+    expect(older.subscribers.map(s => s.email)).toEqual(['a@example.com', 'b@example.com', 'c@example.com']);
+    expect((await get('/api/hq/subscribers?after=yesterday', `Bearer ${KEY}`)).status).toBe(400);
+  });
+
+  it('posts HQ\'s batch to #hype, laid out and escaped by the town, with no town tag', async () => {
+    const posts = [];
+    await start({ hqApiKey: KEY, slack: { enabled: true, notify: async () => true, alert: async () => true,
+      post: async (text, blocks, channel) => { posts.push({ text, blocks, channel }); return true; } } });
+    const send = body => fetch(base + '/api/hq/hype', { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    expect((await fetch(base + '/api/hq/hype', { method: 'POST' })).status).toBe(401);
+    expect((await send({ count: 10, groups: [] })).status).toBe(400);
+    const r = await send({ count: 10, all_total: 3148, groups: [
+      { name: 'The Star 402', total: 412, emails: ['maria.k@gmail.com', 'jdoyle@yahoo.com'] },
+      { name: 'The Vic 361', total: 1847, emails: ['<@channel>@x.example'] }] });
+    expect(r.status).toBe(200);
+    expect(posts).toHaveLength(1);
+    const [{ text, blocks, channel }] = posts;
+    expect(channel).toBe('hype');
+    expect(text).toBe('📬 10 new subscribers');
+    expect(blocks[0]).toEqual({ type: 'header', text: { type: 'plain_text', text: '📬 10 new subscribers' } });
+    expect(blocks[1].text.text).toBe('*The Star 402* · 412 total\nmaria.k@gmail.com\njdoyle@yahoo.com');
+    expect(blocks[2].text.text).toBe('*The Vic 361* · 1,847 total\n&lt;@channel&gt;@x.example');
+    expect(blocks[4].elements[0].text).toBe('All newsletters: 3,148 subscribers');
+  });
+});
+
+const PG = process.env.TEST_DATABASE_URL;
+describe.skipIf(!PG)('listConfirmedSince on Postgres (TEST_DATABASE_URL)', () => {
+  it('same answers as the file store, and the last one at microseconds never comes back twice', async () => {
+    const { default: pg } = await import('pg');
+    const { createStore } = await import('../server/db.js');
+    const admin = new pg.Client({ connectionString: PG });
+    await admin.connect();
+    const dbName = `hq_subs_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const url = new URL(PG);
+    url.pathname = `/${dbName}`;
+    url.searchParams.set('sslmode', 'disable');
+    const bundle = await createStore({ databaseUrl: url.toString() });
+    try {
+      const s = bundle.store;
+      expect(await s.listConfirmedSince(null)).toEqual({ latest: null, subscribers: [] });
+      for (const e of ['a@example.com', 'b@example.com']) await s.confirmSubscriber((await s.addSubscriber({ email: e, source: 'web' })).token);
+      await s.importSubscribers(['imported@example.com'], 'import');
+      await bundle.pool.query("UPDATE subscribers SET confirmed_at = '2026-10-09T10:00:00.123456Z' WHERE email = 'a@example.com'");
+      await bundle.pool.query("UPDATE subscribers SET confirmed_at = '2026-10-09T11:00:00.654321Z' WHERE email = 'b@example.com'");
+      const first = await s.listConfirmedSince(null);
+      expect(first).toEqual({ latest: '2026-10-09T11:00:00.654Z', subscribers: [] });
+      expect(await s.listConfirmedSince(first.latest)).toEqual({ latest: first.latest, subscribers: [] });
+      expect((await s.listConfirmedSince('2026-10-09T10:00:00.123Z')).subscribers)
+        .toEqual([{ email: 'b@example.com', confirmed_at: '2026-10-09T11:00:00.654Z' }]);
+      expect((await s.listConfirmedSince('2026-10-09T00:00:00.000Z', 1)).subscribers.map(x => x.email)).toEqual(['a@example.com']);
+    } finally {
+      await bundle.pool.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+      await admin.end();
+    }
+  });
+});

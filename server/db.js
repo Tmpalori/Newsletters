@@ -655,6 +655,23 @@ class FileStore {
     return data.subscribers.filter(x => !status || x.status === status);
   }
 
+  // Active subscribers who confirmed after `after` (an ISO time; null: none,
+  // just the newest time), oldest first, at most `limit`, for HQ's
+  // subscriber pings (server/hq.js). Imports don't count as new signups.
+  // latest: the newest confirmed_at of any active signup, so HQ can start
+  // from now instead of a town's whole history.
+  async listConfirmedSince(after, limit = 500) {
+    const data = await this._read();
+    const t = x => new Date(x.confirmed_at).getTime();
+    const live = data.subscribers.filter(x => x.status === 'active' && x.confirmed_at && x.source !== 'import' && Number.isFinite(t(x)))
+      .sort((a, b) => t(a) - t(b));
+    const latest = live.length ? new Date(t(live[live.length - 1])).toISOString() : null;
+    if (!after) return { latest, subscribers: [] };
+    const from = new Date(after).getTime();
+    return { latest, subscribers: live.filter(x => t(x) > from).slice(0, limit)
+      .map(x => ({ email: x.email, confirmed_at: new Date(t(x)).toISOString() })) };
+  }
+
   // Active subscribers who skip the Thursday weekend issue.
   async countWeekendOptouts() {
     const data = await this._read();
@@ -2010,6 +2027,19 @@ class PgStore {
       ? await this.pool.query('SELECT id, email, status, token, weekend_optout FROM subscribers WHERE status = $1 ORDER BY created_at', [status])
       : await this.pool.query('SELECT id, email, status, token, weekend_optout FROM subscribers ORDER BY created_at');
     return r.rows;
+  }
+
+  // See FileStore.listConfirmedSince. Compared at milliseconds, the precision
+  // of the ISO cursor HQ hands back, so the last one isn't returned twice.
+  async listConfirmedSince(after, limit = 500) {
+    await this.ready();
+    const live = "status = 'active' AND confirmed_at IS NOT NULL AND COALESCE(source, '') <> 'import'";
+    const { rows: [top] } = await this.pool.query(`SELECT MAX(confirmed_at) AS latest FROM subscribers WHERE ${live}`);
+    const latest = top && top.latest ? new Date(top.latest).toISOString() : null;
+    if (!after) return { latest, subscribers: [] };
+    const r = await this.pool.query(`SELECT email, confirmed_at FROM subscribers WHERE ${live} AND date_trunc('milliseconds', confirmed_at) > $1 ORDER BY confirmed_at LIMIT $2`,
+      [new Date(after), limit]);
+    return { latest, subscribers: r.rows.map(x => ({ email: x.email, confirmed_at: new Date(x.confirmed_at).toISOString() })) };
   }
 
   async countWeekendOptouts() {
