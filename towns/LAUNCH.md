@@ -30,17 +30,21 @@ other three.
 2. Paste the DNS records it shows (SPF, DKIM, and the MX record for replies).
 3. API Keys → Create API key ("Sending access", that domain only).
 4. Webhooks → Add endpoint: `https://www.<domain>/api/email/inbound`, events
-   `email.received`, `email.bounced`, `email.complained`.
+   `email.received`, `email.bounced`, `email.complained`, `email.delivered`.
 5. Send Claude the API key and the webhook's signing secret.
 
-## 3. Stripe: payments (10 min a town)
+## 3. Stripe: payments (5 min a town)
 
-1. dashboard.stripe.com → account menu (top left) → **New account**, named
-   after the brand, on the same LLC, EIN and bank account as The Vic 361.
-2. Settings → Business → Public details: business name (the brand),
-   statement descriptor (e.g. `TUPELO CURRENT`), logo (from
-   `towns/<slug>/public/logo-512.png`).
-3. Tell Claude which account it is. Claude sets up the webhook and keys.
+Every town sells through the one Stripe account The Vic 361 uses; no new
+account per town.
+
+1. Once, for all towns: Settings → Business → Public details, a neutral
+   business name and statement descriptor prefix (the LLC or a shared
+   brand, 10 characters or fewer). The code adds the town to each card
+   statement (e.g. `VIC 361`, `TUPELO`).
+2. Per town: a restricted key (Checkout Sessions, Products and Prices:
+   write). Send it to Claude; Claude adds the town's webhook endpoint and
+   both Railway variables (RAILWAY.md "New town on Railway" step 6).
 
 ## 4. Cloudflare Turnstile: spam protection on forms (2 minutes total)
 
@@ -62,17 +66,14 @@ site key and secret key.)
 Every newsletter must show a postal address. A PO box or a registered
 mailbox works, and one can serve all towns. Send Claude the address.
 
-## 7. GitHub Environment (5 min a town; Claude gives you each value)
-
-GitHub → the repo → Settings → Environments → **New environment** named the
-town's slug (`kearney`, …). Add the variables and secrets Claude sends you:
-`SITE_URL`, `SLACK_TOWN_TAG`, the cron secrets, and the Meta page and
-Instagram ids and tokens. Victoria keeps using the repo-level settings.
+Nothing on GitHub: every town, Victoria included, runs its jobs on its own
+Railway jobs service, so there is no GitHub Environment to make.
 
 ## After that (Claude)
 
-The town's workflow jobs pointed at its Environment, its Railway service and database, every Railway variable, domain, Stripe
-webhook, HQ entry, `"workflows": true` for the town, the first collect, the
-launch check (`scripts/launch_check.py --town <slug>`), a test newsletter to
-the test address, a test-mode checkout, and a check that Victoria is
-unchanged.
+The town's Railway web and jobs services and database, every Railway
+variable, domain, Stripe webhook, HQ entry, the first collect, the launch
+check (`scripts/launch_check.py --town <slug>`), a test newsletter to the
+test address, a test-mode checkout, and a check that Victoria is unchanged.
+The steps are LAUNCH_CHECKLIST.md and RAILWAY.md "New town, the simple
+way"; `town.json` keeps `"workflows": false`.
