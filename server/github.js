@@ -19,6 +19,12 @@
  *
  * If no token is configured, isConfigured() returns false and route handlers
  * surface a 503 with a clear message.
+ *
+ * Dormant, marked for removal: every town runs JOBS_ON_RAILWAY=1, which
+ * ignores the token (townWorkflowsReady() is false, no commit on publish,
+ * no candidates from GitHub), so this only runs on a service without jobs
+ * such as a local or staging copy. Remove it with the admin's PAT mode
+ * (docs/admin.js) once nothing needs that path.
  */
 
 const DEFAULT_OWNER = 'Tmpalori';
