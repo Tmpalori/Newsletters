@@ -12,7 +12,7 @@
 #
 # The town feeds already pull the ViBe Creative District (First Fridays,
 # VB Flea Market, Old Beach Art & Eco Market, International Night Markets,
-# CreativeMornings, walking tours), Virginia MOCA, Beach Events VB (the
+# CreativeMornings, walking tours), Beach Events VB (the
 # city's Oceanfront events: Holiday Trail of Lights, Holiday Parade at the
 # Beach, Santa's Seaside Cinema, Last Night on the Town), the Neptune
 # Festival, the Military Aviation Museum, Wasserhund Brewing (Virginia
@@ -22,7 +22,11 @@
 # events, the Sandler Center (carbonhouse site, no feed), Elevation 27
 # (Ticketmaster widget, no feed), the Aquarium, and the big holiday dates.
 # The feed's "Old Beach Farmers Market" is excluded (it lists every
-# Saturday all winter); the market's own schedule is below.
+# Saturday all winter); the market's own schedule is below. Virginia MOCA
+# is here by hand: virginiamoca.org answers Railway's servers with a bot
+# check (HTTP 202 and a challenge page), so its feed was dropped. Its
+# public programs through January are at the end; its Facebook page
+# (venues.json) covers the rest.
 #
 # Optional tags (they feed the event score; see server/scoring.js):
 #   big: true        a big draw; shows in "Coming up" and scores high
@@ -800,3 +804,88 @@ events:
     free: false
     url: "https://www.elevation27.com/"
     # VERIFIED: Elevation 27 homepage 2026-10-15
+
+  # ── Virginia MOCA (by hand: its feed is blocked from Railway) ─────────
+
+  - date: "2026-10-25"
+    name: "Looking to Learn: Art & Storytime"
+    time: "11:30 AM – 12:30 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Monthly family program for ages 3 to 8 with a caregiver: looking at art, a storybook and a making activity. Registration on MOCA's site."
+    icons: [arts, family]
+    url: "https://virginiamoca.org/event/looking-to-learn-art-storytime-9/2026-10-25/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16
+
+  - date: "2026-11-14"
+    name: "Family Fest"
+    time: "10:00 AM – 2:00 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "A free day of hands-on artmaking, creative activities and special guests for all ages at the ViBe's contemporary art museum."
+    icons: [arts, family, free]
+    free: true
+    url: "https://virginiamoca.org/event/family-fest/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16 ("Free; registration encouraged")
+
+  - date: "2026-11-22"
+    name: "Looking to Learn: Art & Storytime"
+    time: "11:30 AM – 12:30 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Monthly family program for ages 3 to 8 with a caregiver: looking at art, a storybook and a making activity. Registration on MOCA's site."
+    icons: [arts, family]
+    url: "https://virginiamoca.org/event/looking-to-learn-art-storytime-9/2026-11-22/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16
+
+  - date: "2026-12-11"
+    name: "Night Shift VI"
+    time: "6:00 PM – 10:00 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "MOCA's after-hours party returns, with music, vendors and the galleries open late."
+    icons: [arts, music, drinks]
+    free: false
+    url: "https://virginiamoca.org/event/night-shift-vi/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16 (members $10, early bird $25, general $35)
+
+  - date: "2026-12-20"
+    name: "Looking to Learn: Art & Storytime"
+    time: "11:30 AM – 12:30 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Monthly family program for ages 3 to 8 with a caregiver: looking at art, a storybook and a making activity. Registration on MOCA's site."
+    icons: [arts, family]
+    url: "https://virginiamoca.org/event/looking-to-learn-art-storytime-9/2026-12-20/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16
+
+  - date: "2027-01-07"
+    name: "Artful Insights: Made in VA Biennial"
+    time: "6:00 PM – 8:00 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Artists in the Made in VA Biennial talk about their work in the exhibition. Registration on MOCA's site."
+    icons: [arts, community]
+    url: "https://virginiamoca.org/event/artful-insights-made-in-va-biennial-2026/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16
+
+  - date: "2027-01-21"
+    name: "Art Crit Night"
+    time: "5:30 PM – 8:00 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Three artists present their work for a public critique led by MOCA's senior curator and a guest artist."
+    icons: [arts, community]
+    free: false
+    url: "https://virginiamoca.org/event/art-crit-night/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16 (members free, nonmembers $10)
+
+  - date: "2027-01-31"
+    name: "Looking to Learn: Art & Storytime"
+    time: "11:30 AM – 12:30 PM"
+    venue: "Virginia MOCA"
+    address: "2200 Parks Ave"
+    description: "Monthly family program for ages 3 to 8 with a caregiver: looking at art, a storybook and a making activity. Registration on MOCA's site."
+    icons: [arts, family]
+    url: "https://virginiamoca.org/event/looking-to-learn-art-storytime-9/2027-01-31/"
+    # VERIFIED: virginiamoca.org event page 2026-10-16
