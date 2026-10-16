@@ -127,6 +127,16 @@ describe('a town whose database is down', () => {
     expect(body).not.toHaveProperty('failed');
     expect(body.health).toEqual({ database: true, scheduler_blocked: false, slack_refused: false });
     expect(body.subscribers.active).toBe(0);
+    expect(body).not.toHaveProperty('newsletter_runs');
+  });
+
+  it("carries each issue's latest slot: sent, or why not", async () => {
+    const store = new FileStore(path.join(os.tmpdir(), `vic361-hq-${process.pid}-${Date.now()}-r.json`));
+    const weekly = { job: 'newsletter', slot: '2026-10-05', ran: true, outcome: 'no-subscribers', detail: 'no-subscribers' };
+    const body = await buildSummary({ store, nowFn: () => NOW, town: VICTORIA, siteUrl: 'https://www.thevic361.com',
+      getEvents: async () => [], getOrders: async () => [], setup: async () => ({ checks: [], status: {} }), health: async () => null,
+      getNewsletterRuns: async () => ({ weekly, weekend: null }) });
+    expect(body.newsletter_runs).toEqual({ weekly, weekend: null });
   });
 
   it('reads issue dates the way Postgres returns them (Date objects)', async () => {

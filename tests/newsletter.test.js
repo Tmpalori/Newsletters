@@ -953,6 +953,16 @@ describe('sending', () => {
     expect(sent.batches).toHaveLength(1);
   });
 
+  it('a scheduled send says what it did, and nobody to send to is an alert, not a quiet "ran"', async () => {
+    const alerts = [];
+    await startApp({ slack: { enabled: true, notify: async () => true, alert: async (k, t) => { alerts.push({ k, t }); return true; } } });
+    const empty = await nlApi.scheduledSend();
+    expect(empty).toMatchObject({ ok: true, sent_ok: false, detail: 'no-subscribers' });
+    expect(alerts.map(a => a.k)).toContain('newsletter-no-subscribers');
+    await store.importSubscribers(['a@example.com'], 'import');
+    expect(await nlApi.scheduledSend()).toMatchObject({ ok: true, sent_ok: true, detail: 'sent: 1 recipients' });
+  });
+
   it('cron is closed when no secret is configured', async () => {
     await startApp({ newsletterCronSecret: '' });
     expect((await post('/api/newsletter/cron', {}, { 'X-Cron-Secret': '' })).status).toBe(401);

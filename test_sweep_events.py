@@ -438,3 +438,15 @@ def test_wait_ends_once_collected_at_shows_these_candidates_are_live(tmp_path):
     old = dict(live, collected_at="2026-10-03T20:00:00-05:00", events=[
         {"date": "2026-10-10", "name": n, "venue": "Hall"} for n in ("Bingo", "Rodeo", "Fair", "Gala", "Swap")])
     assert sw.wait_for_publish(path, lambda: old, sleep=lambda s: None, tries=2, today="2026-10-06") is False
+
+
+def test_a_long_check_is_split_across_slack_messages_not_cut():
+    # Railway has no run summary: findings past the first 12 used to be lost.
+    lines = [f"• finding {n}" for n in range(30)]
+    msgs = sw.slack_messages("🔎 Event check: 30 to look at", lines)
+    assert len(msgs) == 3
+    assert msgs[0].startswith("🔎 Event check: 30 to look at") and "18 more in the next message" in msgs[0]
+    assert msgs[2].startswith("Event check, continued (3 of 3)") and "more in the next" not in msgs[2]
+    assert all(f"• finding {n}" in "\n".join(msgs) for n in range(30))
+    assert "run summary" not in "\n".join(msgs)
+    assert sw.slack_messages("🔎 Event check: nothing looks off.", []) == ["🔎 Event check: nothing looks off."]

@@ -50,7 +50,7 @@ import threading
 import time
 from collections import deque
 from contextlib import redirect_stdout
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import requests
 
@@ -201,10 +201,12 @@ def _write_json(path, data):
 
 
 def upcoming(candidates, days=14, today=None):
-    """Events in the next `days` days (hand-added ones run 90 days ahead)."""
-    end = ((today or date.today()) + timedelta(days=days)).isoformat()
+    """Events from today (the town's) through the next `days` days, not the
+    week's days already past (hand-added ones run 90 days ahead)."""
+    today = today or datetime.now(tz()).date()
+    start, end = today.isoformat(), (today + timedelta(days=days)).isoformat()
     events = (candidates or {}).get("events") or []
-    return sum(1 for e in events if isinstance(e, dict) and str(e.get("date", "")) <= end)
+    return sum(1 for e in events if isinstance(e, dict) and start <= str(e.get("date", "")) <= end)
 
 
 def job_collect(site, run=run_script, env=None):
@@ -400,7 +402,6 @@ def _ads_env(env):
         env["META_ADS_TOKEN"] = env["META_PAGE_TOKEN"]
     if not env.get("ADS_SPEND_SECRET", "").strip() and env.get("SUBMISSION_REVIEW_SECRET", "").strip():
         env["ADS_SPEND_SECRET"] = env["SUBMISSION_REVIEW_SECRET"]
-    env.pop("GITHUB_OUTPUT", None)
     return env
 
 
@@ -430,9 +431,13 @@ def job_meta_ads(site, run=run_script, env=None):
                          TIMEOUTS["meta-ads"], env)
         got = _read_json(out) or {}
     if code != 0:
+        # The script's own error (a dead token, several ad accounts, a
+        # retired API version...), else its last line (a crash), never a
+        # guess that blames the token.
         errors = [line.replace("::error::", "") for line in tail if line.startswith("::error::")]
-        return "failed", {"error": "Meta ads daily check failed: " + ("; ".join(errors)[:600] or "token or ad account access?"),
-                          "log_tail": tail}
+        last = next((line.strip() for line in reversed(tail) if line.strip()), "")
+        why = "; ".join(errors) or last or f"meta_ads.py exited with code {code}"
+        return "failed", {"error": "Meta ads daily check failed: " + why[:600], "log_tail": tail}
     result = {"log_tail": tail[-8:]}
     if got.get("report"):
         result["report"] = str(got["report"])

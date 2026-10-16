@@ -217,13 +217,12 @@ def test_a_retired_api_version_is_named_not_blamed_on_the_token(tmp_path, monkey
             self.calls.append((method, url))
             return Resp({"error": {"message": "(#2635) You are calling a deprecated version of the Ads API. "
                                               "Please update to the latest version.", "code": 2635}}, 400)
-    out = tmp_path / "gh_output"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     assert ma.main(["report", "--scheduled"], session=Retired()) == 1
     printed = capsys.readouterr().out
-    assert ma.GRAPH_VERSION in printed and "GRAPH_API_VERSION" in printed
-    alert = out.read_text()
-    assert alert.startswith("alert=") and ma.GRAPH_VERSION in alert and "token" not in alert
+    # The ::error:: line is what the jobs worker's alert quotes.
+    error = next(line for line in printed.splitlines() if line.startswith("::error::"))
+    assert ma.GRAPH_VERSION in error and "GRAPH_API_VERSION" in error and "token" not in error
+    assert "repo variable" not in error
 
 
 def test_graph_version_comes_from_the_repo_variable_with_a_default(monkeypatch):

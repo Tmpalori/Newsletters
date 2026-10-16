@@ -442,18 +442,16 @@ def test_the_publish_call_is_never_retried(tmp_path, monkeypatch):
     assert sum(c[1].endswith("/feed") for c in sess.calls) == 1
 
 
-def test_a_retired_graph_version_is_named_in_the_error_and_the_slack_alert(tmp_path, monkeypatch):
+def test_a_retired_graph_version_is_named_in_the_error_the_alert_quotes(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("META_PAGE_ID", "page9")
     monkeypatch.setenv("META_PAGE_TOKEN", "tok")
     monkeypatch.delenv("IG_USER_ID", raising=False)
-    out = tmp_path / "gh_output"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     sess = FlakySession("/photos", {"message": "(#2635) You are calling a deprecated version of the Ads API.",
                                     "code": 2635}, 400, times=99)
     kit = write_kit(tmp_path)
     assert sp.main(["--kind", "weekend", "--kit-dir", str(kit), "--no-wait"], session=sess) == 1
-    assert "alert=" in out.read_text() and sp.GRAPH_VERSION in out.read_text()
-    assert "GRAPH_API_VERSION" in out.read_text()
+    errors = [line for line in capsys.readouterr().out.splitlines() if line.startswith("::error::")]
+    assert any(sp.GRAPH_VERSION in e and "GRAPH_API_VERSION" in e and "Railway" in e for e in errors)
 
 
 def test_graph_version_comes_from_the_repo_variable_with_a_default(monkeypatch):

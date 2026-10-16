@@ -35,9 +35,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from town import TOWN, meta_allowed, site_url, tz, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 SITE = site_url()
-# One place for the Graph API version. The GRAPH_API_VERSION repo variable
-# (passed in social-kit.yml) overrides it, so moving off a version Meta
-# retires needs no code change; empty (variable unset) means the default.
+# One place for the Graph API version. GRAPH_API_VERSION on the town's jobs
+# service overrides it, so moving off a version Meta retires needs no code
+# change; empty (variable unset) means the default.
 GRAPH_VERSION = os.environ.get("GRAPH_API_VERSION", "").strip() or "v23.0"
 GRAPH_VERSION = GRAPH_VERSION if GRAPH_VERSION.startswith("v") else f"v{GRAPH_VERSION}"
 GRAPH = f"https://graph.facebook.com/{GRAPH_VERSION}"
@@ -86,8 +86,8 @@ def version_problem(err):
     msg = str(err.get("message") or "")
     if err.get("code") in (12, 2635) or re.search(r"(deprecated|unsupported|unknown|invalid)\W+(api\W+)?version",
                                                   msg, re.I):
-        return (f"Meta refused Graph API {GRAPH_VERSION} (retired or unsupported?). Set the "
-                f"GRAPH_API_VERSION repo variable to a current version, e.g. v24.0.")
+        return (f"Meta refused Graph API {GRAPH_VERSION} (retired or unsupported?). Set "
+                f"GRAPH_API_VERSION on the jobs service in Railway to a current version, e.g. v24.0.")
     return None
 
 
@@ -370,7 +370,7 @@ def main(argv=None, session=None, on_save=None):
             except StateNotSaved:
                 pass  # saved as "pending" just before the publish call already
             failures.append(f"{label}: {e}; it may have posted anyway. Check {label} by hand; "
-                            f"re-runs skip it until \"{platform}\" is removed from posted.json.")
+                            f"re-runs skip it until \"{platform}\" under \"{slot_key}\" is removed from {where_posted}.")
         else:
             # Meta answered with an error: nothing posted, so drop this
             # run's pending mark and let a re-run try again.
@@ -422,21 +422,11 @@ def main(argv=None, session=None, on_save=None):
         except PostError as e:
             failed("Instagram", "instagram", e)
 
+    # The jobs worker's alert quotes these lines, so a retired Graph version
+    # is named there rather than read as a token problem.
     for f in failures:
         print(f"::error::{f}")
-    if any(GRAPH_VERSION in f and "GRAPH_API_VERSION" in f for f in failures):
-        # social-kit.yml's Slack alert says this instead of its generic text.
-        set_output("alert", f"🚨 Social posts failed: Meta refused Graph API {GRAPH_VERSION}. "
-                            "Set the GRAPH_API_VERSION repo variable to a current version.")
     return 1 if failures else 0
-
-
-def set_output(name, value):
-    """A step output for the workflow (single line), when run in Actions."""
-    path = os.environ.get("GITHUB_OUTPUT")
-    if path:
-        with open(path, "a") as f:
-            f.write(f"{name}={value.replace(chr(10), ' ')}\n")
 
 
 if __name__ == "__main__":

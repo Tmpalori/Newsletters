@@ -79,7 +79,9 @@ export const JOBS = [
   // The weekend issue (Friday–Sunday), Thursday mornings.
   { name: 'newsletter-weekend', dow: 4, at: '07:00', until: '12:00', retryMins: [5, 15, 30] },
   { name: 'meta-ads', at: '08:37', until: '18:00', workflow: 'meta-ads.yml', inputs: { scheduled: 'true' } },
-  { name: 'social-kit', at: '08:47', until: '18:00', workflow: 'social-kit.yml', inputs: { scheduled: 'true' } },
+  // Until noon: a "Today in..." post caught up after a missed slot (a
+  // failed deploy) is still useful in the morning, not at 5 PM.
+  { name: 'social-kit', at: '08:47', until: '12:00', workflow: 'social-kit.yml', inputs: { scheduled: 'true' } },
   // Sunday night, after the afternoon's collect (weekly-digest.yml's time).
   { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', workflow: 'weekly-digest.yml' },
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },
@@ -247,7 +249,9 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
       status = 'retry';
       retryAt = new Date(now.getTime() + retries[attempts - 1] * MIN).toISOString();
     }
-    await store.finishJobRun(job.name, slot, { status, retry_at: retryAt, detail: String(out.message || out.error || '').slice(0, 500) });
+    // detail: what a done slot did ("sent: 52 recipients", "no-subscribers"),
+    // else why it failed.
+    await store.finishJobRun(job.name, slot, { status, retry_at: retryAt, detail: String(out.detail || out.message || out.error || '').slice(0, 500) });
     if (status === 'failed' && !out.final && slack) {
       slack.alert(`scheduler-${job.name}-${slot}`, job.name === 'newsletter' ? `Monday newsletter send failed after ${attempts} tries`
         : job.name === 'newsletter-weekend' ? `Thursday weekend newsletter send failed after ${attempts} tries` : `Scheduled ${job.name} couldn't start`,
@@ -305,13 +309,18 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
     }
   }
 
-  // Did the scheduler already run this job's most recent slot?
+  // Did the scheduler already run this job's most recent slot? Ran isn't
+  // sent: a newsletter slot with nobody to send to is done too, so outcome
+  // says which ("sent", "no-subscribers", "already-sent"...) and detail the
+  // rest (counts; HQ only, not the public route).
   async function ran(name, now = nowFn()) {
     const job = jobs.find(j => j.name === name && persisted(j));
     if (!job) return null;
     const slot = lastSlot(job, now);
     const row = slot ? await store.getJobRun(job.name, slot) : null;
-    return { job: name, slot, ran: Boolean(row && row.status === 'done') };
+    const detail = row && row.detail ? String(row.detail) : null;
+    const outcome = detail && row.status === 'done' ? (/^([a-z][a-z-]*)(?::|$)/.exec(detail) || [])[1] || null : null;
+    return { job: name, slot, ran: Boolean(row && row.status === 'done'), outcome, detail };
   }
 
   function start(intervalMs = MIN) {

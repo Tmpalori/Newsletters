@@ -22,6 +22,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { town } from './town.js';
+import { localDateStr, addDays } from './seo.js';
 
 // What the worker can run, the workflow it replaces, and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
@@ -90,11 +91,13 @@ function bearer(req) {
   return m ? m[1].trim() : null;
 }
 
-// Events in the next `days` days of a candidates file (the collect message).
+// Events from today (the town's) through the next `days` days of a
+// candidates file (the collect message), not the week's days already past.
 export function upcomingCount(candidates, now, days = 14) {
   const events = Array.isArray(candidates && candidates.events) ? candidates.events : [];
-  const end = new Date(now.getTime() + days * 86400000).toISOString().slice(0, 10);
-  return events.filter(e => e && typeof e.date === 'string' && e.date <= end).length;
+  const today = localDateStr(now);
+  const end = addDays(today, days);
+  return events.filter(e => e && typeof e.date === 'string' && e.date >= today && e.date <= end).length;
 }
 
 /**
@@ -208,6 +211,14 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       if (slack && typeof r.report === 'string' && r.report.trim()) {
         const [title, ...rest] = r.report.trim().split('\n');
         slack.notify({ title: title.slice(0, 300), text: rest.join('\n').slice(0, 3000), link: typeof r.link === 'string' ? r.link : null, linkLabel: 'Ads Manager', channel: 'activity' });
+      }
+      return;
+    }
+    if (job.kind === 'digest') {
+      // A digest skipped for missing settings finishes "done": say so each
+      // Sunday, or the email just stops with nothing to show for it.
+      if (slack && typeof r.skipped === 'string' && r.skipped.trim()) {
+        slack.notify({ title: '📭 Weekly digest email not sent', text: `${r.skipped.slice(0, 300)}. Set them on the jobs service in Railway to get it again.`, channel: 'alerts' });
       }
       return;
     }

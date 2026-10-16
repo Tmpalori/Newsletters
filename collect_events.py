@@ -5601,7 +5601,7 @@ def enabled_web_sources(town=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="The Vic 361 — Event Collector")
+    parser = argparse.ArgumentParser(description=f"{TOWN['site_name']} — Event Collector")
     parser.add_argument("--output", default="./events.json", help="Output JSON path")
     parser.add_argument("--candidates", default="./" + town_paths()["candidates"], help="Candidates JSON path (all raw events for screening)")
     parser.add_argument("--days", type=int, default=14, help="Days ahead to collect (default 14)")
@@ -5641,7 +5641,7 @@ def main():
     print(f"   Window: {_WINDOW_START} → {_WINDOW_END} "
           f"({(_WINDOW_END - _WINDOW_START).days + 1} days)")
 
-    print(f"\n🏙️  The Vic 361 — Event Collector")
+    print(f"\n🏙️  {TOWN['site_name']} — Event Collector")
     print(f"   {datetime.now().strftime('%A, %B %d %Y at %I:%M %p')}")
     print(f"   Collecting next {args.days} days...\n")
 

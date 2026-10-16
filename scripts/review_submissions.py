@@ -609,7 +609,7 @@ def main(argv=None):
         print(f"::warning::The site didn't answer ({e}); trying again next run.")
         return 0
     if r.status_code == 401:
-        print("::error::The site rejected the secret (it must match in Railway and GitHub).")
+        print("::error::The site rejected the secret (SUBMISSION_REVIEW_SECRET must match on the town's web and jobs services in Railway).")
         return 1
     if r.status_code >= 500:
         print(f"::warning::The site answered HTTP {r.status_code} (down or database out); trying again next run.")
