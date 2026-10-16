@@ -1144,7 +1144,8 @@ describe('selling it on /advertise', () => {
   });
 });
 
-describe('weekly sponsor on Facebook and Instagram', () => {
+describe('weekly sponsor on Facebook (and Instagram once a town posts there)', () => {
+  afterEach(() => useTown(VICTORIA));
   const weeklyOrder = (extra = {}) => ({
     id: 'wk1', kind: 'weekly', status: 'paid', amount: 30000, week_start: '2026-09-28', created_at: '2026-09-20T00:00:00Z',
     business: 'Acme Tacos', email: 'acme@example.com',
@@ -1162,28 +1163,56 @@ describe('weekly sponsor on Facebook and Instagram', () => {
     expect(stats).toMatchObject({ social_clicks: 1, social_people: 1, email_clicks: 0 });
     const { renderSponsorReport } = await import('../server/notify.js');
     const report = renderSponsorReport(weeklyOrder({ week_start: '2026-10-05' }), { ...stats, site_people: 0, email_people: 0 }, { siteUrl: 'https://www.thevic361.com', address: '1 Main' });
-    expect(report.text).toContain('- Clicked your link in our Facebook and Instagram posts: 1 person');
+    // No town posts to Instagram yet (town.instagram), so the report doesn't say it.
+    expect(report.text).toContain('- Clicked your link in our Facebook posts: 1 person');
+    expect(report.text).not.toMatch(/instagram/i);
     expect(report.subject).toBe('Your Vic 361 sponsor week: 1 person clicked');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    expect(renderSponsorReport(weeklyOrder({ week_start: '2026-10-05' }), { ...stats, site_people: 0, email_people: 0 }, { siteUrl: 'https://www.thevic361.com', address: '1 Main' }).text)
+      .toContain('- Clicked your link in our Facebook and Instagram posts: 1 person');
   });
 
   it('/advertise sells it as a checklist of perks', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
     expect(html.match(/<p class="ad-checklist-title">What you get<\/p>/g)).toHaveLength(2);
-    for (const perk of ['Top of the newsletter', 'Every page of thevic361.com', 'Shout-out on Facebook', 'Shout-out on Instagram',
-      'Your results report', 'Featured first on Facebook', 'Featured first on Instagram', 'Starred in the newsletter']) {
+    for (const perk of ['Top of the newsletter', 'Every page of thevic361.com', 'Shout-out on Facebook',
+      'Your results report', 'Featured first on Facebook', 'Starred in the newsletter']) {
       expect(html).toContain(`<strong>${perk}</strong>`);
     }
+    // Nothing posts to Instagram, so nothing is sold there (the make-good
+    // terms would owe it back), on the page or in the advertising terms.
+    expect(html).not.toMatch(/instagram/i);
+    expect(await (await fetch(baseUrl + '/advertising-terms')).text()).not.toMatch(/on Instagram/);
+  });
+
+  it('a town with an Instagram handle sells the Instagram lines', async () => {
+    const { AD_PACKAGES } = await import('../server/seo.js');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    const perks = AD_PACKAGES.flatMap(p => p.points.map(([b]) => b));
+    expect(perks).toContain('Shout-out on Instagram');
+    expect(perks).toContain('Featured first on Instagram');
   });
 });
 
 describe('where your ad goes', () => {
-  it('shows the ad with arrows to the site, newsletter, Facebook and Instagram', async () => {
+  afterEach(() => useTown(VICTORIA));
+  it('shows the ad with arrows to the site, newsletter and Facebook', async () => {
     const { adFlowHtml } = await import('../server/seo.js');
     const html = adFlowHtml();
-    for (const name of ['thevic361.com', 'The newsletter', 'Facebook', 'Instagram']) expect(html).toContain(`<strong>${name}</strong>`);
-    expect(html.match(/<path d="M6 160 C/g)).toHaveLength(4); // one arrow per channel
+    for (const name of ['thevic361.com', 'The newsletter', 'Facebook']) expect(html).toContain(`<strong>${name}</strong>`);
+    expect(html).not.toContain('Instagram');
+    expect(html.match(/<path d="M6 118 C/g)).toHaveLength(3); // one arrow per channel, from the middle of 236px
+    expect(html).toContain('viewBox="0 0 140 236"');
     expect(html).toContain('class="ad-flow__down"');            // phones: one arrow down
+  });
+  it('adds Instagram for a town that posts there', async () => {
+    const { adFlowHtml } = await import('../server/seo.js');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    const html = adFlowHtml();
+    expect(html).toContain('<strong>Instagram</strong>');
+    expect(html.match(/<path d="M6 160 C/g)).toHaveLength(4);
+    expect(html).toContain('viewBox="0 0 140 320"');
   });
 });
 

@@ -35,7 +35,7 @@
       "Content-Type": "application/x-www-form-urlencoded",
       "Idempotency-Key": "vic361-order-UUID"
     },
-    "body": "cancel_url=https://www.thevic361.com/advertise/checkout?package=weekly\ncancelled=UUID\nclient_reference_id=UUID\ncustom_text[submit][message]=By+paying+you+confirm+the+order+and+our+[Advertising+Terms](https://www.thevic361.com/advertising-terms)+(version+2026-10-10),+including+cancellations+and+refunds.\ncustomer_email=owner@acme.example\nexpires_at=TIMESTAMP\nintegration_identifier=vic361_sponsor_checkout_qvbkmxtr\nline_items[0][price]=price_1\nline_items[0][quantity]=1\nmetadata[order_id]=UUID\nmetadata[package]=weekly\nmetadata[terms_accepted_at]=2026-10-07T17:00:00.000Z\nmetadata[terms_version]=2026-10-10\nmode=payment\npayment_method_types[0]=card\nsuccess_url=https://www.thevic361.com/advertise/thanks?order=UUID"
+    "body": "cancel_url=https://www.thevic361.com/advertise/checkout?package=weekly\ncancelled=UUID\nclient_reference_id=UUID\ncustom_text[submit][message]=By+paying+you+confirm+the+order+and+our+[Advertising+Terms](https://www.thevic361.com/advertising-terms)+(version+2026-10-16),+including+cancellations+and+refunds.\ncustomer_email=owner@acme.example\nexpires_at=TIMESTAMP\nintegration_identifier=vic361_sponsor_checkout_qvbkmxtr\nline_items[0][price]=price_1\nline_items[0][quantity]=1\nmetadata[order_id]=UUID\nmetadata[package]=weekly\nmetadata[terms_accepted_at]=2026-10-07T17:00:00.000Z\nmetadata[terms_version]=2026-10-16\nmode=payment\npayment_method_types[0]=card\nsuccess_url=https://www.thevic361.com/advertise/thanks?order=UUID"
   },
   {
     "method": "GET",
@@ -73,6 +73,6 @@
       "Content-Type": "application/x-www-form-urlencoded",
       "Idempotency-Key": "vic361-order-UUID"
     },
-    "body": "cancel_url=https://www.thevic361.com/advertise/checkout?package=featured\ncancelled=UUID\nclient_reference_id=UUID\ncustom_text[submit][message]=By+paying+you+confirm+the+order+and+our+[Advertising+Terms](https://www.thevic361.com/advertising-terms)+(version+2026-10-10),+including+cancellations+and+refunds.\ncustomer_email=ms@example.com\nexpires_at=TIMESTAMP\nintegration_identifier=vic361_sponsor_checkout_qvbkmxtr\nline_items[0][price]=price_1\nline_items[0][quantity]=1\nmetadata[order_id]=UUID\nmetadata[package]=featured\nmetadata[terms_accepted_at]=2026-10-07T17:00:00.000Z\nmetadata[terms_version]=2026-10-10\nmode=payment\npayment_method_types[0]=card\nsuccess_url=https://www.thevic361.com/advertise/thanks?order=UUID"
+    "body": "cancel_url=https://www.thevic361.com/advertise/checkout?package=featured\ncancelled=UUID\nclient_reference_id=UUID\ncustom_text[submit][message]=By+paying+you+confirm+the+order+and+our+[Advertising+Terms](https://www.thevic361.com/advertising-terms)+(version+2026-10-16),+including+cancellations+and+refunds.\ncustomer_email=ms@example.com\nexpires_at=TIMESTAMP\nintegration_identifier=vic361_sponsor_checkout_qvbkmxtr\nline_items[0][price]=price_1\nline_items[0][quantity]=1\nmetadata[order_id]=UUID\nmetadata[package]=featured\nmetadata[terms_accepted_at]=2026-10-07T17:00:00.000Z\nmetadata[terms_version]=2026-10-16\nmode=payment\npayment_method_types[0]=card\nsuccess_url=https://www.thevic361.com/advertise/thanks?order=UUID"
   }
 ]

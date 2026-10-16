@@ -1253,13 +1253,15 @@ export const AD_PACKAGES = [
     // The "what you get" checklist: [bold, rest]. Every line must be true
     // (newsletter.js sponsorHtml, seo.js sponsorHtml, social_kit.py
     // sponsor_lines, sponsors.js sponsorStats). A getter, so it names the
-    // town in use (server/town.js), not the one at load.
+    // town in use (server/town.js), not the one at load. Instagram only for
+    // a town that posts there (town.instagram): no town does yet, and a
+    // line we can't deliver would be owed back under the make-good terms.
     get points() {
       return [
         ['Top of the newsletter', 'in both issues that week, Monday and Thursday'],
         [`Every page of ${town.domain}`, 'all week long'],
         ['Shout-out on Facebook', 'in our posts that week, with your link'],
-        ['Shout-out on Instagram', 'in our posts that week'],
+        ...(town.instagram ? [['Shout-out on Instagram', 'in our posts that week']] : []),
         ['Your logo, message and button', 'written by you'],
         ['No competitors', 'one sponsor a week, so it’s all yours'],
         ['Your results report', 'views, clicks and where you were seen, the Monday after']
@@ -1280,7 +1282,7 @@ export const AD_PACKAGES = [
         ['Guaranteed listing', 'free listings aren’t'],
         ['Starred in the newsletter', 'when you book before the issue goes out'],
         ['Featured first on Facebook', 'in our posts for your day'],
-        ['Featured first on Instagram', 'in our posts for your day'],
+        ...(town.instagram ? [['Featured first on Instagram', 'in our posts for your day']] : []),
         ['Highlighted on its event page', `tagged Featured on ${town.siteName}`],
         ['Your results report', 'views, clicks, calendar adds and shares, the day after']
       ];
@@ -1303,10 +1305,11 @@ export function advertiseStats(events, now, subscriberCount = 0, readers = 0) {
   };
 }
 
-// "Where your ad goes": your ad, with cartoon arrows fanning out to the four
-// places it shows (both packages show in all four: the site, the newsletter,
-// and the Facebook and Instagram posts; see AD_PACKAGES points). Arrows fan
-// out beside the tiles on desktop and point down at a 2x2 grid on phones.
+// "Where your ad goes": your ad, with cartoon arrows fanning out to the
+// places it shows (both packages show in all of them: the site, the
+// newsletter, the Facebook posts and, for a town that posts there, the
+// Instagram ones; see AD_PACKAGES points). Arrows fan out beside the tiles
+// on desktop and point down at a 2-column grid on phones.
 const FLOW_ICONS = {
   web: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="3" fill="#8FD3FF" stroke="#1F1A3D" stroke-width="2"/><path d="M2.5 8.5h19" stroke="#1F1A3D" stroke-width="2"/><circle cx="5.5" cy="6.3" r=".9" fill="#1F1A3D"/><circle cx="8.2" cy="6.3" r=".9" fill="#1F1A3D"/><rect x="5.5" y="11" width="13" height="2.2" rx="1.1" fill="#fff"/><rect x="5.5" y="15" width="8" height="2.2" rx="1.1" fill="#fff"/></svg>',
   email: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3" fill="#FFC93C" stroke="#1F1A3D" stroke-width="2"/><path d="M3.5 7l8.5 6.5L20.5 7" fill="none" stroke="#1F1A3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1317,22 +1320,26 @@ const flowChannels = () => [
   ['web', town.domain, 'on the site, all week'],
   ['email', 'The newsletter', 'Monday and Thursday issues'],
   ['facebook', 'Facebook', 'in our posts'],
-  ['instagram', 'Instagram', 'in our posts']
+  ...(town.instagram ? [['instagram', 'Instagram', 'in our posts']] : [])
 ];
-// Four arrows from the ad card's edge to the middle of each tile (68px tiles,
-// 16px apart: centers at 34, 118, 202, 286 in a 320px-tall column).
-const FLOW_FAN = '<svg class="ad-flow__fan" viewBox="0 0 140 320" width="140" height="320" aria-hidden="true">' +
-  [34, 118, 202, 286].map((y, i) => `<path d="M6 160 C 70 160, 58 ${y}, 120 ${y}" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round" stroke-dasharray="${i % 2 ? '0' : '1 9'}"/>` +
-    `<path d="M112 ${y - 8} L 128 ${y} L 112 ${y + 8}" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join('') +
-  '</svg>';
+// One arrow from the ad card's edge to the middle of each tile (68px tiles,
+// 16px apart: centers at 34, 118, 202, 286 in a 320px-tall column of four).
+const flowFan = n => {
+  const h = n * 84 - 16;
+  return `<svg class="ad-flow__fan" viewBox="0 0 140 ${h}" width="140" height="${h}" aria-hidden="true">` +
+    Array.from({ length: n }, (_, i) => 34 + i * 84).map((y, i) => `<path d="M6 ${h / 2} C 70 ${h / 2}, 58 ${y}, 120 ${y}" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round" stroke-dasharray="${i % 2 ? '0' : '1 9'}"/>` +
+      `<path d="M112 ${y - 8} L 128 ${y} L 112 ${y + 8}" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join('') +
+    '</svg>';
+};
 const FLOW_DOWN = '<svg class="ad-flow__down" viewBox="0 0 40 56" width="40" height="56" aria-hidden="true"><path d="M20 4 C 30 18, 10 32, 20 46" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round"/><path d="M11 39 L 20 50 L 29 39" fill="none" stroke="#1F1A3D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 export function adFlowHtml() {
+  const channels = flowChannels();
   return `<section class="ad-flow" aria-label="Where your ad goes">
       <h2 class="section-heading">Where your ad goes</h2>
       <div class="ad-flow__grid">
         <div class="ad-flow__ad"><span class="ad-flow__tag">Your ad</span><img src="${SAMPLE_LOGO}" alt="" width="176" height="51"><strong>Your Business</strong><span>Your message and button</span></div>
-        ${FLOW_FAN}${FLOW_DOWN}
-        <ul class="ad-flow__channels" role="list">${flowChannels().map(([k, name, sub]) =>
+        ${flowFan(channels.length)}${FLOW_DOWN}
+        <ul class="ad-flow__channels" role="list">${channels.map(([k, name, sub]) =>
           `<li class="ad-flow__ch ad-flow__ch--${k}"><span class="ad-flow__icon">${FLOW_ICONS[k]}</span><span><strong>${escHtml(name)}</strong><small>${escHtml(sub)}</small></span></li>`).join('')}</ul>
       </div>
     </section>`;
@@ -1362,6 +1369,19 @@ const adFaq = () => [
 // emailPreviews the same packages inside the newsletter
 // (server/newsletter.js sampleEmailPreviews). stats from advertiseStats.
 export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, emailPreviews = {}, stats = null }) {
+  // A paused town (TOWN_DORMANT=1) sells nothing: no packages or prices,
+  // and kept out of search until it's back.
+  if (town.dormant) {
+    return layout({
+      siteUrl, path: '/advertise', noindex: true,
+      title: `Advertise | ${town.siteName}`,
+      description: `${town.siteName} is taking a break and isn't selling ads right now.`,
+      body: `
+    <h1 class="page-title">Advertising is on a break</h1>
+    <p class="page-lead">${town.siteName} is taking a break, so we aren’t selling sponsorships or ${town.pickName}s right now.</p>
+    <p>Questions? <a href="/contact?topic=advertising">Send us a message</a>.</p>`
+    });
+  }
   const statItems = stats ? [
     stats.events ? [stats.events, 'events listed this week'] : null,
     stats.venues ? [stats.venues, 'venues this week'] : null,

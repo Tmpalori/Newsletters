@@ -742,8 +742,13 @@ export function signupSource(raw) {
   return tag === 'ad' ? `${base}:ad` : base;
 }
 
+// What a paused town (TOWN_DORMANT=1, server/town.js) says where its signup
+// form would be, and what /api/subscribe answers there.
+export const DORMANT_SIGNUP = 'The newsletter is taking a break, so we aren’t adding new subscribers right now.';
+
 // Newsletter signup form: the homepage footer and the /subscribe page.
 export function signupFormHtml({ source = 'footer', button = 'Subscribe' } = {}) {
+  if (town.dormant) return `<p class="signup-msg signup-paused">${escHtml(DORMANT_SIGNUP)}</p>`;
   return `<form class="signup-form" id="signup-form" action="/api/subscribe" method="post" novalidate data-turnstile="fetch" data-source="${escHtml(source)}">
   <label for="signup-email" class="visually-hidden">Email address</label>
   <input id="signup-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com">
@@ -767,6 +772,19 @@ f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector
 // The signup page: what you get, the form, then proof (real events from
 // the next seven days) for people who scroll before deciding.
 export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0, invited = false }) {
+  if (town.dormant) {
+    return layout({
+      siteUrl, path: '/subscribe', nav: null, noindex: true,
+      title: `Newsletter on a break | ${town.siteName}`,
+      description: `The ${town.siteName} newsletter is taking a break.`,
+      body: `
+    <section class="sub-hero">
+      <h1 class="page-title">The ${escHtml(town.siteName)} newsletter is taking a break.</h1>
+      <p class="page-lead">${escHtml(DORMANT_SIGNUP)} Already subscribed? You don’t need to do anything.</p>
+      <p><a class="btn btn--outline" href="/">See the events on the site</a></p>
+    </section>`
+    });
+  }
   const today = localDateStr(now);
   const end = addDays(today, 6);
   const next7 = sortEvents(events.filter(e => e.date >= today && e.date <= end));
@@ -1114,6 +1132,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   }
 
   app.post('/api/subscribe', async (req, res) => {
+    // A paused town: nobody new goes on a list that isn't being sent.
+    if (town.dormant) return res.status(503).json({ ok: false, error: 'dormant', message: DORMANT_SIGNUP });
     if (!supported) return res.status(503).json({ ok: false, message: 'Signups are paused. Try again soon.' });
     const ip = req.ip || req.socket.remoteAddress || '';
     if (!subscribeLimiter.check(ip).ok) return res.status(429).json({ ok: false, message: 'Too many tries. Try again later.' });
