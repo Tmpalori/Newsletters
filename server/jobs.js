@@ -1,9 +1,9 @@
 /* server/jobs.js — the town's jobs on Railway (JOBS_ON_RAILWAY.md).
  *
  * With JOBS_ON_RAILWAY=1 the scheduler and Pull Now queue a job in the
- * town's own database instead of starting a GitHub workflow, and the town's
- * jobs worker (scripts/jobs_worker.py, its own Railway service) claims it,
- * runs the same script the workflow ran and reports back. A collect hands
+ * town's own database, and the town's jobs worker (scripts/jobs_worker.py,
+ * its own Railway service) claims it, runs the job's script and reports
+ * back. A collect hands
  * its candidates, collection metadata and enrichment cache to the site
  * here instead of committing them, and the site publishes at once.
  *
@@ -23,27 +23,27 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { town } from './town.js';
 
-// What the worker can run, the workflow it replaces, and how long a run may
+// What the worker can run (a scheduler job's `kind`) and how long a run may
 // take before the site gives up on it (the worker died or was redeployed).
 export const JOB_KINDS = {
   // The collector's own budget is 55 minutes, then its uploads (which wait
   // out a web redeploy): 75 minutes before the site gives up on it.
-  collect: { workflow: 'weekly-collect.yml', label: 'Weekly event collect', limitMs: 75 * 60 * 1000 },
-  'event-check': { workflow: 'event-check.yml', label: 'Event check', limitMs: 20 * 60 * 1000 },
-  'submission-review': { workflow: 'submission-review.yml', label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 },
+  collect: { label: 'Weekly event collect', limitMs: 75 * 60 * 1000 },
+  'event-check': { label: 'Event check', limitMs: 20 * 60 * 1000 },
+  'submission-review': { label: 'Submission review', limitMs: 10 * 60 * 1000, alertAfter: 4 },
   // Build the day's kit, hand it to the site (served at /social/latest/),
   // post it to the town's Facebook page (and Instagram). Up to 10 minutes
   // to build, then up to 10 waiting for the files, a Reel that takes 6 to
   // process and Thursday's second post. Every town's, Victoria's included
   // (JOBS_ON_RAILWAY.md phase 5).
-  'social-kit': { workflow: 'social-kit.yml', label: 'Social posts (Facebook/Instagram)', limitMs: 45 * 60 * 1000 },
+  'social-kit': { label: 'Social posts (Facebook/Instagram)', limitMs: 45 * 60 * 1000 },
   // The daily Meta ads report (scripts/meta_ads.py report --scheduled):
   // yesterday's and the week's results to Slack, the spend to the site. A
   // town without its own ads settings does nothing.
-  'meta-ads': { workflow: 'meta-ads.yml', label: 'Meta ads report', limitMs: 10 * 60 * 1000 },
+  'meta-ads': { label: 'Meta ads report', limitMs: 10 * 60 * 1000 },
   // Sunday night's digest email of what's collected (send_digest.py), to
   // the owner. A town without SMTP settings on its jobs service does nothing.
-  digest: { workflow: 'weekly-digest.yml', label: 'Weekly digest email', limitMs: 10 * 60 * 1000 }
+  digest: { label: 'Weekly digest email', limitMs: 10 * 60 * 1000 }
 };
 
 // Files a job may hand the site: the collect's outputs and the submission
@@ -52,14 +52,10 @@ export const JOB_KINDS = {
 // on GitHub), so a retried or restarted job never posts twice.
 export const JOB_FILES = ['candidates', 'collection_metadata', 'enrichment_cache', 'review_ai_alert', 'review_attempts', 'social_posted'];
 
-export function kindForWorkflow(file) {
-  return Object.keys(JOB_KINDS).find(k => JOB_KINDS[k].workflow === file) || null;
-}
-
 // Whether the scheduler hands this job to the town's jobs worker (when
 // jobs are on): any kind the worker runs, for every town.
 export function canRunOnWorker(job) {
-  return Boolean(kindForWorkflow(job && job.workflow));
+  return Boolean(job && job.kind && Object.hasOwn(JOB_KINDS, job.kind));
 }
 
 // The social kit's files: what social_kit.py writes, nothing else, and
@@ -196,8 +192,8 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     }
     worked(job);
     if (job.kind === 'social-kit') {
-      // Monday's list of this week's venues to send their link (the GitHub
-      // run's outreach-slack.txt).
+      // Monday's list of this week's venues to send their link
+      // (social_kit.py's outreach-slack.txt).
       if (slack && typeof r.outreach === 'string' && r.outreach.trim()) {
         slack.notify({ title: '📣 Venues to tag this week', text: r.outreach.slice(0, 3000), link: `${siteUrl}/social/latest/outreach.txt`, channel: 'activity' });
       }
@@ -219,7 +215,7 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       await enqueue('event-check', `after-collect-${job.id}`);
       return;
     }
-    // What the GitHub collect said in Slack, and the event check after it.
+    // The collect's Slack summary, and the event check after it.
     if (slack) {
       const n = Number.isFinite(r.upcoming) ? r.upcoming : '?';
       const warnings = typeof r.warnings === 'string' ? r.warnings : '';

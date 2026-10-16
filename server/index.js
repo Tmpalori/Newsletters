@@ -38,7 +38,7 @@ import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
-import { createJobs, kindForWorkflow, canRunOnWorker } from './jobs.js';
+import { createJobs, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
@@ -2508,7 +2508,7 @@ export async function createApp(opts = {}) {
     store, slack, siteUrl, nowFn: () => nowFn(),
     // Jobs on Railway: the town's worker jobs go to its jobs worker (every
     // town's, Victoria's included); without them they don't run.
-    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(kindForWorkflow(job.workflow), slot) : null,
+    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(job.kind, slot) : null,
     canQueue: job => canRunOnWorker(job),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
