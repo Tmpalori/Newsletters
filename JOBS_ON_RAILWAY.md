@@ -4,22 +4,26 @@ Owner's goal (October 2026): as simple as possible, everything on Railway
 rather than GitHub, the same for all five towns, and everything reported to
 HQ so the owner's assistant can see what's going on.
 
-## Where we are
+## Where we were (before October 2026)
 
-Each town is a Railway web service and its own Postgres. The jobs (collect,
-event check, submission review, social kit, ads report, uptime, digest) run
-as GitHub Actions. That costs, per town: a GitHub Environment, the same cron
-secrets copied into Railway and GitHub by hand, a GitHub token on Railway so
-the site can start its jobs, and a commit to `main` for every collect (which
-redeploys every town). Missing Environment values silently fall back to
-Victoria's repo-level secrets (Meta page, ad account, ops inbox), which is
-how a new town could post to Victoria's Facebook page.
+Each town was a Railway web service and its own Postgres, and the jobs
+(collect, event check, submission review, social kit, ads report, uptime,
+digest) ran as GitHub Actions. That cost, per town: a GitHub Environment,
+the same cron secrets copied into Railway and GitHub by hand, a GitHub token
+on Railway so the site could start its jobs, and a commit to `main` for
+every collect (which redeployed every town). Missing Environment values
+silently fell back to Victoria's repo-level secrets (Meta page, ad account,
+ops inbox), which is how a new town could post to Victoria's Facebook page.
 
-## Where we're going
+## Where we are (phase 5 done)
 
-GitHub holds the code and runs the tests. Nothing else.
+GitHub holds the code and runs the tests (`tests.yml`), plus three manual
+tools (`apify-probe.yml`, `gemini-probe.yml`, `market-scan.yml`) that never
+run on a schedule. Nothing else: every town, Victoria included, runs every
+job on its own Railway jobs service, and no web service needs a
+`GITHUB_TOKEN`.
 
-Every town, Victoria included at the end, is three Railway pieces in the
+Every town, Victoria included, is three Railway pieces in the
 Newsletters project:
 
 | Piece | Name | What it does |
@@ -59,8 +63,23 @@ Settings and secrets:
 
 HQ sees everything: each town's `/api/hq/summary` adds its job history (last
 run of each job, status, counts per source, warnings, duration) and its
-recent alerts. HQ also watches each town's health, replacing `uptime.yml`,
-and sends the weekly digest. The owner's assistant reads it all through HQ.
+recent alerts. HQ also watches each town's health, replacing `uptime.yml`.
+The owner's assistant reads it all through HQ.
+
+The jobs and when the scheduler queues them (town time; `server/scheduler.js`):
+
+| Job (`server/jobs.js` kind) | When | What |
+|---|---|---|
+| `collect` | Sun and Wed 3:23 PM | `collect_events.py --candidates-only`, then publish |
+| `event-check` | after each collect, Mon 6:43 AM, Thu 6:00 AM | `scripts/sweep_events.py` |
+| `submission-review` | every 15 minutes | `scripts/review_submissions.py` |
+| `meta-ads` | daily 8:37 AM | `scripts/meta_ads.py report --scheduled`; the site posts the report to Slack activity; nothing without the town's ads settings |
+| `social-kit` | daily 8:47 AM | `scripts/social_kit.py`, the kit into the town's database, `scripts/social_post.py` with `SOCIAL_AUTOPOST=1` |
+| `digest` | Sun 9:00 PM | `send_digest.py` from the live list to the owner; nothing without `SMTP_EMAIL`/`SMTP_PASSWORD` |
+
+The newsletter, sponsor reports, privacy purge and the hourly health check
+run in the web service itself. A web service without jobs on Railway runs
+none of the worker jobs (there's no GitHub fallback any more).
 
 What the owner still does per town: buy the domain, the Stripe account
 (identity check), the Facebook page and Instagram account, and merge one
@@ -134,7 +153,15 @@ Each phase is its own PR with tests. Victoria's output must not change
       failed job. Victoria's social kit stays on GitHub until phase 5.
       Pinned pages: Medford, Shoals, Lincoln, Virginia Beach. The jobs image
       now has Chromium (branded slides) and ffmpeg (the weekend Reel).
-- [ ] `meta_ads.py` (the daily ads report) on the worker.
+- [x] `meta_ads.py` (the daily ads report) on the worker (phase 5): job
+      `meta-ads`, queued daily at 8:37 AM town time for every jobs town. The
+      worker runs `meta_ads.py report --scheduled --result <file>` and hands
+      the report to the site, which posts it to Slack activity (as
+      meta-ads.yml did). A town acts only with its own ads settings
+      (`META_TOWN` and the ad account its `town.json` pins as
+      `"meta".ad_account_id`); a town with none pinned, or no token, does
+      nothing (the job is done, "skipped"). Victoria's report uses the one
+      ad account her token sees, as on GitHub.
 
 ### Phase 3: HQ sees everything
 
@@ -146,7 +173,11 @@ Each phase is its own PR with tests. Victoria's output must not change
       when a town is down or a job is overdue (replaces `uptime.yml`).
       (Already: tristen-hq src/watch.js turns a site that's down into an
       inbox item.)
-- [ ] HQ sends the weekly digest (replaces `weekly-digest.yml`).
+- [x] The weekly digest (replaces `weekly-digest.yml`): kept in this repo
+      rather than HQ, as the jobs worker's `digest` job (Sunday 9 PM town
+      time, `send_digest.py` from the site's live list, the same email to
+      the owner). It needs `SMTP_EMAIL` and `SMTP_PASSWORD` on the town's
+      jobs service and does nothing without them. HQ still sees every run.
 
 ### Phase 4: new towns the new way
 
@@ -174,11 +205,30 @@ Each phase is its own PR with tests. Victoria's output must not change
       the rest at the code defaults). GitHub's fallback crons stand down
       for her: the collect and event check because the site ran the slot,
       the submission review because her /api/config says jobs_on_railway.
-- [ ] Her GitHub workflows, repo secrets and `GITHUB_TOKEN` retired; the
-      workflow files deleted except `tests.yml`. Waits on phase 2b: her
-      social kit and ads report still run on GitHub, which the site starts
-      on time (the scheduler dispatches what the worker can't run when the
-      town's workflows are on), and the weekly digest (phase 3).
+- [x] Her social kit on her worker like every town's: stored in her
+      database and served at https://www.thevic361.com/social/latest/; until
+      her worker publishes its first kit (or whenever her database can't
+      answer) the git copy in `docs/social/latest/` is still served, so links
+      already out keep working. Her page is pinned like another town's
+      (`town.py` VICTORIA `"meta": {"page_id": "1388965530960534"}`; no
+      Instagram id until one is linked), and her worker refuses another
+      town's page or `META_TOWN`. What GitHub posted
+      (`docs/social/latest/posted.json`) is merged under her site's
+      `social_posted` file, so the switch day never posts a day and kind
+      twice.
+- [x] Her ads report and digest on her worker (2b, 3).
+- [x] Her GitHub workflows retired: every workflow file deleted except
+      `tests.yml` and the manual tools; the scheduler never starts a GitHub
+      workflow (it queues for the worker or doesn't run the job), and a
+      town with `JOBS_ON_RAILWAY=1` ignores `GITHUB_TOKEN` (no workflow
+      dispatch, no candidates read from GitHub, no `docs/events.json`
+      commit on Save & Publish: her published events live in her database
+      like every town's, and `docs/events.json` stays in git only as the
+      frozen fallback for an empty database).
+- [ ] Owner, in Railway and GitHub: remove `GITHUB_TOKEN` from Victoria's
+      web service, add her jobs service's social, ads and digest variables,
+      delete the retired repo secrets and variables (RAILWAY.md "Victoria
+      moved").
 - [ ] Cleanups found in the October 2026 audit: Railway healthcheck path,
       the malformed `NODE_ENV` variable, separate event-check, review and
       ads secrets, the apex domain still on Squarespace, and the
@@ -187,7 +237,8 @@ Each phase is its own PR with tests. Victoria's output must not change
 ## Rules that don't change
 
 - One database per town; a town never reads another town's data or secrets.
-- Victoria's output doesn't change except in phase 5, checked by goldens and
+- Victoria's output doesn't change except where phase 5 moved it (her
+  `/social/latest/` now from her database), checked by goldens and
   `scripts/live_check.py`.
 - The `--candidates-only` invariant: the collector never writes
   `docs/events.json`.

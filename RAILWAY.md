@@ -6,18 +6,24 @@ API from one service backed by Railway Postgres. `www.thevic361.com` is a
 CNAME to the Railway service (see AGENTS.md "Production hosting").
 
 The environment variable reference lives in **AGENTS.md → Environment
-variables** (Railway variables, collector secrets, and GitHub Actions
-secrets/variables). This file only covers standing up an environment and
-checking it works.
+variables**. This file only covers standing up an environment and checking
+it works.
 
-How events go live (details in AGENTS.md): the collector runs Sunday and
-Wednesday at 20:23 UTC with `--candidates-only` and commits `candidates.json`
-(never `docs/events.json`); that commit redeploys the service, and on boot in
-production `server/autopublish.js` publishes the upcoming candidates plus
-approved submissions into the `published_events` row. Free public
-submissions are reviewed by the AI review (`submission-review.yml`); the
-good ones wait for the owner's OK unless `SUBMISSION_AUTOAPPROVE=1` (paid
-picks publish on their own).
+Every town, Victoria included, runs its jobs on its own Railway jobs
+service (JOBS_ON_RAILWAY.md; "Jobs on Railway" below). GitHub only holds
+the code and runs the tests: no workflow runs a town's jobs, and no service
+needs a `GITHUB_TOKEN`.
+
+How events go live (details in AGENTS.md): the site's scheduler queues a
+collect Sunday and Wednesday at 3:23 PM town time; the town's jobs worker
+runs the collector with `--candidates-only` (never `docs/events.json`) and
+hands its candidates to the site, which stores them (`town_files`) and
+`server/autopublish.js` publishes the upcoming candidates plus approved
+submissions into the `published_events` row at once. Free public
+submissions are reviewed by the AI review (the worker's
+`submission-review` job, every 15 minutes); the good ones wait for the
+owner's OK unless `SUBMISSION_AUTOAPPROVE=1` (paid picks publish on their
+own).
 
 ## One-time setup
 
@@ -35,12 +41,12 @@ picks publish on their own).
    Then work down the
    admin Home tab's setup checklist, which says what each missing variable
    turns on (Slack, Resend newsletter, Stripe, cron secrets, Turnstile,
-   GitHub token). PR and staging environments don't inherit `ADMIN_*`
+   jobs on Railway). PR and staging environments don't inherit `ADMIN_*`
    automatically; set them per environment or as shared variables.
 4. **Cron secrets** (`NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
-   `SUBMISSION_REVIEW_SECRET`) must match between Railway and the GitHub
-   secrets of the same name. Give each its own value; see AGENTS.md
-   "Security notes".
+   `SUBMISSION_REVIEW_SECRET`) live on the web service; the jobs service
+   reads them as references (`${{<web>.<NAME>}}`), so nothing is copied.
+   Give each its own value; see AGENTS.md "Security notes".
 5. **Stripe** (sponsor checkout; each town has its own Stripe account and
    endpoint). Live restricted key (`rk_live_`) in production as
    `STRIPE_SECRET_KEY`; a test key there shows a Setup checklist warning,
@@ -83,7 +89,7 @@ curl -sf $SITE/api/health
 #   → {"ok":true,"storage":"postgres"}
 # 2. Config reports the right flags
 curl -s $SITE/api/config
-#   → admin_login_enabled:true (github_publish_enabled:true only with GITHUB_TOKEN)
+#   → admin_login_enabled:true, jobs_on_railway:true, sources_trigger_enabled:true
 # 3. The published list is there
 curl -s $SITE/events.json | jq '.events | length'
 ```
@@ -94,14 +100,17 @@ forwarded by Squarespace and its deep links 404.
 Then sign in at `$SITE/admin.html`: the Home tab shows the setup checklist,
 upcoming events and anything waiting for you.
 
-## Save & Publish and `GITHUB_TOKEN`
+## Save & Publish (no `GITHUB_TOKEN`)
 
-`POST /api/admin/publish-events` always writes the `published_events` row,
-which the site serves immediately. When `GITHUB_TOKEN` is set it also
-commits `docs/events.json` (the bundled fallback) to `main`; a failure there
-is reported as a warning and doesn't undo the save. Without the token the
-admin still loads candidates from the bundled `candidates.json` plus
-approved submissions.
+`POST /api/admin/publish-events` writes the `published_events` row, which
+the site serves immediately. A town with `JOBS_ON_RAILWAY=1` (every town,
+Victoria included) never commits anything to GitHub, even with a leftover
+`GITHUB_TOKEN`: the admin loads the last collect's candidates from the
+database (`town_files`) plus approved submissions, and Pull Now queues a
+collect for the jobs worker. `docs/events.json` stays in git only as
+Victoria's frozen fallback, served when her database has nothing published
+yet. (A service without jobs on Railway, such as a staging copy with a
+`GITHUB_TOKEN`, still commits `docs/events.json` on publish as before.)
 
 ## New town on Railway
 
@@ -141,8 +150,8 @@ copy a value from Victoria's project, or from another town's: a copied
    - `SITE_URL=https://www.<domain>` (the town's own; Victoria's is refused).
 3. **Admin login.** `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
    (fresh). Don't set `ADMIN_TOKEN` on a new town.
-4. **Cron secrets** (fresh, one each, the same value in the town's GitHub
-   Environment): `NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
+4. **Cron secrets** (fresh, one each; the jobs service references them):
+   `NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
    `SUBMISSION_REVIEW_SECRET`, `ADS_SPEND_SECRET`.
 5. **Email (Resend).** Verify the town's domain in Resend (SPF, DKIM, and MX
    for replies). `RESEND_API_KEY`; `NEWSLETTER_FROM="<Site name>
@@ -173,13 +182,11 @@ copy a value from Victoria's project, or from another town's: a copied
 8. **Forms (Turnstile).** Add `www.<domain>` to a Turnstile widget (Managed
    mode); `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`. A site key without
    the town's hostname fails every form.
-9. **GitHub.** `GITHUB_TOKEN`: a fine-grained token on this repo only, with
-   Contents: write and Actions: write and nothing else (publishing the
-   town's `events.json` and starting its workflows).
+9. **GitHub.** Nothing: no `GITHUB_TOKEN` (its jobs run on Railway).
 10. **Slack.** `SLACK_WEBHOOK_URL` (and the optional `SLACK_*_WEBHOOK_URL`
     channels, shared with Victoria is fine) and `SLACK_TOWN_TAG` (the city,
-    e.g. `Bay City`), so the town's posts read `[Bay City] …`. Set
-    `SLACK_TOWN_TAG` in the town's GitHub Environment too (step 12).
+    e.g. `Bay City`), so the town's posts read `[Bay City] …` (the jobs
+    service references it).
 11. **HQ.** `HQ_API_KEY` and `HQ_SSO_SECRET` (both fresh, different per
     town and from each other). Then on the HQ service add
     `HQ_TOWN_<SLUG>` = `{"site_url":"https://www.<domain>","key":"<its HQ_API_KEY>"}`
@@ -188,20 +195,15 @@ copy a value from Victoria's project, or from another town's: a copied
     open the admin signed in). HQ is its own repo and Railway project
     (`tmpalori/tristen-hq`, project Tristen HQ): it holds no town data and
     reads each town through its key.
-12. **Workflows: one switch.** Once the town's GitHub Environment exists
-    (MULTI_CITY_PLAN.md 3.3: `SITE_URL`, `SLACK_TOWN_TAG` and the four cron
-    secrets), add `"workflows": true` to `towns/<slug>/town.json` (a PR).
-    That turns on both GitHub's scheduled Sunday and Wednesday collect for
-    the town and the site's own scheduler and Pull Now (`TOWN_WORKFLOWS`
-    is no longer needed; `TOWN_WORKFLOWS=0` turns a town off). Until the
-    town's first collect lands, its scheduler starts only the collect and
-    it sends no auto-publish, "0 upcoming" or missed-collect alerts. The
-    social kit and the ads report use Meta settings only when the
-    Environment also sets `META_TOWN=<slug>` and its page, Instagram and ad
-    account ids match the ones `town.json` pins (`"meta": {"page_id",
-    "ig_user_id", "ad_account_id"}`): a missing Environment secret falls
-    back to Victoria's repo-level one. Set them with the town's own Meta
-    page, Instagram and ad account, never before.
+12. **Jobs.** `JOBS_ON_RAILWAY=1`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`
+    and the town's jobs service ("Jobs on Railway" below). `town.json`
+    keeps `"workflows": false` (nothing runs on GitHub). Until the town's
+    first collect lands, its scheduler queues only the collect and it sends
+    no auto-publish, "0 upcoming" or missed-collect alerts. The social kit
+    and the ads report use Meta settings only when the jobs service sets
+    `META_TOWN=<slug>` and its page, Instagram and ad account ids match the
+    ones `town.json` pins (`"meta": {"page_id", "ig_user_id",
+    "ad_account_id"}`).
 13. **Optional:** `META_PIXEL_ID` (the town's own pixel); the GA stream is
     `gaId` in `town.json` (a PR).
 14. **Domain.** Add `www.<domain>` as a custom domain and CNAME it to the
@@ -263,9 +265,9 @@ a commit or a redeploy.
      `${{shared.<NAME>}}`
    - `FB_POSTS_ENABLED=1`, `IG_POSTS_ENABLED=1` (the collector's other
      sources are on by default)
-   - The social kit (daily at 8:47 AM town time; not Victoria's, which
-     stays on GitHub): `META_TOWN=<slug>`, `META_PAGE_ID` (the page id its
-     `town.json` pins under `"meta"`), `META_PAGE_TOKEN`, `IG_USER_ID` (only
+   - The social kit (daily at 8:47 AM town time, every town's):
+     `META_TOWN=<slug>`, `META_PAGE_ID` (the page id its `town.json` pins
+     under `"meta"`; Victoria's is in `town.py` VICTORIA), `META_PAGE_TOKEN`, `IG_USER_ID` (only
      once pinned as `"meta".ig_user_id`; without it Facebook only),
      optional `GRAPH_API_VERSION`, and `SOCIAL_AUTOPOST=1` to post. These
      are the town's own (set here or as references to its web service's),
@@ -276,17 +278,64 @@ a commit or a redeploy.
      kind; `"pending"` means a publish call may have gone out: check the
      Page, then remove that entry, e.g. `UPDATE town_files SET data = data
      #- '{2026-10-15:today,facebook}' WHERE name = 'social_posted'`).
-4. **Stop GitHub collecting it:** `"workflows": false` in
-   `towns/<slug>/town.json` (a PR), so GitHub's scheduled collect skips
-   the town.
+     Victoria's file starts from what GitHub posted
+     (`docs/social/latest/posted.json`, merged under it on every read).
+   - The ads report (daily at 8:37 AM town time): `META_ADS_TOKEN` (a
+     system-user token with ads_read and ads_management; without it the
+     report uses `META_PAGE_TOKEN`), `META_AD_ACCOUNT_ID` (the ad account
+     `town.json` pins as `"meta".ad_account_id`; optional for Victoria,
+     whose token sees one account), and `META_TOWN`. `ADS_SPEND_SECRET`
+     is optional (else `SUBMISSION_REVIEW_SECRET`, as on the site): the
+     daily spend goes to Admin → Growth. A town with no ad account pinned,
+     or no token, does nothing. The report itself goes to Slack activity
+     through the site; a dead token or lost access fails the job and alerts.
+   - The digest (Sunday 9 PM town time, optional): `SMTP_EMAIL`,
+     `SMTP_PASSWORD` (a Gmail app password), optional `DIGEST_TO` (default
+     the owner's Gmail). Without them the job does nothing.
+4. **Nothing on GitHub:** `"workflows": false` in `towns/<slug>/town.json`
+   (the default). With `JOBS_ON_RAILWAY=1` the scheduler never starts a
+   GitHub workflow and the site ignores `GITHUB_TOKEN`; remove it.
 5. **Check:** Pull Now in the town's admin queues a collect; the jobs
    service's log shows it start, and the site says "Collect done" in Slack
    when the new events are live. The hourly site check alerts if the
    worker stops asking for work for 30 minutes, and a job that never
    finishes is started once more and alerted.
 
-The social kit runs on the jobs service too (JOBS_ON_RAILWAY.md 2b); the
-ads report moves later, and a town on jobs doesn't run it until then.
+The jobs service runs every scheduled job a town has (collect, event
+check, submission review, social kit, ads report, digest); the web service
+runs the newsletter, sponsor reports, privacy purge and the hourly check.
+
+## Victoria moved (JOBS_ON_RAILWAY.md phase 5)
+
+Victoria runs exactly like the other towns. What changed in Railway and
+GitHub when she moved (the code is merged first; the order below avoids a
+double post or a missed run):
+
+1. **`thevic361-jobs`** (her jobs service) adds: `META_TOWN=victoria`,
+   `META_PAGE_ID=1388965530960534` (her pinned page), `META_PAGE_TOKEN`
+   (her Page token, the GitHub secret of the same name), `SOCIAL_AUTOPOST=1`,
+   optional `GRAPH_API_VERSION`; for the ads report `META_ADS_TOKEN` if
+   she has a system-user token (GitHub used `META_PAGE_TOKEN`), no
+   `META_AD_ACCOUNT_ID` (her token sees one account; set it only together
+   with a pin), `ADS_SPEND_SECRET=${{thevic361.ADS_SPEND_SECRET}}` if her
+   web service has one; for the digest `SMTP_EMAIL` and `SMTP_PASSWORD`.
+   No `IG_USER_ID` until her Instagram id is pinned in `town.py`.
+2. **Victoria's web service** removes `GITHUB_TOKEN` (and `GITHUB_PAT`,
+   `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH` if set). Keep
+   `JOBS_ON_RAILWAY=1` and `JOBS_SECRET`.
+3. **Other towns' jobs services** need nothing new: their ads report does
+   nothing until an ad account is pinned and `META_AD_ACCOUNT_ID` set.
+4. **GitHub:** delete the repo secrets only the retired workflows read
+   (`META_PAGE_ID`, `META_PAGE_TOKEN`, `META_ADS_TOKEN`, `IG_USER_ID`,
+   `ADS_SPEND_SECRET`, `SMTP_EMAIL`, `SMTP_PASSWORD`, `NTFY_TOPIC`,
+   `OPENAI_API_KEY`, `PREVIEWS_DEPLOY_KEY`) and variables
+   (`SOCIAL_AUTOPOST`, `META_AD_ACCOUNT_ID`, `META_TOWN`,
+   `GRAPH_API_VERSION`, `SLACK_TOWN_TAG`, the collector knobs such as
+   `FB_POSTS_MAX_VENUES`), and the towns' GitHub Environments. Keep what
+   `tests.yml` and the manual tools read: `SLACK_WEBHOOK_URL`,
+   `SLACK_ALERTS_WEBHOOK_URL`, `OPS_REPORT_SECRET` (or the cron secret it
+   falls back to), `SITE_URL`, `APIFY_TOKEN`, `GEMINI_API_KEY`,
+   `GEMINI_MODEL`.
 
 ## New town, the simple way (jobs on Railway)
 
@@ -429,24 +478,21 @@ again every few months.
   similar) on `https://www.thevic361.com/api/health?deep=1` every 1 to 5
   minutes, plus a keyword check that `/events.json` contains `"events"`.
   Send it to the Slack alerts webhook and a phone push. The in-process
-  checks and `uptime.yml` can't see a dead process or a DNS/TLS break, and
-  GitHub's cron runs hours late.
+  checks can't see a dead process or a DNS/TLS break (HQ's watch does,
+  every few minutes).
 - **Two-factor sign-in** on every account that can change the site or take
   money: GitHub, Railway, Stripe, Resend, Cloudflare, Squarespace (DNS),
   Slack and Meta. Account takeover is the most likely way in.
-- **`GITHUB_TOKEN` scope.** Use a fine-grained token on this repo only,
-  with an expiry date and a calendar reminder to renew it. It needs
-  Actions: write for the scheduler; Contents: write only lets Save &
-  Publish commit `docs/events.json`, and also lets anyone holding the token
-  push code to `main`, which deploys to production. Drop Contents: write if
-  you can live without that commit. Add a ruleset on `main` (no
-  force-push, no deletion) and keep PR environments from receiving
-  production secrets.
+- **No `GITHUB_TOKEN` on any service.** Jobs run on Railway, so nothing
+  on Railway needs to write to GitHub; a token there would only let anyone
+  holding it push to `main`, which deploys to production. Add a ruleset on
+  `main` (no force-push, no deletion) and keep PR environments from
+  receiving production secrets.
 - **Key rotation.** Keep a list of every secret, where it's set (Railway,
-  GitHub) and when it was last changed: `GITHUB_TOKEN`, `STRIPE_SECRET_KEY`
+  GitHub) and when it was last changed: `STRIPE_SECRET_KEY`
   / `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET`,
   `TREMENDOUS_API_KEY`, `OPENAI_API_KEY` / `APIFY_TOKEN` / `GEMINI_API_KEY`,
-  the `META_*` tokens, the SMTP app password, `PREVIEWS_DEPLOY_KEY`, the
+  the `META_*` tokens, the SMTP app password, the
   three cron secrets, `HQ_API_KEY` and the `ADMIN_*` values. Rotate after
   anyone with access leaves or a secret may have leaked, and at least
   yearly. Changing `ADMIN_PASSWORD` or `ADMIN_SESSION_SECRET` signs every

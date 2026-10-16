@@ -35,7 +35,7 @@ function fakeSlack() {
   return s;
 }
 
-async function start({ env = ON, now = () => NOW } = {}) {
+async function start({ env = ON, now = () => NOW, extra = {} } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-jobs-'));
   dirs.push(dir);
   const eventsFile = path.join(dir, 'events.json');
@@ -45,7 +45,7 @@ async function start({ env = ON, now = () => NOW } = {}) {
   const out = await createApp({
     storeBundle: { kind: 'file', store }, eventsFile, candidatesFile: path.join(dir, 'candidates.json'), collectionMetadataFile: path.join(dir, 'collection_metadata.json'),
     trustProxy: false, now, siteUrl: 'https://www.thevic361.com', resendApiKey: '', slack,
-    autoPublish: false, startScheduler: false, jobsEnv: env, ...LONG
+    autoPublish: false, startScheduler: false, jobsEnv: env, ...LONG, ...extra
   });
   const server = http.createServer(out.app);
   servers.push(server);
@@ -267,18 +267,27 @@ describe('the scheduler with jobs on Railway', () => {
     return { github, queued };
   }
 
-  it('queues the jobs the worker runs; Victoria\'s social kit and ads report still start on GitHub, on time', async () => {
+  it('queues every worker job for Victoria too (social kit and ads report included); nothing on GitHub', async () => {
     const { github, queued } = await run();
-    expect(github.calls).toEqual(['meta-ads.yml', 'social-kit.yml']);
-    expect(queued.map(q => q[0])).toEqual(['submission-review', 'collect', 'submission-review']);
-    expect(new Set(queued.map(q => q[1])).size).toBe(3);
+    expect(github.calls).toEqual([]);
+    expect(queued.map(q => q[0])).toEqual(['meta-ads', 'social-kit', 'submission-review', 'collect', 'submission-review']);
   });
 
-  it('a town whose GitHub workflows are off starts nothing on GitHub; its social kit goes to the worker', async () => {
+  it('another town the same way', async () => {
     useTown(townConfig({ TOWN: 'kearney' }));       // "workflows": false
     const { github, queued } = await run();
     expect(github.calls).toEqual([]);
-    expect(queued.map(q => q[0])).toEqual(['social-kit', 'submission-review', 'collect', 'submission-review']);
+    expect(queued.map(q => q[0])).toEqual(['meta-ads', 'social-kit', 'submission-review', 'collect', 'submission-review']);
+  });
+
+  it('every kind runs on the worker for every town', () => {
+    for (const t of [VICTORIA, townConfig({ TOWN: 'medford' })]) {
+      useTown(t);
+      for (const f of ['social-kit.yml', 'meta-ads.yml', 'weekly-digest.yml', 'weekly-collect.yml', 'event-check.yml', 'submission-review.yml']) {
+        expect(canRunOnWorker({ workflow: f })).toBe(true);
+      }
+      expect(canRunOnWorker({ workflow: 'newsletter.yml' })).toBe(false);
+    }
   });
 });
 
@@ -379,5 +388,69 @@ describe('worker hiccups', () => {
     expect(again).toMatchObject({ kind: 'collect', slot: 'sun-retry' });
     await t.call('POST', `/api/jobs/${again.id}/finish`, { status: 'failed', result: { error: 'exited -15', interrupted: true } });
     expect(t.slack.alerts).toHaveLength(1);                 // the retry cut short too: said
+  });
+});
+
+describe('Victoria on jobs needs no GitHub (JOBS_ON_RAILWAY.md phase 5)', () => {
+  async function admin(t) {
+    const r = await fetch(t.base + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: LONG.adminUsername, password: LONG.adminPassword }) });
+    const token = (await r.json()).token;
+    return (method, p, body) => fetch(t.base + p, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  }
+
+  for (const [label, extra] of [['GITHUB_TOKEN unset', {}], ['a leftover GITHUB_TOKEN', { githubToken: 'gh-left-over' }]]) {
+    it(`admin, Pull Now and Save & Publish work from the database with ${label}`, async () => {
+      const gh = [];
+      const t = await start({ extra: { ...extra, fetch: async url => { gh.push(String(url)); return { ok: false, status: 500, json: async () => ({}) }; } } });
+      const a = await admin(t);
+      const cfg = await (await fetch(t.base + '/api/config')).json();
+      expect(cfg).toMatchObject({ github_publish_enabled: false, sources_trigger_enabled: true, sources_actions_url: null, jobs_on_railway: true });
+      // The collect's candidates (handed over by the worker) are what the editor sees.
+      expect((await t.call('PUT', '/api/jobs/files/candidates', CANDIDATES)).status).toBe(200);
+      const cands = await (await a('GET', '/api/admin/candidates')).json();
+      expect(cands.source).toBe('jobs');
+      // Save & Publish: the database only, no commit to docs/events.json.
+      const pub = await (await a('POST', '/api/admin/publish-events', { events: CANDIDATES.events.slice(0, 1) })).json();
+      expect(pub.ok).toBe(true);
+      expect(pub.destinations.github).toMatchObject({ ok: false, error: 'github-not-configured' });
+      expect((await (await fetch(t.base + '/events.json')).json()).events.map(e => e.name)).toEqual(['Trivia Night']);
+      // Pull Now queues a collect; the Sources tab offers it.
+      expect((await (await a('POST', '/api/admin/trigger-collect')).json()).queued).toBe(true);
+      expect((await (await a('GET', '/api/admin/sources')).json())).toMatchObject({ trigger_enabled: true, actions_url: null });
+      // The setup checklist: the scheduled jobs are fine without GitHub.
+      const setup = await (await a('GET', '/api/admin/setup')).json();
+      expect(setup.checks.find(c => c.key === 'scheduler').ok).toBe(true);
+      expect(JSON.stringify(setup.checks)).not.toMatch(/GitHub secret|In GitHub/);
+      expect(gh).toEqual([]);
+    });
+  }
+});
+
+describe('the ads report and the digest on the worker', () => {
+  it('a finished ads report goes to Slack activity; a town without ads settings says nothing', async () => {
+    const t = await start();
+    const run = async result => {
+      await t.store.enqueueJob('meta-ads', `s${Math.random()}`, {}, NOW);
+      const job = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+      expect(job.kind).toBe('meta-ads');
+      return t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'done', result });
+    };
+    await run({ skipped: 'no ads settings' });
+    expect(t.slack.notes).toEqual([]);
+    await run({ report: '📈 Meta ads: yesterday $5.00 spent\nLast 7 days: $30.00 spent', link: 'https://adsmanager.facebook.com/x' });
+    expect(t.slack.notes).toEqual([expect.objectContaining({ title: '📈 Meta ads: yesterday $5.00 spent', text: 'Last 7 days: $30.00 spent',
+      link: 'https://adsmanager.facebook.com/x', channel: 'activity' })]);
+  });
+
+  it('a failed ads report or digest alerts like any failed job', async () => {
+    const t = await start();
+    for (const kind of ['meta-ads', 'digest']) {
+      await t.store.enqueueJob(kind, 'x', {}, NOW);
+      const job = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+      await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'Meta ads daily check failed: token' } });
+    }
+    expect(t.slack.alerts.map(a => a.title)).toEqual(['Meta ads report failed', 'Weekly digest email failed']);
   });
 });

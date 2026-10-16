@@ -54,20 +54,17 @@ describe('nextWeeklyRunUtc', () => {
 });
 
 // AGENTS.md don't-touch #5: the admin's "next auto-pull" must follow the
-// workflow's real schedule. Fails when one changes without the other.
-describe('weekly-collect.yml schedule', () => {
+// scheduler's real collect slots (server/scheduler.js). Fails when one
+// changes without the other.
+describe('the collect schedule', () => {
   it('matches next_run_cron and nextWeeklyRunUtc', async () => {
-    const yml = await fs.readFile(new URL('../.github/workflows/weekly-collect.yml', import.meta.url), 'utf8');
-    const crons = [...yml.matchAll(/^\s*-\s*cron:\s*'([^']+)'/gm)].map(m => m[1].trim().split(/\s+/));
-    expect(crons.length).toBeGreaterThan(0);
-    const [minute, hour] = crons[0];
-    for (const c of crons) expect([c[0], c[1], c[2], c[3]]).toEqual([minute, hour, '*', '*']);
-    const days = crons.map(c => c[4]).join(',');
+    const { JOBS } = await import('../server/scheduler.js');
+    const collects = JOBS.filter(j => j.name.startsWith('weekly-collect'));
+    expect(collects.map(j => [j.dow, j.at])).toEqual([[0, '15:23'], [3, '15:23']]);
     const payload = buildSourcesPayload({ metadata: null, mtime: null, now: new Date(), githubConfigured: false, actionsUrl: '' });
-    expect(payload.next_run_cron).toBe(`${minute} ${hour} * * ${days}`);
-    // A run time is what nextWeeklyRunUtc returns from one minute before it.
-    for (const d of days.split(',').map(Number)) {
-      const run = new Date(Date.UTC(2026, 4, 3 + d, Number(hour), Number(minute))); // 2026-05-03 is a Sunday
+    expect(payload.next_run_cron).toBe('23 20 * * 0,3');     // 3:23 PM CDT in UTC
+    for (const d of [0, 3]) {
+      const run = new Date(Date.UTC(2026, 4, 3 + d, 20, 23)); // 2026-05-03 is a Sunday (CDT)
       expect(nextWeeklyRunUtc(new Date(run.getTime() - 60000)).toISOString()).toBe(run.toISOString());
     }
   });
@@ -212,11 +209,8 @@ describe('GET /api/admin/sources', () => {
     expect(Array.isArray(r.json.sources)).toBe(true);
     expect(r.json.sources.length).toBeGreaterThan(0);
     expect(r.json.sources.every(s => s.status === 'unknown')).toBe(true);
-    // Manual GitHub Actions fallback URL must always be exposed so the UI
-    // can offer it whether or not one-click Pull Now is enabled.
-    expect(r.json.actions_url).toMatch(
-      /github\.com\/Tmpalori\/thevic361\/actions\/workflows\/weekly-collect\.yml$/
-    );
+    // No GitHub fallback link any more: jobs run on Railway.
+    expect(r.json.actions_url).toBe(null);
     expect(r.json.save_publish_unaffected).toBe(true);
   });
 
@@ -241,119 +235,18 @@ describe('GET /api/admin/sources', () => {
 });
 
 describe('POST /api/admin/trigger-collect', () => {
-  it('returns 503 when GITHUB_TOKEN is not configured', async () => {
-    await startApp(); // no githubToken
-    try {
-      const tok = await loginToken();
-      const r = await fetchJson('POST', '/api/admin/trigger-collect', {},
-        { Authorization: 'Bearer ' + tok });
-      expect(r.status).toBe(503);
-      expect(r.json.error).toBe('github-not-configured');
-    } finally { await stopApp(); }
-  });
-
-  it('dispatches the weekly-collect.yml workflow when configured', async () => {
+  it('answers 409 jobs-not-on without jobs on Railway, and never calls GitHub (token or not)', async () => {
     const calls = [];
-    await startApp({
-      githubToken: 'gh-test',
-      githubOwner: 'Tmpalori',
-      githubRepo: 'thevic361',
-      githubBranch: 'main',
-      fetch: async (url, init) => {
-        calls.push({ url, init });
-        if (init && init.method === 'POST' &&
-            /\/actions\/workflows\/weekly-collect\.yml\/dispatches/.test(url)) {
-          return { ok: true, status: 204, json: async () => ({}) };
-        }
-        return { ok: false, status: 404, json: async () => ({}) };
-      }
-    });
+    await startApp({ githubToken: 'gh-test', fetch: async (url, init) => { calls.push(url); return { ok: true, status: 204, json: async () => ({}) }; } });
     try {
       const tok = await loginToken();
       const r = await fetchJson('POST', '/api/admin/trigger-collect', {},
         { Authorization: 'Bearer ' + tok });
-      expect(r.status).toBe(200);
-      expect(r.json.ok).toBe(true);
-      expect(r.json.workflow).toBe('weekly-collect.yml');
-      expect(r.json.ref).toBe('main');
-      // POST body must include the ref so the dispatch lands on `main`.
-      const dispatch = calls.find(c => c.init && c.init.method === 'POST');
-      expect(dispatch).toBeDefined();
-      expect(JSON.parse(dispatch.init.body)).toEqual({ ref: 'main' });
-    } finally { await stopApp(); }
-  });
-
-  it('surfaces a 401 Bad credentials as github-token-invalid with actions_url fallback', async () => {
-    await startApp({
-      githubToken: 'gh-test-stale',
-      fetch: async (url, init) => {
-        if (init && init.method === 'POST') {
-          return {
-            ok: false, status: 401,
-            json: async () => ({ message: 'Bad credentials' })
-          };
-        }
-        return { ok: false, status: 404, json: async () => ({}) };
-      }
-    });
-    try {
-      const tok = await loginToken();
-      const r = await fetchJson('POST', '/api/admin/trigger-collect', {},
-        { Authorization: 'Bearer ' + tok });
-      // 502, not 401: the admin treats a 401 as its own session expiring.
-      expect(r.status).toBe(502);
-      expect(r.json.error).toBe('github-token-invalid');
-      expect(r.json.github_status).toBe(401);
-      // Friendly message must mention that Save & Publish is unaffected and
-      // that the user can still run the workflow manually.
-      expect(r.json.message).toMatch(/Save & Publish/);
-      expect(r.json.message).toMatch(/manually/i);
-      // Must NOT leak the raw "Bad credentials" string to the user-facing message.
-      expect(r.json.message).not.toMatch(/^Bad credentials/);
-      // Fallback link to GitHub Actions for manual run.
-      expect(r.json.actions_url).toMatch(
-        /github\.com\/Tmpalori\/thevic361\/actions\/workflows\/weekly-collect\.yml$/
-      );
-      expect(r.json.save_publish_unaffected).toBe(true);
-    } finally { await stopApp(); }
-  });
-
-  it('includes actions_url and save_publish_unaffected on github-not-configured 503', async () => {
-    await startApp(); // no githubToken
-    try {
-      const tok = await loginToken();
-      const r = await fetchJson('POST', '/api/admin/trigger-collect', {},
-        { Authorization: 'Bearer ' + tok });
-      expect(r.status).toBe(503);
-      expect(r.json.error).toBe('github-not-configured');
-      expect(r.json.actions_url).toMatch(
-        /github\.com\/Tmpalori\/thevic361\/actions\/workflows\/weekly-collect\.yml$/
-      );
+      expect(r.status).toBe(409);
+      expect(r.json.error).toBe('jobs-not-on');
       expect(r.json.save_publish_unaffected).toBe(true);
       expect(r.json.message).toMatch(/Save & Publish/);
-    } finally { await stopApp(); }
-  });
-
-  it('surfaces a 403 from GitHub as a 403 (token lacks actions:write)', async () => {
-    await startApp({
-      githubToken: 'gh-test',
-      fetch: async (url, init) => {
-        if (init && init.method === 'POST') {
-          return {
-            ok: false, status: 403,
-            json: async () => ({ message: 'Resource not accessible by personal access token' })
-          };
-        }
-        return { ok: false, status: 404, json: async () => ({}) };
-      }
-    });
-    try {
-      const tok = await loginToken();
-      const r = await fetchJson('POST', '/api/admin/trigger-collect', {},
-        { Authorization: 'Bearer ' + tok });
-      expect(r.status).toBe(403);
-      expect(r.json.error).toBe('dispatch-failed');
-      expect(r.json.github_status).toBe(403);
+      expect(calls).toEqual([]);
     } finally { await stopApp(); }
   });
 
@@ -370,25 +263,11 @@ describe('GET /api/config exposes sources_trigger_enabled', () => {
   beforeEach(async () => { await stopApp(); });
   afterEach(async () => { await stopApp(); });
 
-  it('false when GITHUB_TOKEN is missing', async () => {
-    await startApp();
-    const r = await fetchJson('GET', '/api/config');
-    expect(r.status).toBe(200);
-    expect(r.json.sources_trigger_enabled).toBe(false);
-    // Even when no token is configured, we still surface the manual Actions
-    // URL so the admin UI can offer a "Run on GitHub" fallback link.
-    expect(r.json.sources_actions_url).toMatch(
-      /github\.com\/.+\/.+\/actions\/workflows\/weekly-collect\.yml$/
-    );
-  });
-
-  it('true when GITHUB_TOKEN is present', async () => {
+  it('false without jobs on Railway, even with a GITHUB_TOKEN; no GitHub Actions link', async () => {
     await startApp({ githubToken: 'gh-test' });
     const r = await fetchJson('GET', '/api/config');
     expect(r.status).toBe(200);
-    expect(r.json.sources_trigger_enabled).toBe(true);
-    expect(r.json.sources_actions_url).toMatch(
-      /github\.com\/.+\/.+\/actions\/workflows\/weekly-collect\.yml$/
-    );
+    expect(r.json.sources_trigger_enabled).toBe(false);
+    expect(r.json.sources_actions_url).toBe(null);
   });
 });

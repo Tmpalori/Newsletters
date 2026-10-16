@@ -13,7 +13,7 @@
  *   - Submitter email + IP never leave the admin scope.
  */
 
-import { town, townConfig, useTown, VICTORIA, townAssetPath, townPaths, townBootProblems, townInputs, townWorkflowsReady, victoriaBootProblem } from './town.js';
+import { town, townConfig, useTown, VICTORIA, townAssetPath, townPaths, townBootProblems, townWorkflowsReady, victoriaBootProblem } from './town.js';
 import { localizeHtml } from './localize.js';
 import express from 'express';
 import compression from 'compression';
@@ -72,7 +72,6 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DOCS_DIR = path.join(REPO_ROOT, 'docs');
-const WEEKLY_COLLECT_WORKFLOW = 'weekly-collect.yml';
 // Hourly site check (healthCheck): fewer upcoming events than this, or no
 // new collect in this many days (it runs Sunday and Wednesday), alerts.
 const MIN_UPCOMING = 10;
@@ -306,6 +305,10 @@ export async function createApp(opts = {}) {
   const jobs = opts.jobs || createJobs({
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
     nowFn: () => (opts.now || (() => new Date()))(),
+    // Victoria's social kit was posted from GitHub, which kept what went out
+    // in git (docs/social/latest/posted.json): her worker starts from it, so
+    // the day she moved never posts a day and kind twice.
+    seeds: town.id === VICTORIA.id ? { social_posted: () => readJsonFile(opts.socialPostedFile || path.join(DOCS_DIR, 'social', 'latest', 'posted.json')).catch(() => null) } : {},
     // AUTO_PUBLISH=0 (the owner publishes by hand) holds the new candidates for the admin.
     // A publish that fails is retried hourly, which says when it caught up.
     publish: async () => {
@@ -455,7 +458,7 @@ export async function createApp(opts = {}) {
       admin_legacy_token_enabled: Boolean(adminToken),
       // The admin will only show the publish button when a server-side GitHub
       // token is configured. No secret value is exposed.
-      github_publish_enabled: github.isConfigured(),
+      github_publish_enabled: !jobs.enabled && github.isConfigured(),
       github_owner: github.owner,
       github_repo: github.repo,
       github_branch: github.branch,
@@ -463,17 +466,10 @@ export async function createApp(opts = {}) {
       github_candidates_path: PATHS.candidates,
       // What the admin needs to word things for this town (docs/admin.js).
       town: { id: town.id, siteName: town.siteName, domain: town.domain, city: town.city, pickName: town.pickName, timezone: town.timezone },
-      // The Sources tab uses this to enable or disable the manual-pull button.
-      // We piggyback on github_publish_enabled because both gates require a
-      // GITHUB_TOKEN. The actual trigger endpoint also enforces this. Note:
-      // this is presence-only — the token may be present but invalid; the UI
-      // surfaces that distinction via the trigger-collect response.
-      sources_trigger_enabled: jobs.enabled || (github.isConfigured() && townWorkflowsReady()),
-      // GitHub Actions page for the Weekly Collect workflow. The admin Sources
-      // tab links to this as a manual fallback when one-click Pull Now isn't
-      // available (no token, invalid token, etc.).
-      sources_actions_url: `https://github.com/${github.owner}/${github.repo}` +
-        `/actions/workflows/${WEEKLY_COLLECT_WORKFLOW}`,
+      // The Sources tab uses this to enable or disable Pull Now, which
+      // queues a collect for the town's jobs worker.
+      sources_trigger_enabled: jobs.enabled,
+      sources_actions_url: null,
       // Another town only: whether it may start workflows yet (TOWN_WORKFLOWS=1
       // once its GitHub Environment exists), for scripts/launch_check.py. A
       // flag, no secret. Victoria's config stays exactly as it was until her
@@ -955,7 +951,7 @@ export async function createApp(opts = {}) {
         source = 'jobs';
       } catch (_) { /* fall through to GitHub / the file */ }
     }
-    if (source !== 'jobs' && github.isConfigured()) {
+    if (source !== 'jobs' && !jobs.enabled && github.isConfigured()) {
       try {
         const got = await github.getJsonFile(PATHS.candidates);
         sha = got.sha;
@@ -1246,8 +1242,12 @@ export async function createApp(opts = {}) {
       destinations: { local: { ok: true } }
     };
 
-    // Step 2 — best-effort GitHub commit. Only attempted when configured.
-    if (github.isConfigured()) {
+    // Step 2 — best-effort GitHub commit. Only attempted when configured,
+    // and never for a town whose jobs run on Railway: its events live in its
+    // database only (docs/events.json stays as Victoria's frozen fallback).
+    if (jobs.enabled) {
+      result.destinations.github = { ok: false, error: 'github-not-configured', message: 'Events live in the database (jobs on Railway); nothing is committed to GitHub.' };
+    } else if (github.isConfigured()) {
       let sha = null;
       try {
         const cur = await github.getJsonFile(PATHS.events);
@@ -1414,14 +1414,6 @@ export async function createApp(opts = {}) {
   // candidates.json by collect_events.py). If the file is missing — e.g.
   // before the first weekly run after this code ships — we still return a
   // useful payload with placeholder rows + the next scheduled run time.
-  // Public Actions URL for the Weekly Collect workflow. Used both as a
-  // graceful fallback in 401/503 responses and as a help link the UI can
-  // always show ("Run workflow on GitHub").
-  function actionsUrl() {
-    return `https://github.com/${github.owner}/${github.repo}` +
-      `/actions/workflows/${WEEKLY_COLLECT_WORKFLOW}`;
-  }
-
   const metadataFile = opts.collectionMetadataFile || COLLECTION_METADATA_FILE;
   app.get(hqPaths('/api/admin/sources'), adminOrHq, async (req, res) => {
     try {
@@ -1437,8 +1429,9 @@ export async function createApp(opts = {}) {
         metadata: read ? read.meta : null,
         mtime: read ? read.mtime : null,
         now: new Date(),
-        githubConfigured: github.isConfigured(),
-        actionsUrl: actionsUrl(),
+        // Pull Now queues a collect for the jobs worker.
+        githubConfigured: jobs.enabled,
+        actionsUrl: null,
       });
       res.json(payload);
     } catch (err) {
@@ -1447,20 +1440,12 @@ export async function createApp(opts = {}) {
     }
   });
 
-  // ─── Admin: trigger weekly collect workflow ───────────────────────────
+  // ─── Admin: Pull Now (queue a collect) ────────────────────────────────
   // POST /api/admin/trigger-collect
-  // Fires a workflow_dispatch on the Weekly Collect GitHub Actions workflow.
-  // Requires GITHUB_TOKEN with `actions:write` scope. Degrades clearly when
-  // the token is missing (503 + diagnostic message) so the UI can disable
-  // the button instead of silently failing.
-  //
-  // Failure-mode contract (consumed by the admin Sources tab):
-  //   error: 'github-not-configured'  -> no token at all (503)
-  //   error: 'github-token-invalid'   -> 502; GitHub said 401 Bad credentials (token stale/revoked)
-  //   error: 'dispatch-failed'        -> 403/404/etc, original github_status returned
-  // In every case we include `actions_url` so the UI can offer a manual fallback,
-  // and a `save_publish_unaffected: true` flag so the UI never implies that the
-  // public site failed to publish — Save & Publish does not depend on this token.
+  // Queues a collect for the town's jobs worker (JOBS_ON_RAILWAY.md). A
+  // town without jobs on Railway can't collect from here: 409
+  // 'jobs-not-on'. `save_publish_unaffected: true` on every failure, so the
+  // UI never implies that Save & Publish failed.
   app.post('/api/admin/trigger-collect', requireAdmin, async (req, res) => {
     // Jobs on Railway: queue it for the town's jobs worker.
     if (jobs.enabled) {
@@ -1472,60 +1457,12 @@ export async function createApp(opts = {}) {
         return res.status(500).json({ ok: false, error: 'queue-failed', message: err.message, save_publish_unaffected: true });
       }
     }
-    if (!townWorkflowsReady()) {
-      return res.status(409).json({
-        ok: false,
-        error: 'town-workflows-not-ready',
-        message: "This town's GitHub workflows aren't on yet (its GitHub Environment, then \"workflows\": true in its town.json), so Pull Now is off. Save & Publish is unaffected.",
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
-    }
-    if (!github.isConfigured()) {
-      return res.status(503).json({
-        ok: false,
-        error: 'github-not-configured',
-        message: 'No server-side GitHub token is configured, so one-click Pull Now is disabled. You can still run the Weekly Collect workflow manually on GitHub. Save & Publish is unaffected.',
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
-    }
-    try {
-      await github.dispatchWorkflow(WEEKLY_COLLECT_WORKFLOW, github.branch, townInputs());
-      res.json({
-        ok: true,
-        workflow: WEEKLY_COLLECT_WORKFLOW,
-        ref: github.branch,
-        message: 'Weekly Collect workflow dispatched. Refresh in a minute or two to see updated counts.',
-        actions_url: actionsUrl()
-      });
-    } catch (err) {
-      console.error('[admin] trigger-collect failed:', err.message);
-      // 401 = the GITHUB_TOKEN on the server is invalid/expired/revoked. Surface
-      // this as a recognizable "token-invalid" state so the UI can render
-      // friendly copy and a fallback link instead of a raw "Bad credentials".
-      if (err.status === 401) {
-        return res.status(502).json({
-          ok: false,
-          error: 'github-token-invalid',
-          github_status: 401,
-          message: 'The server\'s GITHUB_TOKEN is invalid or expired, so one-click Pull Now can\'t dispatch the workflow. You can still run the Weekly Collect workflow manually on GitHub using your normal login. Save & Publish is unaffected — only the one-click Pull Now button needs this token.',
-          actions_url: actionsUrl(),
-          save_publish_unaffected: true
-        });
-      }
-      // 403 typically means the token lacks `actions:write`. 404 = workflow
-      // file not found on the configured branch. Both are useful to surface.
-      const status = (err.status === 403 || err.status === 404) ? err.status : 502;
-      res.status(status).json({
-        ok: false,
-        error: 'dispatch-failed',
-        github_status: err.status || null,
-        message: err.detail || err.message,
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
-    }
+    return res.status(409).json({
+      ok: false,
+      error: 'jobs-not-on',
+      message: "This town's jobs don't run on Railway yet (JOBS_ON_RAILWAY=1, JOBS_SECRET and its jobs service), so Pull Now is off. Save & Publish is unaffected.",
+      save_publish_unaffected: true
+    });
   });
 
   // ─── Admin: approved -> candidate-shaped events ───
@@ -2568,10 +2505,10 @@ export async function createApp(opts = {}) {
   // The server is the clock for the Monday newsletter and the daily
   // GitHub workflows, because GitHub's own cron runs hours late.
   const scheduler = opts.scheduler || createScheduler({
-    store, github, slack, siteUrl, nowFn: () => nowFn(),
-    // Jobs on Railway: the town's workflow jobs go to its jobs worker.
+    store, slack, siteUrl, nowFn: () => nowFn(),
+    // Jobs on Railway: the town's worker jobs go to its jobs worker (every
+    // town's, Victoria's included); without them they don't run.
     queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(kindForWorkflow(job.workflow), slot) : null,
-    // Not Victoria's social kit: it stays on GitHub (server/jobs.js).
     canQueue: job => canRunOnWorker(job),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
@@ -2752,7 +2689,7 @@ export async function createApp(opts = {}) {
     const list = typeof slack.refused === 'function' ? slack.refused() : [];
     if (!list.length) return '';
     return 'Slack refused alerts on ' + list.map(r => `${r.channel} (HTTP ${r.status}${r.error ? ` ${r.error}` : ''} at ${r.at})`).join(', ') +
-      '. The channel may be archived or the Slack app removed: make a new incoming webhook and update the SLACK_*_WEBHOOK_URL variable in Railway (and GitHub).';
+      '. The channel may be archived or the Slack app removed: make a new incoming webhook and update the SLACK_*_WEBHOOK_URL variable in Railway (and its jobs service\'s reference).';
   }
 
   // ─── Admin home: setup checklist + at-a-glance numbers ───
@@ -2762,7 +2699,6 @@ export async function createApp(opts = {}) {
   // counts).
   async function setupReport() {
     const env = process.env;
-    const ghSecrets = `https://github.com/${github.owner}/${github.repo}/settings/secrets/actions`;
     const cronSecrets = [newsletter.cronSecret, eventCheckSecret, submissionReviewSecret].filter(Boolean);
     const checks = [
       { key: 'database', label: 'Database', ok: storeBundle.kind === 'postgres', level: 'required',
@@ -2776,7 +2712,7 @@ export async function createApp(opts = {}) {
       { key: 'auto_publish', label: 'Auto-publish events', ok: env.AUTO_PUBLISH !== '0', level: 'required',
         fix: 'Remove AUTO_PUBLISH=0 from Railway.' },
       { key: 'slack', label: 'Slack alerts', ok: slack.enabled && slack.alertsRouted !== false && !slackRefusedText(), level: 'recommended',
-        fix: slackRefusedText() || 'Set SLACK_WEBHOOK_URL in Railway (and as a GitHub secret) to get pings for breakage, sponsors and submissions. Optional: SLACK_SALES_WEBHOOK_URL, SLACK_ACTIVITY_WEBHOOK_URL, SLACK_ALERTS_WEBHOOK_URL, SLACK_HYPE_WEBHOOK_URL (new subscribers and sponsors) and SLACK_INBOX_WEBHOOK_URL (replies and contact messages) send each kind to its own channel.' },
+        fix: slackRefusedText() || 'Set SLACK_WEBHOOK_URL in Railway to get pings for breakage, sponsors and submissions. Optional: SLACK_SALES_WEBHOOK_URL, SLACK_ACTIVITY_WEBHOOK_URL, SLACK_ALERTS_WEBHOOK_URL, SLACK_HYPE_WEBHOOK_URL (new subscribers and sponsors) and SLACK_INBOX_WEBHOOK_URL (replies and contact messages) send each kind to its own channel.' },
       { key: 'newsletter', label: 'Email newsletter (Resend)', ok: newsletter.enabled && Boolean(newsletter.address), level: 'recommended',
         fix: newsletter.enabled ? 'Set NEWSLETTER_ADDRESS (a mailing address is required by law in every email).' : 'Set RESEND_API_KEY and NEWSLETTER_ADDRESS in Railway.' },
       { key: 'business_name', label: 'Legal pages name your business', ok: hasLegalName(), level: 'recommended',
@@ -2787,26 +2723,23 @@ export async function createApp(opts = {}) {
         fix: 'Set NEWSLETTER_ADDRESS in Railway (a PO box or a registered mailbox is fine). The legal pages print it as the business address, and every newsletter must carry it.' },
       { key: 'newsletter_auto', label: newsletter.weekend ? `Newsletter sends itself (Mondays ${startLabel('newsletter')}, Thursdays ${startLabel('newsletter-weekend')})` : `Newsletter sends itself (Mondays ${startLabel('newsletter')})`, ok: newsletter.enabled && newsletter.autosend, level: 'recommended',
         fix: !newsletter.enabled ? 'Set RESEND_API_KEY in Railway first.'
-          : 'NEWSLETTER_AUTOSEND=0 is set in Railway; remove it to send automatically. (Optional backup: NEWSLETTER_CRON_SECRET in Railway and GitHub lets GitHub retry later in the day.)' },
+          : 'NEWSLETTER_AUTOSEND=0 is set in Railway; remove it to send automatically.' },
       { key: 'reply_to', label: 'Email replies reach you', ok: Boolean(newsletter.replyTo || newsletter.inbound), level: 'recommended',
         fix: `Replies to news@ go to Slack once Resend receives for ${town.domain}: in Resend, turn on receiving for the domain and add its MX record; add a webhook (event email.received) to ` + siteUrl +
           '/api/email/inbound and put its signing secret in Railway as RESEND_WEBHOOK_SECRET. (Or set NEWSLETTER_REPLY_TO to an inbox you read.)' },
       { key: 'scheduler', label: 'Event collect, social posts, event check, ads report and AI review start on time',
-        // With jobs on Railway the worker runs the collect, check and review
-        // on time; a town's GitHub token is only for its social kit and ads.
-        ok: (jobs.enabled && !townWorkflowsReady()) || (github.isConfigured() && !scheduler.state.dispatchBlocked), level: 'recommended',
-        fix: scheduler.state.dispatchBlocked
-          ? `GitHub refused the token (HTTP ${scheduler.state.dispatchBlocked.status}). Give GITHUB_TOKEN in Railway Actions: write (and Contents: write) on this repo.`
-          : 'Set GITHUB_TOKEN in Railway: a fine-grained token on this repo with Actions: write and Contents: write. Without it these wait for GitHub\'s own schedule, which runs hours late (the newsletter is sent on time either way).' },
+        // The town's jobs worker runs them (JOBS_ON_RAILWAY.md); nothing runs on GitHub.
+        ok: jobs.enabled, level: 'recommended',
+        fix: 'Set JOBS_ON_RAILWAY=1 and JOBS_SECRET (32+ characters) on this service and add its jobs service (RAILWAY.md "Jobs on Railway"). Until then the collect, event check, AI review, social posts and ads report don\'t run (the newsletter is sent on time either way).' },
       { key: 'submission_review', label: 'AI review publishes good free submissions',
-        ok: Boolean(submissionReviewSecret), level: 'recommended', link: ghSecrets,
-        fix: 'Set SUBMISSION_REVIEW_SECRET in Railway and as a GitHub secret (the same long random string), plus OPENAI_API_KEY in GitHub. Until then new submissions wait for you in the Submissions tab.' },
+        ok: Boolean(submissionReviewSecret), level: 'recommended',
+        fix: 'Set SUBMISSION_REVIEW_SECRET in Railway (a long random string; the jobs service references it), plus OPENAI_API_KEY on the jobs service. Until then new submissions wait for you in the Submissions tab.' },
       { key: 'meta_pixel', label: 'Meta Pixel (ad tracking)', ok: Boolean(pixelId(opts.metaPixelId ?? env.META_PIXEL_ID)), level: 'recommended',
         fix: 'Set META_PIXEL_ID in Railway (the digits from Meta Events Manager) so ad visits and signups are counted.' },
-      { key: 'meta_ads', label: 'Daily Meta ads report', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: META_ADS_TOKEN (a system-user token with ads_read and ads_management, the ad account assigned). Without it the report uses the Page token, which works once the ad account is assigned to its system user.' },
-      { key: 'instagram', label: 'Instagram posting', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: IG_USER_ID (the Instagram business account linked to the Facebook Page). Without it only Facebook gets the daily post.' },
+      { key: 'meta_ads', label: 'Daily Meta ads report', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: META_ADS_TOKEN (a system-user token with ads_read and ads_management, the ad account assigned), META_TOWN and META_AD_ACCOUNT_ID (the ad account its town.json pins). Without META_ADS_TOKEN the report uses the Page token, which works once the ad account is assigned to its system user.' },
+      { key: 'instagram', label: 'Instagram posting', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: IG_USER_ID (the Instagram business account linked to the Facebook Page), once it is pinned in the town\'s settings ("meta".ig_user_id). Without it only Facebook gets the daily post.' },
       { key: 'stripe', label: 'Sponsor payments (Stripe)', ok: stripeCfg.enabled, level: 'recommended',
         fix: 'In Stripe: create a restricted key (Checkout Sessions, Products and Prices: write) and a webhook to ' + siteUrl +
           '/api/stripe/webhook on API version 2026-09-30.endive. Put them in Railway as STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET.' },
@@ -2816,18 +2749,18 @@ export async function createApp(opts = {}) {
         fix: 'STRIPE_SECRET_KEY in Railway is a test key (sk_test_ or rk_test_), so sponsors can book with Stripe\'s test card and nothing is charged. ' +
           'Once the launch test checkout is done, switch to the live restricted key and the live webhook endpoint\'s STRIPE_WEBHOOK_SECRET.' }] : []),
       { key: 'event_check', label: 'Event check hides church events, non-events and duplicates',
-        ok: Boolean(eventCheckSecret), level: 'recommended', link: ghSecrets,
-        fix: 'Set EVENT_CHECK_SECRET in Railway and as a GitHub secret (any long random string, the same in both). Until then the check only reports to Slack.' },
-      { key: 'separate_secrets', label: 'Each automation has its own secret', ok: new Set(cronSecrets).size === cronSecrets.length, level: 'optional', link: ghSecrets,
-        fix: 'NEWSLETTER_CRON_SECRET, EVENT_CHECK_SECRET and SUBMISSION_REVIEW_SECRET share a value (or one is unset and borrows another), so one leak could send the newsletter, hide events and publish submissions. Give each its own long random string, the same in Railway and GitHub.' },
+        ok: Boolean(eventCheckSecret), level: 'recommended',
+        fix: 'Set EVENT_CHECK_SECRET in Railway (any long random string; the jobs service references it). Until then the check only reports to Slack.' },
+      { key: 'separate_secrets', label: 'Each automation has its own secret', ok: new Set(cronSecrets).size === cronSecrets.length, level: 'optional',
+        fix: 'NEWSLETTER_CRON_SECRET, EVENT_CHECK_SECRET and SUBMISSION_REVIEW_SECRET share a value (or one is unset and borrows another), so one leak could send the newsletter, hide events and publish submissions. Give each its own long random string in Railway (the jobs service references them).' },
       // Required: without it every newsletter signup must confirm by email
       // (newsletter.js), and the forms have no bot check at all.
       { key: 'spam', label: 'Spam protection on forms (Turnstile)', ok: Boolean(turnstileSecret && turnstileSiteKey), level: 'required',
         fix: `In Cloudflare Turnstile, add a widget (or add www.${town.domain} to an existing one) in Managed mode, then set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in Railway. Protects Submit, Contact, newsletter signup and sponsor checkout; until then every newsletter signup has to confirm by email.` },
-      { key: 'social', label: 'Auto-post to Facebook + Instagram', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub: secrets META_PAGE_ID, META_PAGE_TOKEN and the repo variable SOCIAL_AUTOPOST = 1.' },
-      { key: 'collector_keys', label: 'Event collector keys (OpenAI, Apify, Gemini)', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: OPENAI_API_KEY (cleanup + junk filter), APIFY_TOKEN (Facebook, Instagram, Eventbrite) and GEMINI_API_KEY (Google Search discovery; free key at aistudio.google.com).' }
+      { key: 'social', label: 'Auto-post to Facebook + Instagram', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: META_TOWN, META_PAGE_ID (the page the town\'s settings pin), META_PAGE_TOKEN and SOCIAL_AUTOPOST = 1.' },
+      { key: 'collector_keys', label: 'Event collector keys (OpenAI, Apify, Gemini)', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway (project-shared variables): OPENAI_API_KEY (cleanup + junk filter), APIFY_TOKEN (Facebook, Instagram, Eventbrite) and GEMINI_API_KEY (Google Search discovery; free key at aistudio.google.com).' }
     ];
 
     const status = {};
@@ -2888,7 +2821,7 @@ export async function createApp(opts = {}) {
       health: async () => {
         const configured = storeBundle.kind === 'postgres';
         const database = configured && storeBundle.pool ? await pingDatabase(3000).then(() => true, () => false) : configured;
-        return { database, database_configured: configured, scheduler_blocked: Boolean(scheduler.state.dispatchBlocked),
+        return { database, database_configured: configured, scheduler_blocked: !jobs.enabled && schedulerEnabled(),
           slack_refused: Boolean(slackRefusedText()) };
       }
     })
@@ -2935,6 +2868,47 @@ export async function createApp(opts = {}) {
     }
   });
   if (town.publicDir && existsSync(town.publicDir)) app.use(express.static(town.publicDir, staticOptions(town.publicDir)));
+  // The town's social kit, built and posted by its jobs worker and kept in
+  // its database (server/jobs.js); Facebook and Instagram fetch the slides
+  // from here. → 'sent', 'none' (no such file) or 'error'.
+  const SOCIAL_FILE = /^\/social\/latest\/([a-z0-9][a-z0-9_-]{0,63}\.(?:png|jpg|mp4|json|html|txt))$/;
+  async function sendSocialFile(name, req, res) {
+    if (!(req.method === 'GET' || req.method === 'HEAD') || typeof store.getSocialFile !== 'function') return 'none';
+    let f = null;
+    try { f = await store.getSocialFile(name); } catch (err) {
+      console.warn('[social] read failed:', err.message);
+      return 'error';
+    }
+    if (!f) return 'none';
+    res.set({ 'Content-Type': f.type, 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex',
+      'X-Content-Type-Options': 'nosniff', 'Last-Modified': new Date(f.updated_at).toUTCString() });
+    res.send(f.body);
+    return 'sent';
+  }
+  // Victoria's kit moved from git (docs/social/latest/, committed by GitHub)
+  // to her database with her jobs (JOBS_ON_RAILWAY.md phase 5). Until her
+  // worker publishes its first kit, and whenever the database can't answer,
+  // the git copy is served, so links and posts already out keep working.
+  // Without jobs on (staging, a PR copy) only git's, and her database isn't
+  // asked (its social table is made on first use).
+  if (town.id === VICTORIA.id && jobs.enabled) {
+    app.use(async (req, res, next) => {
+      let p = req.path;
+      try { p = path.posix.normalize(decodeURIComponent(p)); } catch (_) { return next(); }
+      const m = SOCIAL_FILE.exec(p);
+      if (!m) return next();
+      const got = await sendSocialFile(m[1], req, res);
+      if (got === 'sent') return;
+      if (got === 'none' && typeof store.getSocialFile === 'function') {
+        // A kit in the database is the whole kit: a name it doesn't have is
+        // gone, not one to find in git's older kit.
+        let hasKit = false;
+        try { hasKit = Boolean(await store.getSocialFile('kit.json')); } catch (_) { hasKit = false; }
+        if (hasKit) return res.status(404).type('text/plain').send('Not found');
+      }
+      next();
+    });
+  }
   // docs/ holds Victoria's own data next to the shared site files: its
   // bundled events.json and its social kit. Another town without its own
   // copy gets an empty list and a 404, never Victoria's events or posts.
@@ -2950,23 +2924,13 @@ export async function createApp(opts = {}) {
         res.set('Cache-Control', 'no-store');
         return res.json({ last_updated: null, events: [] });
       }
-      // The town's own social kit, built and posted by its jobs worker and
-      // kept in its database (server/jobs.js); Facebook and Instagram fetch
-      // the slides from here. Nothing else under /social: never Victoria's.
+      // The town's own social kit (sendSocialFile). Nothing else under
+      // /social: never Victoria's.
       if (/^\/social(\/|$)/i.test(p)) {
-        const m = /^\/social\/latest\/([a-z0-9][a-z0-9_-]{0,63}\.(?:png|jpg|mp4|json|html|txt))$/.exec(p);
-        if (m && (req.method === 'GET' || req.method === 'HEAD') && typeof store.getSocialFile === 'function') {
-          let f = null;
-          try { f = await store.getSocialFile(m[1]); } catch (err) {
-            console.warn('[social] read failed:', err.message);
-            return res.status(503).set('Retry-After', '60').type('text/plain').send('Try again shortly');
-          }
-          if (f) {
-            res.set({ 'Content-Type': f.type, 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex',
-              'X-Content-Type-Options': 'nosniff', 'Last-Modified': new Date(f.updated_at).toUTCString() });
-            return res.send(f.body);
-          }
-        }
+        const m = SOCIAL_FILE.exec(p);
+        const got = m ? await sendSocialFile(m[1], req, res) : 'none';
+        if (got === 'sent') return;
+        if (got === 'error') return res.status(503).set('Retry-After', '60').type('text/plain').send('Try again shortly');
         return res.status(404).type('text/plain').send('Not found');
       }
       if (/^\/index(\.html)?$/i.test(p)) return res.redirect(301, '/');

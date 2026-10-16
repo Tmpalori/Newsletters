@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build the weekly social kit from the live published events.
 
-Runs on a schedule (.github/workflows/social-kit.yml) and writes
-docs/social/latest/:
+Runs daily on the town's jobs worker (scripts/jobs_worker.py, which hands
+the kit to the site's database, served at /social/latest/) and writes to
+--out (docs/social/latest/ by default, Victoria's git copy before she moved):
   - week-N.png / weekend-N.png / today-N.png   Instagram/Facebook slides (1080x1350): at most
                                  three, a teaser (cover, day-by-day peek, see-all),
                                  each with a .jpg twin (Instagram only takes JPEG)
@@ -675,7 +676,7 @@ def main(argv=None):
             week_groups = groups
         slides = render_slides(groups, start, end, kind, args.out)
         # featured: Vic's Picks in the kit (the Thursday run posts "today"
-        # too when it has one; see social-kit.yml).
+        # too when it has one; see scripts/jobs_worker.py social_plan).
         kit = {"slides": slides, "slides_jpg": jpeg_copies(args.out, slides),
                "captions": captions(groups, start, end, kind, handles, sponsor),
                "events": sum(len(v) for v in groups.values()),

@@ -2478,8 +2478,9 @@ class PgStore {
   }
 
   // ─── A town's social kit: see FileStore. Its own table, made on first
-  // use by these methods only, which Victoria never calls (her kit stays in
-  // git, docs/social/latest), so her database gets no new table.
+  // use by these methods only, which a town calls only with jobs on Railway
+  // (Victoria's too since JOBS_ON_RAILWAY.md phase 5; without jobs her kit
+  // is git's, docs/social/latest, and her database gets no new table).
   async _socialTable() {
     await this._jobTables();
     if (!this._socialTablePromise) {

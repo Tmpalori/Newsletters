@@ -2985,12 +2985,11 @@
     if (triggerBtn) triggerBtn.disabled = !payload.trigger_enabled;
     if (triggerHelp) {
       triggerHelp.textContent = payload.trigger_enabled
-        ? 'One-click Pull Now uses the server\'s GitHub token. Save & Publish does not.'
-        : 'One-click Pull Now is disabled (no server-side GitHub token). Save & Publish is unaffected — you can still run the Weekly Collect workflow manually on GitHub.';
+        ? 'Pull Now queues a collect for this town\'s jobs worker; the new events publish as soon as it finishes. Save & Publish doesn\'t need it.'
+        : 'Pull Now is off: this town\'s jobs don\'t run on Railway (JOBS_ON_RAILWAY). Save & Publish is unaffected.';
     }
-    // Always show the GitHub Actions fallback link when we have a URL,
-    // regardless of whether one-click is enabled. This gives the user a
-    // dependable manual path even when the server token is stale or absent.
+    // A GitHub Actions link only when the server gives one (it no longer
+    // does: every town's jobs run on Railway).
     if (actionsLink) {
       if (payload.actions_url) {
         actionsLink.href = payload.actions_url;

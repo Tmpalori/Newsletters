@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Read and manage The Vic 361's Meta ads (Marketing API).
 
-Runs from .github/workflows/meta-ads.yml, so the token never leaves GitHub:
+The town's jobs worker runs the daily report (scripts/jobs_worker.py, job
+meta-ads, queued at 8:37 AM town time); the other commands are run by hand
+where the town's Meta settings are (its jobs service shell):
 
   status            what's running, its delivery/review state, and results
                     (today, yesterday, last 7 days); also checks the token
@@ -14,23 +16,27 @@ Runs from .github/workflows/meta-ads.yml, so the token never leaves GitHub:
   budget <id> <$>   set an ad set's (or campaign's) daily budget, in dollars;
                     refuses more than MAX_DAILY_BUDGET unless --force
 
-Needs (GitHub Actions):
+Needs (the jobs service's variables):
   META_ADS_TOKEN      a system-user token with ads_read (+ ads_management to
                       change anything) and the ad account assigned to that
                       system user; falls back to META_PAGE_TOKEN
-  META_AD_ACCOUNT_ID  repo variable, e.g. act_123 (optional when the token
+  META_AD_ACCOUNT_ID  e.g. act_123 (optional when the token
                       sees exactly one ad account)
   ADS_SPEND_SECRET    optional: the daily report also sends the last 30 days'
                       spend per day to the site (Admin → Growth) and adds the
                       real cost per subscriber, from the site's own count, to
                       the Slack report. Same value as Railway's ADS_SPEND_SECRET
-                      (meta-ads.yml falls back to SUBMISSION_REVIEW_SECRET).
+                      (the worker falls back to SUBMISSION_REVIEW_SECRET).
+
+--result FILE writes the report as JSON ({"report", "link"}) instead of
+posting it to Slack: the worker hands it to the site, which posts it.
 
 The token goes in the Authorization header, never a URL, and errors never
 include it.
 """
 import argparse
 import datetime as dt
+import json
 import os
 import re
 import sys
@@ -382,6 +388,7 @@ def main(argv=None, session=None):
     ap.add_argument("amount", nargs="?", default="")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--scheduled", action="store_true", help="the daily run: ads not set up yet doesn't fail it")
+    ap.add_argument("--result", default="", help="write the report here (JSON) instead of posting it to Slack")
     args = ap.parse_args(argv)
 
     if not meta_allowed(use="ads"):
@@ -402,8 +409,12 @@ def main(argv=None, session=None):
             text = cmd_report(api, account, out)
             # A refused webhook (slack_notify returns 2) fails the run below,
             # so GitHub emails the owner instead of the report vanishing.
-            if text:
-                slack_rc = slack_notify.main([text, "--link", f"https://adsmanager.facebook.com/adsmanager/manage/campaigns?act={account['id'][4:]}"])
+            link = f"https://adsmanager.facebook.com/adsmanager/manage/campaigns?act={account['id'][4:]}"
+            if args.result:
+                with open(args.result, "w") as f:
+                    json.dump({"report": text, "link": link if text else None}, f)
+            elif text:
+                slack_rc = slack_notify.main([text, "--link", link])
         elif args.command in ("pause", "resume"):
             if not args.target:
                 raise AdsError("Which campaign, ad set or ad? Pass its id.")

@@ -3,10 +3,11 @@
 // The social kit on a town's jobs worker (JOBS_ON_RAILWAY.md 2b): the
 // worker uploads the kit to its own site, which keeps only the latest one
 // in its database and serves it at /social/latest/<name> (Facebook and
-// Instagram fetch the slides there). Victoria's kit stays in git and on
-// GitHub: no upload route, her docs/social files as before, and her social
-// kit still dispatched to GitHub by the scheduler. A town without a kit, and
-// any path that isn't its own kit, is a 404.
+// Instagram fetch the slides there). Victoria's too since she moved
+// (JOBS_ON_RAILWAY.md phase 5): until her worker publishes its first kit
+// (or without jobs on) her git copy in docs/social is served, and what
+// GitHub posted (docs/social/latest/posted.json) seeds her worker's dedupe.
+// Another town without a kit, and any path that isn't its own kit, is a 404.
 //
 // The Postgres half runs when TEST_DATABASE_URL points at a throwaway
 // server (each run makes and drops its own database).
@@ -56,7 +57,7 @@ afterEach(async () => {
   useTown(VICTORIA);
 });
 
-async function start({ town = 'bay', env = ON, store = null } = {}) {
+async function start({ town = 'bay', env = ON, store = null, extra = {} } = {}) {
   if (town) process.env.TOWN = town; else delete process.env.TOWN;
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-social-'));
   dirs.push(dir);
@@ -67,7 +68,7 @@ async function start({ town = 'bay', env = ON, store = null } = {}) {
     townsDir: towns, storeBundle: { kind: store ? 'postgres' : 'file', store: store || new FileStore(path.join(dir, 's.json')) },
     eventsFile, candidatesFile: path.join(dir, 'candidates.json'), trustProxy: false, now: () => NOW,
     ...(town ? {} : { siteUrl: 'https://www.thevic361.com' }), resendApiKey: '', slack, autoPublish: false, startScheduler: false,
-    jobsEnv: env, adminUsername: 'admin', adminPassword: 'a-long-enough-pass', adminSessionSecret: 'x'.repeat(32)
+    jobsEnv: env, adminUsername: 'admin', adminPassword: 'a-long-enough-pass', adminSessionSecret: 'x'.repeat(32), ...extra
   });
   const server = http.createServer(out.app);
   servers.push(server);
@@ -153,14 +154,47 @@ describe('a town’s social kit, stored and served from its own database', () =>
   });
 });
 
-describe('Victoria is unchanged', () => {
-  it('her kit is still docs/social from git, and the worker can’t upload one', async () => {
+describe('Victoria’s kit moves to her database', () => {
+  const gitKit = () => fs.readFile(path.join(DOCS_DIR, 'social', 'latest', 'kit.json'), 'utf8');
+
+  it('git’s kit until her worker publishes one, then only the database’s', async () => {
     const t = await start({ town: null });
+    let kit = await fetch(t.base + '/social/latest/kit.json');
+    expect([kit.status, await kit.text()]).toEqual([200, await gitKit()]);
+    expect((await fetch(t.base + '/social/latest/week-1.png')).status).toBe(200);      // git's
+    await uploadKit(t, 'w1');
+    expect(await (await fetch(t.base + '/social/latest/kit.json')).text()).toBe(await gitKit());   // staged only
+    expect((await t.publish('w1')).status).toBe(200);
+    kit = await fetch(t.base + '/social/latest/kit.json');
+    expect((await kit.json()).build).toBe('w1');
+    expect(Buffer.from(await (await fetch(t.base + '/social/latest/today-1.png')).arrayBuffer())).toEqual(PNG);
+    expect((await fetch(t.base + '/social/latest/week-1.png')).status).toBe(404);      // not in her new kit
+    expect((await fetch(t.base + '/social/latest/posted.json')).status).toBe(404);
+  });
+
+  it('without jobs on nothing is accepted and git’s kit is served, as before', async () => {
+    const t = await start({ town: null, env: {} });
     expect((await t.put('w1', 'today-1.png', PNG)).status).toBe(404);
-    expect((await t.publish('w1')).status).toBe(404);
-    const kit = await fetch(t.base + '/social/latest/kit.json');
-    expect(kit.status).toBe(200);
-    expect(await kit.text()).toBe(await fs.readFile(path.join(DOCS_DIR, 'social', 'latest', 'kit.json'), 'utf8'));
+    expect(await (await fetch(t.base + '/social/latest/kit.json')).text()).toBe(await gitKit());
+  });
+
+  it('what GitHub posted seeds her worker’s dedupe, so switch day never posts twice', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-posted-'));
+    dirs.push(dir);
+    const file = path.join(dir, 'posted.json');
+    await fs.writeFile(file, JSON.stringify({ '2026-10-15:weekend': { facebook: '1388965530960534_1' } }));
+    const t = await start({ town: null, extra: { socialPostedFile: file } });
+    const get = async () => (await (await t.call('GET', '/api/jobs/files/social_posted')).json()).data;
+    expect(await get()).toEqual({ '2026-10-15:weekend': { facebook: '1388965530960534_1' } });
+    // The worker saves its own (with the seed it was given, plus today's).
+    await t.call('PUT', '/api/jobs/files/social_posted', { '2026-10-16:today': { facebook: 'pending' } });
+    expect(await get()).toEqual({ '2026-10-15:weekend': { facebook: '1388965530960534_1' }, '2026-10-16:today': { facebook: 'pending' } });
+    // The real docs/social/latest/posted.json is the default seed.
+    const real = JSON.parse(await fs.readFile(path.join(DOCS_DIR, 'social', 'latest', 'posted.json'), 'utf8'));
+    const v = await start({ town: null });
+    expect((await (await v.call('GET', '/api/jobs/files/social_posted')).json()).data).toEqual(real);
+    // Another town has no seed.
+    expect((await (await start()).call('GET', '/api/jobs/files/social_posted')).status).toBe(404);
   });
 
   it('another town’s stored kit never brings Victoria’s files along', async () => {
@@ -175,11 +209,10 @@ describe('Victoria is unchanged', () => {
 
 describe('who runs the social kit', () => {
   const job = { name: 'social-kit', workflow: 'social-kit.yml' };
-  it('the worker for another town; GitHub for Victoria', () => {
-    expect(canRunOnWorker(job, VICTORIA)).toBe(false);
-    expect(canRunOnWorker(job, townConfig({ TOWN: 'medford' }))).toBe(true);
-    expect(canRunOnWorker({ workflow: 'meta-ads.yml' }, townConfig({ TOWN: 'medford' }))).toBe(false);
-    expect(canRunOnWorker({ workflow: 'weekly-collect.yml' }, VICTORIA)).toBe(true);
+  it('the worker, for every town', () => {
+    expect(canRunOnWorker(job)).toBe(true);
+    expect(canRunOnWorker({ workflow: 'meta-ads.yml' })).toBe(true);
+    expect(canRunOnWorker({ workflow: 'weekly-collect.yml' })).toBe(true);
   });
 
   async function day(townId, { jobsOn = true, collected = true } = {}) {
@@ -208,10 +241,10 @@ describe('who runs the social kit', () => {
     expect(await day('kearney', { jobsOn: false })).toEqual({ github: [], queued: [] });
   });
 
-  it('Victoria with jobs on still dispatches hers on GitHub', async () => {
+  it('Victoria with jobs on queues hers (and her ads report) for her worker; nothing on GitHub', async () => {
     const v = await day(null);
-    expect(v.github).toContain('social-kit.yml');
-    expect(v.queued).not.toContain('social-kit');
+    expect(v.github).toEqual([]);
+    expect(v.queued).toEqual(expect.arrayContaining(['social-kit', 'meta-ads']));
   });
 });
 
@@ -259,6 +292,17 @@ describe.skipIf(!PG)('on Postgres (TEST_DATABASE_URL)', () => {
       await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
       await admin.end();
     }
+  });
+
+  it('Victoria: git’s kit until her first kit is in her database, then the database’s', async () => {
+    const t = await start({ town: null, store: bundle.store });
+    expect(await (await fetch(t.base + '/social/latest/kit.json')).text())
+      .toBe(await fs.readFile(path.join(DOCS_DIR, 'social', 'latest', 'kit.json'), 'utf8'));
+    await uploadKit(t, 'v1');
+    expect((await t.publish('v1')).status).toBe(200);
+    expect((await (await fetch(t.base + '/social/latest/kit.json')).json()).build).toBe('v1');
+    expect((await fetch(t.base + '/social/latest/week-1.png')).status).toBe(404);
+    await bundle.pool.query("DELETE FROM social_files; DELETE FROM town_files WHERE name = 'social_kit'");
   });
 
   it('stores, serves and replaces a town’s kit the same way', async () => {

@@ -1,4 +1,5 @@
 """Tests for scripts/meta_ads.py, the Meta ads reader/manager."""
+import json
 import os
 import sys
 
@@ -346,3 +347,15 @@ def test_another_town_never_uses_ads_credentials_not_its_own(monkeypatch, capsys
     monkeypatch.setattr(ma, "Api", lambda *a, **k: pytest.fail("no Graph call for another town's credentials"))
     assert ma.main(["report", "--scheduled"]) == 0
     assert "aren't" in capsys.readouterr().out
+
+
+def test_the_workers_run_writes_the_report_for_the_site_instead_of_slack(tmp_path):
+    # scripts/jobs_worker.py job_meta_ads: the site posts it to Slack.
+    out = tmp_path / "r.json"
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=FakeMeta()) == 0
+    got = json.loads(out.read_text())
+    assert sent == []
+    assert got["report"].startswith("📈 Meta ads: yesterday") and got["link"].startswith("https://adsmanager.facebook.com/")
+    # A quiet week: no report, nothing for the site to post.
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=FakeMeta(spend="0")) == 0
+    assert json.loads(out.read_text()) == {"report": None, "link": None}

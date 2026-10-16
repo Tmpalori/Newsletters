@@ -224,13 +224,6 @@ export function victoriaBootProblem(t, envSiteUrl = '') {
     `domain. Set TOWN to the town's slug (towns/<slug>/town.json), or SITE_URL to ${VICTORIA.siteUrl} for Victoria.`;
 }
 
-// Inputs for a workflow the server dispatches (MULTI_CITY_PLAN.md 3.5):
-// another town names itself in the workflows' `town` input; Victoria's
-// dispatches stay as they were (no input means victoria).
-export function townInputs(inputs, t = town) {
-  return t.id === VICTORIA.id ? inputs : { ...(inputs || {}), town: t.id };
-}
-
 // Whether this town may start GitHub workflows. Until its own GitHub
 // Environment exists (MULTI_CITY_PLAN.md 3.3) a workflow run as another
 // town would still use the repo-level settings, which are Victoria's
@@ -238,7 +231,12 @@ export function townInputs(inputs, t = town) {
 // its town.json says "workflows": true (the same switch GitHub's scheduled
 // collect reads, set when its Environment exists) or TOWN_WORKFLOWS=1.
 // TOWN_WORKFLOWS=0 turns a town's off whatever town.json says.
+//
+// A town whose jobs run on Railway (JOBS_ON_RAILWAY=1, Victoria included
+// since JOBS_ON_RAILWAY.md phase 5) never starts a GitHub workflow: its
+// jobs worker runs every one of them, so it needs no GITHUB_TOKEN.
 export function townWorkflowsReady(t = town, env = process.env) {
+  if (String(env.JOBS_ON_RAILWAY || '').trim() === '1') return false;
   if (t.id === VICTORIA.id) return true;
   const flag = String(env.TOWN_WORKFLOWS || '').trim();
   return flag === '1' || (t.workflows === true && flag !== '0');

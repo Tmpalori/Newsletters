@@ -1,9 +1,9 @@
 // @vitest-environment node
 //
 // The in-process scheduler (server/scheduler.js): Central-time slots across
-// DST, one run per slot even across restarts, retries, dispatch with the
-// scheduled flag, and the fallback crons' "did it already run?" endpoint.
-// GitHub, Slack and email are fakes.
+// DST, one run per slot even across restarts, retries, worker jobs queued
+// for the town's jobs worker (never GitHub), and the "did it already run?"
+// endpoint. The worker queue, Slack and email are fakes.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { createScheduler, dueSlot, lastSlot, localParts, JOBS, schedulerEnabled, slotStart, missedCollect } from '../server/scheduler.js';
@@ -14,7 +14,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { townConfig, townInputs, useTown, VICTORIA } from '../server/town.js';
+import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const job = name => JOBS.find(j => j.name === name);
 let tmpDir;
@@ -29,14 +29,18 @@ afterEach(async () => {
   tmpDir = null;
 });
 
-function fakeGithub({ configured = true, fail = null } = {}) {
+// The town's jobs worker queue (server/jobs.js enqueue), as index.js wires it.
+function fakeWorker({ fail = false } = {}) {
   const calls = [];
   return {
-    calls, branch: 'main', isConfigured: () => configured,
-    async dispatchWorkflow(file, ref, inputs) {
-      calls.push({ file, ref, inputs });
-      if (fail) { const e = new Error(`github-dispatch-failed-${fail}`); e.status = fail; e.detail = 'Resource not accessible by personal access token'; throw e; }
-      return true;
+    calls,
+    opts: {
+      canQueue: () => true,
+      async queueJob(job, slot) {
+        calls.push({ file: job.workflow, slot });
+        if (fail) throw new Error('queue down');
+        return { queued: true };
+      }
     }
   };
 }
@@ -90,7 +94,7 @@ describe('createScheduler', () => {
     const store = await freshStore();
     let sends = 0;
     const handlers = { newsletter: async () => { sends++; return { ok: true }; } };
-    const make = () => createScheduler({ store, github: fakeGithub({ configured: false }), handlers, log: quiet });
+    const make = () => createScheduler({ store, handlers, log: quiet });
     const mon = new Date('2026-10-05T12:44:00Z');
     await make().tick(mon);
     await make().tick(new Date(mon.getTime() + 60000)); // restarted container
@@ -102,7 +106,7 @@ describe('createScheduler', () => {
     const store = await freshStore();
     const slack = fakeSlack();
     let calls = 0;
-    const s = createScheduler({ store, slack, github: fakeGithub({ configured: false }), log: quiet,
+    const s = createScheduler({ store, slack, log: quiet,
       handlers: { newsletter: async () => { calls++; return { ok: false, error: 'send-failed', message: 'Resend 500' }; } } });
     let t = new Date('2026-10-05T12:44:00Z').getTime();
     await s.tick(new Date(t));
@@ -120,7 +124,7 @@ describe('createScheduler', () => {
     const store = await freshStore();
     const slack = fakeSlack();
     let calls = 0;
-    const s = createScheduler({ store, slack, github: fakeGithub({ configured: false }), log: quiet,
+    const s = createScheduler({ store, slack, log: quiet,
       handlers: { newsletter: async () => { calls++; return { ok: false, final: true, error: 'no-address' }; } } });
     await s.tick(new Date('2026-10-05T12:44:00Z'));
     await s.tick(new Date('2026-10-05T13:44:00Z'));
@@ -128,117 +132,96 @@ describe('createScheduler', () => {
     expect(slack.alerts).toHaveLength(0);
   });
 
-  it('dispatches the daily workflows on time with scheduled=true, once', async () => {
+  it('queues the daily worker jobs on time, once', async () => {
     const store = await freshStore();
-    const github = fakeGithub();
-    const s = createScheduler({ store, github, log: quiet });
+    const w = fakeWorker();
+    const s = createScheduler({ store, log: quiet, ...w.opts });
     await s.tick(new Date('2026-10-07T13:40:00Z')); // 8:40 CDT: ads report only
     await s.tick(new Date('2026-10-07T13:48:00Z'));
     await s.tick(new Date('2026-10-07T13:49:00Z'));
-    const daily = github.calls.filter(c => c.file !== 'submission-review.yml');
+    const daily = w.calls.filter(c => c.file !== 'submission-review.yml');
     expect(daily).toEqual([
-      { file: 'meta-ads.yml', ref: 'main', inputs: { scheduled: 'true' } },
-      { file: 'social-kit.yml', ref: 'main', inputs: { scheduled: 'true' } }
+      { file: 'meta-ads.yml', slot: '2026-10-07' },
+      { file: 'social-kit.yml', slot: '2026-10-07' }
     ]);
-    expect(github.calls.filter(c => c.file === 'submission-review.yml')).toHaveLength(2); // 8:30 and 8:45 slots
-    expect(github.calls.every(c => !c.inputs || !('town' in c.inputs))).toBe(true); // Victoria's: as before
+    expect(w.calls.filter(c => c.file === 'submission-review.yml')).toHaveLength(2); // 8:30 and 8:45 slots
     expect((await s.ran('social-kit', new Date('2026-10-07T21:00:00Z'))).ran).toBe(true);
     expect((await s.ran('social-kit', new Date('2026-10-08T21:00:00Z'))).ran).toBe(false);
     expect(await s.ran('nope')).toBeNull();
   });
 
-  it("names another town in every dispatch; Victoria's carry no town (MULTI_CITY_PLAN.md 3.5)", async () => {
-    expect(townInputs(undefined, VICTORIA)).toBeUndefined();
-    expect(townInputs({ scheduled: 'true' }, VICTORIA)).toEqual({ scheduled: 'true' });
-    const bay = townConfig({}, { town: { id: 'bay', siteName: 'The Bay 979', domain: 'thebay979.com', city: 'Bay City', state: 'TX', stateName: 'Texas', timezone: 'America/Chicago' } });
-    useTown(bay);
-    try {
-      // Until its GitHub Environment exists (TOWN_WORKFLOWS unset), another
-      // town starts no workflows: they'd run on Victoria's repo settings.
-      const off = fakeGithub();
-      await createScheduler({ store: await freshStore(), github: off, log: quiet }).tick(new Date('2026-10-07T13:48:00Z'));
-      expect(off.calls).toEqual([]);
-      process.env.TOWN_WORKFLOWS = '1';
-      const store = await freshStore();
-      const github = fakeGithub();
-      const s = createScheduler({ store, github, log: quiet });
-      await s.tick(new Date('2026-10-07T13:48:00Z'));
-      expect(github.calls.filter(c => c.file !== 'submission-review.yml')).toEqual([
-        { file: 'meta-ads.yml', ref: 'main', inputs: { scheduled: 'true', town: 'bay' } },
-        { file: 'social-kit.yml', ref: 'main', inputs: { scheduled: 'true', town: 'bay' } }
-      ]);
-      expect(github.calls.find(c => c.file === 'submission-review.yml').inputs).toEqual({ town: 'bay' });
-    } finally {
-      delete process.env.TOWN_WORKFLOWS;
-      useTown(VICTORIA);
-    }
+  it('queues the weekly digest Sunday at 9 PM town time', async () => {
+    const w = fakeWorker();
+    const s = createScheduler({ store: await freshStore(), log: quiet, ...w.opts });
+    await s.tick(new Date('2026-10-12T01:59:00Z')); // Sun 8:59 PM CDT
+    expect(w.calls.filter(c => c.file === 'weekly-digest.yml')).toEqual([]);
+    await s.tick(new Date('2026-10-12T02:00:00Z'));
+    await s.tick(new Date('2026-10-12T02:05:00Z'));
+    expect(w.calls.filter(c => c.file === 'weekly-digest.yml')).toEqual([{ file: 'weekly-digest.yml', slot: '2026-10-11' }]);
   });
 
   it('a town that has never collected starts only its collect', async () => {
     const bay = townConfig({}, { town: { id: 'bay', siteName: 'The Bay 979', domain: 'thebay979.com', city: 'Bay City', state: 'TX', stateName: 'Texas', timezone: 'America/Chicago' } });
     useTown(bay);
-    process.env.TOWN_WORKFLOWS = '1';
     try {
       let collected = false;
-      const github = fakeGithub();
-      const s = createScheduler({ store: await freshStore(), github, log: quiet, handlers: { collected: async () => collected } });
+      const w = fakeWorker();
+      const s = createScheduler({ store: await freshStore(), log: quiet, ...w.opts, handlers: { collected: async () => collected } });
       await s.tick(new Date('2026-10-07T13:48:00Z'));        // ads, social kit, review due: none start
-      expect(github.calls).toEqual([]);
+      expect(w.calls).toEqual([]);
       await s.tick(new Date('2026-10-07T20:30:00Z'));        // Wednesday's collect
-      expect(github.calls.map(c => c.file)).toEqual(['weekly-collect.yml']);
+      expect(w.calls.map(c => c.file)).toEqual(['weekly-collect.yml']);
       collected = true;
       await s.tick(new Date('2026-10-07T20:46:00Z'));
-      expect(github.calls.map(c => c.file)).toContain('submission-review.yml');
+      expect(w.calls.map(c => c.file)).toContain('submission-review.yml');
     } finally {
-      delete process.env.TOWN_WORKFLOWS;
       useTown(VICTORIA);
     }
   });
 
-  it('leaves dispatch jobs to GitHub\'s cron when no token is set', async () => {
+  it('without jobs on Railway the worker jobs don\'t run at all (nothing starts on GitHub)', async () => {
     const store = await freshStore();
-    const github = fakeGithub({ configured: false });
-    const s = createScheduler({ store, github, log: quiet });
+    const s = createScheduler({ store, log: quiet, github: { isConfigured: () => true, dispatchWorkflow: () => { throw new Error('never'); } } });
     await s.tick(new Date('2026-10-07T13:48:00Z'));
-    expect(github.calls).toHaveLength(0);
+    await s.tick(new Date('2026-10-11T20:30:00Z'));
     expect((await s.ran('social-kit', new Date('2026-10-07T21:00:00Z'))).ran).toBe(false);
+    expect((await s.ran('weekly-collect', new Date('2026-10-11T22:00:00Z'))).ran).toBe(false);
   });
 
-  it('alerts once a week when GitHub refuses the token, and the fallback cron still runs', async () => {
+  it('retries a job it couldn\'t queue, then alerts once', async () => {
     const store = await freshStore();
     const slack = fakeSlack();
-    const s = createScheduler({ store, slack, github: fakeGithub({ fail: 403 }), log: quiet });
-    await s.tick(new Date('2026-10-07T13:48:00Z'));
-    await createScheduler({ store, slack, github: fakeGithub({ fail: 403 }), log: quiet }).tick(new Date('2026-10-08T13:48:00Z'));
+    const w = fakeWorker({ fail: true });
+    const s = createScheduler({ store, slack, log: quiet, ...w.opts, jobs: [JOBS.find(j => j.name === 'social-kit')] });
+    for (const t of ['13:48', '13:51', '13:57', '14:05']) await s.tick(new Date(`2026-10-07T${t}:00Z`));
+    expect(w.calls).toHaveLength(3);
     expect(slack.alerts).toHaveLength(1);
-    expect(slack.alerts[0].d).toContain('Actions: write');
-    expect(s.state.dispatchBlocked.status).toBe(403);
-    expect((await s.ran('social-kit', new Date('2026-10-07T21:00:00Z'))).ran).toBe(false);
+    expect(slack.alerts[0].t).toContain("social-kit couldn't start");
   });
 
   it('calls the sponsor reports hook daily when it exists', async () => {
     const store = await freshStore();
     const seen = [];
-    const s = createScheduler({ store, github: fakeGithub({ configured: false }), log: quiet,
+    const s = createScheduler({ store, log: quiet,
       handlers: { sponsorReports: async now => { seen.push(now.toISOString()); } } });
     await s.tick(new Date('2026-10-07T14:01:00Z'));
     await s.tick(new Date('2026-10-07T15:01:00Z'));
     await s.tick(new Date('2026-10-08T14:01:00Z'));
     expect(seen).toHaveLength(2);
     // Without the hook the job is simply skipped.
-    await createScheduler({ store, github: fakeGithub({ configured: false }), log: quiet }).tick(new Date('2026-10-09T14:01:00Z'));
+    await createScheduler({ store, log: quiet }).tick(new Date('2026-10-09T14:01:00Z'));
   });
 });
 
 describe('weekly collect from the site', () => {
   // GitHub's cron skipped Sunday collects (Oct 4, Oct 11) and ran others
   // ~4 hours late, so the site starts them at 3:23 PM Central.
-  it('dispatches weekly-collect.yml Sunday and Wednesday at 3:23 PM Central, once a slot', async () => {
+  it('queues the collect Sunday and Wednesday at 3:23 PM Central, once a slot', async () => {
     const store = await freshStore();
-    const github = fakeGithub();
-    const s = createScheduler({ store, github, log: quiet });
+    const w = fakeWorker();
+    const s = createScheduler({ store, log: quiet, ...w.opts });
     await s.tick(new Date('2026-10-11T20:22:00Z')); // Sun 3:22 PM CDT: not yet
-    expect(github.calls.filter(c => c.file === 'weekly-collect.yml')).toEqual([]);
+    expect(w.calls.filter(c => c.file === 'weekly-collect.yml')).toEqual([]);
     await s.tick(new Date('2026-10-11T20:23:00Z'));
     await s.tick(new Date('2026-10-11T20:40:00Z'));
     await s.tick(new Date('2026-10-14T20:24:00Z')); // Wed
@@ -246,9 +229,8 @@ describe('weekly collect from the site', () => {
     // Winter: 3:23 PM CST is 21:23 UTC.
     await s.tick(new Date('2026-11-15T20:30:00Z'));
     await s.tick(new Date('2026-11-15T21:23:00Z'));
-    const collects = github.calls.filter(c => c.file === 'weekly-collect.yml');
-    expect(collects).toHaveLength(3);
-    expect(collects[0].inputs).toBeFalsy(); // Victoria: the workflow's default town
+    const collects = w.calls.filter(c => c.file === 'weekly-collect.yml');
+    expect(collects.map(c => c.slot)).toEqual(['2026-10-11', '2026-10-14', '2026-11-15']);
     expect(await s.ran('weekly-collect', new Date('2026-10-11T22:00:00Z'))).toMatchObject({ slot: '2026-10-11', ran: true });
     expect(await s.ran('weekly-collect-midweek', new Date('2026-10-14T22:00:00Z'))).toMatchObject({ slot: '2026-10-14', ran: true });
   });

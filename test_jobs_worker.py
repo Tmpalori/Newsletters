@@ -96,13 +96,13 @@ def test_submission_review_keeps_its_state_on_the_site(monkeypatch):
 def test_run_one_reports_every_outcome():
     site = FakeSite()
     assert jw.run_one(site, {"id": 1, "kind": "event-check", "slot": "s"}, run=lambda a, t, e=None: (0, ["fine"])) == "done"
-    assert jw.run_one(site, {"id": 2, "kind": "social-kit", "slot": "s"}) == "failed"
+    assert jw.run_one(site, {"id": 2, "kind": "nope", "slot": "s"}) == "failed"
 
     def boom(*a, **k):
         raise RuntimeError("disk full")
     assert jw.run_one(site, {"id": 3, "kind": "event-check", "slot": "s"}, run=boom) == "failed"
     assert [(f[0], f[1]) for f in site.finished] == [(1, "done"), (2, "failed"), (3, "failed")]
-    assert "social-kit" in site.finished[1][2]["error"]
+    assert "nope" in site.finished[1][2]["error"]
     assert "disk full" in site.finished[2][2]["error"]
     assert all("seconds" in f[2] for f in site.finished)
 
@@ -324,9 +324,141 @@ def test_social_plan_follows_the_github_days():
     assert jw.social_plan(TUE) == (["today"], "today", False)
 
 
-def test_victorias_kit_never_runs_on_the_worker():
-    status, result = jw.job_social_kit(SocialSite(), run=fake_kit_build([]), env={}, today=TUE)
-    assert status == "failed" and "GitHub" in result["error"]
+VIC_PAGE = "1388965530960534"
+
+
+@pytest.fixture
+def victoria(monkeypatch):
+    """jobs_worker and social_post reloaded as Victoria (TOWN unset), with no
+    Meta settings from the environment."""
+    import town as town_mod
+    monkeypatch.delenv("TOWN", raising=False)
+    monkeypatch.delenv("SITE_URL", raising=False)
+    for name in ("META_PAGE_ID", "META_PAGE_TOKEN", "IG_USER_ID", "META_TOWN", "SOCIAL_AUTOPOST"):
+        monkeypatch.delenv(name, raising=False)
+    importlib.reload(town_mod)
+    import social_post
+    importlib.reload(social_post)
+    monkeypatch.setattr(social_post, "RETRY_DELAYS", (0, 0))
+    importlib.reload(jw)
+    yield jw, social_post
+    importlib.reload(town_mod)
+    importlib.reload(social_post)
+    importlib.reload(jw)
+
+
+VIC_POSTING = {"SOCIAL_AUTOPOST": "1", "META_TOWN": "victoria", "META_PAGE_ID": VIC_PAGE, "META_PAGE_TOKEN": "tok"}
+
+
+def test_victorias_kit_runs_on_her_worker_and_posts_to_her_pinned_page(victoria):
+    w, _ = victoria
+    site = SocialSite()
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=VIC_POSTING, today=TUE, session=meta)
+    assert status == "done", result
+    assert site.live == result["build"]
+    assert ("POST", f"{VIC_PAGE}/feed") in meta.calls
+    assert not any("media" in p for _, p in meta.calls)                       # no Instagram id pinned: Facebook only
+    assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}}
+
+
+@pytest.mark.parametrize("env", [
+    {**VIC_POSTING, "META_PAGE_ID": MEDFORD_PAGE},       # another town's page on a service left as Victoria
+    {**VIC_POSTING, "META_TOWN": "medford"},
+])
+def test_victorias_worker_never_posts_with_another_towns_settings(victoria, env):
+    w, _ = victoria
+    site = SocialSite()
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([]), env=env, today=TUE, session=meta)
+    assert status == "failed" and "aren't victoria's own" in result["error"] and "town.py VICTORIA" in result["error"]
+    assert meta.calls == []
+
+
+def test_switch_day_never_posts_what_github_already_did(victoria):
+    """The site seeds social_posted from git's docs/social/latest/posted.json
+    (server/jobs.js seeds), so the first worker run skips a slot GitHub posted."""
+    w, _ = victoria
+    site = SocialSite(files={"social_posted": {"2026-10-15:today": {"facebook": f"{VIC_PAGE}_122111655801492266"}}})
+    meta = Meta(site)
+    status, _ = w.job_social_kit(site, run=fake_kit_build([]), env=VIC_POSTING, today=TUE, session=meta)
+    assert status == "done"
+    assert not any(p.endswith("/feed") for _, p in meta.calls)
+
+
+# ─── the ads report and the digest ───────────────────────────────────────
+
+def fake_ads(report=None, code=0, tail=None):
+    calls = []
+
+    def run(args, timeout, env=None):
+        calls.append((args, env))
+        assert args[1:5] == ["-u", "scripts/meta_ads.py", "report", "--scheduled"]
+        if report is not None:
+            json.dump({"report": report, "link": "https://adsmanager.facebook.com/x"}, open(args[args.index("--result") + 1], "w"))
+        return code, tail or ["ok"]
+    run.calls = calls
+    return run
+
+
+def test_victorias_ads_report_runs_on_her_page_token_and_goes_back_to_the_site(victoria):
+    w, _ = victoria
+    run = fake_ads("📈 Meta ads: yesterday $5")
+    status, result = w.job_meta_ads(FakeSite(), run=run, env={"META_PAGE_ID": VIC_PAGE, "META_PAGE_TOKEN": "tok", "SUBMISSION_REVIEW_SECRET": "r" * 40})
+    assert status == "done" and result["report"] == "📈 Meta ads: yesterday $5" and result["link"]
+    env = run.calls[0][1]
+    assert env["META_ADS_TOKEN"] == "tok" and env["ADS_SPEND_SECRET"] == "r" * 40     # meta-ads.yml's fallbacks
+
+
+def test_ads_report_quiet_week_and_failures(victoria):
+    w, _ = victoria
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads(""), env={"META_PAGE_TOKEN": "tok"})
+    assert status == "done" and "report" not in result
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads(code=1, tail=["::error::Meta refused API version v19.0"]), env={"META_PAGE_TOKEN": "tok"})
+    assert status == "failed" and "v19.0" in result["error"]
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads("x"), env={"META_PAGE_TOKEN": "tok", "META_PAGE_ID": MEDFORD_PAGE})
+    assert status == "failed" and "aren't victoria's own" in result["error"]
+
+
+def test_ads_report_is_a_clean_no_op_without_ads_settings(medford):
+    w, _ = medford
+    run = fake_ads("x")
+    # No token at all.
+    assert w.job_meta_ads(FakeSite(), run=run, env={}) == ("done", {"skipped": "no ads settings (META_ADS_TOKEN / META_PAGE_TOKEN isn't set)"})
+    # Its page token for posting, but no ad account pinned in its town.json.
+    status, result = w.job_meta_ads(FakeSite(), run=run, env=POSTING)
+    assert status == "done" and "no ad account pinned" in result["skipped"]
+    assert run.calls == []
+
+
+class DigestSession:
+    def __init__(self, body):
+        self.body, self.urls = body, []
+
+    def get(self, url, timeout=None):
+        self.urls.append(url)
+        r = _Resp(self.body)
+        r.raise_for_status = lambda: None
+        return r
+
+
+def test_digest_mails_the_live_list_and_is_quiet_without_smtp(victoria):
+    w, _ = victoria
+    calls = []
+
+    def run(args, timeout, env=None):
+        calls.append(args)
+        assert json.load(open(args[args.index("--candidates") + 1]))["events"] == [{"name": "E"}]
+        return 0, ["sent"]
+    assert w.job_digest(FakeSite(), run=run, env={})[0] == "done" and calls == []
+    sess = DigestSession({"events": [{"name": "E"}]})
+    status, result = w.job_digest(FakeSite(), run=run, env={"SMTP_EMAIL": "a@b.c", "SMTP_PASSWORD": "p"}, session=sess)
+    assert status == "done" and result["events"] == 1
+    assert sess.urls == ["https://www.thevic361.com/events.json?all=1"]
+    assert calls[0][2:] == ["send_digest.py", "--candidates", calls[0][4], "--to", "tristen.m.palori@gmail.com", "--all-days"]
+    status, _ = w.job_digest(FakeSite(), run=lambda a, t, e=None: (1, ["SMTP auth failed"]),
+                             env={"SMTP_EMAIL": "a@b.c", "SMTP_PASSWORD": "p"}, session=sess)
+    assert status == "failed"
 
 
 def test_builds_and_hands_over_the_kit_without_posting_when_autopost_is_off(medford):

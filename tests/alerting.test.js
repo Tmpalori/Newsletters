@@ -237,10 +237,9 @@ describe('a repeating job that keeps failing', () => {
     const alerts = [], notes = [];
     const slack = { alert: (k, t) => { alerts.push(t); }, notify: m => { notes.push(m.title); } };
     let fail = true;
-    const github = { branch: 'main', isConfigured: () => true,
-      async dispatchWorkflow() { if (fail) { const e = new Error('GitHub 502'); e.status = 502; throw e; } } };
+    const queueJob = async () => { if (fail) throw new Error('database down'); };
     const jobs = [{ name: 'submission-review', every: 15, workflow: 'submission-review.yml' }];
-    const s = createScheduler({ store: {}, github, slack, jobs, log: { warn() {} } });
+    const s = createScheduler({ store: {}, queueJob, canQueue: () => true, slack, jobs, log: { warn() {} } });
     for (const m of ['00', '15', '30']) await s.tick(new Date(`2026-10-12T15:${m}:00Z`));
     expect(alerts).toEqual([]);
     await s.tick(new Date('2026-10-12T15:45:00Z'));

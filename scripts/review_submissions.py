@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AI review of free event submissions (server/submissionReview.js).
 
-Runs from .github/workflows/submission-review.yml every 15 minutes. For
+Runs on the town's jobs worker (scripts/jobs_worker.py) every 15 minutes. For
 each submission waiting on the site:
 
   1. Rules first, the same ones the collector and event check use:

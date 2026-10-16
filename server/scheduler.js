@@ -1,45 +1,40 @@
 /* server/scheduler.js — The always-on Railway server is the clock.
  *
- * GitHub's cron runs hours late on this repo (Monday's 12:43 UTC newsletter
- * ran at 20:47; the 13:47 social kit at 21:13; "hourly" uptime every 3–6h)
- * or not at all (Sunday collects on Oct 4 and Oct 11), so the time-critical
- * jobs are started from here instead, in Central time (Intl does the DST
- * switch):
+ * Every town's jobs run on Railway (JOBS_ON_RAILWAY.md): the scheduler
+ * decides a job is due, in the town's timezone (Intl does the DST switch),
+ * and either runs it in-process or queues it for the town's jobs worker
+ * (server/jobs.js, scripts/jobs_worker.py). Nothing is started on GitHub.
+ * Times are Victoria's; a town may move them (town.json "schedule"):
  *
- *   weekly-collect     Sun 3:23 PM   dispatch weekly-collect.yml (the week's events)
+ *   weekly-collect     Sun 3:23 PM   queue a collect (the week's events)
  *   weekly-collect-midweek Wed 3:23 PM the same, midweek
- *   event-check        Mon 6:43 AM   dispatch event-check.yml (before the send)
+ *   event-check        Mon 6:43 AM   queue the event check (before the send)
  *   event-check-weekend Thu 6:00 AM  the same, before the weekend issue
  *   newsletter         Mon 7:43 AM   sendWeekly() in-process; retried on failure
  *   newsletter-weekend Thu 7:00 AM   the weekend issue (Friday–Sunday), same way
- *   meta-ads           daily 8:37 AM dispatch meta-ads.yml (scheduled=true)
- *   social-kit         daily 8:47 AM dispatch social-kit.yml (scheduled=true)
+ *   meta-ads           daily 8:37 AM queue the ads report
+ *   social-kit         daily 8:47 AM queue the social kit (build and post)
+ *   weekly-digest      Sun 9:00 PM   queue the digest email of what's collected
  *   privacy-purge      daily 3:17 AM drop old submitter IPs and contact messages (server/privacy.js)
  *   sponsor-reports    daily 9:00 AM sponsors.sendSponsorReports(now), if it exists
- *   submission-review  every 15 min  dispatch submission-review.yml
+ *   submission-review  every 15 min  queue the AI submission review
  *   health             hourly        retry a missed boot auto-publish, then check the
  *                                    database, upcoming events, collector freshness
  *
- * Each daily/weekly job runs once per slot (its Central date). The claim is
+ * Each daily/weekly job runs once per slot (its local date). The claim is
  * a row in the store (scheduler_runs), taken atomically, so a restart or the
  * old and new containers overlapping during a deploy can't fire it twice.
  * A job missed while the server was down still runs later the same day
  * (until `until`). The 15-minute and hourly jobs are harmless to repeat and
- * only tracked in memory.
- *
- * The GitHub crons stay as late fallbacks: each lists its slot at both the
- * CDT and the CST UTC time, keeps only the one matching today's offset (so
- * it never asks before the slot, when lastSlot() still means yesterday),
- * then asks GET /api/scheduler/ran and skips itself when the site already
- * ran that slot (submission review is idempotent anyway).
+ * only tracked in memory. A worker job (`workflow`, the GitHub workflow it
+ * replaced, which names its kind in server/jobs.js) runs only where jobs
+ * are on (JOBS_ON_RAILWAY=1); elsewhere it doesn't run at all.
  *
  * Production only (RAILWAY_ENVIRONMENT_NAME=production); SCHEDULER=0 turns it
- * off. Dispatching needs GITHUB_TOKEN with Actions: write; without a token
- * the dispatch jobs are left to GitHub's cron, and a token GitHub refuses
- * (401/403) gets one Slack alert a week and a setup-checklist warning.
+ * off. GET /api/scheduler/ran still answers whether a slot ran.
  */
 
-import { town, townInputs, townWorkflowsReady } from './town.js';
+import { town } from './town.js';
 
 const MIN = 60 * 1000;
 
@@ -82,6 +77,8 @@ export const JOBS = [
   { name: 'newsletter-weekend', dow: 4, at: '07:00', until: '12:00', retryMins: [5, 15, 30] },
   { name: 'meta-ads', at: '08:37', until: '18:00', workflow: 'meta-ads.yml', inputs: { scheduled: 'true' } },
   { name: 'social-kit', at: '08:47', until: '18:00', workflow: 'social-kit.yml', inputs: { scheduled: 'true' } },
+  // Sunday night, after the afternoon's collect (weekly-digest.yml's time).
+  { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', workflow: 'weekly-digest.yml' },
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },
   // Personal-data retention (server/privacy.js): old submitter IPs and
   // contact messages. Early morning, out of everyone's way.
@@ -179,51 +176,22 @@ export function schedulerEnabled(env = process.env) {
 }
 
 /**
+ * queueJob(job, slot): hands a worker job to the town's jobs worker (null: jobs are off).
+ * canQueue(job): whether the worker runs it.
  * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now), collected() }, each async.
  *   collected() → whether the town has ever collected (only the collect workflow starts until it has)
  *   newsletter() → { ok, error?, retry?, message? } (see index.js)
  *   sponsorReports / health may be missing: the job is then skipped.
  */
-export function createScheduler({ store, github, slack = null, nowFn = () => new Date(), handlers = {}, siteUrl = '', jobs = JOBS, log = console, queueJob = null, canQueue = () => false }) {
+export function createScheduler({ store, slack = null, nowFn = () => new Date(), handlers = {}, siteUrl = '', jobs = JOBS, log = console, queueJob = null, canQueue = () => false }) {
   checkTownSchedule(jobs);
   const memory = new Map(); // job → last in-memory slot
   const busy = new Set();
   const failStreak = new Map(); // repeating job → failed runs in a row
-  const state = { dispatchBlocked: null, lastTick: null };
+  const state = { lastTick: null };
   let timer = null;
 
   const persisted = job => !job.every;
-
-  // Something the owner must fix: GitHub refused the token. Once a week
-  // (persisted, so restarts don't repeat it), plus the setup checklist.
-  async function dispatchRefused(err, now) {
-    state.dispatchBlocked = { status: err.status, message: err.detail || err.message, at: now.toISOString() };
-    const week = lastSlot({ dow: 1, at: '00:00' }, now);
-    let first = true;
-    try {
-      first = (await store.claimJobRun('alert:dispatch-refused', week, now)).claimed;
-      if (first) await store.finishJobRun('alert:dispatch-refused', week, { status: 'done', detail: String(err.status) });
-    } catch { /* alert anyway */ }
-    if (first && slack) {
-      slack.alert('scheduler-dispatch', "The site can't start GitHub workflows on time",
-        `GitHub answered ${err.status}: ${err.detail || err.message}. The event collect, social posts, the event check, the ads report and the AI submission review fall back to GitHub's own schedule, which runs hours late. ` +
-        'Fix: give GITHUB_TOKEN in Railway Actions: write on this repo (fine-grained token).', `${siteUrl}/admin.html`);
-    }
-  }
-
-  async function dispatch(job, now) {
-    try {
-      await github.dispatchWorkflow(job.workflow, github.branch, townInputs(job.inputs));
-      state.dispatchBlocked = null;
-      return { ok: true };
-    } catch (err) {
-      if ([401, 403, 404, 422].includes(err.status)) {
-        await dispatchRefused(err, now);
-        return { ok: false, final: true, message: err.message };
-      }
-      return { ok: false, message: err.message };
-    }
-  }
 
   // Jobs on Railway (server/jobs.js): the town's jobs worker runs it.
   async function queue(job, slot) {
@@ -237,8 +205,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
 
   // Run one job's body. → { ok, final?, message? }
   async function runJob(job, now, slot) {
-    if (job.workflow && queueJob && canQueue(job)) return queue(job, slot);
-    if (job.workflow) return dispatch(job, now);
+    if (job.workflow) return queue(job, slot);
     const fn = { newsletter: handlers.newsletter, 'newsletter-weekend': handlers.newsletterWeekend, 'sponsor-reports': handlers.sponsorReports,
       'privacy-purge': handlers.privacyPurge, health: handlers.health }[job.name];
     try {
@@ -252,11 +219,8 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
   // Whether a job can run at all here; otherwise it isn't claimed, so a
   // fallback (GitHub's cron) still does it.
   function available(job) {
-    // With jobs on Railway what the worker runs is queued for it; the rest
-    // (social kit, ads report; JOBS_ON_RAILWAY.md 2b) still starts on GitHub
-    // where the town's workflows are on (Victoria), on time.
-    if (job.workflow && queueJob && canQueue(job)) return true;
-    if (job.workflow) return Boolean(github && github.isConfigured()) && townWorkflowsReady();
+    // A worker job runs only where jobs are on, by the town's jobs worker.
+    if (job.workflow) return Boolean(queueJob) && canQueue(job);
     if (job.name === 'newsletter') return typeof handlers.newsletter === 'function' && (!handlers.newsletterReady || handlers.newsletterReady());
     if (job.name === 'newsletter-weekend') return typeof handlers.newsletterWeekend === 'function' && (!handlers.newsletterWeekendReady || handlers.newsletterWeekendReady());
     if (job.name === 'sponsor-reports') return typeof handlers.sponsorReports === 'function';
@@ -335,8 +299,7 @@ export function createScheduler({ store, github, slack = null, nowFn = () => new
     }
   }
 
-  // Did the scheduler already run this job's most recent slot? (The
-  // fallback crons ask this before doing the same work again.)
+  // Did the scheduler already run this job's most recent slot?
   async function ran(name, now = nowFn()) {
     const job = jobs.find(j => j.name === name && persisted(j));
     if (!job) return null;

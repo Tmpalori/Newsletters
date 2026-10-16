@@ -44,6 +44,11 @@ VICTORIA = {
     "area_code": "361",
     "timezone": "America/Chicago",
     # Social posts
+    # Her own Meta ids, as another town's town.json pins them under "meta"
+    # (meta_allowed): the Facebook page The Vic 361 posts to. No Instagram
+    # id until one is linked and pinned (Facebook only), no ad account pin
+    # (her token sees exactly one ad account).
+    "meta": {"page_id": "1388965530960534"},
     "hashtags": "#VictoriaTX #ThingsToDoVictoria #VictoriaTexas #361 #TheVic361",
     # Collector (collect_events.py): the area it lists, what it asks sources
     # for, and the place names its checks and AI prompts use.
@@ -215,13 +220,28 @@ def meta_allowed(town=None, env=None, use="post"):
     ad account. use: "post" (page, Instagram) or "ads" (ad account)."""
     env = os.environ if env is None else env
     town = town or TOWN
-    if town["id"] == VICTORIA["id"]:
-        return True
-    if env.get("META_TOWN", "").strip().lower() != town["id"]:
-        return False
     pins = town.get("meta") if isinstance(town.get("meta"), dict) else {}
     pin = lambda k: str(pins.get(k) or "").strip()
     got = lambda k: env.get(k, "").strip()
+    if town["id"] == VICTORIA["id"]:
+        # Victoria's settings were the repo-level ones on GitHub, so
+        # META_TOWN may be unset; on Railway (JOBS_ON_RAILWAY.md phase 5)
+        # what she's given must still be hers: a jobs service left on
+        # TOWN=victoria with another town's page, Instagram or ad account
+        # would post or report that town's as hers.
+        if got("META_TOWN").lower() not in ("", VICTORIA["id"]):
+            return False
+        if got("META_PAGE_ID") and pin("page_id") and got("META_PAGE_ID") != pin("page_id"):
+            return False
+        if got("IG_USER_ID") and pin("ig_user_id") and got("IG_USER_ID") != pin("ig_user_id"):
+            return False
+        account = lambda v: v.removeprefix("act_")
+        if use == "ads" and got("META_AD_ACCOUNT_ID") and pin("ad_account_id") \
+                and account(got("META_AD_ACCOUNT_ID")) != account(pin("ad_account_id")):
+            return False
+        return True
+    if env.get("META_TOWN", "").strip().lower() != town["id"]:
+        return False
     if use == "ads":
         account = lambda v: v.removeprefix("act_")
         return bool(pin("ad_account_id")) and account(got("META_AD_ACCOUNT_ID")) == account(pin("ad_account_id"))
