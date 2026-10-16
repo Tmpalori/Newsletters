@@ -46,12 +46,23 @@ export function keyOk(header, key) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// Meta's daily rows (store.listAdSpend) added up for from <= day < until;
+// null when none were sent for those days.
+export function metaTotals(rows, from, until) {
+  const days = (rows || []).filter(r => r && r.day >= from && r.day < until);
+  if (!days.length) return null;
+  const t = { spend: 0, impressions: 0, clicks: 0, leads: 0 };
+  for (const r of days) for (const k of Object.keys(t)) t[k] += Number(r[k]) || 0;
+  t.spend = Math.round(t.spend * 100) / 100;
+  return { ...t, cost_per_lead: t.leads ? Math.round((t.spend / t.leads) * 100) / 100 : null };
+}
+
 // The summary from what the town's store and server already know. Every
 // part is best effort: a piece that fails reads null instead of failing all,
 // and is named in `failed` (only present when something failed), so HQ
 // shows "database down" rather than a green row of zeros (0 subscribers,
 // $0) that would also drop the town out of the network totals.
-export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null, getNewsletterRuns = null }) {
+export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null, getNewsletterRuns = null, getAdCampaigns = null, dormant = false }) {
   const now = nowFn();
   const today = localDateStr(now);
   const failed = [];
@@ -90,6 +101,7 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   // Each issue's latest scheduled slot: sent (and to how many) or why not,
   // since a slot that ran isn't always an issue that went out.
   const runsOut = getNewsletterRuns ? await safe(getNewsletterRuns, null, 'newsletter_runs') : null;
+  const campaigns = getAdCampaigns ? await safe(getAdCampaigns, null, 'ads') : null;
   // A configured database that doesn't answer its ping fails the store's
   // reads too (and setupReport swallows those): say so.
   if (h && h.database === false && h.database_configured && !failed.includes('database')) failed.push('database');
@@ -135,14 +147,23 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       live_orders: orders.filter(o => o && !o.test && KEPT.has(o.status)).length,
       months
     },
-    ads: bad('ads') || bad('subscribers') ? null : { spend_30_days: month30.spend, cost_per_sub_30_days: month30.cost_per_sub },
+    ads: bad('ads') || bad('subscribers') ? null : {
+      spend_30_days: month30.spend, cost_per_sub_30_days: month30.cost_per_sub,
+      // Meta's own counts (its Lead is a signup on the site): the last 7
+      // and 30 full days, and the town's campaigns as of the last ads report.
+      meta_7_days: metaTotals(spend, addDays(today, -7), today),
+      meta_30_days: metaTotals(spend, addDays(today, -30), today),
+      ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {})
+    },
     sponsors: bad('revenue') ? null : sponsorCounts(orders, today),
     submissions_waiting: s.status.pending_submissions ?? null,
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,
     setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') },
     ...(getJobs ? { jobs: jobsOut } : {}),
-    ...(getNewsletterRuns ? { newsletter_runs: runsOut } : {})
+    ...(getNewsletterRuns ? { newsletter_runs: runsOut } : {}),
+    // A paused town (TOWN_DORMANT=1): HQ shows it as dormant, not broken.
+    ...(dormant ? { dormant: true } : {})
   };
 }
 

@@ -351,6 +351,30 @@ def daily_rows(api, account_id, today=None):
     return [got.get(d) or {"day": d, "spend": 0.0, "impressions": 0, "clicks": 0, "leads": 0} for d in days]
 
 
+def campaign_snapshot(api, account_id):
+    """This town's campaigns for HQ: name, status, daily budget (dollars, the
+    campaign's or else its ad sets'), and the last 7 days' spend, leads and
+    link clicks. Archived and deleted ones are left out."""
+    campaigns, adsets, _ = structure(api, account_id)
+    stats = {r.get("campaign_name"): r for r in campaign_rows(api, account_id, "spend,inline_link_clicks,actions", date_preset="last_7d")}
+    out = []
+    for c in campaigns:
+        status = c.get("effective_status")
+        if status not in LIVE | {"PAUSED", "CAMPAIGN_PAUSED"}:
+            continue
+        budget = c.get("daily_budget")
+        if not budget:
+            sets = [float(a["daily_budget"]) for a in adsets if a.get("campaign_id") == c["id"] and a.get("daily_budget")]
+            budget = sum(sets) if sets else None
+        r = stats.get(c.get("name")) or {}
+        out.append({"name": c.get("name"), "status": status,
+                    "daily_budget": round(float(budget) / 100, 2) if budget else None,
+                    "spend_7_days": float(r.get("spend") or 0),
+                    "leads_7_days": action(r, "lead") or action(r, "offsite_conversion.fb_pixel_lead"),
+                    "clicks_7_days": int(float(r.get("inline_link_clicks") or 0))})
+    return out
+
+
 def push_spend(api, account):
     """Send the daily spend to the site; it answers with its own subscriber
     counts. None (with a warning) when that isn't set up or fails: the
@@ -360,7 +384,12 @@ def push_spend(api, account):
         return None
     try:
         days = daily_rows(api, account["id"])
-        r = api.s.request("POST", f"{SITE}/api/ads/spend", json={"days": days}, timeout=30,
+        body = {"days": days}
+        try:
+            body["campaigns"] = campaign_snapshot(api, account["id"])
+        except AdsError as e:   # the spend still goes; HQ shows the last campaigns it had
+            print(f"Couldn't read the campaigns for HQ: {e}")
+        r = api.s.request("POST", f"{SITE}/api/ads/spend", json=body, timeout=30,
                           headers={"X-Cron-Secret": secret, "User-Agent": "vic361-meta-ads"})
         body = r.json() if r.status_code == 200 else {}
     except (requests.RequestException, AdsError, ValueError) as e:

@@ -167,6 +167,17 @@ describe('growth endpoints', () => {
       { day: '2026-10-11', spend: 0 }, { day: '2026-10-12', spend: 4 }, { day: '2026-10-13', spend: 10, impressions: 0 }]);
   });
 
+  it('keeps the campaigns the ads report saw, for HQ', async () => {
+    const store = await start();
+    await postSpend({ days: [], campaigns: [{ name: 'Vic Newsletter Leads - Copy', status: 'ACTIVE', daily_budget: 40, spend_7_days: '26.14', leads_7_days: 15, clicks_7_days: 91 },
+      { nope: true }] });
+    const f = await store.getTownFile('ad_campaigns');
+    expect(f.data.campaigns).toEqual([{ name: 'Vic Newsletter Leads - Copy', status: 'ACTIVE', daily_budget: 40, spend_7_days: 26.14, leads_7_days: 15, clicks_7_days: 91 }]);
+    // A post without campaigns leaves the last ones.
+    await postSpend({ days: [{ day: '2026-10-13', spend: 1 }] });
+    expect((await store.getTownFile('ad_campaigns')).data.campaigns).toHaveLength(1);
+  });
+
   it('the admin report needs a login and has the goals, days, issues and weeks', async () => {
     await start();
     await postSpend({ days: [{ day: '2026-10-13', spend: 8 }] });

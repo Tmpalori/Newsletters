@@ -2834,6 +2834,11 @@ export async function createApp(opts = {}) {
       setup: setupReport,
       getJobs: jobs.enabled ? async () => jobsSummary(await jobs.stats()) : null,
       getNewsletterRuns: async () => ({ weekly: await scheduler.ran('newsletter'), weekend: await scheduler.ran('newsletter-weekend') }),
+      getAdCampaigns: typeof store.getTownFile === 'function' ? async () => {
+        const f = await store.getTownFile('ad_campaigns');
+        return f ? { campaigns: (f.data && f.data.campaigns) || [], updated_at: f.updated_at } : null;
+      } : null,
+      dormant: Boolean(town.dormant),
       // database: Postgres configured and answering a ping now (3 s), not
       // just configured: a town whose database is down must not read healthy.
       health: async () => {

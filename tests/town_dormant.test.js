@@ -39,7 +39,7 @@ async function boot({ dormant }) {
     storeBundle: { kind: 'file', store }, eventsFile, candidatesFile: path.join(dir, 'missing-candidates.json'),
     town: { ...BAY, dormant }, trustProxy: false, slack, now: () => NOW, startScheduler: false,
     siteUrl: 'https://www.thebay979.com', autoPublish: true, autoPublishDelayMs: 0,
-    stripeSecretKey: 'sk_test_x', stripeWebhookSecret: 'whsec_x'
+    stripeSecretKey: 'sk_test_x', stripeWebhookSecret: 'whsec_x', hqApiKey: 'hq-test-key-0123456789'
   });
   await new Promise(r => setTimeout(r, 50));
   await out.store.addSubscriber({ email: 'already@example.com', source: 'footer' });
@@ -125,6 +125,8 @@ describe('a paused town’s site', () => {
       expect(co.headers.get('location')).toBe('/advertise');
 
       expect(await (await fetch(t.base + '/api/config')).json()).toMatchObject({ dormant: true });
+      const hq = await (await fetch(t.base + '/api/hq/summary', { headers: { Authorization: 'Bearer hq-test-key-0123456789' } })).json();
+      expect(hq.dormant).toBe(true);   // HQ shows it as dormant, not broken
       // Collected before the pause, workflows on: a running town would say "0
       // upcoming", "stale" and "missed collect", and alert on the missing candidates.
       const problems = (await t.healthCheck(NOW)).problems;

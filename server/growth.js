@@ -226,8 +226,16 @@ export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, now
     const clean = rows.filter(r => r && realDay(String(r.day))).slice(0, 120)
       .map(r => ({ day: String(r.day), spend: round2(num(r.spend)), impressions: Math.round(num(r.impressions)),
         clicks: Math.round(num(r.clicks)), leads: Math.round(num(r.leads)) }));
+    // The town's campaigns as the ads report saw them (scripts/meta_ads.py
+    // campaign_snapshot), for HQ: name, status, budget, last 7 days.
+    const cams = Array.isArray((req.body || {}).campaigns) ? req.body.campaigns.slice(0, 30)
+      .filter(c => c && typeof c.name === 'string')
+      .map(c => ({ name: c.name.slice(0, 120), status: String(c.status || '').slice(0, 30),
+        daily_budget: c.daily_budget == null ? null : round2(num(c.daily_budget)),
+        spend_7_days: round2(num(c.spend_7_days)), leads_7_days: Math.round(num(c.leads_7_days)), clicks_7_days: Math.round(num(c.clicks_7_days)) })) : null;
     try {
       await store.saveAdSpend(clean);
+      if (cams && typeof store.setTownFile === 'function') await store.setTownFile('ad_campaigns', { campaigns: cams }, nowFn());
       const today = localDateStr(nowFn());
       const yday = addDays(today, -1);
       const daily = dailyGrowth(await store.listSubscriberStats(), clean, { today, days: 8 });
