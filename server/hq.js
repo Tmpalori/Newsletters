@@ -51,7 +51,7 @@ export function keyOk(header, key) {
 // and is named in `failed` (only present when something failed), so HQ
 // shows "database down" rather than a green row of zeros (0 subscribers,
 // $0) that would also drop the town out of the network totals.
-export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null }) {
+export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null, getNewsletterRuns = null }) {
   const now = nowFn();
   const today = localDateStr(now);
   const failed = [];
@@ -87,6 +87,9 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   // Jobs on Railway only (server/jobs.js): each job's last run and the
   // worker's last check-in, so HQ and the owner's assistant see them.
   const jobsOut = getJobs ? await safe(getJobs, null, 'jobs') : null;
+  // Each issue's latest scheduled slot: sent (and to how many) or why not,
+  // since a slot that ran isn't always an issue that went out.
+  const runsOut = getNewsletterRuns ? await safe(getNewsletterRuns, null, 'newsletter_runs') : null;
   // A configured database that doesn't answer its ping fails the store's
   // reads too (and setupReport swallows those): say so.
   if (h && h.database === false && h.database_configured && !failed.includes('database')) failed.push('database');
@@ -138,7 +141,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,
     setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') },
-    ...(getJobs ? { jobs: jobsOut } : {})
+    ...(getJobs ? { jobs: jobsOut } : {}),
+    ...(getNewsletterRuns ? { newsletter_runs: runsOut } : {})
   };
 }
 

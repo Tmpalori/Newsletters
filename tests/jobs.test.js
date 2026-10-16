@@ -296,6 +296,11 @@ describe('helpers', () => {
     expect(upcomingCount(CANDIDATES, NOW)).toBe(2);
   });
 
+  it('does not count the week\'s days already past', () => {
+    const past = { events: [...CANDIDATES.events, { date: '2026-10-05', name: 'Monday Trivia' }, { date: '2026-10-07', name: 'Today' }] };
+    expect(upcomingCount(past, NOW)).toBe(3);
+  });
+
   it('createJobs is off without the secret', () => {
     expect(createJobs({ store: {}, env: { JOBS_ON_RAILWAY: '1' } }).enabled).toBe(false);
   });
@@ -452,5 +457,19 @@ describe('the ads report and the digest on the worker', () => {
       await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'Meta ads daily check failed: token' } });
     }
     expect(t.slack.alerts.map(a => a.title)).toEqual(['Meta ads report failed', 'Weekly digest email failed']);
+  });
+
+  it('a digest skipped for missing SMTP settings is said in alerts, not a quiet "done"', async () => {
+    const t = await start();
+    const run = async result => {
+      await t.store.enqueueJob('digest', `s${Math.random()}`, {}, NOW);
+      const job = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+      return t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'done', result });
+    };
+    await run({ events: 40 });
+    expect(t.slack.notes).toEqual([]);
+    await run({ skipped: "SMTP_EMAIL / SMTP_PASSWORD aren't set on the jobs service" });
+    expect(t.slack.notes).toEqual([expect.objectContaining({ title: '📭 Weekly digest email not sent', channel: 'alerts' })]);
+    expect(t.slack.notes[0].text).toContain('SMTP_EMAIL');
   });
 });

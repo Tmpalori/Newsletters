@@ -63,6 +63,11 @@ describe('alerts before a town can collect', () => {
     expect((await healthCheck(NOW)).problems).not.toContain('upcoming');
   });
 
+  it('a paused town (collected, then jobs and workflows off): no "Auto-publish could not run" on each deploy', async () => {
+    const { slack } = await boot({ town: BAY, collected: true });
+    expect(slack.alerts.filter(a => a.k === 'auto-publish')).toEqual([]);
+  });
+
   it('the same town once it has collected and its workflows are on: alerts as usual', async () => {
     const { slack, healthCheck } = await boot({ town: BAY, workflows: true, collected: true });
     expect(slack.alerts.find(a => a.k === 'auto-publish').t).toBe('Auto-publish could not run');

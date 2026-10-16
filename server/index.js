@@ -2455,6 +2455,9 @@ export async function createApp(opts = {}) {
   function publishFresh() {
     return (autoRun || Promise.resolve()).catch(() => {}).then(() => runAutoPublish());
   }
+  // Jobs and workflows off: nothing collects for this town (Kearney and
+  // Tupelo while paused). Victoria always has one or the other.
+  const townPaused = () => !jobs.enabled && !townWorkflowsReady();
   if (autoOnBoot) {
     const t = setTimeout(() => {
       runAutoPublish().then(async r => {
@@ -2463,6 +2466,12 @@ export async function createApp(opts = {}) {
         // main). Victoria has always collected.
         if (r && !r.ok && r.error === 'no-candidates' && town.id !== VICTORIA.id && !(await hasCollected())) {
           console.log('[auto-publish] no candidates yet; this town has not collected');
+          return;
+        }
+        // A paused town can't collect again, so a missing candidates.json is
+        // expected, not news on every deploy.
+        if (r && !r.ok && r.error === 'no-candidates' && townPaused()) {
+          console.log('[auto-publish] no candidates; this town is paused (jobs and workflows off)');
           return;
         }
         // e.g. candidates.json unreadable: run() reports it rather than throwing.
@@ -2486,7 +2495,7 @@ export async function createApp(opts = {}) {
   // a boot publish was missed. Failures here only log; the boot alert has
   // already said so, and the site check flags a stalled list.
   async function retryAutoPublish() {
-    if (!autoOnBoot) return null;
+    if (!autoOnBoot || townPaused()) return null;
     try {
       const r = await runAutoPublish();
       if (r && r.ok && !r.skipped && autoFailed) {
@@ -2540,7 +2549,9 @@ export async function createApp(opts = {}) {
   app.get('/api/scheduler/ran', wrap(async (req, res) => {
     const out = await scheduler.ran(String(req.query.job || ''));
     if (!out) return res.status(404).json({ ok: false, error: 'unknown-job' });
-    res.set('Cache-Control', 'no-store').json({ ok: true, ...out });
+    // Public: the outcome ("sent", "no-subscribers"), not the detail's counts.
+    const { detail: _detail, ...pub } = out;
+    res.set('Cache-Control', 'no-store').json({ ok: true, ...pub });
   }));
 
   // Whether the town has ever collected: auto-publish records when the
@@ -2820,6 +2831,7 @@ export async function createApp(opts = {}) {
       getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : []),
       setup: setupReport,
       getJobs: jobs.enabled ? async () => jobsSummary(await jobs.stats()) : null,
+      getNewsletterRuns: async () => ({ weekly: await scheduler.ran('newsletter'), weekend: await scheduler.ran('newsletter-weekend') }),
       // database: Postgres configured and answering a ping now (3 s), not
       // just configured: a town whose database is down must not read healthy.
       health: async () => {

@@ -45,7 +45,7 @@ import slack_notify  # noqa: E402
 SITE = site_url()
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 AI_KINDS = {"duplicate", "wrong_date", "not_an_event", "out_of_area", "religious", "odd_time", "other"}
-MAX_LINES = 12  # in Slack; the job summary lists everything
+MAX_LINES = 12  # per Slack message; the rest follow in more messages
 RELIGIOUS_REASONS = {"religious event", "church event", "worship service"}  # collect_events.non_event_reason
 # Rule findings certain enough to hide without asking. Wrong days and odd
 # times stay flags: the fix is an edit, not a removal. AI findings are never
@@ -389,7 +389,8 @@ def hide(events, picks, secret):
                           headers={"X-Cron-Secret": secret, "User-Agent": "vic361-event-check"})
         out = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         if r.status_code == 401:
-            return set(), set(), "auto-hide failed: the site rejected the secret (check EVENT_CHECK_SECRET matches in Railway and GitHub)"
+            return set(), set(), ("auto-hide failed: the site rejected the secret (check EVENT_CHECK_SECRET "
+                                 "matches on the town's web and jobs services in Railway)")
         if not r.ok:
             return set(), set(), f"auto-hide failed: {out.get('message') or out.get('error') or f'HTTP {r.status_code}'}"
     except Exception as e:  # noqa: BLE001 - still report everything
@@ -417,7 +418,7 @@ def notify_sales(events, flagged):
     url = (os.environ.get("SLACK_SALES_WEBHOOK_URL") or os.environ.get("SLACK_ALERTS_WEBHOOK_URL") or "").strip()
     if not url:
         return
-    lines = [f"💳 Event check: {len({f[0] for f in flagged})} paid Vic's Pick(s) matched a hide rule. "
+    lines = [f"💳 Event check: {len({f[0] for f in flagged})} paid {TOWN['pick_name_plain']}(s) matched a hide rule. "
              "Not hidden; check with the buyer:"]
     lines += [f"• {describe(events[i])}: *{LABEL.get(kind, kind)}*, {esc(why)}" for i, kind, why in flagged]
     old = os.environ.get("SLACK_WEBHOOK_URL")
@@ -571,17 +572,29 @@ def main(argv=None):
     findings = sorted(f for f in findings if not (f[0] in restored and f[1] in AUTO_HIDE))
     head, lines = report(events, findings, ai is not None, args.days, hidden, problem)
 
-    text = "\n".join([head] + lines[:MAX_LINES] +
-                     ([f"…and {len(lines) - MAX_LINES} more in the run summary."] if len(lines) > MAX_LINES else []))
-    print(text)
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a") as f:
-            f.write("\n".join([f"### {head}", ""] + [f"- {x}" for x in lines]) + "\n")
+    messages = slack_messages(head, lines)
+    # Every finding in the log (the worker's Railway log keeps all of it).
+    print("\n".join([head] + lines))
     if not args.dry_run:
-        slack_notify.main([text, "--link", f"{SITE}/admin.html"])
+        for text in messages:
+            slack_notify.main([text, "--link", f"{SITE}/admin.html"])
         notify_sales(events, paid_findings(events, findings))
     return 0
+
+
+def slack_messages(head, lines):
+    """The report as Slack messages of MAX_LINES findings each, so a long
+    check is split rather than cut (Railway has no run summary to hold the
+    rest)."""
+    chunks = [lines[i:i + MAX_LINES] for i in range(0, len(lines), MAX_LINES)] or [[]]
+    if len(chunks) == 1:
+        return ["\n".join([head] + chunks[0])]
+    out = []
+    for n, chunk in enumerate(chunks, 1):
+        title = head if n == 1 else f"Event check, continued ({n} of {len(chunks)})"
+        more = [f"…and {len(lines) - n * MAX_LINES} more in the next message."] if n < len(chunks) else []
+        out.append("\n".join([title] + chunk + more))
+    return out
 
 
 if __name__ == "__main__":

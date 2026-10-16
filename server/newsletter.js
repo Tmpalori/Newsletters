@@ -1559,8 +1559,19 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (slack && out.error === 'no-address') {
       slack.alert('newsletter-no-address', 'Newsletter not sent: no mailing address', out.message, `${siteUrl}/admin.html`);
     }
+    // A "done" slot isn't always a sent issue: nobody to send it to is
+    // worth hearing about, not a quiet green run.
+    if (slack && out.error === 'no-subscribers') {
+      slack.alert(`newsletter-no-subscribers${weekend ? '-weekend' : ''}`,
+        weekend ? 'Weekend newsletter went to nobody: no subscribers get it' : 'Newsletter went to nobody: no active subscribers',
+        'Check the Subscribers tab in admin.', `${siteUrl}/admin.html`);
+    }
     const done = out.ok || ['already-sent', 'no-events', 'no-subscribers', 'in-progress', 'weekend-off'].includes(out.error);
-    return { ...out, edition, ok: done, sent_ok: out.ok, final: ['not-configured', 'no-address', 'weekend-off'].includes(out.error) };
+    // What the slot did, kept with the scheduler's run (scheduler_runs.detail)
+    // so "ran" can say sent or why not.
+    const outcome = out.ok ? 'sent' : String(out.error || 'failed');
+    const detail = out.ok ? `${outcome}: ${out.recipients ?? 0} recipients` : outcome + (out.message ? `: ${out.message}` : '');
+    return { ...out, edition, ok: done, sent_ok: out.ok, final: ['not-configured', 'no-address', 'weekend-off'].includes(out.error), detail };
   }
 
   // Scheduled send (GitHub Actions fallback, newsletter.yml). Needs the

@@ -73,6 +73,9 @@ describe('Central-time slots', () => {
     expect(dueSlot(job('event-check'), new Date('2026-10-05T11:43:00Z'))).toBe('2026-10-05');
     expect(dueSlot(job('social-kit'), new Date('2026-10-07T13:47:00Z'))).toBe('2026-10-07');
     expect(dueSlot(job('social-kit'), new Date('2026-10-07T13:46:00Z'))).toBeNull();
+    // A missed slot catches up until noon, not into the evening.
+    expect(dueSlot(job('social-kit'), new Date('2026-10-07T16:59:00Z'))).toBe('2026-10-07'); // 11:59 AM CDT
+    expect(dueSlot(job('social-kit'), new Date('2026-10-07T22:11:00Z'))).toBeNull();         // 5:11 PM CDT
     expect(dueSlot(job('submission-review'), new Date('2026-10-07T13:52:00Z'))).toBe('2026-10-07T08:45');
   });
 
@@ -100,6 +103,21 @@ describe('createScheduler', () => {
     await make().tick(new Date(mon.getTime() + 60000)); // restarted container
     await make().tick(new Date(mon.getTime() + 3 * 3600000));
     expect(sends).toBe(1);
+  });
+
+  it('a ran slot says whether the issue went out (sent, or nobody to send to)', async () => {
+    const store = await freshStore();
+    const mon = new Date('2026-10-05T12:44:00Z');
+    let answer = { ok: true, detail: 'no-subscribers' };
+    const handlers = { newsletter: async () => answer };
+    await createScheduler({ store, handlers, log: quiet }).tick(mon);
+    expect(await createScheduler({ store, handlers, log: quiet }).ran('newsletter', mon))
+      .toMatchObject({ ran: true, outcome: 'no-subscribers', detail: 'no-subscribers' });
+    answer = { ok: true, detail: 'sent: 52 recipients' };
+    const next = new Date('2026-10-12T12:44:00Z');
+    const s = createScheduler({ store, handlers, log: quiet });
+    await s.tick(next);
+    expect(await s.ran('newsletter', next)).toMatchObject({ ran: true, outcome: 'sent', detail: 'sent: 52 recipients' });
   });
 
   it('retries a failed send with backoff and alerts after the last try', async () => {
