@@ -16,9 +16,8 @@ its live site, GET only, nothing posted and no key needed (HQ's aside):
   - /events.json answers with at least 10 upcoming events (the hourly
     uptime check's own floor) and a collect in the last 8 days
     (`collected_at`, the candidates auto-publish last put live);
-  - /api/config says the town's workflows are on (`town_workflows`:
-    "workflows": true in its town.json, set once its GitHub Environment
-    exists);
+  - /api/config says the town's jobs run on Railway (`jobs_on_railway`:
+    JOBS_ON_RAILWAY=1 and JOBS_SECRET on its web service);
   - towns/<slug>/venues.json is seeded (the collector never borrows
     Victoria's);
   - HQ: /api/hq/summary answers with HQ_API_KEY as this town.
@@ -58,29 +57,27 @@ MIN_UPCOMING = 10
 MAX_COLLECT_AGE_DAYS = 8
 
 MANUAL = """
-Must be done before launch (MULTI_CITY_PLAN.md; each one blocks a launch):
-  [ ] 3.3 the town's GitHub Environment (SITE_URL, Meta, NTFY, cron secrets,
-      SLACK_TOWN_TAG), then "workflows": true in its town.json (a PR)
-  [ ] 3.4 its own scheduled collects (town matrix, staggered crons,
-      fail-fast: false; Event Check gated on the town)
-  [ ] 3.5 the workflows' gates call the town's own SITE_URL
-  [ ] 3.7 test_workflows.py pins the town inputs (Victoria's crons unchanged)
-  [ ] 2.6 Railway watch paths on every service, so one town's commits don't
-      redeploy every town (by town #3 at the latest)
-  [ ] RAILWAY.md "New town on Railway" followed end to end (fresh secrets)
+Must be done before launch (each one blocks a launch):
+  [ ] LAUNCH_CHECKLIST.md and RAILWAY.md "New town, the simple way" followed
+      end to end, every variable as in RAILWAY.md "New town on Railway"
+      (fresh secrets); town.json keeps "workflows": false
+  [ ] The town's jobs service (RAILWAY.md "Jobs on Railway") is up: Pull Now
+      in its admin starts a collect in the jobs service's log
+  [ ] Railway watch paths on the web and jobs services (RAILWAY.md step 16),
+      so one town's commits don't redeploy every town
 
 Check by hand before launch:
   [ ] Admin → Home → Setup: every required item is green. The site doesn't publish
       whether these are set, so check them in Railway: RESEND_API_KEY,
       NEWSLETTER_ADDRESS (a street address or PO box with ZIP, not just the city),
-      NEWSLETTER_REPLY_TO, NEWSLETTER_CRON_SECRET (also in the town's GitHub
-      Environment) and TURNSTILE_SECRET_KEY
-  [ ] The Resend webhook to /api/email/inbound sends email.received, email.bounced
-      and email.complained
+      NEWSLETTER_REPLY_TO, NEWSLETTER_CRON_SECRET (the jobs service references
+      it) and TURNSTILE_SECRET_KEY
+  [ ] The Resend webhook to /api/email/inbound sends email.received, email.bounced,
+      email.complained and email.delivered
   [ ] Admin → Newsletter → send a test to delivered@resend.dev (never a real list)
   [ ] A Stripe test-mode checkout on /advertise completes and shows in Admin → Sponsors
-  [ ] That checkout page and its receipt show the town's name and logo, not The Vic 361
-      (the town has its own Stripe account)
+  [ ] That checkout's product line reads "<Site name>: ..." and its payment carries
+      metadata.town=<slug> and the town's statement suffix (one shared Stripe account)
   [ ] A reply to news@ lands in #inbox with the town's [tag]
   [ ] The HQ dashboard shows the town
   [ ] python3 scripts/live_check.py: Victoria unchanged
@@ -121,11 +118,11 @@ def check(town, site, hq_key="", get=fetch, now=None, venues_path=None):
     add(t.get("domain") == town["domain"], f"its domain is {town['domain']} (says {t.get('domain')!r})")
     add(config.get("github_events_path") == f"towns/{slug}/public/events.json",
         f"publishes to towns/{slug}/public/events.json (says {config.get('github_events_path')!r})")
-    # Until "workflows": true the town starts no collect, social kit, review
-    # or event check (server/town.js townWorkflowsReady).
-    add(config.get("town_workflows") is True,
-        "its workflows are on (\"workflows\": true in town.json, after its GitHub Environment)" +
-        ("" if config.get("town_workflows") is True else f" (says {config.get('town_workflows')!r})"))
+    # Without jobs on Railway the town starts no collect, social kit,
+    # review or event check (nothing runs on GitHub any more).
+    add(config.get("jobs_on_railway") is True,
+        "its jobs run on Railway (JOBS_ON_RAILWAY=1 and JOBS_SECRET on the web service)" +
+        ("" if config.get("jobs_on_railway") is True else f" (says {config.get('jobs_on_railway')!r})"))
 
     if venues_path:
         try:

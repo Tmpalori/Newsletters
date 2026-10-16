@@ -241,7 +241,7 @@ copy a value from Victoria's project, or from another town's: a copied
 
 Then: `python3 scripts/launch_check.py --town <slug>` (every automatic
 check passes, including 10+ upcoming events, a collect in the last 8 days
-and workflows on), its manual list, and `python3 scripts/live_check.py`
+and jobs on Railway), its manual list, and `python3 scripts/live_check.py`
 for Victoria before and after.
 
 ## Jobs on Railway (a town's jobs service)
