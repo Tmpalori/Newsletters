@@ -60,7 +60,13 @@ import { normalizePayload, newId, nowIso, eventKeyOf } from './db.js';
 import { normalizeEmail } from './newsletter.js';
 import { honeypotTripped } from './honeypot.js';
 import { venueFor } from './guides.js';
-import { renderSponsorConfirmed, renderSponsorReport, renderPickReport, renderSponsorTooLate, renderSponsorPaymentFailed, renderSponsorConflict, newsletterCovers, weekendCovers, weekendIssueOn, pickWhere } from './notify.js';
+import { renderSponsorConfirmed, renderSponsorReport, renderPickReport, renderSponsorTooLate, renderSponsorPaymentFailed, renderSponsorConflict, newsletterCovers, weekendCovers, weekendIssueOn, pickWhere,
+  renderPartnerReceived, renderPartnerLive, renderPartnerRejected, renderPartnerCanceled, renderPartnerReport } from './notify.js';
+import { partnerCardEmail } from './newsletter.js';
+import {
+  partnerCategories, categoryOf, takesCategory, openCategories, partnersPayload, partnerBlock, publicPartner,
+  manageOk, manageUrl, PARTNER_SOURCES, partnersOn
+} from './partners.js';
 import { botName, visitorHash, pageType, PAGE_TYPES, rowCount, SHARED_LINK } from './analytics.js';
 import { ADVERTISING_TERMS_VERSION } from './legal.js';
 
@@ -330,6 +336,34 @@ export function createStripe(secretKey, fetchImpl = globalThis.fetch) {
     // it can't be paid later for a spot we've released.
     async expireCheckoutSession(id) {
       return call('POST', `/checkout/sessions/${encodeURIComponent(id)}/expire`, {});
+    },
+    // Category partners (server/partners.js). The restricted key needs
+    // Subscriptions, Refunds and Billing portal write and Invoices read
+    // for these (AGENTS.md owner setup).
+    // Rejected by the owner: end the subscription now (no proration, no
+    // final invoice), then refund what it charged.
+    async cancelSubscription(id) {
+      return call('DELETE', `/subscriptions/${encodeURIComponent(id)}`, {});
+    },
+    // The payment an invoice was paid with: older API versions put it on
+    // the invoice (payment_intent or charge), newer ones in its payments.
+    async invoicePayment(invoiceId) {
+      const inv = await call('GET', `/invoices/${encodeURIComponent(invoiceId)}`, null);
+      if (inv && typeof inv.payment_intent === 'string') return { payment_intent: inv.payment_intent };
+      if (inv && typeof inv.charge === 'string') return { charge: inv.charge };
+      const pays = await call('GET', '/invoice_payments', { invoice: invoiceId, limit: 3 });
+      const hit = ((pays && pays.data) || []).map(x => x && x.payment).find(x => x && (typeof x.payment_intent === 'string' || typeof x.charge === 'string'));
+      return hit ? (typeof hit.payment_intent === 'string' ? { payment_intent: hit.payment_intent } : { charge: hit.charge }) : null;
+    },
+    async refund(target, idempotencyKey) {
+      return call('POST', '/refunds', { ...target, reason: 'requested_by_customer' }, idempotencyKey);
+    },
+    // The partner's own billing page (update the card, cancel). Stripe
+    // refuses until the Customer portal is saved once in the Dashboard.
+    async createPortalSession(customer, returnUrl) {
+      const body = await call('POST', '/billing_portal/sessions', { customer, return_url: returnUrl });
+      if (typeof body.url !== 'string') throw new Error('Stripe returned no portal URL');
+      return { url: body.url };
     }
   };
 }
@@ -399,8 +433,14 @@ export function pickMatches(order, ev, pins = new Map()) {
 }
 
 export function applyPlacements(payload, orders, { now, venues = [], pins = new Map() }) {
-  const live = (orders || []).filter(o => LIVE.has(o.status));
-  if (!live.length || !payload) return payload;
+  if (!payload) return payload;
+  // Category partners (server/partners.js): the live ones and the open
+  // categories, as `partners`; left off entirely until a town has had a
+  // category order, so its payload is as it was before partners.
+  const categoryPartners = partnersPayload(orders, o => isHold(o, now.getTime()));
+  if (categoryPartners) payload = { ...payload, partners: categoryPartners };
+  const live = (orders || []).filter(o => LIVE.has(o.status) && o.kind !== 'category');
+  if (!live.length) return payload;
   const week = currentWeek(localDateStr(now))[0];
   const weekly = live.find(o => o.kind === 'weekly' && o.week_start === week);
   const featured = live.filter(o => o.kind === 'featured' && o.event);
@@ -505,6 +545,29 @@ export function sponsorStats(order, rows, { recipients = 0, issues = recipients 
     email_clicks: rowCount(email), email_people: peopleIn(email),
     social_clicks: rowCount(social), social_people: peopleIn(social),
     site_visitors: peopleIn(inWeek.filter(r => r.kind === 'view')),
+    newsletter_recipients: Number(recipients) || 0,
+    newsletter_issues: Number(recipients) ? Number(issues) || 1 : 0
+  };
+}
+
+// ─── Category partner report ─────────────────────────────────────────────
+// A partner's month: views of its card or box (data-ad impressions on the
+// site), and clicks through its /go/p/<id>/<src> redirect, by where they
+// were tapped (newsletter; site = its category box or /partners; social =
+// the Facebook thank-you). People are counted once a day, like sponsors.
+export function partnerStats(order, rows, { start, end, recipients = 0, issues = 0 } = {}) {
+  const inRange = (rows || []).filter(r => r.day >= start && r.day <= end);
+  const base = `/go/p/${order.id}`;
+  const seen = inRange.filter(r => r.kind === 'impression' && r.ad === order.id);
+  const clicks = inRange.filter(r => r.kind === 'click' && r.click_type === 'partner_click' && (r.path === base || String(r.path || '').startsWith(`${base}/`)));
+  const from = (...srcs) => clicks.filter(r => srcs.some(x => r.path === `${base}/${x}`));
+  return {
+    start, end,
+    views: rowCount(seen), view_people: peopleIn(seen), where: whereItRan(seen),
+    clicks: rowCount(clicks), click_people: peopleIn(clicks),
+    newsletter_people: peopleIn(from('newsletter', 'email')),
+    site_people: peopleIn(from('site', 'partners')),
+    social_people: peopleIn(from('social')),
     newsletter_recipients: Number(recipients) || 0,
     newsletter_issues: Number(recipients) ? Number(issues) || 1 : 0
   };
@@ -651,6 +714,10 @@ export function parseLogo(dataUrl) {
 
 // ─── Form validation ─────────────────────────────────────────────────────
 
+// A category partner's line: one short sentence (the newsletter card is
+// half the email's width).
+export const PARTNER_LINE_MAX = 80;
+
 function clean(v, max) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 }
@@ -697,6 +764,26 @@ export function validateOrder(kind, input, { now, orders, venues }) {
       }
     }
     order.event = ev;
+  } else if (kind === 'category') {
+    // One business per category: a category that's live, waiting for the
+    // owner's OK or being paid for right now can't be bought (the buyer's
+    // own open checkout doesn't count against them).
+    const open = openCategories(orders, o => isHold(o, now.getTime()), email);
+    const cat = categoryOf(clean(input.category, 20));
+    if (!cat) errors.category = 'Pick a category.';
+    else if (!open.includes(cat.id)) errors.category = `${cat.label} was just taken. Pick another category.`;
+    const line = clean(input.line, PARTNER_LINE_MAX);
+    if (!line) errors.line = 'Add one short line about your business.';
+    const cta = clean(input.cta, 24) || 'Visit';
+    const url = safeUrl(normalizeUrl(clean(input.url, 300)));
+    if (!url) errors.url = 'Enter your website or page (e.g. example.com).';
+    order.category = cat ? cat.id : '';
+    order.partner = { name: business, line, cta, url };
+    if (input.logo_data) {
+      const logo = parseLogo(input.logo_data);
+      if (logo.error) errors.logo = logo.error;
+      else order.logo = logo;   // saved separately; never stored on the order
+    }
   } else {
     errors._form = 'Unknown package.';
   }
@@ -780,8 +867,26 @@ function previewItem(ev) {
   return renderEventItem({ ...ev, page: '#preview' }).replace(/<a href="#preview">/g, '<a href="#preview" tabindex="-1" onclick="return false">');
 }
 
+// The category partner's box as the buyer has typed it so far.
+function samplePartner(v = {}) {
+  const cat = categoryOf(clean(v.category, 20)) || categoryOf('food') || partnerCategories()[0];
+  return {
+    cat,
+    p: { id: '', category: cat.id, label: cat.label, emoji: cat.emoji, name: clean(v.business, 80) || 'Your business',
+      line: clean(v.line, PARTNER_LINE_MAX) || 'One short line about what you offer.', cta: clean(v.cta, 24) || 'Visit',
+      logo: v.sampleLogo ? SAMPLE_LOGO : '' }
+  };
+}
+
 export function renderPreview(pkgKey, v = {}, { now, orders = [], venues = [] } = {}) {
   const val = k => clean(v[k], 2000);
+  if (pkgKey === 'category') {
+    const { cat, p } = samplePartner(v);
+    return `<p class="co-preview-where">Once we’ve approved you: on ${cat.pages.length ? `our ${escHtml(cat.label.toLowerCase())} pages and ` : ''}our partners page,</p>` +
+      partnerBlock(p, cat, '#') +
+      '<p class="co-preview-where">and in every newsletter issue, Monday and Thursday:</p>' +
+      `<div class="ad-email-sample co-preview-email">${partnerCardEmail(p, '#')}</div>`;
+  }
   if (pkgKey === 'weekly') {
     const block = sponsorHtml({
       name: clean(v.business, 80) || 'Your business',
@@ -823,7 +928,9 @@ export function renderPreview(pkgKey, v = {}, { now, orders = [], venues = [] } 
 export function samplePreviews() {
   return {
     weekly: renderPreview('weekly', { business: 'Your Business', text: 'One or two sentences about what you offer, shown all week.', cta: 'Learn more', sampleLogo: true }),
-    featured: renderPreview('featured', { event_name: 'Your Event Name', time: '7:00 PM', venue: 'Your Venue', description: 'A line or two about your event.' })
+    featured: renderPreview('featured', { event_name: 'Your Event Name', time: '7:00 PM', venue: 'Your Venue', description: 'A line or two about your event.' }),
+    // The site box only: /advertise shows the newsletter card beside it.
+    category: (({ cat, p }) => partnerBlock(p, cat, '#'))(samplePartner({ business: 'Your Business', line: 'One short line about what you offer.', cta: 'Visit' }))
   };
 }
 
@@ -843,6 +950,17 @@ function agreeField(value, error) {
     (error ? `<small class="co-error">${escHtml(error)}</small>` : '') + '</div>';
 }
 
+// The logo picker (weekly sponsor and category partner): the browser
+// shrinks the file and sends it as a data URL (see the page script).
+function logoField(v, e, where) {
+  return `<div class="co-field"><label for="f-logo">Logo</label><input type="file" id="f-logo" accept="image/png,image/jpeg,image/webp">` +
+    // A rejected logo isn't sent back, so resubmitting doesn't fail again.
+    `<input type="hidden" name="logo_data" id="f-logo-data" value="${e.logo ? '' : escHtml(v.logo_data || '')}">` +
+    `<button type="button" class="btn btn--ghost" id="f-logo-remove"${!e.logo && v.logo_data ? '' : ' hidden'}>Remove logo</button>` +
+    `<small class="co-hint">Optional. PNG, JPG or WebP; a wide logo on a plain background looks best. ${where}</small>` +
+    (e.logo ? `<small class="co-error">${escHtml(e.logo)}</small>` : '') + '</div>';
+}
+
 export function renderCheckoutPage(pkg, { siteUrl, now, orders, venues, values = {}, errors = {} }) {
   const e = errors;
   const v = values;
@@ -854,13 +972,18 @@ export function renderCheckoutPage(pkg, { siteUrl, now, orders, venues, values =
       field({ name: 'text', label: 'Sponsor message', value: v.text, error: e.text, max: 160, rows: 3, hint: 'Up to 160 characters. Shown under your name.' }) +
       field({ name: 'url', label: 'Website or page', value: v.url, error: e.url, max: 300 }) +
       field({ name: 'cta', label: 'Button text', value: v.cta, error: e.cta, max: 24, required: false, hint: 'Optional, e.g. "Order now". Default: Learn more.' }) +
-      `<div class="co-field"><label for="f-logo">Logo</label><input type="file" id="f-logo" accept="image/png,image/jpeg,image/webp">` +
-      // A rejected logo isn't sent back, so resubmitting doesn't fail again.
-      `<input type="hidden" name="logo_data" id="f-logo-data" value="${e.logo ? '' : escHtml(v.logo_data || '')}">` +
-      `<button type="button" class="btn btn--ghost" id="f-logo-remove"${!e.logo && v.logo_data ? '' : ' hidden'}>Remove logo</button>` +
-      `<small class="co-hint">Optional. PNG, JPG or WebP; a wide logo on a plain background looks best. Shown on your sponsor block.</small>` +
-      (e.logo ? `<small class="co-error">${escHtml(e.logo)}</small>` : '') + '</div>' +
+      logoField(v, e, 'Shown on your sponsor block.') +
       field({ name: 'address', label: 'Address', value: v.address, error: e.address, max: 120, required: false, hint: 'Optional.' });
+  } else if (pkg.key === 'category') {
+    const open = new Set(openCategories(orders, o => isHold(o, now.getTime())));
+    const cats = partnerCategories().map(c => ({ value: c.id, label: `${c.emoji} ${c.label}${open.has(c.id) ? '' : ' (taken)'}`, disabled: !open.has(c.id) }));
+    fields = (open.size ? '' : '<p class="co-error co-error--form">Every category is taken right now. <a href="/contact?topic=advertising">Ask us</a> to hear when one opens.</p>') +
+      selectField({ name: 'category', label: 'Category', options: cats, value: v.category, error: e.category }) +
+      field({ name: 'business', label: 'Business name', value: v.business, error: e.business, max: 80 }) +
+      field({ name: 'line', label: 'Your line', value: v.line, error: e.line, max: PARTNER_LINE_MAX, hint: `One short line, up to ${PARTNER_LINE_MAX} characters. Shown under your name.` }) +
+      field({ name: 'url', label: 'Website or page', value: v.url, error: e.url, max: 300 }) +
+      field({ name: 'cta', label: 'Button text', value: v.cta, error: e.cta, max: 24, required: false, hint: 'Optional, e.g. "See the menu". Default: Visit.' }) +
+      logoField(v, e, 'Shown on your partner box.');
   } else {
     fields = field({ name: 'event_name', label: 'Event name', value: v.event_name, error: e.name, max: 200 }) +
       field({ name: 'date', label: 'Date', type: 'date', value: v.date, error: e.date }) +
@@ -888,7 +1011,7 @@ export function renderCheckoutPage(pkg, { siteUrl, now, orders, venues, values =
       ${field({ name: 'email', label: 'Email for your receipt', type: 'email', value: v.email, error: e.email, max: 254 })}
       ${agreeField(v.agree, e.agree)}${reachPitchHtml() && `\n      ${reachPitchHtml()}`}
       <button class="btn btn--primary" type="submit">Continue to payment</button>
-      <p class="co-hint">Secure payment by Stripe. ${pkg.interval ? 'Cancel any time from your receipt email.' : ''}</p>
+      <p class="co-hint">Secure payment by Stripe. ${pkg.key === 'category' ? 'Billed monthly. We review every new partner before it goes live and refund you in full if we can’t take it. Cancel anytime from the link in our emails.' : pkg.interval ? 'Cancel any time from your receipt email.' : ''}</p>
     </form>
     <script>
     (function () {
@@ -993,7 +1116,21 @@ export function renderThanksPage(order, { siteUrl, now = new Date() }) {
       msg = 'We haven\'t heard back from Stripe yet. If your payment went through, you\'ll get a confirmation email from us shortly (Stripe sends the receipt). If you didn\'t finish paying, nothing was charged.';
     }
   }
-  if (order && LIVE.has(order.status)) {
+  if (order && order.kind === 'category' && ['pending_approval', 'active'].includes(order.status)) {
+    const cat = categoryOf(order.category);
+    const label = cat ? cat.label : 'your category';
+    msg = order.status === 'active'
+      ? `You're live: you're our ${escHtml(label.toLowerCase())} partner.`
+      : `You're in! ${escHtml(label)} is yours while we review your listing.`;
+    if (order.status === 'pending_approval') {
+      next = ['We review every new partner, usually within 1 business day.',
+        `Once you're approved, your card goes live in every newsletter issue, on our partners page${cat && cat.pages.length ? ` and our ${escHtml(label.toLowerCase())} pages` : ''}, and we email you.`,
+        `${emailed ? 'We’ve emailed you' : 'We’ll email you'} a confirmation with a link to manage your partnership. Stripe sends your receipt separately.`];
+    }
+  } else if (order && order.kind === 'category' && order.status === 'conflict') {
+    msg = 'Your payment went through, but someone else claimed that category moments before you. Sorry about that.';
+    next = ['We’ll cancel your subscription and refund you in full within 1 business day.', 'Want a different category instead? Contact us below.'];
+  } else if (order && LIVE.has(order.status)) {
     if (order.kind === 'weekly') {
       const week = formatDay(order.week_start, { weekday: 'long', month: 'long', day: 'numeric' });
       msg = `You're booked for the week of ${escHtml(week)}.`;
@@ -1024,7 +1161,7 @@ export function renderThanksPage(order, { siteUrl, now = new Date() }) {
   } else if (order && order.status === 'failed') {
     // A bank debit that bounced (we email them too), or a refused test payment.
     msg = 'Your payment didn’t go through, so nothing was charged and you’re not booked.';
-    next = [`If you still want it, <a href="/advertise/checkout?package=${order.kind === 'weekly' ? 'weekly' : 'featured'}">book again</a> (a card settles at once).`];
+    next = [`If you still want it, <a href="/advertise/checkout?package=${order.kind === 'weekly' || order.kind === 'category' ? order.kind : 'featured'}">book again</a> (a card settles at once).`];
   } else if (order && order.status === 'late') {
     // A bank payment that cleared after the date it paid for (webhook).
     msg = 'Your bank payment cleared only after that date had passed, so we couldn’t run it. Sorry about that.';
@@ -1054,8 +1191,11 @@ export function renderLogoTooLargePage({ siteUrl }) {
 // Pause before a strict (newsletter) order read's second try.
 const STRICT_RETRY_MS = 2000;
 
-export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenues, slack = null, mailer = null, mailAddress = '', getPayload = null }) {
+// manageSecret: signs the category partners' manage links (server/
+// partners.js manageToken); without one no link is put in their emails.
+export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenues, slack = null, mailer = null, mailAddress = '', getPayload = null, manageSecret = '' }) {
   const supported = typeof store.listSponsorOrders === 'function';
+  const manageLink = order => (manageSecret && order && order.id ? manageUrl(siteUrl, manageSecret, order.id) : '');
   let cache = null;
   // Bumped by every save. A read that started before a save neither fills
   // the cache nor is shared with readers after it.
@@ -1185,6 +1325,23 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       order.submission_id = row.id;
       await save(order);
     }
+    // A new category partner shows nowhere until the owner approves it:
+    // Slack sales and the owner inbox (a `today` item HQ's assistant reads).
+    if (order.kind === 'category') {
+      if (slack) {
+        const cat = categoryOf(order.category);
+        const pp = order.partner || {};
+        slack.notify({ channel: 'sales',
+          title: `🤝 New partner waiting for your OK: ${order.business}, ${cat ? cat.label : order.category}`,
+          fields: [['Category', cat ? cat.label : order.category], ['Name', pp.name || order.business], ['Line', pp.line || ''],
+            ['Button', `${pp.cta || 'Visit'} → ${pp.url || ''}`], ['Logo', pp.logo ? 'Yes' : 'None'], ['Contact', order.email],
+            ['Paid', `$${Math.round((order.amount || 0) / 100)}/mo`], ['Order', order.id]],
+          text: 'Paid and subscribed; nothing shows until you approve it. Approve or reject it in Admin → Sponsors (Reject cancels the subscription and refunds them), or tell HQ.',
+          link: `${siteUrl}/admin.html`
+        });
+      }
+      return;
+    }
     // The "you're booked" email goes out after the lock (processEvent).
     if (slack) {
       const pkg = packageFor(order.kind);
@@ -1211,14 +1368,18 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   // result is recorded under it on a fresh read of the order, merging only
   // the confirmation fields (a refund or edit that landed meanwhile stays).
   const confirming = new Set();
-  const owesConfirmation = order => Boolean(mailer && mailer.enabled && (order.kind === 'weekly' || order.kind === 'featured') &&
+  const owesConfirmation = order => Boolean(mailer && mailer.enabled && (order.kind === 'weekly' || order.kind === 'featured' || order.kind === 'category') &&
     !order.confirmation_sent);
+  // A category partner's first email is "you're in, we'll review it".
+  const confirmationOf = order => (order.kind === 'category'
+    ? renderPartnerReceived(order, { siteUrl, address: mailAddress, manageUrl: manageLink(order) })
+    : renderSponsorConfirmed(order, { siteUrl, address: mailAddress }));
   async function sendConfirmation(order) {
     // Already in flight (a webhook and the retry run at once): one send.
     if (!owesConfirmation(order) || confirming.has(order.id)) return false;
     confirming.add(order.id);
     try {
-      const sent = await mailer.send(order.email, renderSponsorConfirmed(order, { siteUrl, address: mailAddress }), `${town.keyPrefix}-sponsor-${order.id}`);
+      const sent = await mailer.send(order.email, confirmationOf(order), `${town.keyPrefix}-sponsor-${order.id}`);
       const failures = await withBookingLock(async () => {
         const cur = (await freshOrders()).find(o => o.id === order.id);
         if (!cur || cur.confirmation_sent) return 0;
@@ -1248,8 +1409,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   async function retryConfirmations(now) {
     if (!supported || !mailer || !mailer.enabled) return 0;
     const since = now.getTime() - CONFIRM_RETRY_DAYS * 864e5;
-    const due = await withBookingLock(async () => (await freshOrders()).filter(o => (o.kind === 'weekly' || o.kind === 'featured') &&
-      o.status === 'paid' && !o.confirmation_sent && o.paid_at && Date.parse(o.paid_at) >= since && !paidTooLate(o, now)));
+    const due = await withBookingLock(async () => (await freshOrders()).filter(o => !o.confirmation_sent && o.paid_at && Date.parse(o.paid_at) >= since &&
+      (((o.kind === 'weekly' || o.kind === 'featured') && o.status === 'paid' && !paidTooLate(o, now)) ||
+        (o.kind === 'category' && (o.status === 'pending_approval' || o.status === 'active')))));
     let sent = 0;
     for (const o of due) if (await sendConfirmation(o)) sent++;
     return sent;
@@ -1280,6 +1442,12 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       reportRun = retryConfirmations(now)
         .catch(err => console.warn('[sponsors] confirmation retry failed:', err.message))
         .then(() => runSponsorReports(now))
+        // Category partners' monthly reports ride the same hooks (the daily
+        // scheduler, the 15-minute review cron, the Monday cron).
+        .then(async out => {
+          try { await runPartnerReports(now); } catch (err) { console.warn('[sponsors] partner reports failed:', err.message); }
+          return out;
+        })
         .finally(() => { reportRun = null; });
     }
     return reportRun;
@@ -1326,6 +1494,71 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       if (slack) {
         slack.notify({ channel: 'sales', title: `📊 Click report sent: ${order.business}`, fields: [...summary, ['To', order.email]] });
       }
+    }
+    return out;
+  }
+
+  // ─── Category partner reports ────────────────────────────────────────
+  // After each renewal (invoice.paid for a subscription_cycle invoice sets
+  // last_renewal_at), the month that just ended: from the last report (or
+  // approval) to the day before the renewal. Once per month (report_through
+  // and a Resend key with the renewal's date); no price in it.
+  const dayOf = iso => (iso ? localDateStr(new Date(iso)) : '');
+
+  // Newsletter copies sent between start and end (Monday's and Thursday's
+  // issues), for the "copies with your card" line.
+  async function issuesBetween(start, end) {
+    let recipients = 0, issues = 0;
+    for (let d = start; d <= end; d = addDays(d, 1)) {
+      const dow = new Date(`${d}T12:00:00Z`).getUTCDay();
+      if (dow !== 1 && dow !== 4) continue;
+      const nl = await newsletterSend(d);
+      if (nl && Number(nl.recipients) > 0) { recipients += Number(nl.recipients); issues++; }
+    }
+    return { recipients, issues };
+  }
+
+  async function partnerStatsFor(order, start, end, rows = null) {
+    if (!rows) rows = typeof store.listTraffic === 'function' ? await store.listTraffic(start) : [];
+    return partnerStats(order, rows, { start, end, ...(await issuesBetween(start, end)) });
+  }
+
+  async function runPartnerReports(now) {
+    const out = { sent: 0, skipped: 0, failed: 0 };
+    if (!supported) return out;
+    cache = null;
+    const due = (await orders()).filter(o => o.kind === 'category' && o.status === 'active' && o.last_renewal_at &&
+      (!o.report_through || o.report_through < dayOf(o.last_renewal_at)));
+    for (const order of due) {
+      const renewal = dayOf(order.last_renewal_at);
+      const start = order.report_through || dayOf(order.approved_at || order.paid_at) || renewal;
+      const end = addDays(renewal, -1) < start ? start : addDays(renewal, -1);
+      const stats = await partnerStatsFor(order, start, end);
+      const cat = categoryOf(order.category);
+      const summary = [['Partner', order.business], ['Category', cat ? cat.label : order.category], ['Month', `${start} to ${end}`],
+        ['Views on the site', stats.views], ['Clicked', stats.click_people]];
+      if (!mailer || !mailer.enabled) {
+        if (slack) {
+          slack.alert(`partner-report:${order.id}:${renewal}`, `Send ${order.business} their partner report (email is off)`,
+            `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nEmail it to ${order.email}. Set RESEND_API_KEY so these go out on their own.`, `${siteUrl}/admin.html`);
+        }
+        await recordReport(order, { report: stats, report_through: renewal, report_slack_sent: nowIso() });
+        out.skipped++;
+        continue;
+      }
+      const sent = await mailer.send(order.email, renderPartnerReport(order, stats, { siteUrl, address: mailAddress, manageUrl: manageLink(order) }),
+        `${town.keyPrefix}-partner-report-${order.id}-${renewal}`);
+      if (!sent) {
+        out.failed++;
+        if (slack && order.report_failed !== renewal) {
+          slack.alert(`partner-report-failed:${order.id}`, `Partner report to ${order.business} didn't send`, 'It will be retried on the next run.', `${siteUrl}/admin.html`);
+          await recordReport(order, { report_failed: renewal });
+        }
+        continue;
+      }
+      await recordReport(order, { report: stats, report_through: renewal, report_sent: nowIso() });
+      out.sent++;
+      if (slack) slack.notify({ channel: 'sales', title: `📊 Partner report sent: ${order.business}`, fields: [...summary, ['To', order.email]] });
     }
     return out;
   }
@@ -1404,6 +1637,11 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     if (order.kind === 'featured' && order.event && order.event.date) {
       const { place, stats } = await pickStatsFor(order, list);
       return { kind: 'featured', on_site: place.found, stats };
+    }
+    if (order.kind === 'category' && (order.approved_at || order.paid_at)) {
+      const start = order.report_through || dayOf(order.approved_at || order.paid_at);
+      const end = localDateStr(nowFn());
+      return { kind: 'category', stats: await partnerStatsFor(order, start, end < start ? start : end) };
     }
     return null;
   }
@@ -1490,7 +1728,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
 
   // A checkout that never got paid doesn't keep its uploaded logo.
   async function dropLogo(order) {
-    if (!order || !order.sponsor || !order.sponsor.logo || typeof store.deleteSponsorLogo !== 'function') return;
+    const has = order && ((order.sponsor && order.sponsor.logo) || (order.partner && order.partner.logo));
+    if (!has || typeof store.deleteSponsorLogo !== 'function') return;
     try { await store.deleteSponsorLogo(order.id); } catch (err) { console.warn('[sponsors] logo delete failed:', err.message); }
   }
 
@@ -1574,6 +1813,10 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   function orderValues(o) {
     const s = o.sponsor || {};
     const ev = o.event || {};
+    if (o.kind === 'category') {
+      const pp = o.partner || {};
+      return { category: o.category, business: o.business, line: pp.line, url: pp.url, cta: pp.cta, email: o.email };
+    }
     return o.kind === 'weekly'
       ? { week: o.week_start, business: o.business, text: s.text, url: s.url, cta: s.cta, address: s.address, email: o.email }
       : { event_name: ev.name, date: ev.date, time: ev.time, end_time: ev.end_time, venue: ev.venue, address: ev.address, description: ev.description,
@@ -1624,7 +1867,11 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     const byInvoice = findBy(list, 'latest_invoice', inv);
     if (byInvoice) return byInvoice;
     const customer = isCharge && typeof obj.customer === 'string' ? obj.customer : null;
-    return customer ? list.find(o => o.kind === 'partner' && o.customer_id === customer) || null : null;
+    if (!customer) return null;
+    // A category partner may have an ended order and a newer one: the
+    // running one first.
+    const subs = list.filter(o => (o.kind === 'partner' || o.kind === 'category') && o.customer_id === customer);
+    return subs.find(o => !['rejected', 'canceled', 'cancelled', 'refunded'].includes(o.status)) || subs[0] || null;
   }
 
   // A paid order that can't run because its slot is taken ('conflict'):
@@ -1647,6 +1894,91 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     await doubleBooked({ ...rival }, event, `${winner.business} paid first for ${what}`,
       `${winner.business} (${winner.email}, order ${winner.id}) paid for ${what} at ${finishedAt.toISOString()}, inside their checkout hold, but Stripe's webhook only reached us later. ` +
       `Meanwhile ${rival.business} (${rival.email}, order ${rival.id}) bought it at ${rival.paid_at}. ${winner.business} keeps it; ${rival.business} is off the site and has been told you'll be in touch within 1 business day: move them to an open ${winner.kind === 'weekly' ? 'week (Sponsors tab, Edit)' : 'day'} or refund them in Stripe.`, mail);
+  }
+
+  // ─── Category partner subscriptions ──────────────────────────────────
+  // Stripe's word on a partner's subscription (customer.subscription.*).
+  // Past due or unpaid hides a live partner until it's paid; the
+  // subscription ending is final ('canceled', the category opens again).
+  // A rejected (or being-rejected) order stays rejected: nothing Stripe
+  // says brings a rejected or canceled partner back.
+  const BAD_SUB = new Set(['past_due', 'unpaid', 'incomplete_expired', 'paused']);
+  const ENDED = new Set(['rejected', 'canceled', 'refunded']);
+  async function partnerSubscription(order, event, obj, mail) {
+    const cat = categoryOf(order.category);
+    const label = cat ? cat.label : order.category;
+    const deleted = event.type === 'customer.subscription.deleted' || obj.status === 'canceled';
+    if (ENDED.has(order.status) || order.rejecting) {
+      if (deleted && !order.subscription_ended) await save({ ...order, subscription_ended: nowIso() });
+      return;
+    }
+    if (deleted) {
+      const was = order.status;
+      await save({ ...order, status: 'canceled', canceled_at: nowIso(), subscription_ended: nowIso(), hidden_from: null });
+      if (slack) {
+        slack.notify({ channel: 'sales',
+          title: `👋 Partner cancelled: ${order.business}`,
+          fields: [['Category', label], ['Contact', order.email], ['Was', was]],
+          text: `Their subscription ended, so they're off the site and out of the newsletter. ${label} is open again.`
+        });
+      }
+      // Not for a double-booked one: they were told they'd be refunded.
+      if (was !== 'conflict' && mayEmail(event)) {
+        mail.push(() => mailer.send(order.email, renderPartnerCanceled(order, { siteUrl, address: mailAddress, manageUrl: manageLink(order) }),
+          `${town.keyPrefix}-partner-canceled-${order.id}`));
+      }
+      return;
+    }
+    const bad = BAD_SUB.has(obj.status);
+    const good = obj.status === 'active' || obj.status === 'trialing';
+    // Cancelling in the billing portal usually ends the subscription at the
+    // end of the paid month: remember when, for the admin.
+    const cancelAt = obj.cancel_at_period_end && Number(obj.cancel_at || obj.current_period_end)
+      ? new Date(Number(obj.cancel_at || obj.current_period_end) * 1000).toISOString() : null;
+    const next = { ...order, cancel_at: cancelAt, stripe_status: obj.status || order.stripe_status || null };
+    if (order.status === 'hidden') {
+      // Hidden by the owner: Restore puts back what Stripe says now.
+      if (bad) next.hidden_from = 'past_due';
+      else if (good && order.hidden_from === 'past_due') next.hidden_from = 'active';
+    } else if (order.status === 'active' && bad) {
+      next.status = 'past_due';
+      next.past_due_at = nowIso();
+      if (slack) {
+        slack.notify({ channel: 'sales',
+          title: `⚠️ Partner payment failing: ${order.business} is hidden`,
+          fields: [['Category', label], ['Stripe says', obj.status], ['Contact', order.email]],
+          text: 'Stripe couldn\'t charge them, so their card is off the site and out of the newsletter until it\'s paid. Stripe keeps retrying; if it gives up, the subscription ends and the category opens.'
+        });
+      }
+    } else if (order.status === 'past_due' && good) {
+      next.status = 'active';
+      if (slack) slack.notify({ channel: 'sales', title: `✅ Partner payment back on track: ${order.business}`, fields: [['Category', label]], text: 'They\'re back on the site and in the newsletter.' });
+    }
+    if (next.status !== order.status || next.cancel_at !== (order.cancel_at || null) || next.hidden_from !== order.hidden_from || next.stripe_status !== order.stripe_status) {
+      await save(next);
+    }
+  }
+
+  // A partner's invoice paid: the first month or a renewal. A renewal sets
+  // last_renewal_at, which is when the monthly report goes out
+  // (runPartnerReports); a past-due partner is back.
+  async function partnerInvoicePaid(order, event, obj) {
+    if (ENDED.has(order.status) || order.rejecting) return;
+    const paid = obj.payments && Array.isArray(obj.payments.data) &&
+      obj.payments.data.map(x => x && x.payment).find(x => x && typeof x.payment_intent === 'string');
+    const pi = (typeof obj.payment_intent === 'string' && obj.payment_intent) || (paid && paid.payment_intent) || null;
+    const invoices = Array.isArray(order.paid_invoices) ? order.paid_invoices : [];
+    if (obj.id && invoices.includes(obj.id)) return;   // a repeat delivery
+    const at = eventTime(event).toISOString();
+    const renewal = obj.billing_reason ? obj.billing_reason === 'subscription_cycle'
+      : Boolean(order.first_invoice && obj.id && obj.id !== order.first_invoice);
+    const next = {
+      ...order, latest_invoice: obj.id || order.latest_invoice || null, payment_intent: pi || order.payment_intent || null,
+      last_paid_at: at, paid_invoices: [...invoices, ...(obj.id ? [obj.id] : [])].slice(-24),
+      ...(renewal ? { last_renewal_at: at } : {}),
+      ...(order.status === 'past_due' ? { status: 'active' } : {})
+    };
+    await save(next);
   }
 
   // One webhook at a time, under the same lock as checkout bookings: Stripe
@@ -1745,7 +2077,10 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         const held = (order.status === 'pending' || order.status === 'processing') &&
           finishedAt.getTime() - Date.parse(order.created_at) < HOLD_MS;
         Object.assign(order, {
-          status: order.kind === 'partner' ? 'active' : 'paid',
+          // A category partner waits for the owner's OK (approve/reject).
+          status: order.kind === 'partner' ? 'active' : order.kind === 'category' ? 'pending_approval' : 'paid',
+          // Its first invoice (subscription mode): what a rejection refunds.
+          ...(typeof obj.invoice === 'string' ? { first_invoice: order.first_invoice || obj.invoice, latest_invoice: obj.invoice } : {}),
           paid_at: paidAt.toISOString(),
           amount: Number.isFinite(obj.amount_total) ? obj.amount_total : order.amount,
           subscription_id: typeof obj.subscription === 'string' ? obj.subscription : null,
@@ -1786,6 +2121,18 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
               return;
             }
             for (const r of bump) await bumpedBy(r, order, finishedAt, event, mail);
+          }
+        }
+        // A category someone else claimed meanwhile (this buyer's hold had
+        // lapsed): one business per category, so this one doesn't run. The
+        // owner rejects it (cancel + refund) from the alert.
+        if (order.kind === 'category') {
+          const rival = list.find(o => o.id !== order.id && o.category === order.category && takesCategory(o));
+          if (rival) {
+            const cat = categoryOf(order.category);
+            await doubleBooked(order, event, `${cat ? cat.label : order.category} partner was paid for twice`,
+              `${order.business} (${order.email}, order ${order.id}) paid for ${cat ? cat.label : order.category}, but ${rival.business} (order ${rival.id}) already has it. Nothing shows for them; they've been told you'll be in touch within 1 business day. Reject it in Admin → Sponsors to cancel their subscription and refund them.`, mail);
+            return;
           }
         }
         // The same for a Vic's Pick day: a hold the buyer backed out of
@@ -1859,6 +2206,18 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         const subId = (typeof obj.subscription === 'string' && obj.subscription) ||
           (obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.subscription) || null;
         const order = findBy(list, 'subscription_id', subId);
+        if (order && order.kind === 'category') {
+          if (slack && ['active', 'pending_approval', 'past_due', 'hidden'].includes(order.status)) {
+            const cat = categoryOf(order.category);
+            slack.notify({ channel: 'sales',
+              title: `⚠️ Partner card declined: ${order.business}`,
+              fields: [['Category', cat ? cat.label : order.category], ['Contact', order.email], ['Order', order.id]],
+              text: 'Stripe retries on its own (and emails them, with Failed payment emails on). They stay up until the subscription goes past due; then they\'re hidden until it\'s paid.',
+              link: `${siteUrl}/admin.html`
+            });
+          }
+          return;
+        }
         if (order && slack) {
           slack.notify({ channel: 'sales',
             title: `⚠️ Venue partner card declined: ${order.business}`,
@@ -1891,6 +2250,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       case 'customer.subscription.deleted': {
         const order = findBy(list, 'subscription_id', obj.id);
         if (!order) return;
+        if (order.kind === 'category') { await partnerSubscription(order, event, obj, mail); return; }
         const s = event.type === 'customer.subscription.deleted' ? 'canceled' : obj.status;
         const status = (s === 'active' || s === 'trialing') ? 'active' : s === 'canceled' ? 'cancelled' : 'paused';
         // Hidden by the admin: remember what Stripe says so Restore can't
@@ -1920,6 +2280,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           (obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.subscription) || null;
         const order = findBy(list, 'subscription_id', subId);
         if (!order) return;
+        if (order.kind === 'category') { await partnerInvoicePaid(order, event, obj); return; }
         const paid = obj.payments && Array.isArray(obj.payments.data) &&
           obj.payments.data.map(x => x && x.payment).find(x => x && typeof x.payment_intent === 'string');
         const pi = (typeof obj.payment_intent === 'string' && obj.payment_intent) || (paid && paid.payment_intent) || null;
@@ -1969,6 +2330,23 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           return;
         }
         if (order.status === 'refunded') return;
+        // A category partner's refund is one month's charge, not the end of
+        // the subscription: it stays as it is (a rejection already refunded
+        // and cancelled it; Stripe ending the subscription says the rest).
+        if (order.kind === 'category' && event.type === 'charge.refunded') {
+          const refunded = Number(obj.amount_refunded);
+          const lr = order.last_refund || {};
+          if (!Number.isFinite(refunded) || refunded <= 0 || (obj.id === lr.charge && refunded === lr.cents)) return;
+          await save({ ...order, last_refund: { charge: obj.id || null, cents: refunded, at: nowIso() } });
+          if (slack && order.status !== 'rejected' && !order.rejecting) {
+            slack.notify({ channel: 'sales',
+              title: `↩️ Partner refunded: ${order.business}`,
+              fields: [['Refunded', `$${(refunded / 100).toFixed(2)}`], ['Contact', order.email], ['Order', order.id]],
+              text: 'Their subscription is still running. If they\'re leaving, cancel it in Stripe (they disappear when it ends).'
+            });
+          }
+          return;
+        }
         if (event.type === 'charge.refunded') {
           const refunded = Number(obj.amount_refunded);
           // Partial refund: the placement stays live, and revenue counts
@@ -2042,6 +2420,166 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     });
   }
 
+  // ─── Approving a category partner ────────────────────────────────────
+  // Every new partner waits for the owner (Admin → Sponsors, or HQ's
+  // assistant with his words through /api/hq/admin/sponsors/:id). Approve
+  // puts it live on the next request and emails "you're live". Reject
+  // cancels the subscription now and refunds its payment (Stripe through
+  // fetch), and emails a polite no; the category opens again.
+  // → { status, body } for the route.
+  async function approvePartner(id, via = 'admin') {
+    const out = await withBookingLock(async () => {
+      const fresh = await freshOrders();
+      const cur = fresh.find(o => o.id === id);
+      if (!cur || cur.kind !== 'category') return { status: 404, body: { ok: false, error: 'not-found' } };
+      if (cur.status === 'active') return { status: 200, body: { ok: true, status: 'active', already: true } };
+      if (cur.status !== 'pending_approval') {
+        return { status: 409, body: { ok: false, error: 'not-waiting', message: `Only a partner waiting for approval can be approved (this one is ${cur.status}).` } };
+      }
+      const clash = fresh.find(o => o.id !== cur.id && o.kind === 'category' && o.category === cur.category && ['active', 'past_due', 'hidden'].includes(o.status));
+      if (clash) {
+        return { status: 409, body: { ok: false, error: 'category-taken', message: `${clash.business} already holds this category. Reject this one, or end theirs first.` } };
+      }
+      // The app's clock (reports count from this day), like paid_at.
+      const next = { ...cur, status: 'active', approved_at: nowFn().toISOString(), approved_via: via };
+      await save(next);
+      return { status: 200, body: { ok: true, status: 'active' }, order: next };
+    });
+    if (out.order) {
+      const o = out.order;
+      const cat = categoryOf(o.category);
+      if (slack) slack.notify({ channel: 'hype', title: `💰 New partner live: ${o.business}`, fields: [['Category', cat ? cat.label : o.category]], text: 'Approved: on the site and in the next issue.' });
+      if (mailer && mailer.enabled) {
+        const sent = await mailer.send(o.email, renderPartnerLive(o, { siteUrl, address: mailAddress, manageUrl: manageLink(o) }), `${town.keyPrefix}-partner-live-${o.id}`);
+        if (sent) await recordReport(o, { live_email_sent: nowIso() });
+      }
+    }
+    return out;
+  }
+
+  async function rejectPartner(id, { reason = '', via = 'admin' } = {}) {
+    const claim = await withBookingLock(async () => {
+      const cur = (await freshOrders()).find(o => o.id === id);
+      if (!cur || cur.kind !== 'category') return { status: 404, body: { ok: false, error: 'not-found' } };
+      if (cur.status === 'rejected') return { status: 200, body: { ok: true, status: 'rejected', already: true } };
+      if (!['pending_approval', 'conflict'].includes(cur.status)) {
+        return { status: 409, body: { ok: false, error: 'not-waiting', message: `Only a partner waiting for approval (or double-booked) can be rejected (this one is ${cur.status}). Hide it instead, or cancel it in Stripe.` } };
+      }
+      if (cur.rejecting && nowFn().getTime() - Date.parse(cur.rejecting) < 5 * 60 * 1000) {
+        return { status: 409, body: { ok: false, error: 'in-progress', message: 'Already being rejected.' } };
+      }
+      // Marked first: the subscription.deleted webhook our cancel causes
+      // must not treat it as the partner leaving (no "has ended" email).
+      const marked = { ...cur, rejecting: nowIso() };
+      await save(marked);
+      return { order: marked };
+    });
+    if (!claim.order) return claim;
+    const order = claim.order;
+    const unmark = () => withBookingLock(async () => {
+      const cur = (await freshOrders()).find(o => o.id === id);
+      if (cur) await save({ ...cur, rejecting: null });
+    });
+    // 1. End the subscription now, so they're never charged again.
+    if (order.subscription_id && typeof stripe.cancelSubscription === 'function') {
+      try {
+        await stripe.cancelSubscription(order.subscription_id);
+      } catch (err) {
+        // Already gone (they cancelled meanwhile) is fine; anything else
+        // leaves it as it was, for the owner to retry or do in Stripe.
+        if (!(err && err.status === 404) && !/canceled|no such subscription/i.test(String(err && err.message))) {
+          await unmark();
+          return { status: 502, body: { ok: false, error: 'stripe-cancel-failed', message: `Stripe didn't cancel the subscription (${err.message}). Nothing changed; try again, or cancel it in Stripe and then reject here.` } };
+        }
+      }
+    }
+    // 2. Refund what it charged: the first invoice's payment.
+    let refund = { ok: false, error: '' };
+    try {
+      let target = order.payment_intent ? { payment_intent: order.payment_intent } : null;
+      const inv = order.first_invoice || order.latest_invoice;
+      if (!target && inv && typeof stripe.invoicePayment === 'function') target = await stripe.invoicePayment(inv);
+      if (!target) throw new Error('no payment found for its invoice');
+      if (typeof stripe.refund !== 'function') throw new Error('refunds unavailable');
+      const r = await stripe.refund(target, `${town.keyPrefix}-partner-refund-${order.id}`);
+      refund = { ok: true, id: (r && r.id) || null, ...target };
+    } catch (err) {
+      refund = { ok: false, error: String((err && err.message) || err).slice(0, 300) };
+    }
+    const why = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    const done = await withBookingLock(async () => {
+      const cur = (await freshOrders()).find(o => o.id === id) || order;
+      const next = { ...cur, status: 'rejected', rejected_at: nowIso(), rejected_via: via, rejecting: null, hidden_from: null,
+        refund: { ...refund, at: nowIso() }, ...(why ? { reject_reason: why } : {}) };
+      await save(next);
+      return next;
+    });
+    const cat = categoryOf(done.category);
+    if (slack) {
+      if (refund.ok) {
+        slack.notify({ channel: 'sales', title: `✅ Partner rejected and refunded: ${done.business}`, fields: [['Category', cat ? cat.label : done.category], ['Contact', done.email]],
+          text: 'Subscription cancelled and the payment refunded. The category is open again.' });
+      } else {
+        slack.alert(`partner-refund:${done.id}`, `Refund ${done.business} by hand: the partner refund didn't go through`,
+          `Their subscription is cancelled, but Stripe refused the refund (${refund.error}). Refund their payment in Stripe. (The key needs Refunds and Invoices access for this to work on its own.)`,
+          'https://dashboard.stripe.com/payments');
+      }
+    }
+    if (mailer && mailer.enabled) {
+      await mailer.send(done.email, renderPartnerRejected(done, { siteUrl, address: mailAddress, manageUrl: manageLink(done), reason: why, refunded: refund.ok }),
+        `${town.keyPrefix}-partner-rejected-${done.id}`);
+    }
+    return { status: 200, body: { ok: true, status: 'rejected', refunded: refund.ok, ...(refund.ok ? {} : { refund_error: refund.error }) } };
+  }
+
+  // Admin edit of a category partner's card (they reply with changes):
+  // the same checks as checkout. Under the booking lock.
+  async function editPartner(id, input) {
+    const cur = (await freshOrders()).find(o => o.id === id);
+    if (!cur || cur.kind !== 'category') return { status: 404, body: { ok: false, error: 'not-found' } };
+    const pp = cur.partner || {};
+    const has = k => typeof input[k] === 'string';
+    const errors = {};
+    const business = has('business') ? clean(input.business, 80) : cur.business;
+    if (!business) errors.business = 'Business name is required.';
+    const line = has('line') ? clean(input.line, PARTNER_LINE_MAX) : pp.line;
+    if (!line) errors.line = 'Add one short line about the business.';
+    const cta = has('cta') ? (clean(input.cta, 24) || 'Visit') : (pp.cta || 'Visit');
+    const url = has('url') ? safeUrl(normalizeUrl(clean(input.url, 300))) : pp.url;
+    if (!url) errors.url = 'Enter a website or page (e.g. example.com).';
+    let logo = null;
+    if (has('logo_data') && input.logo_data) {
+      logo = parseLogo(input.logo_data);
+      if (logo.error) errors.logo = logo.error;
+    }
+    if (Object.keys(errors).length) return { status: 400, body: { ok: false, error: 'invalid', errors, message: Object.values(errors).join(' ') } };
+    const partner = { ...pp, name: business, line, cta, url };
+    if (logo && typeof store.saveSponsorLogo === 'function') {
+      await store.saveSponsorLogo(cur.id, logo);
+      partner.logo = `/sponsor-logo/${cur.id}`;
+    }
+    await save({ ...cur, business, partner });
+    return null;
+  }
+
+  // The partners at a glance, for the admin and HQ: each category with who
+  // holds it (or open), and the ones waiting for approval.
+  async function partnerOverview() {
+    const list = supported ? await freshOrders() : [];
+    const nowMs = nowFn().getTime();
+    const open = new Set(openCategories(list, o => isHold(o, nowMs)));
+    const mine = list.filter(o => o.kind === 'category');
+    const brief = o => ({ id: o.id, status: o.status, business: o.business, email: o.email, partner: o.partner || {}, amount: o.amount,
+      paid_at: o.paid_at || null, approved_at: o.approved_at || null, cancel_at: o.cancel_at || null, test: Boolean(o.test) });
+    return {
+      categories: partnerCategories().map(c => {
+        const holder = mine.find(o => o.category === c.id && takesCategory(o, x => isHold(x, nowMs)));
+        return { id: c.id, label: c.label, emoji: c.emoji, pages: c.pages, open: open.has(c.id), holder: holder ? brief(holder) : null };
+      }),
+      waiting: mine.filter(o => o.status === 'pending_approval').map(o => ({ ...brief(o), category: o.category }))
+    };
+  }
+
   function registerRoutes(app, { requireAdmin, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, analyticsSecret = '' }) {
     const limiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
 
@@ -2074,6 +2612,82 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       } catch (err) { next(err); }
     });
 
+    // A category partner's button, wherever it's shown (src: newsletter,
+    // site = its category box, partners = /partners, social = the Facebook
+    // thank-you, email): counted for its monthly report as a partner_click
+    // at /go/p/<id>/<src>, then on to the partner with UTM tags. Only a live
+    // partner redirects; anything else goes to /partners.
+    app.get('/go/p/:id', async (req, res, next) => {
+      try {
+        const id = /^[A-Za-z0-9-]{8,64}$/.test(req.params.id) ? req.params.id : '';
+        const order = id && partnersOn() ? (await orders()).find(o => o.id === id && o.kind === 'category' && o.status === 'active') : null;
+        const src = PARTNER_SOURCES.includes(req.query.src) ? req.query.src : 'newsletter';
+        const medium = src === 'social' ? 'social' : (src === 'newsletter' || src === 'email') ? 'email' : 'referral';
+        const target = order ? sponsorLandingUrl(order.partner && order.partner.url, { medium, campaign: 'partner' }) : '';
+        res.set('Cache-Control', 'no-store');
+        if (!target) return res.redirect(302, `${siteUrl}/partners`);
+        const ip = req.ip || req.socket.remoteAddress || '';
+        const ua = req.get('user-agent') || '';
+        if (req.method === 'GET' && !botName(ua) && typeof store.recordTraffic === 'function' && goLimiter.check(ip).ok) {
+          const day = localDateStr(nowFn());
+          store.recordTraffic({
+            day, kind: 'click', path: `/go/p/${id}/${src}`, visitor: visitorHash(ip, ua, day, analyticsSecret),
+            click_type: 'partner_click', click_url: String(order.partner.url || '').slice(0, 300), ad: id
+          }).catch(err => console.warn('[sponsors] partner click record failed:', err.message));
+        }
+        res.redirect(302, target);
+      } catch (err) { next(err); }
+    });
+
+    // The manage link in every partner email: a page with one button (a
+    // POST, so mail scanners opening the link do nothing) that opens their
+    // Stripe billing portal (update the card, see invoices, cancel). If the
+    // portal isn't set up in Stripe yet, they're told to contact us and the
+    // owner hears once.
+    const manageLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30 });
+    const managePage = (title, lead, extra = '') => layout({ siteUrl, path: '/partners/manage', nav: '/partners', noindex: true, pixel: false,
+      title: `${title} | ${town.siteName}`, description: title,
+      body: `<h1 class="page-title">${escHtml(title)}</h1><p class="page-lead">${lead}</p>${extra}` });
+    const manageOrder = async (o, t) => {
+      if (!manageOk(manageSecret, String(o || ''), String(t || ''))) return null;
+      return (await orders()).find(x => x.id === o && x.kind === 'category') || null;
+    };
+    app.get('/partners/manage', async (req, res, next) => {
+      try {
+        const order = await manageOrder(req.query.o, req.query.t);
+        res.set('Referrer-Policy', 'no-referrer');
+        if (!order) return sendHtml(res, managePage('Link not recognized', 'This manage link doesn’t look right. Use the link in your latest email from us, or <a href="/contact?topic=advertising">contact us</a>.'), 404, 'no-store');
+        const cat = categoryOf(order.category);
+        sendHtml(res, managePage('Manage your partnership',
+          `${escHtml(order.business || 'Your business')}, our ${escHtml(cat ? cat.label.toLowerCase() : 'local')} partner. Update your card, see your invoices or cancel on Stripe’s secure billing page.`,
+          `<form method="post" action="/partners/manage"><input type="hidden" name="o" value="${escHtml(order.id)}"><input type="hidden" name="t" value="${escHtml(String(req.query.t))}">` +
+          '<button class="btn btn--primary" type="submit">Open my billing page</button></form>' +
+          '<p>Want to change your line or link? <a href="/contact?topic=advertising">Send us a message</a> or reply to any of our emails.</p>'), 200, 'no-store');
+      } catch (err) { next(err); }
+    });
+    app.post('/partners/manage', async (req, res, next) => {
+      try {
+        const body = req.body || {};
+        if (!manageLimiter.check(req.ip || req.socket.remoteAddress).ok) return sendHtml(res, managePage('Slow down', 'Too many tries. Please wait a bit and try again.'), 429, 'no-store');
+        const order = await manageOrder(body.o, body.t);
+        if (!order) return sendHtml(res, managePage('Link not recognized', 'This manage link doesn’t look right. Use the link in your latest email from us, or <a href="/contact?topic=advertising">contact us</a>.'), 404, 'no-store');
+        const sorry = managePage('Billing page unavailable', 'We couldn’t open your billing page just now. Nothing has changed with your partnership. Please <a href="/contact?topic=advertising">contact us</a> (or reply to any of our emails) and we’ll update your card or cancel for you.');
+        if (!order.customer_id || typeof stripe.createPortalSession !== 'function') return sendHtml(res, sorry, 503, 'no-store');
+        try {
+          const portal = await stripe.createPortalSession(order.customer_id, `${siteUrl}/partners`);
+          res.redirect(303, portal.url);
+        } catch (err) {
+          console.warn('[sponsors] billing portal failed:', err.message);
+          if (slack) {
+            slack.alert('stripe-portal', 'A partner couldn\'t open their billing page',
+              `${order.business} (${order.email}) tried to manage their partnership. Stripe said: ${err.message}. Save the Customer portal settings once in Stripe (Settings → Billing → Customer portal), and give the Stripe key Billing portal write access. Meanwhile help them by hand.`,
+              'https://dashboard.stripe.com/settings/billing/portal');
+          }
+          sendHtml(res, sorry, 503, 'no-store');
+        }
+      } catch (err) { next(err); }
+    });
+
     app.get('/advertise/checkout', async (req, res, next) => {
       try {
         const pkg = packageFor(req.query.package);
@@ -2089,7 +2703,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         // once it's listed) always are. The page then drops the id from the
         // address bar (history.replaceState in renderCheckoutPage), and the
         // Pixel and Google tag leave it out of the URLs they report.
-        const PREFILL = ['event_name', 'date', 'time', 'end_time', 'venue', 'address', 'description', 'url'];
+        // `category`: a partner invite's "claim this one" link.
+        const PREFILL = ['event_name', 'date', 'time', 'end_time', 'venue', 'address', 'description', 'url', 'category'];
         let values = Object.fromEntries(PREFILL.filter(k => typeof req.query[k] === 'string').map(k => [k, req.query[k].slice(0, 2000)]));
         const from = typeof req.query.from === 'string' && /^[0-9a-f-]{36}$/i.test(req.query.from) ? req.query.from : '';
         const sub = from && typeof store.get === 'function' ? await store.get(from).catch(() => null) : null;
@@ -2205,14 +2820,17 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
             terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: at };
           if (logo && typeof store.saveSponsorLogo === 'function') {
             await store.saveSponsorLogo(o.id, logo);
-            o.sponsor = { ...o.sponsor, logo: `/sponsor-logo/${o.id}` };
+            if (o.kind === 'category') o.partner = { ...o.partner, logo: `/sponsor-logo/${o.id}` };
+            else o.sponsor = { ...o.sponsor, logo: `/sponsor-logo/${o.id}` };
           }
           // The buyer's own earlier hold on this slot didn't count against
           // them (validateOrder); it's replaced, so one buyer can't hold two.
           // Any other open hold from this client or email goes too.
           const replaced = ctx.orders.filter(x => x.status === 'pending' && (
             (x.email === o.email && x.kind === o.kind &&
-              (o.kind === 'weekly' ? x.week_start === o.week_start : x.event && x.event.date === o.event.date)) ||
+              (o.kind === 'weekly' ? x.week_start === o.week_start
+                : o.kind === 'category' ? x.category === o.category
+                  : x.event && o.event && x.event.date === o.event.date)) ||
             ((mine(x) || x.email === o.email) && isHold(x, nowMs))));
           for (const x of replaced) await save({ ...x, status: 'cancelled' });
           await save(o);
@@ -2255,7 +2873,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           line_items: [item],
           // metadata.town: one Stripe account serves every town, and each
           // town's webhook skips the others' sessions and subscriptions.
-          metadata: { order_id: order.id, package: pkg.key, terms_version: order.terms_version, terms_accepted_at: order.terms_accepted_at, ...townTag() },
+          metadata: { order_id: order.id, package: pkg.key, ...(order.category ? { category: order.category } : {}), terms_version: order.terms_version, terms_accepted_at: order.terms_accepted_at, ...townTag() },
           // A line by the pay button pointing back to the terms the buyer
           // just agreed to on our form. Only `submit`: Stripe's own terms
           // checkbox (consent_collection.terms_of_service, and with it
@@ -2264,7 +2882,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           // account's Dashboard, which would break checkout for any town
           // that hasn't. custom_text.submit needs no Dashboard setting.
           custom_text: { submit: { message: `By paying you confirm the order and our [Advertising Terms](${siteUrl}/advertising-terms) (version ${order.terms_version}), including cancellations and refunds.` } },
-          subscription_data: pkg.interval ? { metadata: { order_id: order.id, ...townTag() } } : undefined,
+          subscription_data: pkg.interval ? { metadata: { order_id: order.id, ...(order.category ? { category: order.category } : {}), ...townTag() } } : undefined,
           // One-time payments carry the town on the card statement too
           // (Checkout takes no descriptor for subscriptions; their invoices
           // show the account's own).
@@ -2374,8 +2992,18 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
             !(o.status === 'pending' && nowFn().getTime() - Date.parse(o.created_at) > 24 * 3600 * 1000))
             .map(o => { const s = onSite(o); return s === undefined ? o : { ...o, on_site: s }; }),
           weeks: bookableWeeks(nowFn(), list),
-          calendar: sponsorCalendar(nowFn(), list)
+          calendar: sponsorCalendar(nowFn(), list),
+          // Category partners' categories, for their labels in the table.
+          categories: partnerCategories().map(({ id, label, emoji }) => ({ id, label, emoji }))
         });
+      } catch (err) { next(err); }
+    });
+
+    // The partners at a glance (each category: open, or who holds it; and
+    // who's waiting for approval). HQ reads it too.
+    app.get(paths('/api/admin/partners'), gate, async (req, res, next) => {
+      try {
+        res.json({ ok: true, ...(await partnerOverview()) });
       } catch (err) { next(err); }
     });
 
@@ -2414,7 +3042,16 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     app.post(paths('/api/admin/sponsors/:id'), gate, async (req, res, next) => {
       try {
         const action = req.body && req.body.action;
-        if (viaHq(req) && !['hide', 'restore', 'mark-test', 'unmark-test'].includes(action)) return res.status(403).json({ ok: false, error: 'not-through-hq' });
+        // approve/reject: a new category partner, which the owner decides on
+        // (HQ asks him first, like every action it takes).
+        if (viaHq(req) && !['hide', 'restore', 'mark-test', 'unmark-test', 'approve', 'reject'].includes(action)) return res.status(403).json({ ok: false, error: 'not-through-hq' });
+        if (action === 'approve' || action === 'reject') {
+          const via = viaHq(req) ? 'hq' : 'admin';
+          const out = action === 'approve'
+            ? await approvePartner(req.params.id, via)
+            : await rejectPartner(req.params.id, { reason: (req.body && typeof req.body.reason === 'string') ? req.body.reason : '', via });
+          return res.status(out.status).json(out.body);
+        }
         cache = null;
         const list = supported ? await store.listSponsorOrders() : [];
         const order = list.find(o => o.id === req.params.id);
@@ -2446,11 +3083,18 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
               if (typeof store.deleteSponsorLogo === 'function') await store.deleteSponsorLogo(cur.id);
               const { logo: _gone, ...sponsor } = cur.sponsor;
               await save({ ...cur, sponsor });
+            } else if (action === 'remove-logo' && cur.partner && cur.partner.logo) {
+              if (typeof store.deleteSponsorLogo === 'function') await store.deleteSponsorLogo(cur.id);
+              const { logo: _gone, ...partner } = cur.partner;
+              await save({ ...cur, partner });
             } else {
               return { status: 400, body: { ok: false, error: 'bad-action' } };
             }
             return null;
           });
+          if (out) return res.status(out.status).json(out.body);
+        } else if (action === 'edit' && order.kind === 'category' && ['pending_approval', 'active', 'hidden', 'past_due'].includes(order.status)) {
+          const out = await withBookingLock(() => editPartner(order.id, req.body || {}));
           if (out) return res.status(out.status).json(out.body);
         } else if (action === 'edit' && order.kind === 'weekly' && EDITABLE.has(order.status)) {
           const out = await withBookingLock(() => editWeekly(order, req.body || {}));
@@ -2466,5 +3110,5 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     });
   }
 
-  return { apply, orders, registerWebhook, registerRoutes, processEvent, sendSponsorReports, sendPickReports };
+  return { apply, orders, registerWebhook, registerRoutes, processEvent, sendSponsorReports, sendPickReports, approvePartner, rejectPartner, partnerOverview };
 }

@@ -64,6 +64,7 @@ import {
   sponsorLinkUrl, formatTime, placeText, iconKeys, isSponsorLogo, SAMPLE_LOGO, isPaidPick, AD_LABEL, reachNumbers, getReach
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
+import { partnerState, categoryOf, partnerHref } from './partners.js';
 
 const RESEND_API = 'https://api.resend.com';
 // Strict enough that Resend accepts every address we keep: no empty dot
@@ -406,9 +407,72 @@ function houseAdText(siteUrl) {
   return `FEATURE YOUR BUSINESS: one business a week gets the top of this newsletter, or give your event the ${town.pickNamePlain} badge. ${siteUrl}/advertise`;
 }
 
+// ─── Our local partners (server/partners.js) ───────────────────────────
+// After the "See the full list" button in both issues: the live category
+// partners as two-column cards, each button through /go/p/<id> (counted for
+// the partner's report). No prices here, ever. With no partner yet, a
+// dashed "Founding partners wanted" invite with the open categories.
+const PILL_LABEL = `display:inline-block;font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:.5px;background:${C.sun};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:1px 10px;`;
+
+export function partnerCardEmail(p, href) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:2px solid ${C.ink};border-radius:12px;"><tr><td style="padding:10px 12px;">
+<div style="font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:.4px;color:${C.muted};text-transform:uppercase;">${p.emoji ? `${escHtml(p.emoji)} ` : ''}${escHtml(p.label || '')}</div>
+<div style="font-family:${DISPLAY};font-size:16px;font-weight:bold;color:${C.ink};margin:3px 0 2px;">${escHtml(p.name)}</div>
+${p.line ? `<div style="font-size:13px;color:${C.ink};line-height:1.35;">${escHtml(p.line)}</div>` : ''}
+<a href="${escHtml(href)}" style="display:inline-block;margin-top:6px;font-family:${DISPLAY};font-size:13px;font-weight:bold;color:${C.accent};text-decoration:none;">${escHtml(p.cta || 'Visit')} →</a></td></tr></table>`;
+}
+
+const openLine = n => `${n} ${n === 1 ? 'category' : 'categories'} open`;
+
+export function partnersEmailHtml(state, siteUrl) {
+  if (!state) return '';
+  const join = `${siteUrl}/advertise#partner`;
+  if (!state.active.length) {
+    if (!state.open.length) return '';
+    const chips = state.open.map(categoryOf).filter(Boolean).map(c =>
+      `<span style="display:inline-block;margin:3px 3px 0 0;font-size:12px;font-weight:bold;background:#fff;color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:2px 9px;">${c.emoji ? `${escHtml(c.emoji)} ` : ''}${escHtml(c.label)}</span>`).join('');
+    return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px dashed ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px;">
+<span style="${PILL_LABEL}">FOUNDING PARTNERS WANTED</span>
+<div style="font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.ink};margin:8px 0 4px;">Own a local business? Be the one we recommend.</div>
+<div style="font-size:14px;color:${C.ink};line-height:1.4;">One business per category, in every issue and on the site. Cancel anytime.</div>
+<div style="margin:8px 0 10px;">${chips}</div>
+<a href="${escHtml(join)}" style="display:inline-block;font-family:${DISPLAY};font-size:14px;font-weight:bold;color:#fff;background:${C.accent};border:2px solid ${C.ink};border-radius:999px;padding:7px 16px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">Claim your category →</a>
+</td></tr></table>`;
+  }
+  const rows = [];
+  for (let i = 0; i < state.active.length; i += 2) {
+    rows.push(`<tr>${state.active.slice(i, i + 2).map(p => `<td width="50%" valign="top" style="padding:6px;">${partnerCardEmail(p, partnerHref(siteUrl, p.id, 'newsletter'))}</td>`).join('')}${state.active.length - i === 1 ? '<td width="50%" style="padding:6px;"></td>' : ''}</tr>`);
+  }
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:14px 10px 10px;">
+<div style="padding:0 6px;"><span style="${PILL_LABEL}">OUR LOCAL PARTNERS</span>
+<div style="font-size:13px;color:${C.muted};margin:6px 0 4px;">The local businesses that keep ${escHtml(town.siteName)} free. One per category.</div></div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>
+${state.open.length ? `<div style="padding:4px 6px 0;font-size:12px;color:${C.muted};">Own a business? <a href="${escHtml(join)}" style="color:${C.accent};font-weight:bold;">Become a partner</a> · ${openLine(state.open.length)}</div>` : ''}
+</td></tr></table>`;
+}
+
+export function partnersEmailText(state, siteUrl) {
+  if (!state) return [];
+  const join = `${siteUrl}/advertise#partner`;
+  if (!state.active.length) {
+    return state.open.length
+      ? [`FOUNDING PARTNERS WANTED: own a local business? Be the one we recommend. One business per category, in every issue and on the site. Claim your category: ${join}`, '']
+      : [];
+  }
+  return ['OUR LOCAL PARTNERS',
+    ...state.active.map(p => `- ${p.label}: ${p.name}${p.line ? `. ${p.line}` : ''} ${partnerHref(siteUrl, p.id, 'newsletter')}`),
+    ...(state.open.length ? [`Own a business? Become a partner (${openLine(state.open.length)}): ${join}`] : []), ''];
+}
+
 // What each package looks like inside the newsletter, for /advertise: the
 // real sponsor block, and a Saturday with a starred Vic's Pick among its
 // neighbors (same renderers as the issue).
+const SAMPLE_PARTNER = () => {
+  const c = categoryOf('food') || {};
+  return { label: c.label || 'Your category', emoji: c.emoji || '', name: 'Your Business', line: 'One short line about what you offer.', cta: 'Visit' };
+};
 export function sampleEmailPreviews(siteUrl = '') {
   const day = (rows) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border:3px solid ${C.ink};border-radius:16px;overflow:hidden;border-collapse:separate;background:#fff;">
 <tr><td style="background:${DAY_COLORS[5]};padding:10px 14px;border-bottom:3px solid ${C.ink};font-family:${DISPLAY};color:${C.ink};"><span style="font-size:20px;font-weight:bold;">Saturday</span></td></tr>
@@ -420,7 +484,8 @@ export function sampleEmailPreviews(siteUrl = '') {
   ];
   return {
     weekly: `<div style="font-family:Arial,Helvetica,sans-serif;color:${C.ink};">${sponsorHtml({ name: 'Your Business', text: 'One or two sentences about what you offer.', cta: 'Learn more', url: siteUrl || town.siteUrl, logo: SAMPLE_LOGO }, siteUrl)}</div>`,
-    featured: `<div style="font-family:Arial,Helvetica,sans-serif;color:${C.ink};font-size:15px;">${day(evs.map((e, i) => eventRow({ ...e, page: null, url: '' }, siteUrl, evs[i + 1])).join(''))}</div>`
+    featured: `<div style="font-family:Arial,Helvetica,sans-serif;color:${C.ink};font-size:15px;">${day(evs.map((e, i) => eventRow({ ...e, page: null, url: '' }, siteUrl, evs[i + 1])).join(''))}</div>`,
+    category: `<div style="font-family:Arial,Helvetica,sans-serif;color:${C.ink};max-width:300px;">${partnerCardEmail(SAMPLE_PARTNER(), '#')}</div>`
   };
 }
 
@@ -494,7 +559,9 @@ export function dontMiss(byDay, n = 3) {
 
 // An issue: the rest of this week (weekly, Monday) or Friday through
 // Sunday (weekend, Thursday). See EDITIONS.
-export function renderWeekly(events, { siteUrl, now, sponsor, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
+// partners: the payload's `partners` (server/partners.js partnersPayload);
+// missing means every category is open.
+export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
@@ -528,13 +595,14 @@ ${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a hr
 </td></tr></table>`; }).join('');
 
   const sponsorBlock = sponsorHtml(sponsor, siteUrl);
+  const pState = partnerState({ partners });
 
   const pill = (href, label) => `<a href="${siteUrl}${href}" style="display:inline-block;margin:6px 4px 0 0;font-family:${DISPLAY};font-weight:bold;font-size:13px;color:${C.ink};background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:2px 10px;text-decoration:none;">${label}</a>`;
   const bodyHtml = `
 <p style="margin:16px 0 4px;font-size:16px;">${total ? `Here's what's happening in ${town.cityState} ${weekend ? 'this weekend' : 'this week'}: <strong>${total} ${total === 1 ? 'event' : 'events'}</strong>.` : `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}.`}</p>
 <div>${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
 ${sponsorBlock}${topHtml}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sponsorBlock ? '' : houseAdHtml(siteUrl)}
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}
 ${replyAsk ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
@@ -549,7 +617,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
+    `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`
   ].join('\n');
@@ -1003,7 +1071,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       }
       return { ok: false, error: 'no-subscribers' };
     }
-    const probe = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: '', address: config.address, edition });
+    const probe = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '', address: config.address, edition });
     if (!probe.total) return { ok: false, error: 'no-events' };
 
     let sent = 0;
@@ -1061,7 +1129,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         const openPixelUrl = s.id ? openPixel(key, s.id) : '';
         const code = s.id && refs.codes[s.id];
         const referral = code ? { code, count: refs.counts[code] || 0 } : null;
-        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl, address: config.address, openPixelUrl, referral, replyAsk: Boolean(config.replyTo || config.inbound),
+        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, referral, replyAsk: Boolean(config.replyTo || config.inbound),
           edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
         return {
           from: config.from, to: [s.email], subject: issue.subject, html: issue.html, text: issue.text,
@@ -1260,7 +1328,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const payload = await getPublicPayload();
       const unsubscribeUrl = `${siteUrl}/unsubscribe?token=${encodeURIComponent(sub.token)}`;
       const referral = await referralFor(sub);
-      const mail = renderWelcomeEmail(payload.events, { siteUrl, now: nowFn(), sponsor: payload.sponsor, unsubscribeUrl, address: config.address, referral, replyAsk: Boolean(config.replyTo || config.inbound) });
+      const mail = renderWelcomeEmail(payload.events, { siteUrl, now: nowFn(), sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, referral, replyAsk: Boolean(config.replyTo || config.inbound) });
       await resend.send({
         from: config.from, to: [sub.email], subject: mail.subject, html: mail.html, text: mail.text,
         ...(config.replyTo ? { reply_to: config.replyTo } : {}),
@@ -1437,7 +1505,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     }
     const payload = await getPublicPayload();
     const now = nowFn();
-    const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: '#', address: config.address });
+    const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '#', address: config.address });
     // A week whose send partly failed isn't "sent": the button stays on to
     // retry just the people who missed it (sendWeekly resumes).
     // Top referrers and their rewards (emails shown in full: this is the
@@ -1461,7 +1529,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const wkFailed = failedCount(wkRecord);
     // Possibly sent, past Resend's key window: only resent on purpose.
     const unknownCount = r => (r && Array.isArray(r.chunks) ? r.chunks.filter(c => c && c.state === 'sent-unknown').reduce((n, c) => n + (c.emails || []).length, 0) : 0);
-    const wkIssue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: '#', address: config.address, edition: 'weekend' });
+    const wkIssue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '#', address: config.address, edition: 'weekend' });
     res.json({
       ok: true, configured: config.enabled, from: config.from, address_set: Boolean(config.address),
       autosend: config.enabled && config.autosend, counts, next: { subject: issue.subject, events: issue.total },
@@ -1503,7 +1571,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const edition = editionParam(req.query.edition);
     const { day, now } = await upcomingNow(edition);
     const payload = await getPublicPayload({ now });
-    const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
+    const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
       edition, prefsUrl: config.weekend ? '#' : '' });
     res.set('X-Issue-Date', day).set('X-Issue-Subject', encodeURIComponent(issue.subject)).type('html').send(issue.html);
   });
@@ -1516,7 +1584,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const edition = editionParam((req.body || {}).edition);
       const { now } = await upcomingNow(edition);
       const payload = await getPublicPayload({ now });
-      const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
+      const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
         edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
       await resend.send({ from: config.from, to: [to], subject: `[Test] ${issue.subject}`, html: issue.html, text: issue.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}) });
       res.json({ ok: true, to });

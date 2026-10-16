@@ -10,7 +10,8 @@
 
 import { town } from './town.js';
 import { escHtml, formatDay, safeUrl, currentWeek, addDays, localDateStr, formatTime, placeText } from './seo.js';
-import { C, btn, emailShell, eventRow } from './newsletter.js';
+import { C, btn, emailShell, eventRow, partnerCardEmail } from './newsletter.js';
+import { categoryOf, publicPartner } from './partners.js';
 
 // "Saturday, October 10, 7 PM · Venue · address" for the plain-text emails,
 // formatted like the HTML row and the site (not the stored date and time).
@@ -322,6 +323,7 @@ export function renderSponsorTooLate(order, { siteUrl, address }) {
 
 // What the order paid for, for the failed and double-booked emails.
 function orderWhat(order) {
+  if (order.kind === 'category') return `the ${(categoryOf(order.category) || { label: 'category' }).label.toLowerCase()} partner spot`;
   return order.kind === 'weekly'
     ? `the sponsor week of ${formatDay(order.week_start, { month: 'long', day: 'numeric' })}`
     : `${(order.event && order.event.name) || 'your event'} as a ${town.pickName} on ${order.event && order.event.date ? formatDay(order.event.date, { weekday: 'long', month: 'long', day: 'numeric' }) : 'its day'}`;
@@ -358,7 +360,20 @@ export function renderSponsorPaymentFailed(order, { siteUrl, address }) {
 
 export function renderSponsorConflict(order, { siteUrl, address }) {
   const business = order.business || 'there';
-  const unit = order.kind === 'weekly' ? 'week' : 'day';
+  const unit = order.kind === 'weekly' ? 'week' : order.kind === 'category' ? 'category' : 'day';
+  if (order.kind === 'category') {
+    const lines = [
+      `Thanks, ${business}. Your payment for ${orderWhat(order)} went through, but someone else claimed that category moments before you, so it isn’t running. Sorry about that.`,
+      'We’ll cancel your subscription and refund your payment in full (Stripe shows it within a few business days). If another category fits your business, just reply and we’ll set it up.',
+      'We’ll be in touch within 1 business day either way.'
+    ];
+    return {
+      subject: `That ${town.shortName} category was just claimed: we’ll refund you`,
+      html: emailShell({ title: 'That category was just claimed', preheader: 'Your payment will be refunded in full.', siteUrl,
+        bodyHtml: lines.map(l => p(escHtml(l))).join(''), footerHtml: contactFooter(siteUrl, address) }),
+      text: [...lines, contactText(siteUrl)].join('\n\n')
+    };
+  }
   const lines = [
     `Thanks, ${business}. Your payment for ${orderWhat(order)} went through, but that ${unit} was booked by someone else moments before you, so it isn’t running. Sorry about that.`,
     `Your payment will be refunded in full (Stripe shows it within a few business days), unless you’d rather move to another open ${unit}: just reply to this email and we’ll set it up.`,
@@ -474,6 +489,160 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
       COUNTER_NOTE, '',
       `Got another event coming up? Give it the ${town.pickNamePlain} badge: ${siteUrl}/advertise/checkout?package=featured`,
       contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+// ─── Category partners (server/partners.js) ──────────────────────────────
+// Every partner email names the category, never the price (that stays on
+// /advertise and its checkout), and ends with the partner's own manage
+// link (their Stripe billing page: update the card or cancel).
+
+const catName = order => (categoryOf(order.category) || { label: order.category || 'your category' }).label;
+const partnerCard = (order, siteUrl) => {
+  const pp = publicPartner(order);
+  return `<div style="max-width:320px;margin:14px 0;">${partnerCardEmail(pp, siteUrl ? `${siteUrl}/partners` : '#')}</div>`;
+};
+const manageHtml = manageUrl => (manageUrl
+  ? p(`Update your card or cancel anytime: <a href="${escHtml(manageUrl)}" style="color:${C.accent};font-weight:bold;">manage your partnership</a>.`, `color:${C.muted};font-size:14px;`)
+  : '');
+const manageText = manageUrl => (manageUrl ? [`Update your card or cancel anytime: ${manageUrl}`] : []);
+
+// Right after checkout: paid, waiting for the owner's OK.
+export function renderPartnerReceived(order, { siteUrl, address, manageUrl = '' }) {
+  const business = order.business || 'there';
+  const cat = catName(order);
+  const next = [
+    'We review every new partner, usually within 1 business day.',
+    `Once you're approved, your card goes live in every issue (Monday and Thursday), on our partners page${(categoryOf(order.category) || { pages: [] }).pages.length ? ` and on our ${cat.toLowerCase()} pages` : ''}, and we email you.`,
+    'Each month after your renewal, we email you a results report: how often your card was seen and how many people clicked.'
+  ];
+  const bodyHtml =
+    p(`Thanks, ${escHtml(business)}! Your payment went through and <strong>${escHtml(cat)}</strong> is yours on ${escHtml(town.siteName)} while we review your listing.`) +
+    `<h2 style="font-size:18px;margin:20px 0 4px;">What happens next</h2>` + steps(next.map(escHtml)) +
+    p('Here’s your card as it will run:') + partnerCard(order, '') +
+    p('Want to change your line or link? Reply to this email. Stripe emails your receipt separately.', `color:${C.muted};font-size:14px;`) +
+    manageHtml(manageUrl);
+  return {
+    subject: 'You’re in: we’ll review your listing shortly',
+    html: emailShell({ title: 'You’re in!', preheader: `We'll review your ${cat} listing shortly.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Thanks, ${business}! Your payment went through and ${cat} is yours on ${town.siteName} while we review your listing.`, '',
+      'What happens next:', ...next.map((x, i) => `${i + 1}. ${x}`), '',
+      `Your card: ${publicPartner(order).name}: ${publicPartner(order).line}`, '',
+      'Want to change your line or link? Reply to this email. Stripe emails your receipt separately.',
+      ...manageText(manageUrl), contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+// Approved by the owner: live from the next request.
+export function renderPartnerLive(order, { siteUrl, address, manageUrl = '' }) {
+  const business = order.business || 'there';
+  const c = categoryOf(order.category) || { label: order.category, pages: [] };
+  const links = [[`${siteUrl}/partners`, 'Our partners page'], ...c.pages.map(pg => [`${siteUrl}${pg}`, `${siteUrl.replace(/^https?:\/\/(www\.)?/, '')}${pg}`])];
+  const bodyHtml =
+    p(`Good news, ${escHtml(business)}: you’re live! You’re now our <strong>${escHtml(c.label.toLowerCase())}</strong> partner on ${escHtml(town.siteName)}.`) +
+    partnerCard(order, siteUrl) +
+    p(`Your card is in every newsletter issue from the next one on (Monday and Thursday), and you can see it now here:`) +
+    `<ul style="margin:6px 0 14px;padding-left:22px;font-size:15px;line-height:1.55;">${links.map(([href, label]) => `<li><a href="${escHtml(href)}" style="color:${C.accent};font-weight:bold;">${escHtml(label)}</a></li>`).join('')}</ul>` +
+    p('Each month after your renewal we’ll email you how it went. Want to change your line or link? Just reply.', `font-size:15px;`) +
+    manageHtml(manageUrl);
+  return {
+    subject: `You’re live on ${town.siteName}`,
+    html: emailShell({ title: 'You’re live!', preheader: `You're our ${c.label.toLowerCase()} partner.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Good news, ${business}: you're live! You're now our ${c.label.toLowerCase()} partner on ${town.siteName}.`, '',
+      'Your card is in every newsletter issue from the next one on (Monday and Thursday), and you can see it now here:',
+      ...links.map(([href, label]) => `- ${label}: ${href}`), '',
+      'Each month after your renewal we\'ll email you how it went. Want to change your line or link? Just reply.',
+      ...manageText(manageUrl), contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+// The owner said no: the subscription is cancelled and the payment refunded.
+// `refunded` false: the refund is being made by hand (Stripe refused ours).
+export function renderPartnerRejected(order, { siteUrl, address, manageUrl = '', reason = '', refunded = true }) {
+  const business = order.business || 'there';
+  const cat = catName(order);
+  const money = refunded
+    ? 'We’ve cancelled your subscription and refunded your payment in full. It usually shows on your statement within 5 to 10 business days.'
+    : 'We’ve cancelled your subscription and are refunding your payment in full. It usually shows on your statement within 5 to 10 business days.';
+  const why = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  const bodyHtml =
+    p(`Thanks for wanting to partner with ${escHtml(town.siteName)}, ${escHtml(business)}. We’re not able to take your ${escHtml(cat.toLowerCase())} listing right now.`) +
+    (why ? p(escHtml(why)) : '') +
+    p(escHtml(money)) +
+    p('Questions, or want to try again with a different listing? Just reply to this email.') +
+    manageHtml(manageUrl);
+  return {
+    subject: `About your ${town.siteName} partner listing`,
+    html: emailShell({ title: 'About your listing', preheader: 'Your payment is being refunded in full.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Thanks for wanting to partner with ${town.siteName}, ${business}. We're not able to take your ${cat.toLowerCase()} listing right now.`, '',
+      ...(why ? [why, ''] : []), money, '',
+      'Questions, or want to try again with a different listing? Just reply to this email.',
+      ...manageText(manageUrl), contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+// The subscription ended (they cancelled, or Stripe stopped retrying).
+export function renderPartnerCanceled(order, { siteUrl, address, manageUrl = '' }) {
+  const business = order.business || 'there';
+  const cat = catName(order);
+  const bodyHtml =
+    p(`Your ${escHtml(cat.toLowerCase())} partnership with ${escHtml(town.siteName)} has ended, ${escHtml(business)}, and you won’t be charged again.`) +
+    p('Thanks for supporting local events. If you’d like to come back, your category may still be open:') +
+    `<p style="margin:14px 0;">${btn(`${siteUrl}/advertise#partner`, 'See partner details')}</p>` +
+    manageHtml(manageUrl);
+  return {
+    subject: `Your ${town.siteName} partnership has ended`,
+    html: emailShell({ title: 'Your partnership has ended', preheader: 'You won’t be charged again.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Your ${cat.toLowerCase()} partnership with ${town.siteName} has ended, ${business}, and you won't be charged again.`, '',
+      `Thanks for supporting local events. If you'd like to come back, your category may still be open: ${siteUrl}/advertise#partner`, '',
+      ...manageText(manageUrl), contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+// The monthly results report, after each renewal (sponsors.js
+// runPartnerReports; stats from partnerStats).
+export function renderPartnerReport(order, stats, { siteUrl, address, manageUrl = '' }) {
+  const business = order.business || 'there';
+  const cat = catName(order);
+  const short = { month: 'short', day: 'numeric' };
+  const range = `${formatDay(stats.start, short)} – ${formatDay(stats.end, short)}`;
+  const views = Number(stats.views) || 0;
+  const total = Number(stats.click_people) || 0;
+  const rows = [
+    [`Your card was seen on ${town.domain}`, plural(views, 'time', 'times')],
+    ['Clicked your button in our newsletter', people(stats.newsletter_people || 0)],
+    [`Clicked your button on ${town.domain}`, people(stats.site_people || 0)],
+    ...(stats.social_people ? [['Clicked your link in our Facebook post', people(stats.social_people)]] : []),
+    ...(stats.newsletter_recipients ? [[`Newsletter copies with your card (${plural(stats.newsletter_issues, 'issue', 'issues')})`, String(stats.newsletter_recipients)]] : [])
+  ];
+  const bodyHtml =
+    p(`Thanks for being our ${escHtml(cat.toLowerCase())} partner, ${escHtml(business)}! Here’s how your month (${escHtml(range)}) went.`) +
+    p(`<strong>${escHtml(people(total))}</strong> clicked through to you in total.`, 'font-size:17px;') +
+    statsTable(rows) +
+    whereHtml(stats.where) +
+    p(`${escHtml(COUNTER_NOTE)} In your own analytics our visits are tagged utm_source=${town.utmSource}.`, `color:${C.muted};font-size:13px;`) +
+    p('Want to change your line or link for next month? Just reply.', 'font-size:15px;') +
+    manageHtml(manageUrl);
+  return {
+    subject: `Your ${town.shortName} partner month: ${people(total)} clicked`,
+    html: emailShell({ title: 'Your partner report', preheader: `${people(total)} clicked through to ${business} during ${range}.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Thanks for being our ${cat.toLowerCase()} partner, ${business}! Here's how your month (${range}) went.`, '',
+      `${people(total)} clicked through to you in total.`,
+      ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
+      ...whereText(stats.where),
+      COUNTER_NOTE, '',
+      'Want to change your line or link for next month? Just reply.',
+      ...manageText(manageUrl), contactText(siteUrl)
     ].join('\n')
   };
 }

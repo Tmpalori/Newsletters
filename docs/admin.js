@@ -1998,7 +1998,9 @@
     late: 'Paid after its date: refund it',
     paused: 'Payment issue on a venue partner subscription',
     disputed: 'The buyer disputed the charge',
-    processing: 'Bank payment still processing'
+    processing: 'Bank payment still processing',
+    pending_approval: 'New category partner waiting for your OK: approve or reject it',
+    past_due: 'Category partner’s payment is failing: hidden until it’s paid'
   };
 
   async function collectAttention() {
@@ -2448,10 +2450,25 @@
 
   // ─── SPONSORS TAB ────────────────────────────────────────────────────
   // Paid orders from the Stripe checkout (server/sponsors.js).
-  const SPONSOR_KIND = { weekly: 'Weekly sponsor', partner: 'Venue partner', featured: 'Vic’s Pick event' };
-  const SPONSOR_STATUS = { paid: 'Live', active: 'Live', pending: 'Awaiting payment', hidden: 'Hidden', cancelled: 'Cancelled', paused: 'Payment issue', refunded: 'Refunded', disputed: 'Disputed', processing: 'Payment processing', conflict: 'Double-booked: refund', late: 'Paid after its date: refund', failed: 'Checkout failed' };
+  const SPONSOR_KIND = { weekly: 'Weekly sponsor', partner: 'Venue partner', featured: 'Vic’s Pick event', category: 'Category partner' };
+  const SPONSOR_STATUS = { paid: 'Live', active: 'Live', pending: 'Awaiting payment', hidden: 'Hidden', cancelled: 'Cancelled', paused: 'Payment issue', refunded: 'Refunded', disputed: 'Disputed', processing: 'Payment processing', conflict: 'Double-booked: refund', late: 'Paid after its date: refund', failed: 'Checkout failed',
+    pending_approval: 'Waiting for your OK', past_due: 'Payment failing (hidden)', rejected: 'Rejected', canceled: 'Ended' };
+
+  // Category partners (server/partners.js): the category's label from the
+  // list the server sends with the orders.
+  function categoryLabel(id) {
+    const c = ((state.sponsors && state.sponsors.categories) || []).find(x => x.id === id);
+    return c ? (c.emoji ? c.emoji + ' ' : '') + c.label : (id || '');
+  }
 
   function sponsorDetail(o) {
+    if (o.kind === 'category') {
+      const p = o.partner || {};
+      return categoryLabel(o.category) + ': ' + (p.name || o.business || '') + (p.line ? ' · ' + p.line : '') +
+        (p.url ? ' · ' + (p.cta || 'Visit') + ' → ' + p.url : '') +
+        (o.cancel_at ? ' · cancels ' + String(o.cancel_at).slice(0, 10) : '') +
+        (o.status === 'rejected' && o.refund && o.refund.ok === false ? ' · refund failed: refund it in Stripe' : '');
+    }
     if (o.kind === 'weekly') return 'Week of ' + o.week_start + (o.sponsor ? ': ' + o.sponsor.text : '');
     if (o.kind === 'partner') return o.venue_name || o.venue_slug || '';
     return o.event ? o.event.name + ' (' + o.event.date + ')' + (o.submission_id ? ' · in Submissions' : '') : '';
@@ -2459,6 +2476,8 @@
 
   // Weekly orders the server lets the admin edit (server/sponsors.js EDITABLE).
   const SPONSOR_EDITABLE = new Set(['paid', 'hidden', 'processing', 'conflict']);
+  // Category partners' cards the admin can change (sponsors.js editPartner).
+  const PARTNER_EDITABLE = new Set(['pending_approval', 'active', 'hidden', 'past_due']);
 
   // Inline editor under a weekly order's row: wording, link, button text,
   // address, week and logo. Sponsors are told to reply with changes, and a
@@ -2470,11 +2489,23 @@
     if (!o || !row) return;
     const existing = row.nextElementSibling;
     if (existing && existing.classList.contains('sponsor-edit-row')) { existing.remove(); return; }
+    const input = (name, label, value, max) => '<label class="sponsor-edit__field">' + escapeHtml(label) +
+      '<input name="' + name + '" maxlength="' + max + '" value="' + escapeHtml(value || '') + '"></label>';
+    if (o.kind === 'category') {
+      const p = o.partner || {};
+      const tr = document.createElement('tr');
+      tr.className = 'sponsor-edit-row';
+      tr.innerHTML = '<td colspan="7"><form class="sponsor-edit" data-id="' + escapeHtml(o.id) + '">' +
+        input('business', 'Business name', o.business || p.name, 80) + input('line', 'Their line', p.line, 80) +
+        input('url', 'Website or page', p.url, 300) + input('cta', 'Button text', p.cta, 24) +
+        '<label class="sponsor-edit__field">New logo (optional)<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label>' +
+        '<button type="submit" class="btn btn--primary">Save changes</button> <button type="button" class="btn btn--ghost" data-sponsor-edit-cancel>Cancel</button></form></td>';
+      row.after(tr);
+      return;
+    }
     const s = o.sponsor || {};
     const weeks = (d.weeks || []).filter(w => w.available || w.start === o.week_start);
     if (!weeks.some(w => w.start === o.week_start)) weeks.unshift({ start: o.week_start, label: 'Week of ' + o.week_start + ' (current)' });
-    const input = (name, label, value, max) => '<label class="sponsor-edit__field">' + escapeHtml(label) +
-      '<input name="' + name + '" maxlength="' + max + '" value="' + escapeHtml(value || '') + '"></label>';
     const tr = document.createElement('tr');
     tr.className = 'sponsor-edit-row';
     tr.innerHTML = '<td colspan="7"><form class="sponsor-edit" data-id="' + escapeHtml(o.id) + '">' +
@@ -2521,8 +2552,10 @@
     if (btn) btn.disabled = true;
     try {
       const f = form.elements;
-      const body = { action: 'edit', business: f.business.value, text: f.text.value, url: f.url.value, cta: f.cta.value,
-        address: f.address.value, week: f.week.value };
+      const body = f.line
+        ? { action: 'edit', business: f.business.value, line: f.line.value, url: f.url.value, cta: f.cta.value }
+        : { action: 'edit', business: f.business.value, text: f.text.value, url: f.url.value, cta: f.cta.value,
+          address: f.address.value, week: f.week.value };
       const logo = await sponsorLogoData(f.logo.files && f.logo.files[0]);
       if (logo) body.logo_data = logo;
       const { res, json } = await adminFetch('/api/admin/sponsors/' + encodeURIComponent(form.getAttribute('data-id')), {
@@ -2551,10 +2584,19 @@
         ? '<tr><th>Date</th><th>Package</th><th>Business</th><th>Details</th><th>Amount</th><th>Status</th><th></th></tr>' +
           d.orders.map(o => {
             const live = o.status === 'paid' || o.status === 'active';
-            const hasLogo = Boolean(o.sponsor && o.sponsor.logo);
-            const editable = o.kind === 'weekly' && SPONSOR_EDITABLE.has(o.status);
-            const reportable = (o.kind === 'weekly' || o.kind === 'featured') && (live || Boolean(o.paid_at));
-            const btn = (reportable ? '<button type="button" class="btn btn--ghost" data-sponsor-action="report" data-id="' + escapeHtml(o.id) + '">Report</button>' : '') +
+            const hasLogo = Boolean((o.sponsor && o.sponsor.logo) || (o.partner && o.partner.logo));
+            const editable = (o.kind === 'weekly' && SPONSOR_EDITABLE.has(o.status)) ||
+              (o.kind === 'category' && PARTNER_EDITABLE.has(o.status));
+            const reportable = ((o.kind === 'weekly' || o.kind === 'featured') && (live || Boolean(o.paid_at))) ||
+              (o.kind === 'category' && Boolean(o.approved_at));
+            // A new category partner: shown nowhere until approved. Reject
+            // cancels the subscription and refunds it (so does a
+            // double-booked one).
+            const decide = o.kind === 'category' && (o.status === 'pending_approval' || o.status === 'conflict')
+              ? (o.status === 'pending_approval' ? '<button type="button" class="btn btn--primary" data-sponsor-action="approve" data-id="' + escapeHtml(o.id) + '">Approve</button>' : '') +
+                '<button type="button" class="btn btn--ghost" data-sponsor-action="reject" data-id="' + escapeHtml(o.id) + '">Reject and refund</button>'
+              : '';
+            const btn = decide + (reportable ? '<button type="button" class="btn btn--ghost" data-sponsor-action="report" data-id="' + escapeHtml(o.id) + '">Report</button>' : '') +
               (editable ? '<button type="button" class="btn btn--ghost" data-sponsor-action="edit" data-id="' + escapeHtml(o.id) + '">Edit</button>' : '') +
               (live ?'<button type="button" class="btn btn--ghost" data-sponsor-action="hide" data-id="' + escapeHtml(o.id) + '">Hide</button>'
               : o.status === 'hidden' ? '<button type="button" class="btn btn--ghost" data-sponsor-action="restore" data-id="' + escapeHtml(o.id) + '">Restore</button>' : '') +
@@ -2674,6 +2716,11 @@
         ['Clicked on the site', n(s.site_people) + ' people (' + n(s.site_clicks) + ' clicks)'],
         ['Clicked in emails', n(s.email_people) + ' people (' + n(s.email_clicks) + ' clicks)'],
         ['Newsletter copies with the block' + (s.newsletter_issues > 1 ? ' (Mon + Thu)' : ''), n(s.newsletter_recipients)], ['Site visitors that week', n(s.site_visitors)]]
+      : r.kind === 'category'
+      ? [['Counting', s.start + ' to ' + s.end], ['Card or box seen', n(s.views) + ' times (' + n(s.view_people) + ' people)'],
+        ['Clicked through', n(s.click_people) + ' people (' + n(s.clicks) + ' clicks)'],
+        ['From the newsletter', n(s.newsletter_people) + ' people'], ['From the site', n(s.site_people) + ' people'],
+        ['From Facebook', n(s.social_people) + ' people'], ['Newsletter copies with the card', n(s.newsletter_recipients)]]
       : [['Counting', s.start + ' to ' + s.end], ['Shown in lists as a Vic’s Pick', n(s.shown) + ' times (' + n(s.shown_people) + ' people)'],
         ['Event page views', n(s.page_views) + ' (' + n(s.page_people) + ' people)'],
         ['Clicked their link', n(s.link_people) + ' people (' + n(s.link_clicks) + ' clicks)'],
@@ -2706,11 +2753,11 @@
     }
   }
 
-  async function sponsorAction(id, action) {
+  async function sponsorAction(id, action, extra) {
     const errEl = document.getElementById('sponsors-error');
     try {
       const { res, json } = await adminFetch('/api/admin/sponsors/' + encodeURIComponent(id), {
-        method: 'POST', body: JSON.stringify({ action }), headers: { 'Content-Type': 'application/json' }
+        method: 'POST', body: JSON.stringify(Object.assign({ action }, extra || {})), headers: { 'Content-Type': 'application/json' }
       });
       if (!res.ok || !json || !json.ok) throw new Error((json && (json.message || json.error)) || ('HTTP ' + res.status));
       loadSponsors();
@@ -3416,6 +3463,13 @@
       if (action === 'hide' && !confirm('Hide this placement from the site? (Refund it in Stripe separately.)')) return;
       if (action === 'mark-test' && !confirm('Mark this order as a test? It stops counting toward revenue. (Hide it too if it\'s still on the site.)')) return;
       if (action === 'remove-logo' && !confirm('Remove this sponsor’s logo? Their block stays up without it. This can’t be undone.')) return;
+      if (action === 'approve' && !confirm('Approve this partner? Their card goes live on the site and in the next issue, and they get a "You’re live" email.')) return;
+      if (action === 'reject') {
+        const reason = prompt('Reject this partner? Their subscription is cancelled now and their payment refunded, and they get a polite email. Optional: a short note for that email.', '');
+        if (reason === null) return;
+        sponsorAction(b.getAttribute('data-id'), action, { reason });
+        return;
+      }
       sponsorAction(b.getAttribute('data-id'), action);
     });
 

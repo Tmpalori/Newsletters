@@ -1,4 +1,5 @@
 import { town, dollars } from './town.js';
+import { partnerPoints } from './partners.js';
 /* server/seo.js — Server-rendered pages for search engines and AI crawlers.
  *
  * Why this exists: the public site renders events in the browser from
@@ -978,7 +979,7 @@ function footerHtml() {
             <li><a href="/about">About ${town.siteName}</a></li>
             <li><a href="/submit">Submit an event</a></li>
             <li><a href="/venues">Venues</a></li>
-            <li><a href="/advertise">Advertise</a></li>
+            <li><a href="/advertise">Advertise</a></li>${town.dormant ? '' : '\n            <li><a href="/partners">Our partners</a></li>'}
             <li><a href="/contact">Contact</a></li>
           </ul>
         </div>
@@ -1130,7 +1131,9 @@ function including(list) {
   return `, including ${names.slice(0, -1).join(', ')}${names.length > 2 ? ',' : ''} and ${names[names.length - 1]}`;
 }
 
-export function renderHubPage(page, events, { siteUrl, now, sponsor }) {
+// partnerBox: the category partner box or invite for this page
+// (server/partners.js partnerBoxHtml), shown before the first day.
+export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox = '' }) {
   const today = localDateStr(now);
   const [start, end] = dateRange(page.range, today);
   const list = eventsBetween(events, start, end, page.filter);
@@ -1140,7 +1143,7 @@ export function renderHubPage(page, events, { siteUrl, now, sponsor }) {
     <h1 class="page-title">${escHtml(page.h1)}</h1>
     <p class="page-lead">${escHtml(lead)}</p>
     ${page.weekLink ? `<p class="week-nav"><a href="${escHtml(page.weekLink.href)}">${escHtml(page.weekLink.label)}</a></p>` : ''}
-    ${list.length ? `<p class="share-row"><button type="button" class="share-btn share-btn--list" data-share-url="${escHtml(siteUrl + page.path)}" data-share-text="${escHtml(page.h1)}" data-track="share_list">Share this list</button></p>` : ''}
+    ${list.length ? `<p class="share-row"><button type="button" class="share-btn share-btn--list" data-share-url="${escHtml(siteUrl + page.path)}" data-share-text="${escHtml(page.h1)}" data-track="share_list">Share this list</button></p>` : ''}${partnerBox ? `\n    ${partnerBox}` : ''}
     ${list.length
       ? renderGrouped(list, today)
       : `<div class="empty-state">Check <a href="/">this week's full list</a>, or <a href="/submit">submit an event</a>.</div>`}
@@ -1287,6 +1290,23 @@ export const AD_PACKAGES = [
         ['Your results report', 'views, clicks, calendar adds and shares, the day after']
       ];
     }
+  },
+  {
+    // A monthly subscription (server/partners.js, sponsors.js kind
+    // 'category'): one business per category. Shown at #partner, the
+    // anchor every partner invite links to. Its price, like the others',
+    // appears only here and on its checkout.
+    key: 'category',
+    anchor: 'partner',
+    name: 'Category partner',
+    cta: 'Claim a category',
+    ctaNote: 'Pick your category, write your line, pay monthly',
+    interval: 'month',
+    get price() { return `${dollars(this.amount)} / month`; },
+    get amount() { return town.business.partnerAmount; },
+    blurb: 'Pick your category and write your line. We check every new partner, then you’re in every issue and on your category’s pages.',
+    limit: 'One business per category. Cancel anytime.',
+    get points() { return partnerPoints(); }
   }
 ];
 
@@ -1368,7 +1388,9 @@ const adFaq = () => [
 // server/sponsors.js samplePreviews(), the same renderer the checkout uses;
 // emailPreviews the same packages inside the newsletter
 // (server/newsletter.js sampleEmailPreviews). stats from advertiseStats.
-export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, emailPreviews = {}, stats = null }) {
+// partnerOpen: the category partner's open categories (labels), for its
+// "Open now" line.
+export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, emailPreviews = {}, stats = null, partnerOpen = null }) {
   // A paused town (TOWN_DORMANT=1) sells nothing: no packages or prices,
   // and kept out of search until it's back.
   if (town.dormant) {
@@ -1397,7 +1419,7 @@ export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, 
     ${adFlowHtml()}
     <div class="ad-packages ad-packages--rows">
       ${AD_PACKAGES.map(p => `
-      <section class="ad-package ad-package--row" id="${escHtml(p.key)}">
+      <section class="ad-package ad-package--row" id="${escHtml(p.anchor || p.key)}">
         <div class="ad-package__info">
           <div class="ad-package__head">
             <h2>${escHtml(p.name)}</h2>
@@ -1408,7 +1430,10 @@ export function renderAdvertisePage({ siteUrl, checkout = false, previews = {}, 
             <p class="ad-checklist-title">What you get</p>
             <ul class="ad-checklist" role="list">${p.points.map(([b, rest]) => `<li><span class="ad-check" aria-hidden="true">✓</span><span><strong>${escHtml(b)}</strong>${rest ? ` <span class="ad-check-rest">${escHtml(rest)}</span>` : ''}</span></li>`).join('')}</ul>
           </div>
-          ${checkout ? `<div class="ad-cta"><a class="btn ad-buy" href="/advertise/checkout?package=${escHtml(p.key)}">${escHtml(p.cta)} →</a><span class="ad-cta-note">See a live preview before you pay · takes 2 minutes</span></div>` : ''}
+          ${p.key === 'category' && partnerOpen ? (partnerOpen.length
+            ? `<p class="ad-checklist-title partner-open-now">Open now: ${partnerOpen.map(escHtml).join(' · ')}</p>`
+            : '<p class="ad-checklist-title partner-open-now">Every category is taken right now. <a href="/contact?topic=advertising">Ask us</a> to hear when one opens.</p>') : ''}
+          ${checkout && !(p.key === 'category' && partnerOpen && !partnerOpen.length) ? `<div class="ad-cta"><a class="btn ad-buy" href="/advertise/checkout?package=${escHtml(p.key)}">${escHtml(p.cta)} →</a><span class="ad-cta-note">${escHtml(p.ctaNote || 'See a live preview before you pay · takes 2 minutes')}</span></div>` : ''}
         </div>
         ${previews[p.key] || emailPreviews[p.key] ? `<div class="ad-package__preview" aria-label="Example of a ${escHtml(p.name)}">` +
           (previews[p.key] ? `<div class="ad-preview"><p class="ad-preview-label">On the site</p>${previews[p.key]}</div>` : '') +
