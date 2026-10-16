@@ -136,7 +136,7 @@ and scripts/launch_check.py fails until the town is really collecting):
     site's scheduler and Pull Now and adds it to the scheduled Sunday and
     Wednesday collects. META_TOWN={slug} in the Environment only with the
     town's own Meta page, Instagram and ad account, whose ids also go in
-    town.json "meta" (page_id, ig_user_id, ad_account_id). Until then it starts no collect, social kit,
+    town.json "meta" (page_id, ig_user_id, ad_account_id, and campaign_prefix in the shared ad account). Until then it starts no collect, social kit,
     submission review or event check.
   - 3.5 the workflows' gates call the town's own SITE_URL.
   - 2.6 Railway watch paths on its service: /server/**, /docs/**,

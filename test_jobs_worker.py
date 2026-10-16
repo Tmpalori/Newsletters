@@ -420,12 +420,17 @@ def test_ads_report_quiet_week_and_failures(victoria):
     assert status == "failed" and "aren't victoria's own" in result["error"]
 
 
-def test_ads_report_is_a_clean_no_op_without_ads_settings(medford):
+def test_ads_report_is_a_clean_no_op_without_ads_settings(medford, monkeypatch):
     w, _ = medford
     run = fake_ads("x")
     # No token at all.
     assert w.job_meta_ads(FakeSite(), run=run, env={}) == ("done", {"skipped": "no ads settings (META_ADS_TOKEN / META_PAGE_TOKEN isn't set)"})
-    # Its page token for posting, but no ad account pinned in its town.json.
+    # Its page token for posting, and the shared ad account pinned in its
+    # town.json, but not yet on the jobs service: names the variable.
+    status, result = w.job_meta_ads(FakeSite(), run=run, env=POSTING)
+    assert status == "failed" and "META_AD_ACCOUNT_ID=act_2614503002399063" in result["error"]
+    # No ad account pinned in its town.json: nothing to do.
+    monkeypatch.setitem(w.TOWN, "meta", {"page_id": MEDFORD_PAGE})
     status, result = w.job_meta_ads(FakeSite(), run=run, env=POSTING)
     assert status == "done" and "no ad account pinned" in result["skipped"]
     assert run.calls == []

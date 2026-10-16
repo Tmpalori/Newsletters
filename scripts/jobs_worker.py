@@ -416,6 +416,12 @@ def job_meta_ads(site, run=run_script, env=None):
     if not meta_allowed(env=env, use="ads"):
         if TOWN["id"] != VICTORIA["id"] and not str(pins.get("ad_account_id") or "").strip():
             return "done", {"skipped": f"no ad account pinned for {TOWN['id']} (\"meta\".ad_account_id)"}
+        if TOWN["id"] != VICTORIA["id"] and not env.get("META_AD_ACCOUNT_ID", "").strip():
+            # Pinned in town.json but not yet on the jobs service: name the
+            # variable to set, rather than a vague "not its own".
+            pinned = str(pins["ad_account_id"]).strip().removeprefix("act_")
+            return "failed", {"error": f"{TOWN['id']}'s town.json pins ad account {pinned}; set "
+                                       f"META_AD_ACCOUNT_ID=act_{pinned} on its jobs service. No report."}
         return "failed", {"error": f"The Meta ads settings on the jobs service aren't {TOWN['id']}'s own "
                                    "(META_TOWN and the ad account its settings pin); no report."}
     with tempfile.TemporaryDirectory() as tmp:

@@ -47,8 +47,11 @@ VICTORIA = {
     # Her own Meta ids, as another town's town.json pins them under "meta"
     # (meta_allowed): the Facebook page The Vic 361 posts to. No Instagram
     # id until one is linked and pinned (Facebook only), no ad account pin
-    # (her token sees exactly one ad account).
-    "meta": {"page_id": "1388965530960534"},
+    # (her token sees exactly one ad account). That account is shared with
+    # the other towns, so her ads report reads only her campaigns
+    # (scripts/meta_ads.py CAMPAIGN_PREFIX: "Vic Newsletter Leads",
+    # "Vic Newsletter Leads - Copy").
+    "meta": {"page_id": "1388965530960534", "campaign_prefix": "Vic Newsletter Leads"},
     "hashtags": "#VictoriaTX #ThingsToDoVictoria #VictoriaTexas #361 #TheVic361",
     # Collector (collect_events.py): the area it lists, what it asks sources
     # for, and the place names its checks and AI prompts use.
