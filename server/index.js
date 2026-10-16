@@ -38,7 +38,7 @@ import { registerPrivacy, purgePersonalData } from './privacy.js';
 import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
-import { createJobs, kindForWorkflow, canRunOnWorker } from './jobs.js';
+import { createJobs, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
@@ -1859,8 +1859,8 @@ export async function createApp(opts = {}) {
   // Cron secrets, one per endpoint: NEWSLETTER_CRON_SECRET (newsletter
   // send), EVENT_CHECK_SECRET (hide events), SUBMISSION_REVIEW_SECRET
   // (approve and publish submissions). The fallbacks below (and the same
-  // chain in event-check.yml / submission-review.yml) keep setups made
-  // before the later two existed working, but then one leaked value grants
+  // chain in the jobs worker's scripts) keep setups made before the later
+  // two existed working, but then one leaked value grants
   // all three, so the setup checklist flags a shared secret.
   const eventCheckSecret = opts.eventCheckSecret ??
     (process.env.EVENT_CHECK_SECRET || process.env.NEWSLETTER_CRON_SECRET || '');
@@ -1869,7 +1869,7 @@ export async function createApp(opts = {}) {
 
   // Growth (server/growth.js): Admin → Growth, and Meta's daily ad spend
   // from scripts/meta_ads.py. ADS_SPEND_SECRET, else the submission review
-  // secret (meta-ads.yml sends the same fallback); it can only add numbers.
+  // secret (the jobs worker sends the same fallback); it can only add numbers.
   const adsSpendSecret = opts.adsSpendSecret ?? (process.env.ADS_SPEND_SECRET || submissionReviewSecret);
   registerGrowth(app, {
     store, requireAdmin, adminOrHq, nowFn: () => (opts.now || (() => new Date()))(), secret: adsSpendSecret,
@@ -2524,7 +2524,7 @@ export async function createApp(opts = {}) {
     store, slack, siteUrl, nowFn: () => nowFn(),
     // Jobs on Railway: the town's worker jobs go to its jobs worker (every
     // town's, Victoria's included); without them they don't run.
-    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(kindForWorkflow(job.workflow), slot) : null,
+    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(job.kind, slot) : null,
     canQueue: job => canRunOnWorker(job),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
@@ -2552,16 +2552,6 @@ export async function createApp(opts = {}) {
     }
   });
   if (opts.startScheduler ?? schedulerEnabled()) scheduler.start();
-
-  // The fallback GitHub crons ask this before repeating a job; public, as
-  // it only says whether a named job ran in its latest slot.
-  app.get('/api/scheduler/ran', wrap(async (req, res) => {
-    const out = await scheduler.ran(String(req.query.job || ''));
-    if (!out) return res.status(404).json({ ok: false, error: 'unknown-job' });
-    // Public: the outcome ("sent", "no-subscribers"), not the detail's counts.
-    const { detail: _detail, ...pub } = out;
-    res.set('Cache-Control', 'no-store').json({ ok: true, ...pub });
-  }));
 
   // Whether the town has ever collected: auto-publish records when the
   // candidates it published were collected. Victoria always has.

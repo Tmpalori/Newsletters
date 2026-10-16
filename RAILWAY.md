@@ -41,17 +41,28 @@ own).
    Then work down the
    admin Home tab's setup checklist, which says what each missing variable
    turns on (Slack, Resend newsletter, Stripe, cron secrets, Turnstile,
-   jobs on Railway). PR and staging environments don't inherit `ADMIN_*`
-   automatically; set them per environment or as shared variables.
+   jobs on Railway). Victoria's `staging` environment doesn't inherit
+   `ADMIN_*`; set them there too (never as project-shared variables, see
+   "New town on Railway"). PR environments are off.
 4. **Cron secrets** (`NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
    `SUBMISSION_REVIEW_SECRET`) live on the web service; the jobs service
    reads them as references (`${{<web>.<NAME>}}`), so nothing is copied.
    Give each its own value; see AGENTS.md "Security notes".
-5. **Stripe** (sponsor checkout; each town has its own Stripe account and
-   endpoint). Live restricted key (`rk_live_`) in production as
-   `STRIPE_SECRET_KEY`; a test key there shows a Setup checklist warning,
-   and with a live key a test-mode payment is never fulfilled. Webhook
-   endpoint `<SITE_URL>/api/stripe/webhook` on API version
+5. **Stripe** (sponsor checkout). Every town sells through **one shared
+   Stripe account**; each town has its own key and its own webhook
+   endpoint on it. Orders stay apart by `metadata.town` on each session,
+   payment and subscription (Victoria's say `victoria`; older untagged
+   ones are hers) and by matching only the town's own orders; each town's
+   webhook skips the others' sessions and subscriptions. The card
+   statement reads the account's prefix plus the town
+   (`statement_descriptor_suffix`, e.g. "VIC 361"), so set the account's
+   public name and statement descriptor prefix in the Dashboard to
+   something neutral (the LLC or a shared brand, 10 characters or fewer).
+   Live restricted key (`rk_live_`: Checkout Sessions, Products and
+   Prices: write) in production as `STRIPE_SECRET_KEY`, one per town so
+   one can be revoked alone; a test key there shows a Setup checklist
+   warning, and with a live key a test-mode payment is never fulfilled.
+   Webhook endpoint `<SITE_URL>/api/stripe/webhook` on API version
    `2026-09-30.endive`, its signing secret as `STRIPE_WEBHOOK_SECRET`,
    subscribed to: `checkout.session.completed`,
    `checkout.session.async_payment_succeeded`,
@@ -95,7 +106,8 @@ curl -s $SITE/events.json | jq '.events | length'
 ```
 
 Use `www` (or the Railway domain), not the bare `thevic361.com`: the apex is
-forwarded by Squarespace and its deep links 404.
+forwarded by Squarespace, which drops the query string (the server
+collapses the `//path` it sends).
 
 Then sign in at `$SITE/admin.html`: the Home tab shows the setup checklist,
 upcoming events and anything waiting for you.
@@ -161,20 +173,22 @@ copy a value from Victoria's project, or from another town's: a copied
    and use receiving instead); receiving: a webhook (event `email.received`)
    to `https://www.<domain>/api/email/inbound` with its secret as
    `RESEND_WEBHOOK_SECRET`.
-6. **Stripe: the town's own account** (Stripe → account menu → New
-   account; same LLC, EIN and payout bank), with its public business name,
-   logo and statement descriptor, so checkout and card statements show the
-   town, not The Vic 361. Its keys only: `STRIPE_SECRET_KEY` (a restricted
-   key: Checkout Sessions, Products and Prices: write) and
-   `STRIPE_WEBHOOK_SECRET` from a webhook endpoint at
-   `https://www.<domain>/api/stripe/webhook` (API version as in the admin
-   setup checklist) sending these events:
-   `checkout.session.completed`, `checkout.session.expired`,
+6. **Stripe: the shared account** (One-time setup step 5). No new
+   account: on the shared one, a new restricted key for the town
+   (Checkout Sessions, Products and Prices: write) as `STRIPE_SECRET_KEY`,
+   and `STRIPE_WEBHOOK_SECRET` from a new webhook endpoint at
+   `https://www.<domain>/api/stripe/webhook` (API version
+   `2026-09-30.endive`, as in the admin setup checklist) sending all 12
+   events: `checkout.session.completed`,
    `checkout.session.async_payment_succeeded`,
-   `checkout.session.async_payment_failed`, `charge.refunded`,
-   `charge.dispute.created`, `customer.subscription.updated`,
-   `customer.subscription.deleted`, `invoice.payment_failed`,
-   `radar.early_fraud_warning.created`. Check it with a test-mode checkout.
+   `checkout.session.async_payment_failed`, `checkout.session.expired`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.payment_failed`, `invoice.paid`, `charge.refunded`,
+   `charge.dispute.created`, `charge.dispute.closed`,
+   `radar.early_fraud_warning.created`. The code tags the town's sessions
+   (`metadata.town=<slug>`), its catalog prices and keys (`town.keyPrefix`)
+   and its card statement suffix, so nothing else is set per town. Check
+   it with a test-mode checkout.
 7. **Referral gift cards (Tremendous).** The town's own campaign (its name
    and logo on the reward email): `TREMENDOUS_API_KEY`,
    `TREMENDOUS_CAMPAIGN_ID`, `TREMENDOUS_FUNDING_SOURCE`. Or leave them out
@@ -210,7 +224,7 @@ copy a value from Victoria's project, or from another town's: a copied
     Railway target. Make the apex redirect to `www` with the path kept (a
     DNS host's 301 that keeps paths, or the apex on Railway too, where the
     server redirects it). Don't repeat Victoria's Squarespace forwarding,
-    which breaks every deep link on the apex.
+    which doubles the slash and drops the query string (`?ref=`).
 15. **PR environments** are off for the Newsletters project (see the top
     of this section); check they still are.
 16. **Watch paths** (MULTI_CITY_PLAN.md 2.6): the service watches
@@ -229,7 +243,7 @@ copy a value from Victoria's project, or from another town's: a copied
 
 Then: `python3 scripts/launch_check.py --town <slug>` (every automatic
 check passes, including 10+ upcoming events, a collect in the last 8 days
-and workflows on), its manual list, and `python3 scripts/live_check.py`
+and jobs on Railway), its manual list, and `python3 scripts/live_check.py`
 for Victoria before and after.
 
 ## Jobs on Railway (a town's jobs service)
@@ -372,7 +386,8 @@ events) and merged:
 6. **First collect:** Pull Now in the town's admin (or wait for its first
    Sunday or Wednesday); HQ shows it under the town's jobs.
 7. **Owner, when ready to sell and send:** Resend domain and key, the
-   town's Stripe account, the mailing address and business name, the
+   town's key and webhook on the shared Stripe account, the mailing
+   address and business name, the
    Facebook page and Instagram (then `META_TOWN` and the social kit move,
    JOBS_ON_RAILWAY.md 2b). Turnstile: add `www.<domain>` to the widget.
 

@@ -13,7 +13,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { createJobs, kindForWorkflow, upcomingCount, canRunOnWorker } from '../server/jobs.js';
+import { createJobs, upcomingCount, canRunOnWorker } from '../server/jobs.js';
 import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
@@ -260,7 +260,7 @@ describe('the scheduler with jobs on Railway', () => {
     const github = { calls: [], isConfigured: () => true, branch: 'main', dispatchWorkflow: async (f) => { github.calls.push(f); } };
     const queued = [];
     const s = createScheduler({ store, github, log: { warn() {} },
-      queueJob: async (job, slot) => { queued.push([kindForWorkflow(job.workflow), slot]); },
+      queueJob: async (job, slot) => { queued.push([job.kind, slot]); },
       canQueue: job => canRunOnWorker(job) });
     await s.tick(new Date('2026-10-07T13:48:00Z'));     // ads, social kit and the review are due
     await s.tick(new Date('2026-10-07T20:30:00Z'));     // Wednesday's collect
@@ -283,10 +283,12 @@ describe('the scheduler with jobs on Railway', () => {
   it('every kind runs on the worker for every town', () => {
     for (const t of [VICTORIA, townConfig({ TOWN: 'medford' })]) {
       useTown(t);
-      for (const f of ['social-kit.yml', 'meta-ads.yml', 'weekly-digest.yml', 'weekly-collect.yml', 'event-check.yml', 'submission-review.yml']) {
-        expect(canRunOnWorker({ workflow: f })).toBe(true);
+      for (const kind of ['social-kit', 'meta-ads', 'digest', 'collect', 'event-check', 'submission-review']) {
+        expect(canRunOnWorker({ kind })).toBe(true);
       }
-      expect(canRunOnWorker({ workflow: 'newsletter.yml' })).toBe(false);
+      expect(canRunOnWorker({ kind: 'newsletter' })).toBe(false);
+      expect(canRunOnWorker({ kind: 'toString' })).toBe(false);
+      expect(canRunOnWorker({ name: 'newsletter' })).toBe(false);
     }
   });
 });

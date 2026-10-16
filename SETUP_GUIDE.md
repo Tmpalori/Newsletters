@@ -1,148 +1,77 @@
 # The Vic 361 — Setup Guide
 
-Follow these steps to get everything running.
+Every town, Victoria included, runs on Railway: a web service (the Express
+server and the site) with its own Postgres, and a jobs service that runs the
+collector and the other jobs. GitHub only holds the code and runs the tests
+(`tests.yml`). GitHub Pages and the old GitHub Actions jobs are retired.
+
+Where the steps live:
+
+- **RAILWAY.md**: standing up a service, every variable it needs, the jobs
+  service, and the smoke test after a deploy.
+- **LAUNCH_CHECKLIST.md**: a new town end to end (owner and agent steps).
+- **AGENTS.md → Environment variables**: what every variable does.
 
 ---
 
-## 1. Create the GitHub Repository
-
-1. Go to [github.com/new](https://github.com/new)
-2. Name it `thevic361` (or whatever you prefer)
-3. Set to **Public** (required for free GitHub Pages)
-4. Click **Create repository**
-5. Push this folder:
+## 1. Run it locally
 
 ```bash
-cd vic361-collector
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/thevic361.git
-git push -u origin main
+npm ci
+npm start                          # http://localhost:3000
+pip install -r requirements.txt -r requirements-dev.txt
+python collect_events.py --candidates-only --output ./docs/events.json --local-dir .
 ```
 
----
+Without `DATABASE_URL` the server keeps its data in a JSON file under
+`data/`, which is fine locally.
 
-## 2. Enable GitHub Pages
+## 2. OpenAI, Apify and Gemini (the collector)
 
-1. Go to your repo → **Settings** → **Pages**
-2. Source: **Deploy from a branch**
-3. Branch: `main`, folder: `/docs`
-4. Click **Save**
-5. Your site will be live at: `https://YOUR_USERNAME.github.io/thevic361/`
+`OPENAI_API_KEY`, `APIFY_TOKEN` and `GEMINI_API_KEY` are project-shared
+variables in the Newsletters Railway project; each town's jobs service
+references them (RAILWAY.md "Jobs on Railway"). The collector still runs
+without them, with fewer sources and no AI cleanup.
 
----
+## 3. The Sunday digest email
 
-## 3. Point Your Domain (thevic361.com)
+The digest of what was collected goes out Sunday at 9 PM town time from the
+town's jobs service, through Gmail SMTP with an
+[App Password](https://myaccount.google.com/apppasswords): set
+`SMTP_EMAIL` and `SMTP_PASSWORD` (the 16-character App Password, no spaces)
+on the jobs service. Without them the digest is skipped.
 
-### Option A: Custom domain via GitHub Pages
-
-1. In repo **Settings → Pages → Custom domain**, enter `thevic361.com`
-2. Check "Enforce HTTPS"
-3. At your domain registrar (wherever you bought thevic361.com), add these DNS records:
-
-| Type | Name | Value |
-|---|---|---|
-| A | @ | 185.199.108.153 |
-| A | @ | 185.199.109.153 |
-| A | @ | 185.199.110.153 |
-| A | @ | 185.199.111.153 |
-| CNAME | www | YOUR_USERNAME.github.io |
-
-4. Wait 10-30 minutes for DNS to propagate
-5. GitHub will auto-provision an SSL certificate
-
-### Option B: Keep using the Perplexity-hosted version
-
-The site is currently live at the URL I deployed earlier. You can point your domain to that instead using a CNAME redirect. But GitHub Pages is recommended for the automation pipeline.
-
----
-
-## 4. Set Up the OpenAI API Key (Optional, ~$1-2/month)
-
-The AI cleanup step polishes event descriptions and deduplicates more intelligently. It's optional — the collector works fine without it.
-
-1. Get an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-2. Add it as a GitHub Secret:
-   - Repo → **Settings** → **Secrets and variables** → **Actions**
-   - Click **New repository secret**
-   - Name: `OPENAI_API_KEY`
-   - Value: your API key
-
----
-
-## 5. Enable GitHub Actions
-
-1. Go to repo → **Actions** tab
-2. You should see the "Collect Events" workflow
-3. Click **Enable** if prompted
-4. To test: click **Run workflow** → **Run workflow** (manual trigger)
-5. It will run automatically every day at 6:00 AM Central
-
----
-
-## 6. Set Up the Email Sender
-
-The Sunday digest emails are sent via Gmail SMTP using an [App Password](https://myaccount.google.com/apppasswords).
-
-1. Generate a Gmail App Password for `tristen.m.palori@gmail.com`
-2. Add as GitHub Secrets:
-   - `SMTP_EMAIL` = `tristen.m.palori@gmail.com`
-   - `SMTP_PASSWORD` = the App Password (16-char string, no spaces)
-
-The weekly digest workflow uses these to email you the candidates each Sunday.
-
----
-
-## 7. Newsletter (Resend)
+## 4. Newsletter (Resend)
 
 The newsletter runs on Resend (`server/newsletter.js`); Beehiiv is no longer used. Signups on the homepage are saved to the site's own list. To send:
-1. Verify thevic361.com in Resend and create an API key
+1. Verify the town's domain in Resend and create an API key
 2. In Railway set `RESEND_API_KEY` and `NEWSLETTER_ADDRESS` (mailing address shown in every email)
-3. Optional: `NEWSLETTER_CRON_SECRET` (Railway + GitHub secret) for the backup automatic send (Mondays and Thursdays)
+3. The site's scheduler sends Monday's and Thursday's issues on its own. `NEWSLETTER_CRON_SECRET` lets you start a send by hand (`POST /api/newsletter/cron`)
 
-## 8. Legal pages
+## 5. Legal pages
 
 `/terms`, `/advertising-terms` (refunds at `/refunds`), `/privacy` and `/accessibility` name the business from Railway variables: `BUSINESS_LEGAL_NAME` (the LLC's legal name), `BUSINESS_CONTACT_EMAIL` (an inbox you read for refunds, privacy requests and free drawing entries) and `NEWSLETTER_ADDRESS`. They're plain-English drafts, not legal advice: have an attorney review them. See AGENTS.md "Legal pages".
-
-## Monthly Costs
-
-| Service | Cost |
-|---|---|
-| GitHub Pages hosting | Free |
-| GitHub Actions (2,000 min/month) | Free |
-| Domain (thevic361.com) | ~$1/month ($12/year) |
-| OpenAI API (optional) | ~$1-2/month |
-| Resend (up to 3,000 emails/mo) | Free |
-| **Total** | **~$2-3/month** |
 
 ---
 
 ## Architecture
 
 ```
-Daily at 6 AM Central:
-┌─────────────────────┐
-│  GitHub Actions      │
-│  runs collector      │──→ events.json updated
-└─────────────────────┘
+Sunday and Wednesday, 3:23 PM town time:
+┌──────────────────────┐
+│  site scheduler      │──→ queues a collect (job_queue)
+│  (web service)       │
+└──────────────────────┘
          │
          ▼
-┌─────────────────────┐
-│  victoriatx.gov     │
-│  Chamber of Commerce│──→ Raw events fetched
-│  local_events.yaml  │
-└─────────────────────┘
+┌──────────────────────┐
+│  jobs service        │──→ collect_events.py --candidates-only:
+│  (Railway)           │    town feeds, local_events.yaml, Facebook,
+└──────────────────────┘    Instagram, Gemini; OpenAI cleanup
          │
          ▼
-┌─────────────────────┐
-│  OpenAI (optional)  │──→ Cleanup + dedup
-└─────────────────────┘
-         │
-         ▼
-┌─────────────────────┐
-│  docs/events.json   │──→ GitHub Pages serves
-│  thevic361.com      │    the website
-└─────────────────────┘
+┌──────────────────────┐
+│  web service +       │──→ candidates stored and auto-published;
+│  Postgres            │    the site serves /events.json
+└──────────────────────┘
 ```

@@ -42,10 +42,13 @@ def test_creates_the_town(tmp_path, capsys):
                  "RESEND_WEBHOOK_SECRET", "email.bounced", "email.complained"]:
         assert name in out, name
     assert "thevic361" not in out
-    # The deferred plan items are launch blockers, and the runbook is named.
-    for item in ("3.3", "3.5", "2.6", "META_TOWN=bay", '"workflows": true', "/towns/bay/**",
-                 "RAILWAY.md \"New town on Railway\"", "scripts/launch_check.py --town bay"):
+    # The Railway-era runbooks are named; nothing points at GitHub.
+    for item in ("LAUNCH_CHECKLIST.md", "RAILWAY.md \"New town, the simple way\"", "RAILWAY.md \"New town on Railway\"",
+                 "JOBS_ON_RAILWAY=1", "META_TOWN=bay", '"workflows": false', "/towns/bay/**",
+                 "shared account", "metadata.town=bay", "invoice.paid", "scripts/launch_check.py --town bay"):
         assert item in out, item
+    for stale in ("GitHub Environment", '"workflows": true', "New\n    account", "own Stripe account"):
+        assert stale not in out, stale
 
 
 def test_index_stays_sorted_with_victoria_first(tmp_path):

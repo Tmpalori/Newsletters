@@ -81,10 +81,15 @@ issue and tick it off.
 - [ ] Texas assumed-name certificate (DBA) for the newsletter's name.
 - [ ] `BUSINESS_LEGAL_NAME` and `BUSINESS_CONTACT_EMAIL` (Agent sets them;
       the same values for every town).
-- [ ] The town's own Stripe account (same login, LLC and bank), its name,
-      logo and statement descriptor; `STRIPE_SECRET_KEY` (restricted `rk_`),
-      webhook to `/api/stripe/webhook` with the events in AGENTS.md,
-      `STRIPE_WEBHOOK_SECRET`. Test-mode checkout shows the town's name.
+- [ ] Stripe: the one shared account (no new account per town; its public
+      name and statement descriptor prefix stay neutral, see RAILWAY.md
+      One-time setup step 5). On it, a restricted key for the town as
+      `STRIPE_SECRET_KEY` and a webhook endpoint to
+      `https://www.<domain>/api/stripe/webhook` with all 12 events in
+      RAILWAY.md "New town on Railway" step 6, its secret as
+      `STRIPE_WEBHOOK_SECRET`. The code tags the town's sessions
+      (`metadata.town`) and puts the town on the card statement. A
+      test-mode checkout shows the town's product name and suffix.
 - [ ] Prices: the shared defaults (weekly sponsor $149, picks $29 Mon–Thu,
       $39 Fri–Sun) unless the town's `town.json` `business` sets its own.
 - [ ] Category partners and venue outreach turned on for the town (see 8).
@@ -164,7 +169,7 @@ Built once in the shared code, turned on per town:
 
 - [ ] **Category partners**: a monthly sponsor per category (one
       restaurant, one realtor, one dentist...), exclusive, shown on the site
-      and in every issue, billed monthly through the town's Stripe account.
+      and in every issue, billed monthly through the shared Stripe account.
 - [ ] **Venue outreach**: each week, the venues with an upcoming listed
       event get an email offering a featured pick for that event, with
       checkout prefilled.

@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { sameEvent, verifyStripeSignature, formEncode, bookableWeeks, pickAvailability, isWeekendDate, renderPreview, sponsorCalendar, parseLogo,
-  newsletterCovers, sponsorStats, sponsorLandingUrl, renderThanksPage } from '../server/sponsors.js';
+  newsletterCovers, sponsorStats, sponsorLandingUrl, renderThanksPage, statementSuffix } from '../server/sponsors.js';
 import { promises as fs } from 'node:fs';
 import { renderSubmissionReceived, renderSponsorConfirmed } from '../server/notify.js';
 import { sponsorLinkUrl } from '../server/seo.js';
@@ -1224,14 +1224,14 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
   const slackFake = alerts => ({ enabled: true, notify: async () => true, alert: async (...a) => { alerts.push(a); } });
   afterEach(() => useTown(VICTORIA));
 
-  it("Victoria's sessions stay untagged; it skips events tagged for another town", async () => {
+  it("Victoria's sessions are tagged victoria; it skips events tagged for another town", async () => {
     const alerts = [];
     await startApp({ slack: slackFake(alerts) });
     await weekly();
     const s = sessions[0];
     const id = s.params.client_reference_id;
-    expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String) });
-    expect(s.params.payment_intent_data).toBeUndefined();
+    expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String), town: 'victoria' });
+    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'victoria' }, statement_descriptor_suffix: 'VIC 361' });
     await completed(s, { metadata: { town: 'bay' } });
     expect(await status()).toBe('pending');
     await completed(s); // untagged: from before towns, so Victoria's
@@ -1247,7 +1247,7 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
     const s = sessions[0];
     const id = s.params.client_reference_id;
     expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String), town: 'bay' });
-    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'bay' } });
+    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'bay' }, statement_descriptor_suffix: 'BAY 979' });
     expect(s.key).toBe(`bay-order-${id}`);
     await completed(s); // untagged = Victoria's
     await completed(s, { metadata: { town: 'victoria' } });
@@ -1256,6 +1256,18 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
     expect(await status()).toBe('paid');
     await fraud();
     expect(alerts).toEqual([]);
+  });
+
+  it("statementSuffix keeps each town inside Stripe's descriptor limits", () => {
+    expect(statementSuffix('The Vic 361')).toBe('VIC 361');
+    expect(statementSuffix('Shoals Setlist')).toBe('SHOALS');     // cut at a word
+    expect(statementSuffix('Tupelo Current')).toBe('TUPELO');
+    expect(statementSuffix('Abcdefghijklmn')).toBe('ABCDEFGHIJ'); // one long word: cut
+    expect(statementSuffix('The "Bay" <979>*')).toBe('BAY 979');  // characters Stripe refuses dropped
+    expect(statementSuffix('The 361')).toBeUndefined();           // Stripe needs a letter
+    for (const name of ['The Crane 308', 'The Star 402', 'The Rogue 541', 'The Tide 757']) {
+      expect(statementSuffix(name).length).toBeLessThanOrEqual(10);
+    }
   });
 
   it("skips another town's subscription events", async () => {

@@ -48,7 +48,7 @@
   "category": "Contemporary Art Museum",
   "facebook_page": "https://www.facebook.com/VirginiaMOCA",
   "facebook_events": "https://www.facebook.com/VirginiaMOCA/events",
-  "event_potential": "Exhibitions, classes, Family Fest, Night Shift; also the virginia_moca tribe feed",
+  "event_potential": "Exhibitions, classes, Family Fest, Night Shift (its own calendar blocks Railway; the big dates are in local_events.yaml)",
   "confidence": "high",
   "notes": "FB/IG links from the venue's official website footer (curl 2026-10-15)",
   "source": "seed",

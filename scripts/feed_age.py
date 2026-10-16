@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Freshness of the live events feed, for uptime.yml.
+"""Freshness of the live events feed (a manual check; uptime.yml is retired).
 
     python3 scripts/feed_age.py events.json             days since the last collect (99 when unreadable)
-    python3 scripts/feed_age.py --upcoming events.json  events dated today or later in Victoria (0 when unreadable)
+    python3 scripts/feed_age.py --upcoming events.json  events dated today or later in the town (0 when unreadable)
 
 The age uses `collected_at` (the candidates.json auto-publish last put live)
 when the feed has it: `last_updated` also moves on every AI-approved

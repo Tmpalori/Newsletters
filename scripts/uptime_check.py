@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Is thevic361.com up? Run by .github/workflows/uptime.yml (best-effort cron; backup check).
+"""Is a town's site up? A manual check now: uptime.yml is retired, and HQ
+and each site's hourly check watch health on their own.
 
 Down means any of: the homepage, /api/health?deep=1 (the server and its
 database) or /events.json doesn't answer 200 within TIMEOUT seconds, answers
@@ -9,7 +10,7 @@ seconds later, so a deploy restart isn't an alert.
 Alerts go to Slack (SLACK_WEBHOOK_URL) and, when NTFY_TOPIC is set, as a
 high-priority push to the ntfy phone app. The first failure alerts at once,
 then a reminder every REMIND_MIN while it stays down, then one "back up"
-message. STATE_FILE carries that between runs (the workflow caches it).
+message. STATE_FILE carries that between runs.
 Exits 1 while down, so the run is red too.
 
     python3 scripts/uptime_check.py https://www.thevic361.com [state.json]
@@ -123,8 +124,8 @@ def main(argv, fetch=fetch, sleep=time.sleep, now=None):
         found, body = problems(site, fetch)
     if body:
         # Next to the state file: the last feed served, kept in the cached
-        # state for a look after an alert. (The daily stale-feed check in
-        # uptime.yml fetches its own copy; it runs as a separate job.)
+        # state for a look after an alert. (scripts/feed_age.py fetches
+        # its own copy.)
         with open(os.path.join(os.path.dirname(state_file) or ".", "events.json"), "wb") as f:
             f.write(body)
     message, state = decide(load(state_file), found, now or dt.datetime.now(dt.timezone.utc))
