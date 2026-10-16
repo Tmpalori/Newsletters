@@ -138,6 +138,7 @@ f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector
             <li><a href="/submit">Submit an event</a></li>
             <li><a href="/venues">Venues</a></li>
             <li><a href="/advertise">Advertise</a></li>
+            <li><a href="/partners">Our partners</a></li>
             <li><a href="/contact">Contact</a></li>
           </ul>
         </div>

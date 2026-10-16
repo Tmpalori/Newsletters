@@ -1,0 +1,224 @@
+200 text/html; charset=utf-8
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js); same property as docs/index.html -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-52YHD3X3C2"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());(function(){var k=new URLSearchParams();new URLSearchParams(location.search).forEach(function(v,n){if(/^(utm_[a-z]+|gclid)$/.test(n))k.append(n,v);});var q=k.toString();gtag('config','G-52YHD3X3C2',{page_location:location.origin+location.pathname+(q?'?'+q:'')});})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Category partner | The Vic 361</title>
+<meta name="description" content="Buy Category partner on The Vic 361.">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Category partner | The Vic 361">
+<meta property="og:description" content="Buy Category partner on The Vic 361.">
+<meta property="og:url" content="https://www.thevic361.com/advertise/checkout">
+<meta property="og:site_name" content="The Vic 361">
+<meta property="og:image" content="https://www.thevic361.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.thevic361.com/og-image.png">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fonts load without blocking first paint; text shows in the fallback face until they arrive. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:ital,wght@0,400..900;1,400..900&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:ital,wght@0,400..900;1,400..900&display=swap"></noscript>
+<link rel="stylesheet" href="/base.css?v=HASH">
+<link rel="stylesheet" href="/style.css?v=HASH">
+<script>(function(){var d=document.documentElement,K='vic361-theme';try{var t=localStorage.getItem(K);if(t==='dark'||t==='light')d.setAttribute('data-theme',t);}catch(e){}function cur(){return d.getAttribute('data-theme')||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}function label(){var l='Switch to '+(cur()==='dark'?'light':'dark')+' mode';document.querySelectorAll('[data-theme-toggle]').forEach(function(b){b.setAttribute('aria-label',l);});}document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('[data-theme-toggle]');if(!b)return;var n=cur()==='dark'?'light':'dark';d.setAttribute('data-theme',n);try{localStorage.setItem(K,n);}catch(e2){}label();});document.addEventListener('DOMContentLoaded',label);})();</script>
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a class="logo-group" href="/">
+        <img src="/logo.png" width="48" height="48" alt="The Vic 361 logo" class="site-logo site-logo--light" />
+        <img src="/logo-dark.png" width="48" height="48" alt="" aria-hidden="true" class="site-logo site-logo--dark" />
+        <div>
+          <div class="site-title">The Vic <span>361</span></div>
+          <div class="tagline">Events &amp; Things To Do in <span class="tagline-accent">Victoria, TX</span></div>
+        </div>
+      </a>
+      <div class="header-actions">
+        <a href="/submit" class="btn btn--outline desktop-submit">Submit an Event</a>
+        <a href="/submit" class="btn btn--outline mobile-submit" aria-label="Submit an event">+ Event</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Toggle dark mode">
+          <svg class="theme-icon theme-icon--moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon theme-icon--sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+        <a href="/subscribe" class="btn btn--primary">Subscribe</a>
+      </div>
+    </div>
+  </header>
+<nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner"><a href="/today">Today</a><a href="/this-weekend">This Weekend</a><a href="/free-things-to-do">Free</a><a href="/kids-and-family">Kids &amp; Family</a><a href="/live-music">Live Music</a><a href="/food-and-drink">Food &amp; Drink</a><a class="browse-biz" href="/advertise" aria-current="page">Feature your business</a></div></nav>
+<main class="main-content" id="main">
+  <div class="container container--narrow">
+
+    <p><a href="/advertise">← All packages</a></p>
+    <h1 class="page-title">Category partner</h1>
+    <p class="page-lead">$99 / month. Pick your category and write your line. We check every new partner, then you’re in every issue and on your category’s pages.</p>
+    
+    <form class="co-form" method="post" action="/advertise/checkout" data-turnstile>
+      <input type="hidden" name="package" value="category">
+      <div class="hp-field" aria-hidden="true"><label>Leave this empty <input name="hp_field" tabindex="-1" autocomplete="off"></label></div>
+      <div class="co-field"><label for="f-category">Category</label><select id="f-category" name="category" required><option value="">Choose…</option><option value="food">🍽️ Food &amp; drink</option><option value="realestate">🏠 Real estate</option><option value="dental">🦷 Dental</option><option value="home">🔨 Home services</option><option value="pets">🐾 Pets</option><option value="auto">🚗 Auto</option><option value="fitness">💪 Fitness</option><option value="family">👨‍👩‍👧 Family &amp; kids</option><option value="insurance">🛡️ Insurance &amp; finance</option><option value="legal">⚖️ Legal</option></select></div><div class="co-field"><label for="f-business">Business name</label><input type="text" id="f-business" name="business" required maxlength="80" value=""></div><div class="co-field"><label for="f-line">Your line</label><input type="text" id="f-line" name="line" required maxlength="80" value=""><small class="co-hint">One short line, up to 80 characters. Shown under your name.</small></div><div class="co-field"><label for="f-url">Website or page</label><input type="text" id="f-url" name="url" required maxlength="300" value=""></div><div class="co-field"><label for="f-cta">Button text</label><input type="text" id="f-cta" name="cta" maxlength="24" value=""><small class="co-hint">Optional, e.g. &quot;See the menu&quot;. Default: Visit.</small></div><div class="co-field"><label for="f-logo">Logo</label><input type="file" id="f-logo" accept="image/png,image/jpeg,image/webp"><input type="hidden" name="logo_data" id="f-logo-data" value=""><button type="button" class="btn btn--ghost" id="f-logo-remove" hidden>Remove logo</button><small class="co-hint">Optional. PNG, JPG or WebP; a wide logo on a plain background looks best. Shown on your partner box.</small></div>
+      <section class="co-preview" aria-labelledby="co-preview-h">
+        <h2 id="co-preview-h" class="co-preview-h">Preview: exactly how it’ll look</h2>
+        <div id="co-preview" aria-live="polite"><p class="co-preview-where">Once we’ve approved you: on our food &amp; drink pages and our partners page,</p><section class="partner-section"><div class="sponsor-block partner-box"><div class="sponsor-label">🍽️ Our food &amp; drink partner</div><div class="sponsor-name">Your business</div><div class="sponsor-text">One short line about what you offer.</div><a href="#" class="btn btn--outline partner-cta" target="_blank" rel="sponsored noopener">Visit</a></div></section><p class="co-preview-where">and in every newsletter issue, Monday and Thursday:</p><div class="ad-email-sample co-preview-email"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:2px solid #1F1A3D;border-radius:12px;"><tr><td style="padding:10px 12px;">
+<div style="font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:.4px;color:#554E7A;text-transform:uppercase;">🍽️ Food &amp; drink</div>
+<div style="font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:16px;font-weight:bold;color:#1F1A3D;margin:3px 0 2px;">Your business</div>
+<div style="font-size:13px;color:#1F1A3D;line-height:1.35;">One short line about what you offer.</div>
+<a href="#" style="display:inline-block;margin-top:6px;font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:13px;font-weight:bold;color:#4B3FD1;text-decoration:none;">Visit →</a></td></tr></table></div></div>
+      </section>
+      <div class="co-field"><label for="f-email">Email for your receipt</label><input type="email" id="f-email" name="email" required maxlength="254" value=""></div>
+      <div class="co-field"><label class="co-check" for="f-agree"><input type="checkbox" id="f-agree" name="agree" value="1" required><span>I agree to the <a href="/advertising-terms" target="_blank" rel="noopener">Advertising Terms</a>, including the <a href="/advertising-terms#refunds" target="_blank" rel="noopener">cancellation and refund policy</a>.</span></label></div>
+      <button class="btn btn--primary" type="submit">Continue to payment</button>
+      <p class="co-hint">Secure payment by Stripe. Billed monthly. We review every new partner before it goes live and refund you in full if we can’t take it. Cancel anytime from the link in our emails.</p>
+    </form>
+    <script>
+    (function () {
+      // The submission or order id that filled the form isn't left in the
+      // address bar (where it'd be bookmarked, shared or copied).
+      try {
+        if (/[?&](from|cancelled)=/.test(location.search) && history.replaceState) {
+          history.replaceState(null, '', location.pathname + '?package=' + encodeURIComponent("category"));
+        }
+      } catch (e) { /* old browser: the URL just stays */ }
+    })();
+    (function () {
+      var f = document.querySelector('.co-form'), box = document.getElementById('co-preview'), t;
+      if (!f || !box || !window.fetch) return;
+      var logoData = document.getElementById('f-logo-data'), logoRemove = document.getElementById('f-logo-remove');
+      // The logo is shown in the preview from the browser's copy; it isn't
+      // sent with every preview request.
+      function showLogo() {
+        if (logoRemove) logoRemove.hidden = !(logoData && logoData.value);
+        var block = box.querySelector('.sponsor-block');
+        if (!block) return;
+        var img = block.querySelector('.sponsor-logo');
+        if (!logoData || !logoData.value) { if (img) img.remove(); return; }
+        if (!img) {
+          img = document.createElement('img');
+          img.className = 'sponsor-logo'; img.alt = 'Your logo';
+          block.insertBefore(img, block.querySelector('.sponsor-name') || block.firstChild);
+        }
+        img.src = logoData.value;
+      }
+      function refresh() {
+        var data = new URLSearchParams(new FormData(f));
+        data.delete('logo_data');
+        fetch('/advertise/preview', { method: 'POST', body: data })
+          .then(function (r) { return r.ok ? r.text() : null; })
+          .then(function (html) { if (html !== null) { box.innerHTML = html; showLogo(); } })
+          .catch(function () { /* the server-rendered preview stays */ });
+      }
+      // Shrink the logo in the browser (max 480x240) so it's small to send.
+      var logoInput = document.getElementById('f-logo');
+      if (logoInput && logoData) {
+        logoInput.addEventListener('change', function () {
+          var file = logoInput.files && logoInput.files[0];
+          if (!file) { logoData.value = ''; showLogo(); return; }
+          var reader = new FileReader();
+          reader.onload = function () {
+            var im = new Image();
+            im.onload = function () {
+              var s = Math.min(1, 480 / im.width, 240 / im.height);
+              var c = document.createElement('canvas');
+              c.width = Math.max(1, Math.round(im.width * s)); c.height = Math.max(1, Math.round(im.height * s));
+              c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+              logoData.value = c.toDataURL('image/png');
+              showLogo();
+            };
+            im.onerror = function () { logoData.value = ''; alert('That file isn’t an image we can use. Try a PNG or JPG.'); };
+            im.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+        if (logoRemove) logoRemove.addEventListener('click', function () {
+          logoData.value = ''; logoInput.value = ''; showLogo();
+        });
+        // Over the server's limit once encoded: drop it rather than lose the
+        // whole form to a "too large" error.
+        f.addEventListener('submit', function (ev) {
+          if (logoData.value.length > 409632) {
+            ev.preventDefault();
+            logoData.value = ''; logoInput.value = ''; showLogo();
+            alert('That logo is too large. Try a smaller image, or continue without one.');
+          }
+        });
+        showLogo();
+      }
+      f.addEventListener('input', function () { clearTimeout(t); t = setTimeout(refresh, 350); });
+      f.addEventListener('change', refresh);
+    })();
+    </script>
+  </div>
+</main>
+<footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid footer-grid--4">
+        <div class="footer-section">
+          <h2>Stay in the loop</h2>
+          <p>Get Victoria's best events in your inbox every Monday and Thursday.</p>
+          <a href="/subscribe" class="btn btn--primary">Subscribe free</a>
+        </div>
+        <div class="footer-section">
+          <h2>Browse</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/">This week</a></li>
+            <li><a href="/today">Today</a></li>
+            <li><a href="/this-weekend">This Weekend</a></li>
+            <li><a href="/free-things-to-do">Free</a></li>
+            <li><a href="/kids-and-family">Kids &amp; Family</a></li>
+            <li><a href="/live-music">Live Music</a></li>
+            <li><a href="/food-and-drink">Food &amp; Drink</a></li>
+            <li><a href="/tonight">Tonight</a></li>
+            <li><a href="/date-night">Date Night</a></li>
+            <li><a href="/next-week">Next Week</a></li>
+            <li><a href="/this-weekend-with-kids">Weekend with Kids</a></li>
+            <li><a href="/free-this-weekend">Free This Weekend</a></li>
+            <li><a href="/nightlife">Nightlife</a></li>
+            <li><a href="/arts-and-culture">Arts &amp; Culture</a></li>
+            <li><a href="/outdoor-events">Outdoors</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h2>About</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/about">About The Vic 361</a></li>
+            <li><a href="/submit">Submit an event</a></li>
+            <li><a href="/venues">Venues</a></li>
+            <li><a href="/advertise">Advertise</a></li>
+            <li><a href="/partners">Our partners</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h2>Policies</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/terms">Terms</a></li>
+            <li><a href="/advertising-terms">Advertising terms</a></li>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/accessibility">Accessibility</a></li>
+            <li><a href="/referral-rules">Referral rules</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom"><span>&copy; 2026 The Vic 361 · Victoria, TX</span><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Toggle dark mode">
+          <svg class="theme-icon theme-icon--moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon theme-icon--sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button></div>
+    </div>
+  </footer>
+<script src="/pixel.js" defer></script>
+<script src="/track.js" defer></script>
+<script src="/turnstile.js" defer></script>
+<script src="/scrollfade.js" defer></script>
+</body>
+</html>

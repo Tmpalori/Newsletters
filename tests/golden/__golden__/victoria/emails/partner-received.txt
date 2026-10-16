@@ -1,0 +1,45 @@
+Subject: You’re in: we’ll review your listing shortly
+
+Thanks, Mesquite Smokehouse! Your payment went through and Food & drink is yours on The Vic 361 while we review your listing.
+
+What happens next:
+1. We review every new partner, usually within 1 business day.
+2. Once you're approved, your card goes live in every issue (Monday and Thursday), on our partners page and on our food & drink pages, and we email you.
+3. Each month after your renewal, we email you a results report: how often your card was seen and how many people clicked.
+
+Your card: Mesquite Smokehouse: Brisket Fridays. Kids eat free on Tuesdays.
+
+Want to change your line or link? Reply to this email. Stripe emails your receipt separately.
+Update your card or cancel anytime: https://www.thevic361.com/partners/manage?o=ord-3&t=TOKEN
+Questions or something not right? Reply to this email or reach us at https://www.thevic361.com/contact
+
+----- HTML -----
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"><title>You’re in!</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet"><style>:root{color-scheme:light only;supported-color-schemes:light only}</style>
+<style>[data-ogsb].b-fff4d6,[data-ogsb] .b-fff4d6{background-color:#fff4d6 !important;background-image:linear-gradient(#fff4d6,#fff4d6) !important}
+[data-ogsb].b-ffffff,[data-ogsb] .b-ffffff{background-color:#ffffff !important;background-image:linear-gradient(#ffffff,#ffffff) !important}
+[data-ogsb].b-ddf2ff,[data-ogsb] .b-ddf2ff{background-color:#ddf2ff !important;background-image:linear-gradient(#ddf2ff,#ddf2ff) !important}
+[data-ogsb].b-ffc93c,[data-ogsb] .b-ffc93c{background-color:#ffc93c !important;background-image:linear-gradient(#ffc93c,#ffc93c) !important}
+[data-ogsb].b-fff,[data-ogsb] .b-fff{background-color:#fff !important;background-image:linear-gradient(#fff,#fff) !important}
+[data-ogsb].b-2b2370,[data-ogsb] .b-2b2370{background-color:#2b2370 !important;background-image:linear-gradient(#2b2370,#2b2370) !important}
+[data-ogsc].t-1f1a3d,[data-ogsc] .t-1f1a3d{color:#1f1a3d !important}
+[data-ogsc].t-554e7a,[data-ogsc] .t-554e7a{color:#554e7a !important}
+[data-ogsc].t-4b3fd1,[data-ogsc] .t-4b3fd1{color:#4b3fd1 !important}
+[data-ogsc].t-d6cfff,[data-ogsc] .t-d6cfff{color:#d6cfff !important}
+[data-ogsc].t-ffc93c,[data-ogsc] .t-ffc93c{color:#ffc93c !important}</style></head>
+<body class="b-fff4d6" bgcolor="#FFF4D6" style="margin:0;padding:0;background-color:#FFF4D6;background-image:linear-gradient(#FFF4D6,#FFF4D6);">
+<span style="display:none;max-height:0;overflow:hidden;opacity:0;">We&#39;ll review your Food &amp; drink listing shortly.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="b-fff4d6" bgcolor="#FFF4D6" style="background-color:#FFF4D6;background-image:linear-gradient(#FFF4D6,#FFF4D6);"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="b-ffffff" bgcolor="#FFFFFF" style="max-width:600px;background-color:#FFFFFF;background-image:linear-gradient(#FFFFFF,#FFFFFF);border:3px solid #1F1A3D;border-radius:20px;box-shadow:6px 6px 0 #1F1A3D;overflow:hidden;">
+<tr><td align="center" class="b-ddf2ff t-1f1a3d" bgcolor="#DDF2FF" style="background-color:#DDF2FF;background-image:linear-gradient(#DDF2FF,#DDF2FF);padding:22px 24px 0;font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;color:#1F1A3D;">
+<div><span style="font-size:22px;font-weight:bold;">The Vic</span> <span class="b-ffc93c" style="display:inline-block;font-size:18px;font-weight:bold;background-color:#FFC93C;background-image:linear-gradient(#FFC93C,#FFC93C);border:3px solid #1F1A3D;border-radius:8px;padding:0 6px;">361</span></div>
+<div style="font-size:30px;font-weight:bold;line-height:1.15;margin:10px 0 12px;">You’re in!</div></td></tr>
+<tr><td class="b-ddf2ff" bgcolor="#DDF2FF" style="background-color:#DDF2FF;background-image:linear-gradient(#DDF2FF,#DDF2FF);padding:0;line-height:0;border-bottom:3px solid #1F1A3D;"><img src="https://www.thevic361.com/email/skyline.png" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>
+<tr><td class="t-1f1a3d" style="padding:8px 22px 26px;font-family:'Nunito','Helvetica Neue',Arial,sans-serif;color:#1F1A3D;font-size:15px;line-height:1.5;"><p style="margin:14px 0;font-size:15px;line-height:1.5;">Thanks, Mesquite Smokehouse! Your payment went through and <strong>Food &amp; drink</strong> is yours on The Vic 361 while we review your listing.</p><h2 style="font-size:18px;margin:20px 0 4px;">What happens next</h2><ol style="margin:8px 0 14px;padding-left:22px;font-size:15px;line-height:1.55;"><li style="margin:4px 0;">We review every new partner, usually within 1 business day.</li><li style="margin:4px 0;">Once you&#39;re approved, your card goes live in every issue (Monday and Thursday), on our partners page and on our food &amp; drink pages, and we email you.</li><li style="margin:4px 0;">Each month after your renewal, we email you a results report: how often your card was seen and how many people clicked.</li></ol><p style="margin:14px 0;font-size:15px;line-height:1.5;">Here’s your card as it will run:</p><div style="max-width:320px;margin:14px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="b-fff" bgcolor="#fff" style="background-color:#fff;background-image:linear-gradient(#fff,#fff);border:2px solid #1F1A3D;border-radius:12px;"><tr><td style="padding:10px 12px;">
+<div class="t-554e7a" style="font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:.4px;color:#554E7A;text-transform:uppercase;">🍽️ Food &amp; drink</div>
+<div class="t-1f1a3d" style="font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:16px;font-weight:bold;color:#1F1A3D;margin:3px 0 2px;">Mesquite Smokehouse</div>
+<div class="t-1f1a3d" style="font-size:13px;color:#1F1A3D;line-height:1.35;">Brisket Fridays. Kids eat free on Tuesdays.</div>
+<a href="#" class="t-4b3fd1" style="display:inline-block;margin-top:6px;font-family:'Fredoka','Baloo 2','Trebuchet MS',Arial,sans-serif;font-size:13px;font-weight:bold;color:#4B3FD1;text-decoration:none;">See the menu →</a></td></tr></table></div><p class="t-554e7a" style="margin:14px 0;font-size:15px;line-height:1.5;color:#554E7A;font-size:14px;">Want to change your line or link? Reply to this email. Stripe emails your receipt separately.</p><p class="t-554e7a" style="margin:14px 0;font-size:15px;line-height:1.5;color:#554E7A;font-size:14px;">Update your card or cancel anytime: <a href="https://www.thevic361.com/partners/manage?o=ord-3&amp;t=TOKEN" class="t-4b3fd1" style="color:#4B3FD1;font-weight:bold;">manage your partnership</a>.</p></td></tr>
+<tr><td class="b-2b2370 t-d6cfff" bgcolor="#2B2370" style="background-color:#2B2370;background-image:linear-gradient(#2B2370,#2B2370);padding:18px 24px;border-top:3px solid #1F1A3D;font-family:'Nunito','Helvetica Neue',Arial,sans-serif;color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">Questions or something not right? Just reply to this email, or reach us at <a href="https://www.thevic361.com/contact" class="t-ffc93c" style="color:#FFC93C;">thevic361.com/contact</a>.<br>The Vic 361 · PO Box 1, Victoria, TX 77901</td></tr>
+</table></td></tr></table></body></html>
