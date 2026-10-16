@@ -31,7 +31,10 @@
  * are on (JOBS_ON_RAILWAY=1); elsewhere it doesn't run at all.
  *
  * Production only (RAILWAY_ENVIRONMENT_NAME=production); SCHEDULER=0 turns it
- * off. GET /api/scheduler/ran still answers whether a slot ran.
+ * off. GET /api/scheduler/ran still answers whether a slot ran. A paused
+ * town (TOWN_DORMANT=1, server/town.js) runs only DORMANT_JOBS: nothing is
+ * sent, posted or collected, but old personal data is still purged on time
+ * and the hourly check still watches the database.
  */
 
 import { town } from './town.js';
@@ -86,6 +89,8 @@ export const JOBS = [
   { name: 'submission-review', every: 15, workflow: 'submission-review.yml' },
   { name: 'health', every: 60 }
 ];
+
+export const DORMANT_JOBS = new Set(['privacy-purge', 'health']);
 
 // A job's start time in the town: JOBS' time unless the town moves it
 // (town.schedule, { "newsletter": "07:13" }), so several towns' sends and
@@ -219,6 +224,7 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
   // Whether a job can run at all here; otherwise it isn't claimed, so a
   // fallback (GitHub's cron) still does it.
   function available(job) {
+    if (town.dormant && !DORMANT_JOBS.has(job.name)) return false;
     // A worker job runs only where jobs are on, by the town's jobs worker.
     if (job.workflow) return Boolean(queueJob) && canQueue(job);
     if (job.name === 'newsletter') return typeof handlers.newsletter === 'function' && (!handlers.newsletterReady || handlers.newsletterReady());

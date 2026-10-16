@@ -414,7 +414,7 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
     ...(views ? [[`Your block was seen on ${town.domain}`, plural(views, 'time', 'times')]] : []),
     [`Clicked your button on ${town.domain}`, people(stats.site_people)],
     ['Clicked your button in our emails', people(stats.email_people)],
-    ...(stats.social_people ? [['Clicked your link in our Facebook and Instagram posts', people(stats.social_people)]] : []),
+    ...(stats.social_people ? [[`Clicked your link in our ${town.instagram ? 'Facebook and Instagram' : 'Facebook'} posts`, people(stats.social_people)]] : []),
     ...(stats.newsletter_recipients ? [[stats.newsletter_issues > 1 ? 'Newsletter copies with your block (Monday and Thursday issues)' : 'Newsletter copies with your block',
       String(stats.newsletter_recipients)]] : []),
     ...(stats.site_visitors ? [[`Visits to ${town.domain} that week`, String(stats.site_visitors)]] : [])

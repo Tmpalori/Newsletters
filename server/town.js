@@ -65,7 +65,17 @@ export const VICTORIA = Object.freeze({
   }),
   // Job start times that differ from server/scheduler.js JOBS (Central-style
   // "HH:MM" in the town's timezone). Victoria runs the defaults.
-  schedule: Object.freeze({})
+  schedule: Object.freeze({}),
+  // The town's Instagram handle, once its account posts (social_post.py
+  // needs IG_USER_ID too). Empty: nothing sold or promised on Instagram,
+  // because nothing is posted there. Victoria has none (town.py).
+  instagram: '',
+  // Colors over docs/style.css ({ light, dark }, from towns/<slug>/BRAND.md
+  // "Palette"; brandPalette below); null keeps the stylesheet's own, which
+  // are Victoria's.
+  palette: null,
+  // TOWN_DORMANT=1: the town is paused (townDormant below).
+  dormant: false
 });
 
 // What another town starts from when its town.json leaves a number out.
@@ -99,6 +109,9 @@ function complete(id, raw) {
     ...raw,
     business: { ...SHARED_BUSINESS, ...(raw.business || {}) },
     schedule: { ...(raw.schedule || {}) },
+    instagram: String(raw.instagram || '').replace(/^@/, ''),
+    palette: raw.palette || null,
+    dormant: raw.dormant === true,
     id
   };
 }
@@ -110,7 +123,23 @@ function fromFile(id, dir) {
   try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) {
     throw new Error(`TOWN=${id}: can't read ${path.relative(ROOT, file) || file} (${err.code || err.message})`);
   }
-  return complete(id, { publicDir, ...raw });
+  return complete(id, { publicDir, palette: brandPalette(path.join(dir, id, 'BRAND.md')), ...raw });
+}
+
+// The town's site colors from its brand kit: towns/<slug>/BRAND.md's two
+// JSON blocks, the palette and then its dark-mode twin. Read from there,
+// as town.py brand_palette() does for the social slides, so the brand kit
+// stays the one place the palette is written down (a town.json "palette"
+// wins, for tests). No BRAND.md or no JSON in it: null, the stylesheet's
+// own colors; a palette that's there but malformed stops the boot (check).
+export function brandPalette(file) {
+  let text;
+  try { text = fs.readFileSync(file, 'utf8'); } catch (_) { return null; }
+  const blocks = [...text.matchAll(/```json\s*(\{[\s\S]*?\})\s*```/g)].map(m => {
+    try { return JSON.parse(m[1]); } catch (_) { return null; }
+  });
+  if (!blocks.length || !blocks[0]) return null;
+  return { light: blocks[0], dark: blocks[1] || {} };
 }
 
 function check(t) {
@@ -137,6 +166,8 @@ function check(t) {
   if (!Number.isInteger(b.drawingAmount) || !Array.isArray(b.rewardCards) || !Number.isInteger(b.showSubscribersFrom) || !Number.isInteger(b.showReadersFrom)) {
     throw new Error(`TOWN=${t.id}: business needs drawingAmount, rewardCards, showSubscribersFrom and showReadersFrom`);
   }
+  if (t.instagram && !/^[A-Za-z0-9._]{1,30}$/.test(t.instagram)) throw new Error(`TOWN=${t.id}: instagram must be a handle (letters, digits, . or _)`);
+  checkPalette(t);
   for (const [job, at] of Object.entries(t.schedule || {})) {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(at))) throw new Error(`TOWN=${t.id}: schedule.${job} must be "HH:MM"`);
   }
@@ -146,14 +177,44 @@ function check(t) {
   return Object.freeze(t);
 }
 
+// The palette's colors go into a stylesheet as they are, so each must be a
+// plain #RRGGBB. light and dark each need the five BRAND.md roles; dark
+// adds the surface and text colors BRAND.md lists for it.
+export const PALETTE_ROLES = Object.freeze({
+  light: ['primary', 'accent', 'paper', 'ink', 'highlight'],
+  dark: ['primary', 'accent', 'paper', 'surface', 'ink', 'text', 'highlight']
+});
+function checkPalette(t) {
+  if (t.palette == null) return;
+  const p = t.palette;
+  for (const [mode, roles] of Object.entries(PALETTE_ROLES)) {
+    for (const role of roles) {
+      if (!/^#[0-9A-Fa-f]{6}$/.test(String((p[mode] || {})[role] || ''))) {
+        throw new Error(`TOWN=${t.id}: palette.${mode}.${role} must be a #RRGGBB color`);
+      }
+    }
+  }
+}
+
+// TOWN_DORMANT=1: a paused town (Kearney and Tupelo since Oct 2026). Its
+// site stays up and keeps everything it has (subscribers, orders, events),
+// but takes no signups, sells nothing on /advertise, sends nothing on a
+// schedule and raises no alerts about collects it isn't running. Unset or 0
+// brings it all back. Any town, Victoria included.
+export function townDormant(env = process.env) {
+  return String(env.TOWN_DORMANT || '').trim() === '1';
+}
+
 // The town for these settings. overrides.town (a town.json-shaped object)
 // wins, for tests.
 export function townConfig(env = process.env, overrides = {}) {
-  if (overrides.town) return check(complete(overrides.town.id || 'test', overrides.town));
+  const dormant = townDormant(env);
+  if (overrides.town) return check(complete(overrides.town.id || 'test', dormant ? { ...overrides.town, dormant } : overrides.town));
   const id = String(env.TOWN || 'victoria').trim().toLowerCase();
-  if (id === 'victoria') return VICTORIA;
+  if (id === 'victoria') return dormant ? Object.freeze({ ...VICTORIA, dormant }) : VICTORIA;
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`TOWN="${env.TOWN}" isn't a town slug (lowercase letters, digits, dashes)`);
-  return check(fromFile(id, overrides.townsDir || path.join(ROOT, 'towns')));
+  const t = fromFile(id, overrides.townsDir || path.join(ROOT, 'towns'));
+  return check(dormant ? { ...t, dormant } : t);
 }
 
 // Every other town's domain, from towns/*/town.json (unreadable or

@@ -299,7 +299,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
     try { return localStorage.getItem(SUB_KEY) === '1'; } catch (e) { return false; }
   }
   function insertNewsletterCard(container, fromIdx) {
-    if (alreadySubscribed() || /[?&]preview/.test(location.search)) return;
+    // A paused town (TOWN_DORMANT=1) takes no signups.
+    if (TOWN.dormant || alreadySubscribed() || /[?&]preview/.test(location.search)) return;
     var sections = container.querySelectorAll('.day-section');
     var after = sections[Math.min(fromIdx + 1, sections.length - 1)];
     if (!after) return;

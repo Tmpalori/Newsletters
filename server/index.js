@@ -40,6 +40,7 @@ import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, kindForWorkflow, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
+import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
@@ -476,7 +477,9 @@ export async function createApp(opts = {}) {
       // jobs move to Railway; then it says so too, which GitHub's submission
       // review cron reads to stand down (JOBS_ON_RAILWAY.md phase 5).
       ...(town.id !== VICTORIA.id ? { town_workflows: jobs.enabled || townWorkflowsReady(), jobs_on_railway: jobs.enabled }
-        : jobs.enabled ? { jobs_on_railway: true } : {})
+        : jobs.enabled ? { jobs_on_railway: true } : {}),
+      // A paused town (TOWN_DORMANT=1), for the admin and HQ.
+      ...(town.dormant ? { dormant: true } : {})
     });
   });
 
@@ -1928,6 +1931,8 @@ export async function createApp(opts = {}) {
       try {
         const h = crypto.createHash('sha1');
         for (const f of ['base.css', 'style.css', 'app.js']) h.update(readFileSync(path.join(DOCS_DIR, f)));
+        // Another town's /style.css carries its palette (server/palette.js).
+        h.update(townStyleCss(town));
         assetVersion = h.digest('hex').slice(0, 10);
       } catch (_) { assetVersion = ''; }
     }
@@ -2440,8 +2445,10 @@ export async function createApp(opts = {}) {
     }
   });
 
-  const autoOnBoot = opts.autoPublish ??
-    (process.env.AUTO_PUBLISH !== '0' && process.env.RAILWAY_ENVIRONMENT_NAME === 'production');
+  // A paused town (TOWN_DORMANT=1) leaves its published list as it is: no
+  // collect is coming, and a missing candidates file isn't news.
+  const autoOnBoot = !town.dormant && (opts.autoPublish ??
+    (process.env.AUTO_PUBLISH !== '0' && process.env.RAILWAY_ENVIRONMENT_NAME === 'production'));
   // One collector publish at a time: the hourly retry below must not race
   // a boot run that is still waiting on a slow database.
   let autoRun = null;
@@ -2527,8 +2534,10 @@ export async function createApp(opts = {}) {
       health: async now => {
         await retryAutoPublish();
         // Hourly: the one "tap to confirm" reminder to yesterday's
-        // unconfirmed signups (server/newsletter.js).
-        try { await newsletterApi.sendConfirmReminders(now); } catch (err) { console.warn('[newsletter] confirm reminders failed:', err.message); }
+        // unconfirmed signups (server/newsletter.js). Not from a paused town.
+        if (!town.dormant) {
+          try { await newsletterApi.sendConfirmReminders(now); } catch (err) { console.warn('[newsletter] confirm reminders failed:', err.message); }
+        }
         return healthCheck(now);
       }
     }
@@ -2574,7 +2583,10 @@ export async function createApp(opts = {}) {
     if (slackDead) problems.slack = slackDead;
     // Jobs on Railway: a run the worker never finished alerts (once, in
     // jobs.expire), and so does a worker that has stopped asking for work.
-    if (jobs.enabled) {
+    // A paused town (TOWN_DORMANT=1) runs no jobs and sends no issues, so
+    // only the database, Slack and subscriber checks apply to it.
+    const dormant = town.dormant;
+    if (jobs.enabled && !dormant) {
       try { await jobs.expire(now); } catch (err) { console.warn('[jobs] expire failed:', err.message); }
       const polled = jobs.state.lastPollAt ? Date.parse(jobs.state.lastPollAt) : bootedAt;
       // A worker running a job doesn't ask for work; it's alive until that
@@ -2594,7 +2606,7 @@ export async function createApp(opts = {}) {
     // no events by design, so "only 0 upcoming", "stale" and "missed collect"
     // would alert every day until launch. The other checks (database, Slack,
     // subscribers) still run.
-    if (pub && (jobs.enabled || townWorkflowsReady()) && await hasCollected(pub)) {
+    if (pub && !dormant && (jobs.enabled || townWorkflowsReady()) && await hasCollected(pub)) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
@@ -2635,7 +2647,7 @@ export async function createApp(opts = {}) {
     // An issue that hasn't gone out by its noon cutoff: the scheduler never
     // ran (the server was down), its retries ran out, or Resend isn't set
     // up. Only with readers waiting and automatic sending on.
-    if (pub && newsletter.autosend && typeof store.getNewsletterSend === 'function' && typeof store.countSubscribers === 'function') {
+    if (pub && !dormant && newsletter.autosend && typeof store.getNewsletterSend === 'function' && typeof store.countSubscribers === 'function') {
       try {
         const active = Number((await store.countSubscribers() || {}).active) || 0;
         const today = localDateStr(now);
@@ -2847,6 +2859,17 @@ export async function createApp(opts = {}) {
       if (file === path.join(DOCS_DIR, 'robots.txt')) text = text.split('https://www.thevic361.com').join(siteUrl);
       res.type('text/plain').send(text);
     }));
+    // The shared stylesheets with the town's own colors appended
+    // (server/palette.js); without a palette they're served as they are.
+    for (const [file, extra] of [['style.css', townStyleCss], ['submit.css', townSubmitCss]]) {
+      const css = extra(town);
+      if (!css) continue;
+      let text = null;
+      app.get('/' + file, wrap(async (req, res) => {
+        if (text === null || opts.reloadTemplates) text = await fsp.readFile(path.join(DOCS_DIR, file), 'utf8') + css;
+        res.set('Cache-Control', 'public, max-age=600').type('text/css').send(text);
+      }));
+    }
     let submitPage = null;
     app.get(['/submit', '/submit.html'], wrap(async (req, res) => {
       if (!submitPage || opts.reloadTemplates) submitPage = localizeHtml(await fsp.readFile(path.join(DOCS_DIR, 'submit.html'), 'utf8'));

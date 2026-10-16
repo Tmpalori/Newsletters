@@ -2057,7 +2057,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     app.get('/advertise/checkout', async (req, res, next) => {
       try {
         const pkg = packageFor(req.query.package);
-        if (!config.enabled || !pkg) return res.redirect(302, '/advertise');
+        // A paused town (TOWN_DORMANT=1) sells nothing (seo.js renderAdvertisePage).
+        if (!config.enabled || !pkg || town.dormant) return res.redirect(302, '/advertise');
         // Prefill from the query; only the form's own event fields are taken.
         // Contact details never ride in the URL (analytics and the Pixel see
         // page URLs): the submit form and its emails link with `from=<the
@@ -2139,7 +2140,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       try {
         const body = req.body || {};
         const pkg = packageFor(body.package);
-        if (!config.enabled || !pkg) return res.redirect(303, '/advertise');
+        if (!config.enabled || !pkg || town.dormant) return res.redirect(303, '/advertise');
         const ctx = { siteUrl, now: nowFn(), orders: await orders(), venues: getVenues(), values: body };
         const fail = (errors, status = 400) =>
           sendHtml(res, renderCheckoutPage(pkg, { ...ctx, errors }), status, 'no-store');

@@ -1854,7 +1854,7 @@ a.notable-name { color: inherit; text-decoration: underline; text-decoration-thi
 .ad-flow__tag { background: var(--sunset); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 12px; font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; }
 .ad-flow__fan { display: block; }
 .ad-flow__down { display: none; margin: var(--space-2) auto; }
-.ad-flow__channels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-rows: repeat(4, 68px); gap: 16px; }
+.ad-flow__channels { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-rows: 68px; gap: 16px; }
 .ad-flow__ch { display: flex; align-items: center; gap: var(--space-3); background: var(--card); color: var(--color-text); border: 3px solid var(--ink); border-radius: 16px;
   box-shadow: 3px 3px 0 var(--ink); padding: 0 var(--space-4); }
 .ad-flow__ch:nth-child(odd) { transform: rotate(-.6deg); }
@@ -1866,7 +1866,9 @@ a.notable-name { color: inherit; text-decoration: underline; text-decoration-thi
   .ad-flow__grid { grid-template-columns: 1fr; justify-items: center; }
   .ad-flow__fan { display: none; }
   .ad-flow__down { display: block; }
-  .ad-flow__channels { grid-template-rows: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); width: 100%; }
+  .ad-flow__channels { grid-auto-rows: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); width: 100%; }
+  /* An odd tile out (three channels: no Instagram) spans the row. */
+  .ad-flow__ch:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .ad-flow__ch { flex-direction: column; text-align: center; padding: var(--space-3) var(--space-2); }
 }
 
