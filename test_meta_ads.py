@@ -303,6 +303,37 @@ def test_report_sends_daily_spend_to_the_site_and_adds_the_real_cost(monkeypatch
     assert "✅ Real, from the site: yesterday: 31 new subscribers ($0.92 each) · last 7 days: 120 new subscribers ($1.05 each)" in sent[0][0]
 
 
+def test_report_sends_hq_this_towns_campaigns_with_budget_and_last_7_days(monkeypatch):
+    monkeypatch.setenv("ADS_SPEND_SECRET", "s3cret")
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402")
+    posted = []
+
+    class Shared(FakeMeta):
+        def request(self, method, url, **k):
+            if url.startswith(ma.SITE):
+                posted.append(k["json"])
+                return Resp({"ok": True})
+            p = k.get("params") or {}
+            if url.endswith("/insights") and p.get("level") == "campaign" and p.get("date_preset") == "last_7d":
+                return Resp({"data": [
+                    {"campaign_name": "The Star 402 Newsletter Leads", "spend": "41.79", "inline_link_clicks": "116",
+                     "actions": [{"action_type": "offsite_conversion.fb_pixel_lead", "value": "54"}]},
+                    {"campaign_name": "Shoals Setlist Newsletter Leads", "spend": "35.38", "inline_link_clicks": "159", "actions": []}]})
+            if url.endswith("/campaigns"):
+                return Resp({"data": [
+                    {"id": "1", "name": "The Star 402 Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "5500"},
+                    {"id": "2", "name": "The Star 402 Old Test", "effective_status": "ARCHIVED"},
+                    {"id": "3", "name": "Shoals Setlist Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "5500"}]})
+            if url.endswith("/adsets"):
+                return Resp({"data": []})
+            if url.endswith("/ads"):
+                return Resp({"data": []})
+            return super().request(method, url, **k)
+    assert ma.main(["report"], session=Shared()) == 0
+    assert posted[0]["campaigns"] == [{"name": "The Star 402 Newsletter Leads", "status": "ACTIVE", "daily_budget": 55.0,
+                                       "spend_7_days": 41.79, "leads_7_days": 54, "clicks_7_days": 116}]
+
+
 def test_report_still_goes_out_when_the_site_is_down(monkeypatch, capsys):
     monkeypatch.setenv("ADS_SPEND_SECRET", "s3cret")
 

@@ -79,7 +79,7 @@ describe('/api/hq/summary', () => {
     expect(body.sponsors.weeks).toEqual([
       { week_start: '2026-10-12', booked: true }, { week_start: '2026-10-19', booked: false },
       { week_start: '2026-10-26', booked: false }, { week_start: '2026-11-02', booked: false }]);
-    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null });
+    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null, meta_7_days: null, meta_30_days: null });
     const text = JSON.stringify(body);
     for (const personal of ['@', 'reader', 'Acme', 'owner']) expect(text).not.toContain(personal);
   });
@@ -273,5 +273,20 @@ describe.skipIf(!PG)('listConfirmedSince on Postgres (TEST_DATABASE_URL)', () =>
       await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
       await admin.end();
     }
+  });
+});
+
+describe('the summary for HQ: Meta detail, campaigns and dormant', () => {
+  it('adds up Meta\'s days, carries the campaigns, and says dormant only when it is', async () => {
+    await start({ hqApiKey: KEY });
+    await store.saveAdSpend([{ day: '2026-10-08', spend: 10, impressions: 1000, clicks: 50, leads: 20 },
+      { day: '2026-10-05', spend: 5, impressions: 400, clicks: 10, leads: 5 }, { day: '2026-09-01', spend: 99, impressions: 1, clicks: 1, leads: 1 }]);
+    await store.setTownFile('ad_campaigns', { campaigns: [{ name: 'Vic Newsletter Leads', status: 'ACTIVE', daily_budget: 68 }] }, new Date('2026-10-09T13:37:00Z'));
+    const s = await (await get('/api/hq/summary', `Bearer ${KEY}`)).json();
+    expect(s.ads.meta_7_days).toEqual({ spend: 15, impressions: 1400, clicks: 60, leads: 25, cost_per_lead: 0.6 });
+    expect(s.ads.meta_30_days.spend).toBe(15);
+    expect(s.ads.campaigns).toEqual([{ name: 'Vic Newsletter Leads', status: 'ACTIVE', daily_budget: 68 }]);
+    expect(s.ads.campaigns_updated_at).toBe('2026-10-09T13:37:00.000Z');
+    expect(s.dormant).toBeUndefined();
   });
 });
