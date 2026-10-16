@@ -285,13 +285,11 @@ describe('scheduler in the app', () => {
     return { ...out, slack, base: `http://127.0.0.1:${server.address().port}` };
   }
 
-  it('answers the fallback crons and runs the hourly site check', async () => {
+  it('runs the hourly site check; the old fallback-cron endpoint is gone', async () => {
     const store = await freshStore();
     let now = new Date('2026-10-07T15:05:00Z');
     const { scheduler, slack, base } = await start(store, { now: () => now });
-    const r = await (await fetch(base + '/api/scheduler/ran?job=social-kit')).json();
-    expect(r).toMatchObject({ ok: true, job: 'social-kit', ran: false });
-    expect((await fetch(base + '/api/scheduler/ran?job=../etc')).status).toBe(404);
+    expect((await fetch(base + '/api/scheduler/ran?job=social-kit')).status).toBe(404);
 
     // Nothing published: the hourly check says so once, not every hour.
     await scheduler.tick(now);

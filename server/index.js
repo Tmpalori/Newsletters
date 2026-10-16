@@ -2535,14 +2535,6 @@ export async function createApp(opts = {}) {
   });
   if (opts.startScheduler ?? schedulerEnabled()) scheduler.start();
 
-  // The fallback GitHub crons ask this before repeating a job; public, as
-  // it only says whether a named job ran in its latest slot.
-  app.get('/api/scheduler/ran', wrap(async (req, res) => {
-    const out = await scheduler.ran(String(req.query.job || ''));
-    if (!out) return res.status(404).json({ ok: false, error: 'unknown-job' });
-    res.set('Cache-Control', 'no-store').json({ ok: true, ...out });
-  }));
-
   // Whether the town has ever collected: auto-publish records when the
   // candidates it published were collected. Victoria always has.
   function collectedPayload(pub) {

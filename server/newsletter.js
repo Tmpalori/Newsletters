@@ -44,10 +44,10 @@
  *     admin. Welcome, confirmation and test emails have none.
  *   - Admin: counts, preview, test send, send now, CSV/paste import.
  *   - Automation: the site's scheduler (server/scheduler.js) sends both
- *     issues. POST /api/newsletter/cron with X-Cron-Secret is the Monday
- *     fallback, called by .github/workflows/newsletter.yml. Monday's run
- *     also sends last week's sponsor reports and any Vic's Pick reports due
- *     (onCron, server/sponsors.js).
+ *     issues. POST /api/newsletter/cron with X-Cron-Secret is a send
+ *     started by hand (nothing calls it on a schedule any more). Monday's
+ *     run also sends last week's sponsor reports and any Vic's Pick reports
+ *     due (onCron, server/sponsors.js).
  */
 
 import { town } from './town.js';
@@ -1563,10 +1563,11 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     return { ...out, edition, ok: done, sent_ok: out.ok, final: ['not-configured', 'no-address', 'weekend-off'].includes(out.error) };
   }
 
-  // Scheduled send (GitHub Actions fallback, newsletter.yml). Needs the
-  // shared secret; refuses when no secret is configured so the endpoint
-  // can't be triggered by anyone. A run marked X-Cron-Scheduled honors
-  // NEWSLETTER_AUTOSEND=0; a hand-started run sends regardless.
+  // A send started by hand (the scheduler sends on its own; the GitHub
+  // newsletter.yml that called this is gone). Needs the shared secret;
+  // refuses when no secret is configured so the endpoint can't be
+  // triggered by anyone. A run marked X-Cron-Scheduled honors
+  // NEWSLETTER_AUTOSEND=0; a run without it sends regardless.
   app.post('/api/newsletter/cron', async (req, res) => {
     const given = Buffer.from(String(req.get('x-cron-secret') || ''));
     const want = Buffer.from(config.cronSecret || '');
@@ -1578,7 +1579,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       return res.json({ ok: false, error: 'autosend-off', message: 'NEWSLETTER_AUTOSEND=0 in Railway; not sending automatically.' });
     }
     try {
-      // newsletter.yml sends X-Newsletter-Edition: weekend on Thursdays.
+      // X-Newsletter-Edition: weekend sends Thursday's issue.
       const { ok: done, sent_ok: sentOk, final: _f, ...out } = await scheduledSend(req.get('x-newsletter-edition') === 'weekend' ? 'weekend' : 'weekly');
       // already-sent / no-events are normal outcomes for a cron, not failures.
       res.status(done ? 200 : 500).json({ ...out, ok: sentOk });

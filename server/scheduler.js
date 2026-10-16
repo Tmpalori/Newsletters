@@ -31,7 +31,7 @@
  * are on (JOBS_ON_RAILWAY=1); elsewhere it doesn't run at all.
  *
  * Production only (RAILWAY_ENVIRONMENT_NAME=production); SCHEDULER=0 turns it
- * off. GET /api/scheduler/ran still answers whether a slot ran.
+ * off. `ran(name)` says whether a job's latest slot was claimed and done.
  */
 
 import { town } from './town.js';
