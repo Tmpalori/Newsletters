@@ -21,7 +21,7 @@ import { townConfig, useTown, VICTORIA, DOCS_DIR } from '../server/town.js';
 import { createApp } from '../server/index.js';
 import { FileStore, createStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { canRunOnWorker, kindForWorkflow, createJobs, SOCIAL_LIMITS } from '../server/jobs.js';
+import { canRunOnWorker, createJobs, SOCIAL_LIMITS } from '../server/jobs.js';
 
 const NOW = new Date('2026-10-15T15:00:00Z');
 const SECRET = 's'.repeat(40);
@@ -208,11 +208,11 @@ describe('Victoria’s kit moves to her database', () => {
 });
 
 describe('who runs the social kit', () => {
-  const job = { name: 'social-kit', workflow: 'social-kit.yml' };
+  const job = { name: 'social-kit', kind: 'social-kit' };
   it('the worker, for every town', () => {
     expect(canRunOnWorker(job)).toBe(true);
-    expect(canRunOnWorker({ workflow: 'meta-ads.yml' })).toBe(true);
-    expect(canRunOnWorker({ workflow: 'weekly-collect.yml' })).toBe(true);
+    expect(canRunOnWorker({ kind: 'meta-ads' })).toBe(true);
+    expect(canRunOnWorker({ kind: 'collect' })).toBe(true);
   });
 
   async function day(townId, { jobsOn = true, collected = true } = {}) {
@@ -223,7 +223,7 @@ describe('who runs the social kit', () => {
     const github = { calls: [], isConfigured: () => true, branch: 'main', dispatchWorkflow: async f => { github.calls.push(f); } };
     const queued = [];
     const s = createScheduler({ store, github, log: { warn() {} }, handlers: { collected: async () => collected },
-      queueJob: jobsOn ? async (j, slot) => { queued.push([kindForWorkflow(j.workflow), slot]); } : null,
+      queueJob: jobsOn ? async (j, slot) => { queued.push([j.kind, slot]); } : null,
       canQueue: j => canRunOnWorker(j) });
     // 8:50 AM in each town (the social kit's 8:47 slot).
     const tzNow = { victoria: '2026-10-15T13:50:00Z', medford: '2026-10-15T15:50:00Z', kearney: '2026-10-15T13:50:00Z' }[townId || 'victoria'];

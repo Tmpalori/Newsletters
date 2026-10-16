@@ -37,7 +37,7 @@ function fakeWorker({ fail = false } = {}) {
     opts: {
       canQueue: () => true,
       async queueJob(job, slot) {
-        calls.push({ file: job.workflow, slot });
+        calls.push({ kind: job.kind, slot });
         if (fail) throw new Error('queue down');
         return { queued: true };
       }
@@ -73,6 +73,9 @@ describe('Central-time slots', () => {
     expect(dueSlot(job('event-check'), new Date('2026-10-05T11:43:00Z'))).toBe('2026-10-05');
     expect(dueSlot(job('social-kit'), new Date('2026-10-07T13:47:00Z'))).toBe('2026-10-07');
     expect(dueSlot(job('social-kit'), new Date('2026-10-07T13:46:00Z'))).toBeNull();
+    // A missed slot catches up until noon, not into the evening.
+    expect(dueSlot(job('social-kit'), new Date('2026-10-07T16:59:00Z'))).toBe('2026-10-07'); // 11:59 AM CDT
+    expect(dueSlot(job('social-kit'), new Date('2026-10-07T22:11:00Z'))).toBeNull();         // 5:11 PM CDT
     expect(dueSlot(job('submission-review'), new Date('2026-10-07T13:52:00Z'))).toBe('2026-10-07T08:45');
   });
 
@@ -100,6 +103,21 @@ describe('createScheduler', () => {
     await make().tick(new Date(mon.getTime() + 60000)); // restarted container
     await make().tick(new Date(mon.getTime() + 3 * 3600000));
     expect(sends).toBe(1);
+  });
+
+  it('a ran slot says whether the issue went out (sent, or nobody to send to)', async () => {
+    const store = await freshStore();
+    const mon = new Date('2026-10-05T12:44:00Z');
+    let answer = { ok: true, detail: 'no-subscribers' };
+    const handlers = { newsletter: async () => answer };
+    await createScheduler({ store, handlers, log: quiet }).tick(mon);
+    expect(await createScheduler({ store, handlers, log: quiet }).ran('newsletter', mon))
+      .toMatchObject({ ran: true, outcome: 'no-subscribers', detail: 'no-subscribers' });
+    answer = { ok: true, detail: 'sent: 52 recipients' };
+    const next = new Date('2026-10-12T12:44:00Z');
+    const s = createScheduler({ store, handlers, log: quiet });
+    await s.tick(next);
+    expect(await s.ran('newsletter', next)).toMatchObject({ ran: true, outcome: 'sent', detail: 'sent: 52 recipients' });
   });
 
   it('retries a failed send with backoff and alerts after the last try', async () => {
@@ -139,12 +157,12 @@ describe('createScheduler', () => {
     await s.tick(new Date('2026-10-07T13:40:00Z')); // 8:40 CDT: ads report only
     await s.tick(new Date('2026-10-07T13:48:00Z'));
     await s.tick(new Date('2026-10-07T13:49:00Z'));
-    const daily = w.calls.filter(c => c.file !== 'submission-review.yml');
+    const daily = w.calls.filter(c => c.kind !== 'submission-review');
     expect(daily).toEqual([
-      { file: 'meta-ads.yml', slot: '2026-10-07' },
-      { file: 'social-kit.yml', slot: '2026-10-07' }
+      { kind: 'meta-ads', slot: '2026-10-07' },
+      { kind: 'social-kit', slot: '2026-10-07' }
     ]);
-    expect(w.calls.filter(c => c.file === 'submission-review.yml')).toHaveLength(2); // 8:30 and 8:45 slots
+    expect(w.calls.filter(c => c.kind === 'submission-review')).toHaveLength(2); // 8:30 and 8:45 slots
     expect((await s.ran('social-kit', new Date('2026-10-07T21:00:00Z'))).ran).toBe(true);
     expect((await s.ran('social-kit', new Date('2026-10-08T21:00:00Z'))).ran).toBe(false);
     expect(await s.ran('nope')).toBeNull();
@@ -154,10 +172,10 @@ describe('createScheduler', () => {
     const w = fakeWorker();
     const s = createScheduler({ store: await freshStore(), log: quiet, ...w.opts });
     await s.tick(new Date('2026-10-12T01:59:00Z')); // Sun 8:59 PM CDT
-    expect(w.calls.filter(c => c.file === 'weekly-digest.yml')).toEqual([]);
+    expect(w.calls.filter(c => c.kind === 'digest')).toEqual([]);
     await s.tick(new Date('2026-10-12T02:00:00Z'));
     await s.tick(new Date('2026-10-12T02:05:00Z'));
-    expect(w.calls.filter(c => c.file === 'weekly-digest.yml')).toEqual([{ file: 'weekly-digest.yml', slot: '2026-10-11' }]);
+    expect(w.calls.filter(c => c.kind === 'digest')).toEqual([{ kind: 'digest', slot: '2026-10-11' }]);
   });
 
   it('a town that has never collected starts only its collect', async () => {
@@ -170,10 +188,10 @@ describe('createScheduler', () => {
       await s.tick(new Date('2026-10-07T13:48:00Z'));        // ads, social kit, review due: none start
       expect(w.calls).toEqual([]);
       await s.tick(new Date('2026-10-07T20:30:00Z'));        // Wednesday's collect
-      expect(w.calls.map(c => c.file)).toEqual(['weekly-collect.yml']);
+      expect(w.calls.map(c => c.kind)).toEqual(['collect']);
       collected = true;
       await s.tick(new Date('2026-10-07T20:46:00Z'));
-      expect(w.calls.map(c => c.file)).toContain('submission-review.yml');
+      expect(w.calls.map(c => c.kind)).toContain('submission-review');
     } finally {
       useTown(VICTORIA);
     }
@@ -221,7 +239,7 @@ describe('weekly collect from the site', () => {
     const w = fakeWorker();
     const s = createScheduler({ store, log: quiet, ...w.opts });
     await s.tick(new Date('2026-10-11T20:22:00Z')); // Sun 3:22 PM CDT: not yet
-    expect(w.calls.filter(c => c.file === 'weekly-collect.yml')).toEqual([]);
+    expect(w.calls.filter(c => c.kind === 'collect')).toEqual([]);
     await s.tick(new Date('2026-10-11T20:23:00Z'));
     await s.tick(new Date('2026-10-11T20:40:00Z'));
     await s.tick(new Date('2026-10-14T20:24:00Z')); // Wed
@@ -229,7 +247,7 @@ describe('weekly collect from the site', () => {
     // Winter: 3:23 PM CST is 21:23 UTC.
     await s.tick(new Date('2026-11-15T20:30:00Z'));
     await s.tick(new Date('2026-11-15T21:23:00Z'));
-    const collects = w.calls.filter(c => c.file === 'weekly-collect.yml');
+    const collects = w.calls.filter(c => c.kind === 'collect');
     expect(collects.map(c => c.slot)).toEqual(['2026-10-11', '2026-10-14', '2026-11-15']);
     expect(await s.ran('weekly-collect', new Date('2026-10-11T22:00:00Z'))).toMatchObject({ slot: '2026-10-11', ran: true });
     expect(await s.ran('weekly-collect-midweek', new Date('2026-10-14T22:00:00Z'))).toMatchObject({ slot: '2026-10-14', ran: true });
@@ -285,13 +303,11 @@ describe('scheduler in the app', () => {
     return { ...out, slack, base: `http://127.0.0.1:${server.address().port}` };
   }
 
-  it('answers the fallback crons and runs the hourly site check', async () => {
+  it('runs the hourly site check; the old fallback-cron endpoint is gone', async () => {
     const store = await freshStore();
     let now = new Date('2026-10-07T15:05:00Z');
     const { scheduler, slack, base } = await start(store, { now: () => now });
-    const r = await (await fetch(base + '/api/scheduler/ran?job=social-kit')).json();
-    expect(r).toMatchObject({ ok: true, job: 'social-kit', ran: false });
-    expect((await fetch(base + '/api/scheduler/ran?job=../etc')).status).toBe(404);
+    expect((await fetch(base + '/api/scheduler/ran?job=social-kit')).status).toBe(404);
 
     // Nothing published: the hourly check says so once, not every hour.
     await scheduler.tick(now);

@@ -236,7 +236,27 @@ export const INTEGRATION_ID = 'vic361_sponsor_checkout_qvbkmxtr';
 // this town's own orders.
 const TOWN_TAGGED = /^(checkout\.session|customer\.subscription)\./;
 const eventTown = obj => (obj && obj.metadata && obj.metadata.town) || VICTORIA.id;
-const townTag = () => (town.id === VICTORIA.id ? {} : { town: town.id });
+// Every town's sessions are tagged, Victoria's too since Oct 2026 (her
+// older sessions and subscriptions are untagged, which still means hers).
+const townTag = () => ({ town: town.id });
+
+// The card-statement suffix that tells a buyer which town they paid, since
+// all towns share one Stripe account: the site name without a leading
+// "The", upper case, Stripe's allowed characters only ("VIC 361",
+// "SHOALS"). At most 10 characters, cut at a word, so the account's prefix
+// (up to 10) plus "* " and this stays inside Stripe's 22.
+export function statementSuffix(siteName) {
+  const words = String(siteName || '').replace(/^the\s+/i, '').toUpperCase()
+    .replace(/[^A-Z0-9 .-]/g, '').split(/\s+/).filter(Boolean);
+  let out = '';
+  for (const w of words) {
+    const next = out ? `${out} ${w}` : w;
+    if (next.length > 10) break;
+    out = next;
+  }
+  if (!out && words[0]) out = words[0].slice(0, 10);
+  return /[A-Z]/.test(out) ? out : undefined;
+}
 
 // Stripe's refusal of a catalog price that was archived ("The price
 // specified is inactive"), or whose product was ("... is not active"), or
@@ -2057,7 +2077,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     app.get('/advertise/checkout', async (req, res, next) => {
       try {
         const pkg = packageFor(req.query.package);
-        if (!config.enabled || !pkg) return res.redirect(302, '/advertise');
+        // A paused town (TOWN_DORMANT=1) sells nothing (seo.js renderAdvertisePage).
+        if (!config.enabled || !pkg || town.dormant) return res.redirect(302, '/advertise');
         // Prefill from the query; only the form's own event fields are taken.
         // Contact details never ride in the URL (analytics and the Pixel see
         // page URLs): the submit form and its emails link with `from=<the
@@ -2139,7 +2160,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       try {
         const body = req.body || {};
         const pkg = packageFor(body.package);
-        if (!config.enabled || !pkg) return res.redirect(303, '/advertise');
+        if (!config.enabled || !pkg || town.dormant) return res.redirect(303, '/advertise');
         const ctx = { siteUrl, now: nowFn(), orders: await orders(), venues: getVenues(), values: body };
         const fail = (errors, status = 400) =>
           sendHtml(res, renderCheckoutPage(pkg, { ...ctx, errors }), status, 'no-store');
@@ -2232,10 +2253,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           customer_email: order.email,
           client_reference_id: order.id,
           line_items: [item],
-          // metadata.town: one Stripe account can serve several towns, and
-          // each town's webhook skips the others' sessions and subscriptions.
-          // Victoria's carry none (untagged means Victoria), so its requests
-          // are what they were before towns.
+          // metadata.town: one Stripe account serves every town, and each
+          // town's webhook skips the others' sessions and subscriptions.
           metadata: { order_id: order.id, package: pkg.key, terms_version: order.terms_version, terms_accepted_at: order.terms_accepted_at, ...townTag() },
           // A line by the pay button pointing back to the terms the buyer
           // just agreed to on our form. Only `submit`: Stripe's own terms
@@ -2246,7 +2265,13 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           // that hasn't. custom_text.submit needs no Dashboard setting.
           custom_text: { submit: { message: `By paying you confirm the order and our [Advertising Terms](${siteUrl}/advertising-terms) (version ${order.terms_version}), including cancellations and refunds.` } },
           subscription_data: pkg.interval ? { metadata: { order_id: order.id, ...townTag() } } : undefined,
-          payment_intent_data: pkg.interval || town.id === VICTORIA.id ? undefined : { metadata: { order_id: order.id, ...townTag() } },
+          // One-time payments carry the town on the card statement too
+          // (Checkout takes no descriptor for subscriptions; their invoices
+          // show the account's own).
+          payment_intent_data: pkg.interval ? undefined : {
+            metadata: { order_id: order.id, ...townTag() },
+            statement_descriptor_suffix: statementSuffix(town.siteName)
+          },
           expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_S,
           success_url: `${siteUrl}/advertise/thanks?order=${order.id}`,
           cancel_url: `${siteUrl}/advertise/checkout?package=${pkg.key}&cancelled=${order.id}`

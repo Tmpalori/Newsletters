@@ -26,12 +26,15 @@
  * old and new containers overlapping during a deploy can't fire it twice.
  * A job missed while the server was down still runs later the same day
  * (until `until`). The 15-minute and hourly jobs are harmless to repeat and
- * only tracked in memory. A worker job (`workflow`, the GitHub workflow it
- * replaced, which names its kind in server/jobs.js) runs only where jobs
- * are on (JOBS_ON_RAILWAY=1); elsewhere it doesn't run at all.
+ * only tracked in memory. A worker job (`kind`, one of server/jobs.js
+ * JOB_KINDS) runs only where jobs are on (JOBS_ON_RAILWAY=1); elsewhere it
+ * doesn't run at all.
  *
  * Production only (RAILWAY_ENVIRONMENT_NAME=production); SCHEDULER=0 turns it
- * off. GET /api/scheduler/ran still answers whether a slot ran.
+ * off. `ran(name)` says whether a job's latest slot was claimed and done.
+ * A paused town (TOWN_DORMANT=1, server/town.js) runs only DORMANT_JOBS:
+ * nothing is sent, posted or collected, but old personal data is still
+ * purged on time and the hourly check still watches the database.
  */
 
 import { town } from './town.js';
@@ -65,27 +68,31 @@ const dowOf = ymd => new Date(ymd + 'T12:00:00Z').getUTCDay();
 
 export const JOBS = [
   // Until 9 PM: a collect started later still lands the same evening.
-  { name: 'weekly-collect', dow: 0, at: '15:23', until: '21:00', workflow: 'weekly-collect.yml' },
-  { name: 'weekly-collect-midweek', dow: 3, at: '15:23', until: '21:00', workflow: 'weekly-collect.yml' },
-  { name: 'event-check', dow: 1, at: '06:43', until: '12:00', workflow: 'event-check.yml' },
+  { name: 'weekly-collect', dow: 0, at: '15:23', until: '21:00', kind: 'collect' },
+  { name: 'weekly-collect-midweek', dow: 3, at: '15:23', until: '21:00', kind: 'collect' },
+  { name: 'event-check', dow: 1, at: '06:43', until: '12:00', kind: 'event-check' },
   // And before Thursday's weekend issue.
-  { name: 'event-check-weekend', dow: 4, at: '06:00', until: '12:00', workflow: 'event-check.yml' },
+  { name: 'event-check-weekend', dow: 4, at: '06:00', until: '12:00', kind: 'event-check' },
   // Until noon: a deploy or restart later in the day mustn't send an issue
-  // at night (the GitHub fallback still covers a missed morning).
+  // at night.
   { name: 'newsletter', dow: 1, at: '07:43', until: '12:00', retryMins: [5, 15, 30] },
   // The weekend issue (Friday–Sunday), Thursday mornings.
   { name: 'newsletter-weekend', dow: 4, at: '07:00', until: '12:00', retryMins: [5, 15, 30] },
-  { name: 'meta-ads', at: '08:37', until: '18:00', workflow: 'meta-ads.yml', inputs: { scheduled: 'true' } },
-  { name: 'social-kit', at: '08:47', until: '18:00', workflow: 'social-kit.yml', inputs: { scheduled: 'true' } },
-  // Sunday night, after the afternoon's collect (weekly-digest.yml's time).
-  { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', workflow: 'weekly-digest.yml' },
+  { name: 'meta-ads', at: '08:37', until: '18:00', kind: 'meta-ads' },
+  // Until noon: a "Today in..." post caught up after a missed slot (a
+  // failed deploy) is still useful in the morning, not at 5 PM.
+  { name: 'social-kit', at: '08:47', until: '12:00', kind: 'social-kit' },
+  // Sunday night, after the afternoon's collect.
+  { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', kind: 'digest' },
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },
   // Personal-data retention (server/privacy.js): old submitter IPs and
   // contact messages. Early morning, out of everyone's way.
   { name: 'privacy-purge', at: '03:17', until: '23:59' },
-  { name: 'submission-review', every: 15, workflow: 'submission-review.yml' },
+  { name: 'submission-review', every: 15, kind: 'submission-review' },
   { name: 'health', every: 60 }
 ];
+
+export const DORMANT_JOBS = new Set(['privacy-purge', 'health']);
 
 // A job's start time in the town: JOBS' time unless the town moves it
 // (town.schedule, { "newsletter": "07:13" }), so several towns' sends and
@@ -125,8 +132,8 @@ export function dueSlot(job, now) {
 }
 
 // The most recent slot a daily/weekly job should have run in (today once
-// its time has passed, else the previous matching day). For the fallback
-// crons' "did the site already do this?" question.
+// its time has passed, else the previous matching day): what ran() and
+// the missed-collect check look at.
 export function lastSlot(job, now) {
   const c = localParts(now);
   for (let i = 0; i <= 7; i++) {
@@ -179,7 +186,7 @@ export function schedulerEnabled(env = process.env) {
  * queueJob(job, slot): hands a worker job to the town's jobs worker (null: jobs are off).
  * canQueue(job): whether the worker runs it.
  * handlers: { newsletter(), sponsorReports(now), privacyPurge(now), health(now), collected() }, each async.
- *   collected() → whether the town has ever collected (only the collect workflow starts until it has)
+ *   collected() → whether the town has ever collected (only the collect starts until it has)
  *   newsletter() → { ok, error?, retry?, message? } (see index.js)
  *   sponsorReports / health may be missing: the job is then skipped.
  */
@@ -205,7 +212,7 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
 
   // Run one job's body. → { ok, final?, message? }
   async function runJob(job, now, slot) {
-    if (job.workflow) return queue(job, slot);
+    if (job.kind) return queue(job, slot);
     const fn = { newsletter: handlers.newsletter, 'newsletter-weekend': handlers.newsletterWeekend, 'sponsor-reports': handlers.sponsorReports,
       'privacy-purge': handlers.privacyPurge, health: handlers.health }[job.name];
     try {
@@ -216,11 +223,11 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
     }
   }
 
-  // Whether a job can run at all here; otherwise it isn't claimed, so a
-  // fallback (GitHub's cron) still does it.
+  // Whether a job can run at all here; otherwise it isn't claimed.
   function available(job) {
+    if (town.dormant && !DORMANT_JOBS.has(job.name)) return false;
     // A worker job runs only where jobs are on, by the town's jobs worker.
-    if (job.workflow) return Boolean(queueJob) && canQueue(job);
+    if (job.kind) return Boolean(queueJob) && canQueue(job);
     if (job.name === 'newsletter') return typeof handlers.newsletter === 'function' && (!handlers.newsletterReady || handlers.newsletterReady());
     if (job.name === 'newsletter-weekend') return typeof handlers.newsletterWeekend === 'function' && (!handlers.newsletterWeekendReady || handlers.newsletterWeekendReady());
     if (job.name === 'sponsor-reports') return typeof handlers.sponsorReports === 'function';
@@ -234,14 +241,16 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
     if (!claim.claimed) return null;
     const out = await runJob(job, now, slot);
     const attempts = claim.attempts || 1;
-    const retries = job.retryMins || (job.workflow ? [2, 5] : []);
+    const retries = job.retryMins || (job.kind ? [2, 5] : []);
     let status = out.ok ? 'done' : 'failed';
     let retryAt = null;
     if (!out.ok && !out.final && attempts <= retries.length) {
       status = 'retry';
       retryAt = new Date(now.getTime() + retries[attempts - 1] * MIN).toISOString();
     }
-    await store.finishJobRun(job.name, slot, { status, retry_at: retryAt, detail: String(out.message || out.error || '').slice(0, 500) });
+    // detail: what a done slot did ("sent: 52 recipients", "no-subscribers"),
+    // else why it failed.
+    await store.finishJobRun(job.name, slot, { status, retry_at: retryAt, detail: String(out.detail || out.message || out.error || '').slice(0, 500) });
     if (status === 'failed' && !out.final && slack) {
       slack.alert(`scheduler-${job.name}-${slot}`, job.name === 'newsletter' ? `Monday newsletter send failed after ${attempts} tries`
         : job.name === 'newsletter-weekend' ? `Thursday weekend newsletter send failed after ${attempts} tries` : `Scheduled ${job.name} couldn't start`,
@@ -256,7 +265,7 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
   // they'd only fail and alert: until its first collect lands, only the
   // collect starts. (handlers.collected: Victoria's is always true.)
   async function waitsForFirstCollect(job, known) {
-    if (!job.workflow || job.name.startsWith('weekly-collect') || typeof handlers.collected !== 'function') return false;
+    if (!job.kind || job.name.startsWith('weekly-collect') || typeof handlers.collected !== 'function') return false;
     if (known.collected === undefined) {
       try { known.collected = Boolean(await handlers.collected()); } catch { known.collected = true; }
     }
@@ -299,13 +308,18 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
     }
   }
 
-  // Did the scheduler already run this job's most recent slot?
+  // Did the scheduler already run this job's most recent slot? Ran isn't
+  // sent: a newsletter slot with nobody to send to is done too, so outcome
+  // says which ("sent", "no-subscribers", "already-sent"...) and detail the
+  // rest (counts; HQ only, not the public route).
   async function ran(name, now = nowFn()) {
     const job = jobs.find(j => j.name === name && persisted(j));
     if (!job) return null;
     const slot = lastSlot(job, now);
     const row = slot ? await store.getJobRun(job.name, slot) : null;
-    return { job: name, slot, ran: Boolean(row && row.status === 'done') };
+    const detail = row && row.detail ? String(row.detail) : null;
+    const outcome = detail && row.status === 'done' ? (/^([a-z][a-z-]*)(?::|$)/.exec(detail) || [])[1] || null : null;
+    return { job: name, slot, ran: Boolean(row && row.status === 'done'), outcome, detail };
   }
 
   function start(intervalMs = MIN) {

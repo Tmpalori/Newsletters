@@ -31,7 +31,7 @@ def fake_site(**override):
         "/api/config": (200, json.dumps({"town": {"id": "bay", "domain": "thebay979.com"},
                                          "github_events_path": "towns/bay/public/events.json",
                                          "turnstile_required": True, "turnstile_site_key": "0x4AAA",
-                                         "town_workflows": True})),
+                                         "town_workflows": True, "jobs_on_railway": True})),
         "/robots.txt": (200, f"User-agent: *\nSitemap: {SITE}/sitemap.xml\n"),
         "/sitemap.xml": (200, f"<urlset><url><loc>{SITE}/</loc></url></urlset>"),
         "/events.json": (200, _feed()),
@@ -117,7 +117,7 @@ def test_lists_the_email_settings_only_a_person_can_check(tmp_path, monkeypatch,
     out = capsys.readouterr().out
     assert "✅ Turnstile is on" in out
     for name in ["RESEND_API_KEY", "NEWSLETTER_ADDRESS", "NEWSLETTER_REPLY_TO", "NEWSLETTER_CRON_SECRET", "TURNSTILE_SECRET_KEY",
-                 "email.bounced", "email.complained"]:
+                 "email.bounced", "email.complained", "email.delivered"]:
         assert name in out, name
 
 
@@ -131,7 +131,7 @@ def test_an_empty_or_stale_town_fails(tmp_path, monkeypatch, capsys):
     assert run(tmp_path, monkeypatch, get, seed=False) == 1
     out = capsys.readouterr().out
     for line in ["❌ at least 10 upcoming events (3)", "❌ a collect in the last 8 days (12 days ago)",
-                 "❌ its workflows are on (\"workflows\": true in town.json, after its GitHub Environment) (says None)",
+                 "❌ its jobs run on Railway (JOBS_ON_RAILWAY=1 and JOBS_SECRET on the web service) (says None)",
                  "❌ towns/bay/venues.json is seeded (0 venues)"]:
         assert line in out, line
 
@@ -154,10 +154,12 @@ def test_missing_venues_file_fails(tmp_path, monkeypatch, capsys):
     assert "❌ towns/bay/venues.json is seeded (0 venues, missing or unreadable)" in capsys.readouterr().out
 
 
-def test_manual_list_names_the_deferred_plan_items(tmp_path, monkeypatch, capsys):
+def test_manual_list_names_the_railway_runbooks(tmp_path, monkeypatch, capsys):
     get, _ = fake_site()
     run(tmp_path, monkeypatch, get)
     out = capsys.readouterr().out
     assert "Must be done before launch" in out
-    for item in ("3.3", "3.4", "3.5", "3.7", "2.6", "New town on Railway"):
+    for item in ("LAUNCH_CHECKLIST.md", "New town, the simple way", "New town on Railway", "Jobs on Railway",
+                 '"workflows": false', "watch paths"):
         assert item in out, item
+    assert "GitHub Environment" not in out

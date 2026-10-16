@@ -557,6 +557,21 @@ describe('signups where the bot check never loaded', () => {
     expect((await store.countSubscribers()).active).toBe(1);
   });
 
+  it('only a signup that joins right away may count as a Meta Lead', async () => {
+    await startApp({ turnstileSecret: 'fake-secret', fetch: pass });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const lead = async (body) => (await (await post('/api/subscribe', body)).json()).lead;
+      expect(await lead({ email: 'real@example.com', turnstile_token: 'ok' })).toBe(true);
+      // The same for an address already on the list: it says nothing of who's subscribed.
+      expect(await lead({ email: 'real@example.com', turnstile_token: 'ok' })).toBe(true);
+      // Waiting on a Confirm tap (no bot check, or a referral code) or a honeypot hit: no Lead.
+      expect(await lead({ email: 'iab@example.com' })).toBeUndefined();
+      expect(await lead({ email: 'friend@example.com', turnstile_token: 'ok', ref: 'abcdefg' })).toBeUndefined();
+      expect(await lead({ email: 'bot@example.com', turnstile_token: 'ok', hp_field: 'spam' })).toBeUndefined();
+    } finally { warn.mockRestore(); }
+  });
+
   it('after a signup the form shows only the confirmation (no empty-form second tap)', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/subscribe')).text();
@@ -936,6 +951,16 @@ describe('sending', () => {
     const dup = await (await post('/api/newsletter/cron', {}, { 'X-Cron-Secret': 'cron-secret' })).json();
     expect(dup.error).toBe('already-sent');
     expect(sent.batches).toHaveLength(1);
+  });
+
+  it('a scheduled send says what it did, and nobody to send to is an alert, not a quiet "ran"', async () => {
+    const alerts = [];
+    await startApp({ slack: { enabled: true, notify: async () => true, alert: async (k, t) => { alerts.push({ k, t }); return true; } } });
+    const empty = await nlApi.scheduledSend();
+    expect(empty).toMatchObject({ ok: true, sent_ok: false, detail: 'no-subscribers' });
+    expect(alerts.map(a => a.k)).toContain('newsletter-no-subscribers');
+    await store.importSubscribers(['a@example.com'], 'import');
+    expect(await nlApi.scheduledSend()).toMatchObject({ ok: true, sent_ok: true, detail: 'sent: 1 recipients' });
   });
 
   it('cron is closed when no secret is configured', async () => {

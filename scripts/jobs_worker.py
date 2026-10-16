@@ -50,7 +50,7 @@ import threading
 import time
 from collections import deque
 from contextlib import redirect_stdout
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import requests
 
@@ -201,10 +201,12 @@ def _write_json(path, data):
 
 
 def upcoming(candidates, days=14, today=None):
-    """Events in the next `days` days (hand-added ones run 90 days ahead)."""
-    end = ((today or date.today()) + timedelta(days=days)).isoformat()
+    """Events from today (the town's) through the next `days` days, not the
+    week's days already past (hand-added ones run 90 days ahead)."""
+    today = today or datetime.now(tz()).date()
+    start, end = today.isoformat(), (today + timedelta(days=days)).isoformat()
     events = (candidates or {}).get("events") or []
-    return sum(1 for e in events if isinstance(e, dict) and str(e.get("date", "")) <= end)
+    return sum(1 for e in events if isinstance(e, dict) and start <= str(e.get("date", "")) <= end)
 
 
 def job_collect(site, run=run_script, env=None):
@@ -286,7 +288,7 @@ class _Tee:
 
 def social_plan(today):
     """(kits to build, kit to post, also post "today" when it has a paid
-    pick) for a day, as social-kit.yml does: Monday builds the week, the
+    pick) for a day: Monday builds the week, the
     weekend and today and posts the week; Thursday builds the weekend and
     today and posts the weekend (and today with a paid pick); other days
     today."""
@@ -393,19 +395,18 @@ def social_settings_problem(env):
 
 
 def _ads_env(env):
-    """meta-ads.yml's settings: the ads token, else the Page token; the
+    """The ads report's settings: the ads token, else the Page token; the
     spend secret, else the submission review secret (the site's fallback)."""
     env = dict(env)
     if not env.get("META_ADS_TOKEN", "").strip() and env.get("META_PAGE_TOKEN", "").strip():
         env["META_ADS_TOKEN"] = env["META_PAGE_TOKEN"]
     if not env.get("ADS_SPEND_SECRET", "").strip() and env.get("SUBMISSION_REVIEW_SECRET", "").strip():
         env["ADS_SPEND_SECRET"] = env["SUBMISSION_REVIEW_SECRET"]
-    env.pop("GITHUB_OUTPUT", None)
     return env
 
 
 def job_meta_ads(site, run=run_script, env=None):
-    """The daily ads report (meta-ads.yml's scheduled run). The report goes
+    """The daily ads report (meta_ads.py report --scheduled). The report goes
     back to the site, which posts it to Slack; a town without its own ads
     settings does nothing (done, with why). A dead token, lost account
     access or a retired API version fails the job, which alerts."""
@@ -416,6 +417,12 @@ def job_meta_ads(site, run=run_script, env=None):
     if not meta_allowed(env=env, use="ads"):
         if TOWN["id"] != VICTORIA["id"] and not str(pins.get("ad_account_id") or "").strip():
             return "done", {"skipped": f"no ad account pinned for {TOWN['id']} (\"meta\".ad_account_id)"}
+        if TOWN["id"] != VICTORIA["id"] and not env.get("META_AD_ACCOUNT_ID", "").strip():
+            # Pinned in town.json but not yet on the jobs service: name the
+            # variable to set, rather than a vague "not its own".
+            pinned = str(pins["ad_account_id"]).strip().removeprefix("act_")
+            return "failed", {"error": f"{TOWN['id']}'s town.json pins ad account {pinned}; set "
+                                       f"META_AD_ACCOUNT_ID=act_{pinned} on its jobs service. No report."}
         return "failed", {"error": f"The Meta ads settings on the jobs service aren't {TOWN['id']}'s own "
                                    "(META_TOWN and the ad account its settings pin); no report."}
     with tempfile.TemporaryDirectory() as tmp:
@@ -424,9 +431,13 @@ def job_meta_ads(site, run=run_script, env=None):
                          TIMEOUTS["meta-ads"], env)
         got = _read_json(out) or {}
     if code != 0:
+        # The script's own error (a dead token, several ad accounts, a
+        # retired API version...), else its last line (a crash), never a
+        # guess that blames the token.
         errors = [line.replace("::error::", "") for line in tail if line.startswith("::error::")]
-        return "failed", {"error": "Meta ads daily check failed: " + ("; ".join(errors)[:600] or "token or ad account access?"),
-                          "log_tail": tail}
+        last = next((line.strip() for line in reversed(tail) if line.strip()), "")
+        why = "; ".join(errors) or last or f"meta_ads.py exited with code {code}"
+        return "failed", {"error": "Meta ads daily check failed: " + why[:600], "log_tail": tail}
     result = {"log_tail": tail[-8:]}
     if got.get("report"):
         result["report"] = str(got["report"])
@@ -438,7 +449,7 @@ DIGEST_TO = "tristen.m.palori@gmail.com"
 
 
 def job_digest(site, run=run_script, env=None, session=None):
-    """Sunday night's digest of what's collected (weekly-digest.yml), from
+    """Sunday night's digest of what's collected (send_digest.py), from
     the site's live list, mailed to the owner. Without SMTP settings on the
     jobs service it does nothing (done, with why)."""
     env = dict(env if env is not None else os.environ)

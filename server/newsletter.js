@@ -44,10 +44,10 @@
  *     admin. Welcome, confirmation and test emails have none.
  *   - Admin: counts, preview, test send, send now, CSV/paste import.
  *   - Automation: the site's scheduler (server/scheduler.js) sends both
- *     issues. POST /api/newsletter/cron with X-Cron-Secret is the Monday
- *     fallback, called by .github/workflows/newsletter.yml. Monday's run
- *     also sends last week's sponsor reports and any Vic's Pick reports due
- *     (onCron, server/sponsors.js).
+ *     issues. POST /api/newsletter/cron with X-Cron-Secret is a send
+ *     started by hand (nothing calls it on a schedule any more). Monday's
+ *     run also sends last week's sponsor reports and any Vic's Pick reports
+ *     due (onCron, server/sponsors.js).
  */
 
 import { town } from './town.js';
@@ -87,8 +87,8 @@ export function newsletterConfig(env = process.env, overrides = {}) {
   c.enabled = Boolean(c.apiKey);
   // The one switch for the automatic Monday send (Railway variable): on
   // unless NEWSLETTER_AUTOSEND=0. The site's scheduler (server/scheduler.js)
-  // sends at 7:43 AM Central; newsletter.yml's late GitHub cron is only a
-  // fallback and is told no when this is off.
+  // sends at the town's newsletter time (7:43 AM for Victoria); a hand
+  // send marked X-Cron-Scheduled is told no when this is off.
   c.autosend = String(overrides.newsletterAutosend ?? env.NEWSLETTER_AUTOSEND ?? '1') !== '0';
   // The Thursday weekend issue: on unless NEWSLETTER_WEEKEND=0.
   c.weekend = String(overrides.newsletterWeekend ?? env.NEWSLETTER_WEEKEND ?? '1') !== '0';
@@ -742,8 +742,13 @@ export function signupSource(raw) {
   return tag === 'ad' ? `${base}:ad` : base;
 }
 
+// What a paused town (TOWN_DORMANT=1, server/town.js) says where its signup
+// form would be, and what /api/subscribe answers there.
+export const DORMANT_SIGNUP = 'The newsletter is taking a break, so we aren’t adding new subscribers right now.';
+
 // Newsletter signup form: the homepage footer and the /subscribe page.
 export function signupFormHtml({ source = 'footer', button = 'Subscribe' } = {}) {
+  if (town.dormant) return `<p class="signup-msg signup-paused">${escHtml(DORMANT_SIGNUP)}</p>`;
   return `<form class="signup-form" id="signup-form" action="/api/subscribe" method="post" novalidate data-turnstile="fetch" data-source="${escHtml(source)}">
   <label for="signup-email" class="visually-hidden">Email address</label>
   <input id="signup-email" name="email" type="email" required autocomplete="email" placeholder="you@example.com">
@@ -756,7 +761,7 @@ export function signupFormHtml({ source = 'footer', button = 'Subscribe' } = {})
 f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector('button');b.disabled=true;m.textContent='';
 (window.vicTurnstile?window.vicTurnstile.token(f):Promise.resolve('')).then(function(t){return fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:f.email.value,hp_field:f.hp_field.value,turnstile_token:t,source:window.vic361Source?window.vic361Source(f.getAttribute('data-source')):f.getAttribute('data-source'),ref:window.vic361Ref?window.vic361Ref():''})});})
 .then(function(r){return r.json().catch(function(){return{};}).then(function(j){return{ok:r.ok,j:j};});})
-.then(function(x){m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form'});}})
+.then(function(x){m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form',lead:!!x.j.lead});}})
 .catch(function(){m.textContent='Something went wrong. Try again.';}).then(function(){b.disabled=false;if(window.vicTurnstile)window.vicTurnstile.reset(f);});});})();
 </script>`;
 }
@@ -767,6 +772,19 @@ f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector
 // The signup page: what you get, the form, then proof (real events from
 // the next seven days) for people who scroll before deciding.
 export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0, invited = false }) {
+  if (town.dormant) {
+    return layout({
+      siteUrl, path: '/subscribe', nav: null, noindex: true,
+      title: `Newsletter on a break | ${town.siteName}`,
+      description: `The ${town.siteName} newsletter is taking a break.`,
+      body: `
+    <section class="sub-hero">
+      <h1 class="page-title">The ${escHtml(town.siteName)} newsletter is taking a break.</h1>
+      <p class="page-lead">${escHtml(DORMANT_SIGNUP)} Already subscribed? You don’t need to do anything.</p>
+      <p><a class="btn btn--outline" href="/">See the events on the site</a></p>
+    </section>`
+    });
+  }
   const today = localDateStr(now);
   const end = addDays(today, 6);
   const next7 = sortEvents(events.filter(e => e.date >= today && e.date <= end));
@@ -1114,6 +1132,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   }
 
   app.post('/api/subscribe', async (req, res) => {
+    // A paused town: nobody new goes on a list that isn't being sent.
+    if (town.dormant) return res.status(503).json({ ok: false, error: 'dormant', message: DORMANT_SIGNUP });
     if (!supported) return res.status(503).json({ ok: false, message: 'Signups are paused. Try again soon.' });
     const ip = req.ip || req.socket.remoteAddress || '';
     if (!subscribeLimiter.check(ip).ok) return res.status(429).json({ ok: false, message: 'Too many tries. Try again later.' });
@@ -1165,9 +1185,15 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     // the form can't tell anyone who's subscribed or who owns a code.
     const almost = { ok: true, message: 'Almost there! Check your inbox and tap Confirm to start getting it.' };
     const confirmFirst = unverified || Boolean(ref);
+    // lead: the browser may count this as a Meta Lead (docs/track.js). Only
+    // a checked signup with no referral code, which joins right away; a
+    // signup that must tap Confirm first, or a honeypot hit, isn't a
+    // subscriber yet. It follows from the request alone, never the
+    // address's state, so it tells no one who's subscribed.
     const done = confirmFirst && config.enabled
       ? almost
-      : { ok: true, message: config.enabled ? "You're on the list! Check your inbox." : "You're on the list! Look for us Monday and Thursday mornings." };
+      : { ok: true, message: config.enabled ? "You're on the list! Check your inbox." : "You're on the list! Look for us Monday and Thursday mornings.",
+          ...(confirmFirst ? {} : { lead: true }) };
     try {
       const source = signupSource(body.source);
       const sub = await store.addSubscriber({ email, source, referredBy });
@@ -1559,14 +1585,26 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (slack && out.error === 'no-address') {
       slack.alert('newsletter-no-address', 'Newsletter not sent: no mailing address', out.message, `${siteUrl}/admin.html`);
     }
+    // A "done" slot isn't always a sent issue: nobody to send it to is
+    // worth hearing about, not a quiet green run.
+    if (slack && out.error === 'no-subscribers') {
+      slack.alert(`newsletter-no-subscribers${weekend ? '-weekend' : ''}`,
+        weekend ? 'Weekend newsletter went to nobody: no subscribers get it' : 'Newsletter went to nobody: no active subscribers',
+        'Check the Subscribers tab in admin.', `${siteUrl}/admin.html`);
+    }
     const done = out.ok || ['already-sent', 'no-events', 'no-subscribers', 'in-progress', 'weekend-off'].includes(out.error);
-    return { ...out, edition, ok: done, sent_ok: out.ok, final: ['not-configured', 'no-address', 'weekend-off'].includes(out.error) };
+    // What the slot did, kept with the scheduler's run (scheduler_runs.detail)
+    // so "ran" can say sent or why not.
+    const outcome = out.ok ? 'sent' : String(out.error || 'failed');
+    const detail = out.ok ? `${outcome}: ${out.recipients ?? 0} recipients` : outcome + (out.message ? `: ${out.message}` : '');
+    return { ...out, edition, ok: done, sent_ok: out.ok, final: ['not-configured', 'no-address', 'weekend-off'].includes(out.error), detail };
   }
 
-  // Scheduled send (GitHub Actions fallback, newsletter.yml). Needs the
-  // shared secret; refuses when no secret is configured so the endpoint
-  // can't be triggered by anyone. A run marked X-Cron-Scheduled honors
-  // NEWSLETTER_AUTOSEND=0; a hand-started run sends regardless.
+  // A send started by hand (the scheduler sends on its own; the GitHub
+  // newsletter.yml that called this is gone). Needs the shared secret;
+  // refuses when no secret is configured so the endpoint can't be
+  // triggered by anyone. A run marked X-Cron-Scheduled honors
+  // NEWSLETTER_AUTOSEND=0; a run without it sends regardless.
   app.post('/api/newsletter/cron', async (req, res) => {
     const given = Buffer.from(String(req.get('x-cron-secret') || ''));
     const want = Buffer.from(config.cronSecret || '');
@@ -1578,7 +1616,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       return res.json({ ok: false, error: 'autosend-off', message: 'NEWSLETTER_AUTOSEND=0 in Railway; not sending automatically.' });
     }
     try {
-      // newsletter.yml sends X-Newsletter-Edition: weekend on Thursdays.
+      // X-Newsletter-Edition: weekend sends Thursday's issue.
       const { ok: done, sent_ok: sentOk, final: _f, ...out } = await scheduledSend(req.get('x-newsletter-edition') === 'weekend' ? 'weekend' : 'weekly');
       // already-sent / no-events are normal outcomes for a cron, not failures.
       res.status(done ? 200 : 500).json({ ...out, ok: sentOk });

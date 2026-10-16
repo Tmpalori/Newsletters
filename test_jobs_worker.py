@@ -60,13 +60,15 @@ def fake_collector(paths, candidates, meta, code=0):
 
 def test_collect_hands_over_its_files_candidates_last(town_dir):
     site = FakeSite(files={"enrichment_cache": {"seen": 1}})
-    cand = {"last_updated": "2026-10-07T14:30:00-05:00", "events": [{"date": "2000-01-01", "name": "A"}, {"date": "2999-01-01", "name": "B"}]}
+    today = jw.datetime.now(jw.tz()).date().isoformat()
+    cand = {"last_updated": "2026-10-07T14:30:00-05:00", "events": [
+        {"date": "2000-01-01", "name": "A"}, {"date": today, "name": "B"}, {"date": "2999-01-01", "name": "C"}]}
     meta = {"warnings": {"summary": "1 warning: mona returned 0 events"}, "sources": [{"name": "town_feeds", "count": 120}]}
     status, result = jw.job_collect(site, run=fake_collector(town_dir, cand, meta))
     assert status == "done"
     assert site.puts == ["collection_metadata", "enrichment_cache", "candidates"]
     assert site.files["enrichment_cache"] == {"seen": 2}
-    assert result["upcoming"] == 1 and result["events"] == 2
+    assert result["upcoming"] == 1 and result["events"] == 3   # the past day and the far one are not counted
     assert result["warnings"] == "1 warning: mona returned 0 events"
     assert result["sources"] == {"town_feeds": 120}
 
@@ -416,16 +418,29 @@ def test_ads_report_quiet_week_and_failures(victoria):
     assert status == "done" and "report" not in result
     status, result = w.job_meta_ads(FakeSite(), run=fake_ads(code=1, tail=["::error::Meta refused API version v19.0"]), env={"META_PAGE_TOKEN": "tok"})
     assert status == "failed" and "v19.0" in result["error"]
+    # The real cause is named, not blamed on the token.
+    several = "::error::The token sees several ad accounts and none is chosen: A (act_1), B (act_2). Set META_AD_ACCOUNT_ID ..."
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads(code=1, tail=["…", several]), env={"META_PAGE_TOKEN": "tok"})
+    assert status == "failed" and "several ad accounts" in result["error"] and "token or ad account" not in result["error"]
+    # A crash (no ::error:: line): its last line, not a guess.
+    crash = ["Traceback (most recent call last):", "KeyError: 'spend'", ""]
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads(code=1, tail=crash), env={"META_PAGE_TOKEN": "tok"})
+    assert status == "failed" and result["error"] == "Meta ads daily check failed: KeyError: 'spend'"
     status, result = w.job_meta_ads(FakeSite(), run=fake_ads("x"), env={"META_PAGE_TOKEN": "tok", "META_PAGE_ID": MEDFORD_PAGE})
     assert status == "failed" and "aren't victoria's own" in result["error"]
 
 
-def test_ads_report_is_a_clean_no_op_without_ads_settings(medford):
+def test_ads_report_is_a_clean_no_op_without_ads_settings(medford, monkeypatch):
     w, _ = medford
     run = fake_ads("x")
     # No token at all.
     assert w.job_meta_ads(FakeSite(), run=run, env={}) == ("done", {"skipped": "no ads settings (META_ADS_TOKEN / META_PAGE_TOKEN isn't set)"})
-    # Its page token for posting, but no ad account pinned in its town.json.
+    # Its page token for posting, and the shared ad account pinned in its
+    # town.json, but not yet on the jobs service: names the variable.
+    status, result = w.job_meta_ads(FakeSite(), run=run, env=POSTING)
+    assert status == "failed" and "META_AD_ACCOUNT_ID=act_2614503002399063" in result["error"]
+    # No ad account pinned in its town.json: nothing to do.
+    monkeypatch.setitem(w.TOWN, "meta", {"page_id": MEDFORD_PAGE})
     status, result = w.job_meta_ads(FakeSite(), run=run, env=POSTING)
     assert status == "done" and "no ad account pinned" in result["skipped"]
     assert run.calls == []

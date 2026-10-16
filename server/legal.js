@@ -29,7 +29,7 @@ import { layout, escHtml, AD_PACKAGES, CANCEL_NOTICE_DAYS } from './seo.js';
 // ─── Versions ────────────────────────────────────────────────────────────
 // YYYY-MM-DD of the wording in force. ADVERTISING_TERMS_VERSION is stored on
 // every sponsor order (terms_version) and sent to Stripe as metadata.
-export const ADVERTISING_TERMS_VERSION = '2026-10-10';
+export const ADVERTISING_TERMS_VERSION = '2026-10-16';
 export const TERMS_VERSION = '2026-10-10';
 export const PRIVACY_VERSION = '2026-10-10';
 export const ACCESSIBILITY_VERSION = '2026-10-10';

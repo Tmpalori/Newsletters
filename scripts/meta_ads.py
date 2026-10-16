@@ -28,6 +28,11 @@ Needs (the jobs service's variables):
                       the Slack report. Same value as Railway's ADS_SPEND_SECRET
                       (the worker falls back to SUBMISSION_REVIEW_SECRET).
 
+Towns share one ad account, so each reports only its own campaigns: those
+whose name starts with the town's "meta".campaign_prefix ("Vic Newsletter
+Leads" for Victoria, "The Star 402 Newsletter Leads" for Lincoln...). A
+town with no prefix reports the whole account.
+
 --result FILE writes the report as JSON ({"report", "link"}) instead of
 posting it to Slack: the worker hands it to the site, which posts it.
 
@@ -49,9 +54,9 @@ import slack_notify  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from town import TOWN, meta_allowed, site_url  # noqa: E402
 
-# One place for the Graph/Marketing API version. The GRAPH_API_VERSION repo
-# variable (passed in meta-ads.yml) overrides it, so moving off a version
-# Meta retires needs no code change; empty (variable unset) means the default.
+# One place for the Graph/Marketing API version. GRAPH_API_VERSION on the
+# town's jobs service overrides it, so moving off a version Meta retires
+# needs no code change; empty (variable unset) means the default.
 GRAPH_VERSION = os.environ.get("GRAPH_API_VERSION", "").strip() or "v23.0"
 GRAPH_VERSION = GRAPH_VERSION if GRAPH_VERSION.startswith("v") else f"v{GRAPH_VERSION}"
 GRAPH = f"https://graph.facebook.com/{GRAPH_VERSION}"
@@ -59,6 +64,11 @@ MAX_DAILY_BUDGET = 50  # dollars; a typo like 1000 shouldn't go live
 SITE = site_url()
 CENTRAL = ZoneInfo(TOWN["timezone"])  # the town's zone (Central for Victoria)
 NEEDS = ("ads_read", "ads_management")
+# The town's campaigns in the shared ad account (see the docstring). The
+# site's ad spend and HQ's spend tile add these up per town, so a town
+# reading the whole account would count every town's spend as its own.
+_PINS = TOWN.get("meta") if isinstance(TOWN.get("meta"), dict) else {}
+CAMPAIGN_PREFIX = str(_PINS.get("campaign_prefix") or "").strip()
 
 
 class AdsError(RuntimeError):
@@ -95,8 +105,8 @@ class Api:
             err = body.get("error", {}) if isinstance(body, dict) else {}
             if err.get("code") in (12, 2635) or re.search(
                     r"(deprecated|unsupported|unknown|invalid)\W+(api\W+)?version", str(err.get("message") or ""), re.I):
-                raise VersionRetired(f"Meta refused API {GRAPH_VERSION} (retired or unsupported?). Set the "
-                                     "GRAPH_API_VERSION repo variable to a current version, e.g. v24.0.")
+                raise VersionRetired(f"Meta refused API {GRAPH_VERSION} (retired or unsupported?). Set "
+                                     "GRAPH_API_VERSION on the jobs service in Railway to a current version, e.g. v24.0.")
             raise AdsError(f"{method} {path} failed: {err.get('message') or f'HTTP {r.status_code}'}")
         return body
 
@@ -143,7 +153,8 @@ def find_account(api, wanted=""):
                        "Assign assets → Ad accounts, give it the ad account (Manage ad account), and make sure "
                        "the token has ads_read and ads_management.")
     names = ", ".join(f"{a.get('name')} ({a['id']})" for a in accounts)
-    raise AdsError(f"The token sees several ad accounts: {names}. Set the META_AD_ACCOUNT_ID repo variable.")
+    raise AdsError(f"The token sees several ad accounts and none is chosen: {names}. Set META_AD_ACCOUNT_ID "
+                   "on the jobs service in Railway (the ad account its town.json pins).")
 
 
 def money(cents_or_dollars, cents=True):
@@ -178,7 +189,39 @@ def summarize(row):
     return spend, ", ".join(parts)
 
 
+def mine(name):
+    return not CAMPAIGN_PREFIX or str(name or "").startswith(CAMPAIGN_PREFIX)
+
+
+def campaign_rows(api, account_id, fields, **params):
+    """Insights for this town's campaigns, one row per campaign (per day
+    with time_increment)."""
+    rows = api.all(f"{account_id}/insights", fields=fields + ",campaign_name", level="campaign", limit=100, **params)
+    return [r for r in rows if mine(r.get("campaign_name"))]
+
+
+def merged(rows):
+    """Several campaigns' rows as one. Reach is added up, so someone who
+    saw two of the town's campaigns counts twice (Meta dedupes reach only
+    within one row); frequency and CTR follow from the sums."""
+    total = {"spend": 0.0, "impressions": 0, "reach": 0, "inline_link_clicks": 0}
+    acts = {}
+    for r in rows:
+        for k in total:
+            total[k] += float(r.get(k) or 0)
+        for a in r.get("actions") or []:
+            acts[a.get("action_type")] = acts.get(a.get("action_type"), 0) + float(a.get("value") or 0)
+    if total["reach"]:
+        total["frequency"] = total["impressions"] / total["reach"]
+    if total["impressions"]:
+        total["inline_link_click_ctr"] = total["inline_link_clicks"] / total["impressions"] * 100
+    total["actions"] = [{"action_type": k, "value": v} for k, v in acts.items()]
+    return total
+
+
 def insights(api, account_id, preset):
+    if CAMPAIGN_PREFIX:
+        return merged(campaign_rows(api, account_id, INSIGHT_FIELDS, date_preset=preset))
     rows = api.call("GET", f"{account_id}/insights", fields=INSIGHT_FIELDS, date_preset=preset, level="account").get("data") or []
     return rows[0] if rows else {}
 
@@ -191,6 +234,13 @@ def structure(api, account_id):
     campaigns = api.all(f"{account_id}/campaigns", fields=fields + ",objective,daily_budget,stop_time")
     adsets = api.all(f"{account_id}/adsets", fields=fields + ",campaign_id,daily_budget,optimization_goal,end_time")
     ads = api.all(f"{account_id}/ads", fields=fields + ",adset_id,ad_review_feedback,created_time")
+    if CAMPAIGN_PREFIX:
+        # Another town's rejected ad or stalled campaign is its report's.
+        campaigns = [c for c in campaigns if mine(c.get("name"))]
+        ids = {c["id"] for c in campaigns}
+        adsets = [s for s in adsets if s.get("campaign_id") in ids]
+        ids = {s["id"] for s in adsets}
+        ads = [a for a in ads if a.get("adset_id") in ids]
     return campaigns, adsets, ads
 
 
@@ -225,6 +275,7 @@ def cmd_status(api, account, out):
     out.append(f"Ad account: {account.get('name')} ({account['id']}), {account.get('currency', '')}")
     campaigns, adsets, ads = structure(api, account["id"])
     out += status_lines(campaigns, adsets, ads)
+    out += over_budget(campaigns, adsets)
     for label, preset in [("Today", "today"), ("Yesterday", "yesterday"), ("Last 7 days", "last_7d")]:
         _, line = summarize(insights(api, account["id"], preset))
         out.append(f"{label}: {line}")
@@ -264,12 +315,32 @@ def running_ads(campaigns, adsets, ads, now=None):
     return [a for a in ads if a.get("effective_status") == "ACTIVE" and a.get("adset_id") in live_adsets]
 
 
+def over_budget(campaigns, adsets, now=None):
+    """A note per live campaign or ad set budgeted above MAX_DAILY_BUDGET.
+    The limit only guards the budget command; a budget raised in Ads
+    Manager can be on purpose, so this says so and blocks nothing."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    live = [c for c in campaigns if c.get("effective_status") == "ACTIVE" and not _ended(c, "stop_time", now)]
+    ids = {c["id"] for c in live}
+    live += [s for s in adsets if s.get("effective_status") == "ACTIVE" and s.get("campaign_id") in ids
+             and not _ended(s, "end_time", now)]
+    return [f"ℹ️ *{o.get('name')}* is at {money(o['daily_budget'])}/day, over the ${MAX_DAILY_BUDGET}/day safety limit"
+            for o in live if float(o.get("daily_budget") or 0) > MAX_DAILY_BUDGET * 100]
+
+
 def daily_rows(api, account_id, today=None):
     """The last 30 days (in the ad account's time zone, Central for this
     account), one row per day for the site. Meta leaves out days nothing
     spent; those are sent as $0, not left blank."""
-    rows = api.call("GET", f"{account_id}/insights", fields="spend,impressions,inline_link_clicks,actions",
-                    date_preset="last_30d", time_increment=1, level="account", limit=100).get("data") or []
+    fields = "spend,impressions,inline_link_clicks,actions"
+    if CAMPAIGN_PREFIX:
+        by_day = {}
+        for r in campaign_rows(api, account_id, fields, date_preset="last_30d", time_increment=1):
+            by_day.setdefault(r.get("date_start"), []).append(r)
+        rows = [{**merged(rs), "date_start": d} for d, rs in by_day.items()]
+    else:
+        rows = api.call("GET", f"{account_id}/insights", fields=fields,
+                        date_preset="last_30d", time_increment=1, level="account", limit=100).get("data") or []
     got = {r["date_start"]: {"day": r["date_start"], "spend": float(r.get("spend") or 0),
                              "impressions": int(float(r.get("impressions") or 0)),
                              "clicks": int(float(r.get("inline_link_clicks") or 0)),
@@ -333,6 +404,8 @@ def cmd_report(api, account, out):
     if account.get("account_status") not in (None, 1):
         problems.insert(0, f"⚠️ The ad account is disabled or on hold (status {account['account_status']}): "
                            "check Ads Manager → Account overview")
+    # Rides along when there's a report; never a reason to send one.
+    notes = over_budget(campaigns, adsets)
     if spend7 <= 0:
         on = running_ads(campaigns, adsets, ads)
         if not problems and not on:
@@ -342,7 +415,7 @@ def cmd_report(api, account, out):
         # there while it's already spending: report today instead.
         spend_today, today = summarize(insights(api, account["id"], "today"))
         if spend_today > 0:
-            text = "\n".join([f"📈 Meta ads: today so far {today}"] + problems)
+            text = "\n".join([f"📈 Meta ads: today so far {today}"] + problems + notes)
             out.append(text)
             return text
         # An ad made in the last 2 days may not have delivered yet; that's
@@ -353,12 +426,12 @@ def cmd_report(api, account, out):
         # Zero spend with ads on, or a rejected ad / held account, is a
         # stalled campaign, not a quiet week: say so.
         head = "📉 Meta ads: $0 spent in the last 7 days" + (f" with {len(on)} ad{'s' if len(on) != 1 else ''} on" if on else "")
-        text = "\n".join([head] + problems)
+        text = "\n".join([head] + problems + notes)
         out.append(text)
         return text
     _, yday = summarize(insights(api, account["id"], "yesterday"))
     real = real_cost(site)
-    text = "\n".join([f"📈 Meta ads: yesterday {yday}", f"Last 7 days: {week}"] + ([real] if real else []) + problems)
+    text = "\n".join([f"📈 Meta ads: yesterday {yday}", f"Last 7 days: {week}"] + ([real] if real else []) + problems + notes)
     out.append(text)
     return text
 
@@ -427,17 +500,14 @@ def main(argv=None, session=None):
             cmd_budget(api, args.target, dollars, args.force, out)
     except AdsError as e:
         print("\n".join(out))
-        # Only "ads were never set up" is quiet on the daily run; a dead
-        # token or lost account access fails it so meta-ads.yml alerts
-        # Slack, instead of the daily report just stopping.
+        # Only "ads were never set up" is quiet on the daily run; anything
+        # else fails it, and the jobs worker's alert quotes this ::error::
+        # line, so it names the real cause (a dead token, lost account
+        # access, several accounts, a retired API version).
         if args.scheduled and isinstance(e, NotSetUp):
             print(f"::warning::{e}")
             return 0
         print(f"::error::{e}")
-        if isinstance(e, VersionRetired):
-            # meta-ads.yml's Slack alert says this instead of "token or ad
-            # account access?".
-            set_output("alert", f"🚨 Meta ads daily check failed: {e}")
         return 1
     text = "\n".join(out)
     print(text)
@@ -446,14 +516,6 @@ def main(argv=None, session=None):
         with open(summary, "a") as f:
             f.write(f"### Meta ads: {args.command}\n\n" + "\n".join(f"{x}  " for x in out) + "\n")
     return slack_rc or 0
-
-
-def set_output(name, value):
-    """A step output for the workflow (single line), when run in Actions."""
-    path = os.environ.get("GITHUB_OUTPUT")
-    if path:
-        with open(path, "a") as f:
-            f.write(f"{name}={value.replace(chr(10), ' ')}\n")
 
 
 if __name__ == "__main__":

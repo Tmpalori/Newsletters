@@ -683,7 +683,9 @@ def main(argv=None):
                # Paid picks only: the Thursday "today" post exists so a paid
                # pick that day is always posted, not for editor's picks.
                "featured": sum(1 for v in groups.values() for e in v if is_paid_pick(e))}
-        if kind == "weekend":
+        # The Reel is for Instagram only (Facebook gets the photos), so a
+        # town with no Instagram linked (IG_USER_ID unset) skips the build.
+        if kind == "weekend" and os.environ.get("IG_USER_ID", "").strip():
             reel = make_reel(args.out, slides)
             if reel:
                 kit["reel"] = reel

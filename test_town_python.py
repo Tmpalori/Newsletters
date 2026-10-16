@@ -371,7 +371,7 @@ def test_victorias_meta_pin_keeps_another_towns_settings_off_her_jobs_service():
     # JOBS_ON_RAILWAY.md phase 5: her page is pinned like another town's;
     # META_TOWN may be unset (her old repo-level settings) or "victoria".
     vic = town_mod.town_config({})
-    assert vic["meta"] == {"page_id": "1388965530960534"}
+    assert vic["meta"] == {"page_id": "1388965530960534", "campaign_prefix": "Vic Newsletter Leads"}
     ok = {"META_PAGE_ID": "1388965530960534"}
     assert town_mod.meta_allowed(vic, ok) and town_mod.meta_allowed(vic, {**ok, "META_TOWN": "victoria"})
     assert not town_mod.meta_allowed(vic, {**ok, "META_TOWN": "medford"})

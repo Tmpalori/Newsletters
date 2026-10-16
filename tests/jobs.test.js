@@ -13,7 +13,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { createJobs, kindForWorkflow, upcomingCount, canRunOnWorker } from '../server/jobs.js';
+import { createJobs, upcomingCount, canRunOnWorker } from '../server/jobs.js';
 import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
@@ -260,7 +260,7 @@ describe('the scheduler with jobs on Railway', () => {
     const github = { calls: [], isConfigured: () => true, branch: 'main', dispatchWorkflow: async (f) => { github.calls.push(f); } };
     const queued = [];
     const s = createScheduler({ store, github, log: { warn() {} },
-      queueJob: async (job, slot) => { queued.push([kindForWorkflow(job.workflow), slot]); },
+      queueJob: async (job, slot) => { queued.push([job.kind, slot]); },
       canQueue: job => canRunOnWorker(job) });
     await s.tick(new Date('2026-10-07T13:48:00Z'));     // ads, social kit and the review are due
     await s.tick(new Date('2026-10-07T20:30:00Z'));     // Wednesday's collect
@@ -283,10 +283,12 @@ describe('the scheduler with jobs on Railway', () => {
   it('every kind runs on the worker for every town', () => {
     for (const t of [VICTORIA, townConfig({ TOWN: 'medford' })]) {
       useTown(t);
-      for (const f of ['social-kit.yml', 'meta-ads.yml', 'weekly-digest.yml', 'weekly-collect.yml', 'event-check.yml', 'submission-review.yml']) {
-        expect(canRunOnWorker({ workflow: f })).toBe(true);
+      for (const kind of ['social-kit', 'meta-ads', 'digest', 'collect', 'event-check', 'submission-review']) {
+        expect(canRunOnWorker({ kind })).toBe(true);
       }
-      expect(canRunOnWorker({ workflow: 'newsletter.yml' })).toBe(false);
+      expect(canRunOnWorker({ kind: 'newsletter' })).toBe(false);
+      expect(canRunOnWorker({ kind: 'toString' })).toBe(false);
+      expect(canRunOnWorker({ name: 'newsletter' })).toBe(false);
     }
   });
 });
@@ -294,6 +296,11 @@ describe('the scheduler with jobs on Railway', () => {
 describe('helpers', () => {
   it('counts the next two weeks', () => {
     expect(upcomingCount(CANDIDATES, NOW)).toBe(2);
+  });
+
+  it('does not count the week\'s days already past', () => {
+    const past = { events: [...CANDIDATES.events, { date: '2026-10-05', name: 'Monday Trivia' }, { date: '2026-10-07', name: 'Today' }] };
+    expect(upcomingCount(past, NOW)).toBe(3);
   });
 
   it('createJobs is off without the secret', () => {
@@ -452,5 +459,19 @@ describe('the ads report and the digest on the worker', () => {
       await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'failed', result: { error: 'Meta ads daily check failed: token' } });
     }
     expect(t.slack.alerts.map(a => a.title)).toEqual(['Meta ads report failed', 'Weekly digest email failed']);
+  });
+
+  it('a digest skipped for missing SMTP settings is said in alerts, not a quiet "done"', async () => {
+    const t = await start();
+    const run = async result => {
+      await t.store.enqueueJob('digest', `s${Math.random()}`, {}, NOW);
+      const job = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+      return t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'done', result });
+    };
+    await run({ events: 40 });
+    expect(t.slack.notes).toEqual([]);
+    await run({ skipped: "SMTP_EMAIL / SMTP_PASSWORD aren't set on the jobs service" });
+    expect(t.slack.notes).toEqual([expect.objectContaining({ title: '📭 Weekly digest email not sent', channel: 'alerts' })]);
+    expect(t.slack.notes[0].text).toContain('SMTP_EMAIL');
   });
 });

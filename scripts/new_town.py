@@ -125,66 +125,59 @@ Next, in the repo:
        TOWN={slug} python3 discover_venues.py --repo-root towns/{slug}
   2. Add the town's logo set to towns/{slug}/public/ (logo, favicons,
      apple-touch-icon, og-image, skyline day/night, email skyline).
-  3. Add its own local calendars as collector sources (collect_events.py
-     WEB_SOURCES) and list them in town.json "enabledSources".
+  3. Add its own local calendars to towns/{slug}/town.json "feeds" (check
+     each returns events from Railway, not only from your machine).
+  Keep "workflows": false: nothing runs on GitHub. Every town runs its jobs
+  on its own Railway jobs service.
 
-Must be done before launch (MULTI_CITY_PLAN.md; each one blocks a launch,
-and scripts/launch_check.py fails until the town is really collecting):
-  - 3.3 the town's GitHub Environment "{slug}" (SITE_URL={site}, Meta,
-    NTFY_TOPIC, cron secrets, SLACK_TOWN_TAG="{settings['city']}"), then
-    "workflows": true in towns/{slug}/town.json (a PR), which turns on its
-    site's scheduler and Pull Now and adds it to the scheduled Sunday and
-    Wednesday collects. META_TOWN={slug} in the Environment only with the
-    town's own Meta page, Instagram and ad account, whose ids also go in
-    town.json "meta" (page_id, ig_user_id, ad_account_id). Until then it starts no collect, social kit,
-    submission review or event check.
-  - 3.5 the workflows' gates call the town's own SITE_URL.
-  - 2.6 Railway watch paths on its service: /server/**, /docs/**,
-    /package.json, /package-lock.json, /.nvmrc, /railpack.json,
-    /town.py, /towns/{slug}/**, /towns/*/town.json (RAILWAY.md step 16).
-
-Accounts and settings (owner; MULTI_CITY_PLAN.md 5.2). Follow
-RAILWAY.md "New town on Railway" end to end: every variable, fresh secrets
-per town (never copy Victoria's), Stripe webhook events, HQ_TOWNS, domain.
-  - Domain {settings['domain']} and DNS.
-  - A service and its own Postgres (backups on) in the Newsletters Railway
-    project, production only. Variables: TOWN={slug},
-    SITE_URL={site}, ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SESSION_SECRET,
-    the cron secrets, HQ_API_KEY, SLACK_TOWN_TAG="{settings['city']}".
+The full checklist is LAUNCH_CHECKLIST.md. Its Railway part is
+RAILWAY.md "New town, the simple way", and every variable is in
+RAILWAY.md "New town on Railway" (fresh secrets per town, never copy
+Victoria's).
+  - Railway, in the Newsletters project's production environment:
+    Postgres-<Town> (backups on); a web service with TOWN={slug},
+    SITE_URL={site}, DATABASE_URL (that Postgres), ADMIN_USERNAME,
+    ADMIN_PASSWORD, ADMIN_SESSION_SECRET, the cron secrets, HQ_API_KEY,
+    SLACK_TOWN_TAG="{settings['city']}", JOBS_ON_RAILWAY=1 and JOBS_SECRET;
+    watch paths /server/**, /docs/**, /package.json, /package-lock.json,
+    /.nvmrc, /railpack.json, /town.py, /towns/{slug}/**, /towns/*/town.json.
+  - Its jobs service (RAILWAY.md "Jobs on Railway"): TOWN={slug}, references
+    to the web service's secrets, and META_TOWN={slug} with the town's own
+    Meta page and ad account, whose ids also go in town.json "meta"
+    (page_id, ig_user_id, ad_account_id, and campaign_prefix in the shared
+    ad account).
+  - Domain {settings['domain']} and DNS (www CNAME, apex redirected to www).
   - Resend: verify {settings['domain']} (SPF, DKIM, MX for replies); RESEND_API_KEY;
     NEWSLETTER_FROM="{settings['site_name']} <news@{settings['domain']}>";
     NEWSLETTER_ADDRESS (a street address or PO box with ZIP: no issue goes out
-    without it); NEWSLETTER_REPLY_TO; NEWSLETTER_CRON_SECRET (Railway and the
-    town's GitHub Environment); a webhook to {site}/api/email/inbound with the
-    events email.received, email.bounced and email.complained, and its
-    RESEND_WEBHOOK_SECRET.
+    without it); NEWSLETTER_REPLY_TO; NEWSLETTER_CRON_SECRET; a webhook to
+    {site}/api/email/inbound with the events email.received, email.bounced,
+    email.complained and email.delivered, and its RESEND_WEBHOOK_SECRET.
   - Legal pages (Railway): BUSINESS_LEGAL_NAME (the LLC's legal name),
     BUSINESS_CONTACT_EMAIL (an inbox you read: refunds, privacy requests,
     free drawing entries) and NEWSLETTER_ADDRESS (a PO box or registered
     mailbox; every email needs it too).
-  - Stripe: the town's own Stripe account (Stripe → account menu → New
-    account), on the same LLC, EIN and payout bank account as Victoria, so
-    checkout, receipts and card statements show {settings['site_name']}, not
-    The Vic 361. Set its public business name, logo and statement
-    descriptor, then its STRIPE_SECRET_KEY, and a webhook endpoint at
+  - Stripe: the one shared account (no new account). On it, a restricted
+    key for the town as STRIPE_SECRET_KEY and a webhook endpoint at
     {site}/api/stripe/webhook with its STRIPE_WEBHOOK_SECRET, subscribed to
-    the events in RAILWAY.md step 5 (including charge.dispute.closed and
-    invoice.paid). Switch to the live key and live endpoint secret after the
+    the 12 events in RAILWAY.md "New town on Railway" step 6 (including
+    charge.dispute.closed and invoice.paid). The code tags the town's
+    sessions with metadata.town={slug} and puts the town on the card
+    statement. Switch to the live key and live endpoint secret after the
     launch test checkout (a test key in production is a Setup warning).
     Products and prices are created on the first checkout.
-  - Facebook page, Instagram, ad account (the town's GitHub Environment).
+  - Facebook page, Instagram, ad account (on the town's jobs service).
   - GA data stream (gaId in town.json), Tremendous campaign.
   - Turnstile: add {settings['domain']} to a widget; TURNSTILE_SITE_KEY and
     TURNSTILE_SECRET_KEY (required: without them every newsletter signup has
     to confirm by email).
 
-Before launch (5.3): python3 scripts/launch_check.py --town {slug} passes
-(10+ upcoming events, a collect in the last 8 days, workflows on, venues
+Before launch: python3 scripts/launch_check.py --town {slug} passes
+(10+ upcoming events, a collect in the last 8 days, jobs on, venues
 seeded), the server starts (boot guards pass), a test newsletter to
 delivered@resend.dev, a Stripe test-mode checkout, a reply lands in #inbox
 tagged with the town, HQ shows it, and Victoria's live check is unchanged.
 """
-
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Start a new town (towns/<slug>/)")
