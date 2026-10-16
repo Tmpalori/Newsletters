@@ -13,7 +13,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { createJobs, kindForWorkflow, upcomingCount } from '../server/jobs.js';
+import { createJobs, kindForWorkflow, upcomingCount, canRunOnWorker } from '../server/jobs.js';
 import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
@@ -261,7 +261,7 @@ describe('the scheduler with jobs on Railway', () => {
     const queued = [];
     const s = createScheduler({ store, github, log: { warn() {} },
       queueJob: async (job, slot) => { queued.push([kindForWorkflow(job.workflow), slot]); },
-      canQueue: job => Boolean(kindForWorkflow(job.workflow)) });
+      canQueue: job => canRunOnWorker(job) });
     await s.tick(new Date('2026-10-07T13:48:00Z'));     // ads, social kit and the review are due
     await s.tick(new Date('2026-10-07T20:30:00Z'));     // Wednesday's collect
     return { github, queued };
@@ -274,11 +274,11 @@ describe('the scheduler with jobs on Railway', () => {
     expect(new Set(queued.map(q => q[1])).size).toBe(3);
   });
 
-  it('a town whose GitHub workflows are off starts nothing on GitHub', async () => {
+  it('a town whose GitHub workflows are off starts nothing on GitHub; its social kit goes to the worker', async () => {
     useTown(townConfig({ TOWN: 'kearney' }));       // "workflows": false
     const { github, queued } = await run();
     expect(github.calls).toEqual([]);
-    expect(queued.map(q => q[0])).toEqual(['submission-review', 'collect', 'submission-review']);
+    expect(queued.map(q => q[0])).toEqual(['social-kit', 'submission-review', 'collect', 'submission-review']);
   });
 });
 

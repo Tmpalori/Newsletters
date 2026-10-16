@@ -4,6 +4,7 @@ social posts, AI prompts and alerts name it, never Victoria."""
 import importlib
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -364,3 +365,41 @@ def test_meta_credentials_count_only_for_their_own_town(tmp_path):
     (tmp_path / "bay" / "town.json").write_text(json.dumps(BAY))                    # nothing pinned
     bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
     assert not town_mod.meta_allowed(bay, own) and not town_mod.meta_allowed(bay, own, use="ads")
+
+
+@pytest.mark.parametrize("slug", ["medford", "shoals", "lincoln", "virginiabeach"])
+def test_a_towns_slides_use_its_own_logo_skyline_colors_and_words(slug, monkeypatch):
+    """The social kit the town's jobs worker posts (JOBS_ON_RAILWAY.md 2b):
+    its brand kit (towns/<slug>/public, BRAND.md palette), never Victoria's
+    logo, skyline, colors or name."""
+    from datetime import date
+    monkeypatch.setenv("TOWN", slug)
+    monkeypatch.delenv("SITE_URL", raising=False)
+    names = ["town", "social_kit", "social_slides"]
+    try:
+        mods = {n: importlib.reload(importlib.import_module(n)) for n in names}
+        sk, ss, t = mods["social_kit"], mods["social_slides"], mods["town"]
+        pal = t.brand_palette()
+        events = [{"date": "2026-10-16", "name": "Fish Fry", "venue": f"Hall, {t.TOWN['city']}, {t.TOWN['state']} 12345",
+                   "time": "6:00 PM", "featured": True}]
+        start, end = sk.weekend_bounds(date(2026, 10, 15))
+        groups = sk.select_events(events, start, end)
+        _, doc = ss.slides_html(groups, start, end, "weekend")
+        # The category icons (docs/icons.svg) are shared by every town's site.
+        doc = re.sub(r'<svg style="display:none">.*?</svg></svg>|<svg style="display:none">.*?(?=<section)', "", doc, flags=re.S)
+        own = os.path.join(HERE, "towns", slug, "public")
+        assert f"file://{own}/logo-512.png" in doc and f"file://{own}/skyline.svg" in doc
+        assert "/docs/logo" not in doc and "/docs/skyline" not in doc
+        assert pal["primary"] != "#4B3FD1" and pal["primary"] in doc and pal["ink"] in doc and pal["paper"] in doc
+        for victoria_color in ("#4B3FD1", "#FFF4D6", "#FF8FC0", "#554E7A"):
+            assert victoria_color not in doc
+        assert no_leak(doc.replace(HERE, "<repo>")) == []      # the checkout folder may be named thevic361
+        assert sk.LOGO == os.path.join(own, "logo.png")
+        assert sk.clean_venue(events[0]["venue"]) == "Hall"
+        caps = sk.captions(groups, start, end, "weekend", {}, None)
+        assert no_leak(caps["facebook"] + caps["instagram"]) == []
+        assert t.TOWN["domain"] in caps["facebook"]
+    finally:
+        monkeypatch.delenv("TOWN")
+        for n in names:
+            importlib.reload(importlib.import_module(n))

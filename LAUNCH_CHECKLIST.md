@@ -96,6 +96,24 @@ issue and tick it off.
       Monday and Thursday.", website), Instagram if wanted. Send the Page and
       IG IDs; Agent pins them in `town.json` so posts can only go to the
       town's own Page.
+- [ ] Daily posts (the town's jobs worker builds the social kit every day
+      at 8:47 AM local, puts it on `https://www.<domain>/social/latest/` and
+      posts it; JOBS_ON_RAILWAY.md 2b). Posting turns on with these
+      variables on the town's **jobs service** (`<web>-jobs`), never shared
+      with another town:
+      - `META_TOWN=<slug>` (says these Meta settings are this town's)
+      - `META_PAGE_ID=<the Page ID pinned in town.json "meta".page_id>`
+      - `META_PAGE_TOKEN=<a Page token, or a system-user token with the Page
+        assigned>` (pages_show_list, pages_read_engagement, pages_manage_posts;
+        for Instagram also instagram_basic, instagram_content_publish)
+      - `IG_USER_ID` only once Instagram is linked and its id is pinned in
+        `town.json` as `"meta".ig_user_id` (an id it doesn't pin stops the
+        post); without it the post is Facebook only
+      - `SOCIAL_AUTOPOST=1` last. Without it the kit is still built and on
+        the site every day, nothing is posted. `GRAPH_API_VERSION` optional
+        (default `v23.0`).
+      Check: the next morning's run in the jobs service log ("Facebook:
+      posted ..."), or a "Social posts (Facebook/Instagram) failed" alert.
 - [ ] Owner: a pixel per domain in Events Manager; Agent sets
       `META_PIXEL_ID` and checks a signup is recorded.
 - [ ] Ad video: Owner records a 12 to 15 s selfie (the town's name, three

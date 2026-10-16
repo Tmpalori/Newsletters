@@ -61,6 +61,11 @@ class Unconfirmed(PostError):
     may not exist. Never retried automatically (it could post twice)."""
 
 
+class StateNotSaved(PostError):
+    """on_save (the jobs worker storing posted.json on the site) failed:
+    nothing is published without its "pending" mark saved first."""
+
+
 class _SentButNoAnswer(PostError):
     """A POST timed out waiting for the answer: Meta may have acted on it."""
 
@@ -256,7 +261,11 @@ def page_token(page_id, token, session):
     return body.get("access_token") or token
 
 
-def main(argv=None, session=None):
+def main(argv=None, session=None, on_save=None):
+    """on_save(posted): called after every write of posted.json with its
+    contents. The jobs worker (scripts/jobs_worker.py) stores it on the
+    town's site, so a retried or restarted job never posts twice; when it
+    raises, the post that was about to go out doesn't."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--kind", choices=["week", "weekend", "today"], required=True)
     ap.add_argument("--kit-dir", default=KIT_DIR)
@@ -283,7 +292,7 @@ def main(argv=None, session=None):
         print(f"No events in the {args.kind} kit; not posting an empty list.")
         return 0
     if args.if_featured and not kit.get("featured"):
-        print(f"No Vic's Pick in the {args.kind} kit; nothing extra to post.")
+        print(f"No {TOWN['pick_name_plain']} in the {args.kind} kit; nothing extra to post.")
         return 0
 
     looked_up = page_token(page_id, token, session)
@@ -328,15 +337,21 @@ def main(argv=None, session=None):
             posted.pop(k, None)
         with open(posted_path, "w") as f:
             json.dump(posted, f, indent=2)
+        if on_save:
+            try:
+                on_save(posted)
+            except Exception as e:  # noqa: BLE001 - any failure to store it stops the post
+                raise StateNotSaved(f"couldn't save what was posted ({type(e).__name__}: {e})") from None
 
     failures = []
+    where_posted = "the site's social_posted file (RAILWAY.md)" if on_save else "docs/social/latest/posted.json"
 
     def already(label, platform):
         """True (and says why) when this slot shouldn't be posted again."""
         if slot.get(platform) == PENDING:
             print(f"::warning::{label}: an earlier run timed out publishing {slot_key} and may have posted it. "
                   f"Not posting again; check the {label} account by hand, and to retry remove "
-                  f'"{platform}" under "{slot_key}" in docs/social/latest/posted.json.')
+                  f'"{platform}" under "{slot_key}" in {where_posted}.')
             return True
         if slot.get(platform):
             print(f"{label}: already posted {slot[platform]} for {slot_key}; skipping.")
@@ -344,8 +359,16 @@ def main(argv=None, session=None):
         return False
 
     def failed(label, platform, e):
+        if isinstance(e, StateNotSaved):
+            # Whatever the site last stored stands (a "pending" mark keeps
+            # re-runs off this platform); nothing more is written now.
+            failures.append(f"{label}: {e}")
+            return
         if isinstance(e, Unconfirmed):
-            remember(platform, PENDING)
+            try:
+                remember(platform, PENDING)
+            except StateNotSaved:
+                pass  # saved as "pending" just before the publish call already
             failures.append(f"{label}: {e}; it may have posted anyway. Check {label} by hand; "
                             f"re-runs skip it until \"{platform}\" is removed from posted.json.")
         else:
@@ -353,7 +376,10 @@ def main(argv=None, session=None):
             # run's pending mark and let a re-run try again.
             if slot.get(platform) == PENDING:
                 slot.pop(platform)
-                remember_all()
+                try:
+                    remember_all()
+                except StateNotSaved:
+                    pass  # the stored "pending" stays: safe, a person clears it
             failures.append(f"{label}: {e}")
 
     def pending(platform):

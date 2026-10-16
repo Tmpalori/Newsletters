@@ -18,14 +18,45 @@ import subprocess
 import tempfile
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url, tz  # noqa: E402  (repo root; TOWN unset = Victoria)
+from town import TOWN, VICTORIA, brand_palette, site_url, town_asset, tz  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 W, H = 1080, 1350
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DOCS = os.path.join(ROOT, "docs")
 
-# Same palette and per-weekday colors as docs/style.css and the newsletter.
-INK, CREAM, PURPLE, SUN = "#1F1A3D", "#FFF4D6", "#4B3FD1", "#FFC93C"
+
+def _rgb(hex_):
+    return tuple(int(hex_[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _mix(a, b, t):
+    """a blended toward b by t (0..1), as #RRGGBB."""
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(_rgb(a), _rgb(b)))
+
+
+def _light(hex_):
+    r, g, b = _rgb(hex_)
+    return 0.299 * r + 0.587 * g + 0.114 * b > 150
+
+
+# The town's palette (towns/<slug>/BRAND.md; Victoria's is the site's,
+# docs/style.css): ink outlines and text, paper, primary for accents and
+# the closing slide, highlight for the badge and markers, accent for the
+# kicker pill and the pick star. Victoria's values are exactly the old
+# literals, so her slides don't change.
+_PAL = brand_palette()
+INK, CREAM, PURPLE, SUN = _PAL["ink"], _PAL["paper"], _PAL["primary"], _PAL["highlight"]
+_VIC = TOWN["id"] == VICTORIA["id"]
+KICKER_BG = _PAL["accent"]
+KICKER_FG = INK if _light(KICKER_BG) else "#FFFFFF"
+STAR = "#FF7A3D" if _VIC else _PAL["accent"]
+MUTED = "#554E7A" if _VIC else _mix(INK, "#FFFFFF", 0.3)
+RULE = "#E8D9AE" if _VIC else _mix(CREAM, INK, 0.15)
+DOT_RGB = ",".join(str(c) for c in _rgb(INK))
+# The town's own logo and skyline; a town without one gets none, never
+# Victoria's (town_asset).
+LOGO = town_asset("logo-512.png")
+SKYLINE = town_asset("skyline.svg")
 DAY_COLORS = ["#FFC93C", "#8FD3FF", "#FF8FC0", "#3DBE8B", "#FF7A3D", "#B9A6FF", "#FF8A80"]  # Mon..Sun
 ICONS = {"food", "music", "family", "drinks", "arts", "shopping", "outdoors", "community", "free"}
 KICKER = {"week": "This week", "weekend": "This weekend", "today": "Today"}
@@ -76,8 +107,8 @@ def _wordmark():
 
 def _brand(small=False, color=INK):
     size = 64 if small else 84
-    return (f'<div class="brand" style="color:{color}"><img src="file://{DOCS}/logo-512.png" width="{size}" height="{size}">'
-            f'<span>{_wordmark()}</span></div>')
+    img = f'<img src="file://{LOGO}" width="{size}" height="{size}">' if LOGO else ""
+    return f'<div class="brand" style="color:{color}">{img}<span>{_wordmark()}</span></div>'
 
 
 CSS = f"""
@@ -85,8 +116,8 @@ CSS = f"""
 html,body{{width:{W}px;background:{CREAM}}}
 body{{font-family:Nunito,'Helvetica Neue',Arial,sans-serif;color:{INK}}}
 .slide{{width:{W}px;height:{H}px;position:relative;overflow:hidden;background:{CREAM}}}
-.dots{{position:absolute;inset:0;background-image:radial-gradient(rgba(31,26,61,.09) 3px,transparent 3.5px);background-size:44px 44px}}
-.sky{{position:absolute;left:-120px;right:-120px;bottom:0;height:230px;background:url(file://{DOCS}/skyline.svg) center bottom/cover no-repeat}}
+.dots{{position:absolute;inset:0;background-image:radial-gradient(rgba({DOT_RGB},.09) 3px,transparent 3.5px);background-size:44px 44px}}
+.sky{{position:absolute;left:-120px;right:-120px;bottom:0;height:230px;{f'background:url(file://{SKYLINE}) center bottom/cover no-repeat' if SKYLINE else 'display:none'}}}
 .disp{{font-family:Fredoka,'Trebuchet MS',sans-serif;font-weight:700;letter-spacing:-.5px;line-height:1.04}}
 .brand{{display:flex;align-items:center;gap:16px;font-family:Fredoka;font-weight:700;font-size:44px}}
 .brand img{{border-radius:50%}}
@@ -121,14 +152,14 @@ def cover_html(groups, start, end, kind):
     picks = sorted(events, key=rank)[:3]
     rows = "".join(
         f'<div class="card pick" style="padding:18px 30px;border-radius:30px;box-shadow:10px 10px 0 {INK};transform:rotate({r}deg)"><div class="one disp" style="font-size:40px">{_icons(e, 42)} {esc(e["name"])}</div>'
-        f'<div class="one" style="font-size:28px;font-weight:800;color:#554E7A;margin-top:6px">'
+        f'<div class="one" style="font-size:28px;font-weight:800;color:{MUTED};margin-top:6px">'
         f'{_sponsored(e, 24)}{esc(_day_label(e, kind))}{" · " + esc(clean_venue(e.get("venue"))) if clean_venue(e.get("venue")) else ""}</div></div>'
         for e, r in zip(picks, (-1.2, 0.8, -0.6)))
     count = f"{total} thing{'s' if total != 1 else ''} to do" if total else "Nothing listed yet"
     return f"""<section class="slide"><div class="dots"></div><div class="sky"></div>
 <div style="position:absolute;left:64px;right:64px;top:56px">
   {_brand()}
-  <div class="pill" style="background:#FF8FC0;font-size:34px;margin-top:40px;transform:rotate(-2deg)">{esc(KICKER[kind].upper())}</div>
+  <div class="pill" style="background:{KICKER_BG};{"" if _VIC else f"color:{KICKER_FG};"}font-size:34px;margin-top:40px;transform:rotate(-2deg)">{esc(KICKER[kind].upper())}</div>
   <div class="disp" style="font-size:96px;margin-top:20px">{esc(HEADLINE[kind])}<br><span class="hl">{esc(TOWN["city_state"])}</span></div>
   <div style="display:flex;gap:20px;align-items:center;margin-top:30px">
     <div class="pill" style="font-size:34px">{esc(_range(start, end))}</div>
@@ -163,13 +194,13 @@ def _digest_day(day, evs, per_day, first, compact=False):
     name_px, time_px, more_px, pad = (29, 24, 24, 9) if compact else (33, 28, 28, 16)
     items = "".join(
         f'<div class="one" style="font-size:{name_px}px;font-weight:900;line-height:1.25">'
-        f'{"<span style=color:#FF7A3D>★</span> " if e.get("featured") else ""}{_sponsored(e, time_px - 6)}'
-        f'<span style="font-family:Fredoka;font-weight:700;color:#554E7A;font-size:{time_px}px">{esc(_short_time(e.get("time")))}</span> '
+        f'{f"<span style=color:{STAR}>★</span> " if e.get("featured") else ""}{_sponsored(e, time_px - 6)}'
+        f'<span style="font-family:Fredoka;font-weight:700;color:{MUTED};font-size:{time_px}px">{esc(_short_time(e.get("time")))}</span> '
         f'{esc(e["name"])}</div>'
         for e in evs[:per_day])
     more = (f'<div style="font-family:Fredoka;font-weight:700;font-size:{more_px}px;color:{PURPLE};line-height:1.3">'
             f'+ {len(evs) - per_day} more</div>') if len(evs) > per_day else ""
-    sep = "" if first else "border-top:4px dashed #E8D9AE;"
+    sep = "" if first else f"border-top:4px dashed {RULE};"
     chip = (f'<div style="background:{color};border:4px solid {INK};border-radius:18px;text-align:center;padding:{2 if compact else 6}px 0">'
             f'<div class="disp" style="font-size:{28 if compact else 34}px">{esc(day.strftime("%a").upper())}</div>'
             f'<div style="font-family:Fredoka;font-weight:700;font-size:{20 if compact else 24}px">{esc(day.strftime("%b ") + str(day.day))}</div></div>')
@@ -256,7 +287,10 @@ def render(groups, start, end, kind, out_dir, chrome=None, batch=10):
                 with open(page, "w") as f:
                     f.write(head + "".join(chunk) + tail)
                 subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
-                                "--force-device-scale-factor=1", f"--window-size={W},{H * len(chunk)}",
+                                "--disable-dev-shm-usage", "--force-device-scale-factor=1", # Taller than the slides: newer headless Chrome takes its
+                                # own bar out of the window, which left the last slide's
+                                # bottom unpainted. Only the slides are cropped out below.
+                                f"--window-size={W},{H * len(chunk) + 200}",
                                 "--virtual-time-budget=10000", "--allow-file-access-from-files",
                                 f"--screenshot={shot}", "file://" + page],
                                check=True, capture_output=True, timeout=120)

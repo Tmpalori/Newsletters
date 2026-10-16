@@ -263,6 +263,19 @@ a commit or a redeploy.
      `${{shared.<NAME>}}`
    - `FB_POSTS_ENABLED=1`, `IG_POSTS_ENABLED=1` (the collector's other
      sources are on by default)
+   - The social kit (daily at 8:47 AM town time; not Victoria's, which
+     stays on GitHub): `META_TOWN=<slug>`, `META_PAGE_ID` (the page id its
+     `town.json` pins under `"meta"`), `META_PAGE_TOKEN`, `IG_USER_ID` (only
+     once pinned as `"meta".ig_user_id`; without it Facebook only),
+     optional `GRAPH_API_VERSION`, and `SOCIAL_AUTOPOST=1` to post. These
+     are the town's own (set here or as references to its web service's),
+     never shared. Without `SOCIAL_AUTOPOST=1` the kit is still built and
+     served at `https://www.<domain>/social/latest/`; with it but settings
+     that aren't the town's own, the job fails and alerts and posts
+     nothing. What was posted is the town file `social_posted` (per day and
+     kind; `"pending"` means a publish call may have gone out: check the
+     Page, then remove that entry, e.g. `UPDATE town_files SET data = data
+     #- '{2026-10-15:today,facebook}' WHERE name = 'social_posted'`).
 4. **Stop GitHub collecting it:** `"workflows": false` in
    `towns/<slug>/town.json` (a PR), so GitHub's scheduled collect skips
    the town.
@@ -272,8 +285,8 @@ a commit or a redeploy.
    worker stops asking for work for 30 minutes, and a job that never
    finishes is started once more and alerted.
 
-The social kit and the ads report move later (JOBS_ON_RAILWAY.md 2b); a
-town on jobs doesn't run them until then.
+The social kit runs on the jobs service too (JOBS_ON_RAILWAY.md 2b); the
+ads report moves later, and a town on jobs doesn't run it until then.
 
 ## New town, the simple way (jobs on Railway)
 
