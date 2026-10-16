@@ -2809,7 +2809,7 @@ export async function createApp(opts = {}) {
     clientKey,
     inbox: (since, limit) => (typeof store.listInboxEvents === 'function' ? store.listInboxEvents(since, limit) : []),
     latestInbox: () => (typeof store.latestInboxId === 'function' ? store.latestInboxId() : null),
-    subscribers: async (after) => ({ total: (await store.countSubscribers()).active, ...(await store.listConfirmedSince(after, 500)) }),
+    subscribers: async (after) => ({ name: town.siteName, total: (await store.countSubscribers()).active, ...(await store.listConfirmedSince(after, 500)) }),
     // Straight to the #hype webhook: no [town] tag (it's every town's news)
     // and not this town's owner inbox.
     hype: (msg) => { const { title, blocks } = hypeBlocks(msg, slackEscape); return slack.post(title, blocks, 'hype'); },

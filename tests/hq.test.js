@@ -199,7 +199,7 @@ describe('/api/hq/subscribers and /api/hq/hype (HQ\'s combined subscriber ping)'
     await confirm('b@example.com', '2026-10-09T11:00:00.000Z');
     await store.importSubscribers(['imported@example.com'], 'import');   // a list import isn't a signup
     const first = await (await get('/api/hq/subscribers', `Bearer ${KEY}`)).json();
-    expect(first).toMatchObject({ ok: true, latest: '2026-10-09T11:00:00.000Z', subscribers: [] });
+    expect(first).toMatchObject({ ok: true, name: 'The Vic 361', latest: '2026-10-09T11:00:00.000Z', subscribers: [] });
     expect(first.total).toBe(3);   // every active subscriber, imports too
     await confirm('c@example.com', '2026-10-09T12:00:00.000Z');
     const next = await (await get(`/api/hq/subscribers?after=${first.latest}`, `Bearer ${KEY}`)).json();
