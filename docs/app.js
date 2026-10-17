@@ -334,6 +334,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
       }).then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; });
       }).then(function (x) {
+        // A refusal with no message of ours (a 5xx, a proxy page) is ours to fix.
+        if (!x.ok && !x.j.message && window.vicTurnstile) window.vicTurnstile.report('subscribe', 'server', 'HTTP error on list card');
         msg.textContent = x.ok ? '✅ ' + (x.j.message || "You're on the list! Check your inbox.") : (x.j.message || 'Something went wrong. Try again.');
         if (x.ok) {
           form.email.value = '';
@@ -347,7 +349,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
           try { localStorage.setItem(SUB_KEY, '1'); } catch (e2) { /* private mode */ }
           if (!was && window.vic361Track) window.vic361Track('subscribe_click', { link_url: 'list-card', lead: !!x.j.lead });
         }
-      }).catch(function () {
+      }).catch(function (err) {
+        if (window.vicTurnstile) window.vicTurnstile.report('subscribe', 'network', (err && err.message) || 'list card');
         msg.textContent = 'Something went wrong. Try again.';
       }).then(function () {
         btn.disabled = false;

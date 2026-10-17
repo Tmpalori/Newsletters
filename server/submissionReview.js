@@ -89,6 +89,13 @@ export function awaitingReview(row) {
   return history.every(h => h && (h.action === 'submitted' || h.action === 'reminder'));
 }
 
+// A public submission whose bot check didn't pass (POST /api/submissions
+// takes it anyway, server/formGuard.js): never approved without the owner.
+export function botUnverified(row) {
+  const history = Array.isArray(row && row.review_history) ? row.review_history : [];
+  return history.some(h => h && h.action === 'submitted' && h.bot_check === 'failed');
+}
+
 // Paid picks this close to their date (days) that still aren't live get a
 // Slack reminder, at most every REMIND_EVERY_MS, once they've had
 // REMIND_GRACE_MS for the review to publish them. So do picks promised a
@@ -329,6 +336,10 @@ export function registerSubmissionReview(app, { store, secret, nowFn, autoApprov
         if (decision === 'approve' && !autoApprove && !paid) {
           decision = 'flag';
           reasonNote = `passed the review; ready for your OK${reason ? ` (${reason})` : ''}`;
+        }
+        if (decision === 'approve' && !paid && botUnverified(row)) {
+          decision = 'flag';
+          reasonNote = `passed the review, but the bot check didn't pass when it was sent; make sure it's real${reason ? ` (${reason})` : ''}`;
         }
         // Auto-publish only lists upcoming events, so a past date can't go live.
         if (decision === 'approve' && String((row.payload || {}).date || '') < localDateStr(nowFn())) {

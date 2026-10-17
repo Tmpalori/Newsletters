@@ -51,6 +51,7 @@ import crypto from 'node:crypto';
 import { ipKey } from './rateLimit.js';
 import { burst } from './burst.js';
 import express from 'express';
+import { passiveGuard } from './formGuard.js';
 import {
   AD_PACKAGES, escHtml, safeUrl, localDateStr, currentWeek, addDays, formatDay, layout,
   renderEventItem, sponsorHtml, dayClass, sortEvents, SAMPLE_LOGO, reachPitchHtml
@@ -2580,7 +2581,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     };
   }
 
-  function registerRoutes(app, { requireAdmin, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, analyticsSecret = '' }) {
+  function registerRoutes(app, { requireAdmin, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, formGuard = passiveGuard(verifyHuman), analyticsSecret = '' }) {
     const limiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
 
     // The weekly sponsor's button in our emails (server/newsletter.js
@@ -2777,12 +2778,19 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         const pkg = packageFor(body.package);
         if (!config.enabled || !pkg || town.dormant) return res.redirect(303, '/advertise');
         const ctx = { siteUrl, now: nowFn(), orders: await orders(), venues: getVenues(), values: body };
-        const fail = (errors, status = 400) =>
-          sendHtml(res, renderCheckoutPage(pkg, { ...ctx, errors }), status, 'no-store');
+        // Every turn-away counts toward "someone is stuck" (server/formGuard.js).
+        const fail = (errors, status = 400) => {
+          formGuard.rejected('checkout', req, Object.values(errors || {}));
+          return sendHtml(res, renderCheckoutPage(pkg, { ...ctx, errors }), status, 'no-store');
+        };
         if (honeypotTripped(body, 'sponsor checkout', { slack })) return res.redirect(303, '/advertise');
         const ip = req.ip || req.socket.remoteAddress;
         if (!limiter.check(ip).ok) return fail({ _form: 'Too many attempts. Try again in an hour.' }, 429);
-        if (!(await verifyHuman(req))) return fail({ _form: "We couldn't confirm you're not a bot. Please try again." });
+        // A bot check that didn't pass doesn't stop a buyer: Stripe still
+        // has to take their money, and the owner is alerted. Only a token
+        // solved on another site (never one of our visitors) is refused.
+        const human = await formGuard.botCheck('checkout', req, body['cf-turnstile-response'] || body.turnstile_token);
+        if (!human.ok && human.error === 'hostname-mismatch') return fail({ _form: "We couldn't confirm you're not a bot. Please reload the page and try again." });
         const client = holdClient(ip, analyticsSecret);
 
         // Re-read and save the hold under one lock, so a week booked seconds
@@ -2949,6 +2957,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
             ? fail({ _form: 'We couldn’t check what’s still available just now. Please try again in a minute.' }, 503)
             : fail({ _form: 'This checkout was replaced by a newer one (another tab?). Please check your details and try again.' }, 409);
         }
+        formGuard.ok('checkout', req);
         res.redirect(303, session.url);
       } catch (err) { next(err); }
     });

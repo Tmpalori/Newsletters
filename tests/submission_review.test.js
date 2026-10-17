@@ -756,3 +756,26 @@ describe('research suggestions', () => {
     expect((await store.get('s2')).ai_review.research).toBeUndefined();
   });
 });
+
+describe('submission review: a bot check that did not pass', () => {
+  // POST /api/submissions takes these now (server/formGuard.js) instead of
+  // turning a real person away; the review may not publish one on its own.
+  it('is flagged for the owner even with auto-approval on', async () => {
+    await startApp();
+    await store.insert(row('s1', { review_history: [{ at: NOW.toISOString(), action: 'submitted', note: 'Public submission', bot_check: 'failed' }] }));
+    expect(awaitingReview(await store.get('s1'))).toBe(true);
+    const r = await review([{ id: 's1', decision: 'approve', reason: 'looks fine', cleaned: CLEAN }]);
+    expect(r.status).toBe(200);
+    const s1 = await store.get('s1');
+    expect(s1.status).toBe('pending');
+    expect(s1.ai_review.decision).toBe('flag');
+    expect(s1.admin_notes).toMatch(/bot check didn't pass/);
+  });
+
+  it('can still be turned away by the review', async () => {
+    await startApp();
+    await store.insert(row('s1', { review_history: [{ at: NOW.toISOString(), action: 'submitted', bot_check: 'failed' }] }));
+    await review([{ id: 's1', decision: 'reject', reason: 'gibberish' }]);
+    expect((await store.get('s1')).status).not.toBe('pending');
+  });
+});

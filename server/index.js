@@ -25,6 +25,7 @@ import { createStore, isOutage, normalizePayload, newId, nowIso, applyEventEdits
 import { validateSubmission, validateEventEdit, checkBotSignals } from './validate.js';
 import { reportHoneypot } from './honeypot.js';
 import { verifyTurnstile, turnstileHostnames } from './turnstile.js';
+import { createFormGuard } from './formGuard.js';
 import { createRateLimiter, ipKey, railwayRealIp } from './rateLimit.js';
 import { createAuth, MIN_SECRET } from './auth.js';
 import { createGithub } from './github.js';
@@ -374,6 +375,12 @@ export async function createApp(opts = {}) {
   });
   // "We got it" emails per recipient address, whatever IP sends the form.
   const receiptLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
+  // No visitor stuck on a public form, and the owner hears when one is
+  // (server/formGuard.js).
+  const formGuard = opts.formGuard || createFormGuard({
+    slack, verifyTurnstile, clientKey,
+    turnstileOpts: () => ({ secret: turnstileSecret, fetch: opts.fetch, hostnames: turnstileHosts })
+  });
 
   // ─── Sponsor checkout (Stripe; see server/sponsors.js) ───
   // Created here because the Stripe webhook needs the raw body and so must
@@ -450,6 +457,8 @@ export async function createApp(opts = {}) {
   const smallForms = express.urlencoded({ extended: false, limit: '64kb' });
   const checkoutForm = express.urlencoded({ extended: false, limit: '600kb' });
   app.use((req, res, next) => (req.path === '/advertise/checkout' ? checkoutForm : smallForms)(req, res, next));
+  // The browser's own reports of a form it couldn't finish (server/formGuard.js).
+  formGuard.registerRoutes(app, { limiter: opts.formProblemLimiter || createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 }) });
 
   // ─── Public config (site key only — never expose secret) ───
   app.get('/api/config', (req, res) => {
@@ -634,11 +643,13 @@ export async function createApp(opts = {}) {
     // inside one subscriber's block doesn't buy fresh budgets.
     const burst = submitLimiter.check(clientKey(req));
     if (!burst.ok) {
+      formGuard.rejected('submit', req, ['too many submissions (burst limit)']);
       res.set('Retry-After', String(burst.retryAfter || 60));
       return res.status(429).json({ ok: false, error: 'rate-limited' });
     }
     const daily = submitLimiterDaily.check(clientKey(req));
     if (!daily.ok) {
+      formGuard.rejected('submit', req, ['too many submissions today']);
       res.set('Retry-After', String(daily.retryAfter || 3600));
       return res.status(429).json({ ok: false, error: 'rate-limited-daily' });
     }
@@ -655,18 +666,21 @@ export async function createApp(opts = {}) {
     }
 
     const v = validateSubmission(req.body || {});
-    if (!v.ok) return res.status(400).json({ ok: false, errors: v.errors });
+    if (!v.ok) {
+      formGuard.rejected('submit', req, Object.values(v.errors));
+      return res.status(400).json({ ok: false, errors: v.errors });
+    }
 
-    // Turnstile is required if a secret is configured.
-    const ts = await verifyTurnstile(req.body && req.body.turnstile_token, {
-      secret: turnstileSecret,
-      remoteip: ip,
-      fetch: opts.fetch,
-      hostnames: turnstileHosts
-    });
-    if (!ts.ok) {
+    // The bot check (when TURNSTILE_SECRET_KEY is set). A check that didn't
+    // pass no longer turns the event away: it joins the queue labeled, and
+    // the review can't approve it on its own (server/submissionReview.js
+    // botUnverified). Only a token solved on someone else's site, which
+    // none of our visitors send, is refused.
+    const ts = await formGuard.botCheck('submit', req, req.body && req.body.turnstile_token);
+    if (!ts.ok && ts.error === 'hostname-mismatch') {
       return res.status(400).json({ ok: false, error: 'turnstile-failed' });
     }
+    const botNote = ts.ok ? '' : `Bot check didn't pass (${ts.error}); make sure it's a real event before approving.`;
 
     const dup = await store.findDuplicate({
       date: v.data.payload.date,
@@ -674,6 +688,7 @@ export async function createApp(opts = {}) {
       venue: v.data.payload.venue
     });
     if (dup) {
+      formGuard.ok('submit', req);
       return res.json({
         ok: true,
         queued: false,
@@ -696,12 +711,14 @@ export async function createApp(opts = {}) {
       user_agent: String(req.headers['user-agent'] || '').slice(0, 256),
       payload: normalizePayload(v.data.payload),
       admin_notes: '',
-      review_history: [{ at: now, action: 'submitted', note: 'Public submission' }]
+      review_history: [{ at: now, action: 'submitted', note: 'Public submission', ...(botNote ? { bot_check: 'failed' } : {}) }]
     };
+    if (botNote) row.admin_notes = botNote;
     await store.insert(row);
+    formGuard.ok('submit', req);
     const ev = row.payload;
     slack.notify({
-      title: '📝 New event submitted',
+      title: botNote ? '📝 New event submitted (bot check didn’t pass: check it)' : '📝 New event submitted',
       fields: [['Event', ev.name], ['When', [ev.date, ev.time].filter(Boolean).join(' ')], ['Venue', ev.venue],
         ['From', [row.submitter_name, row.submitter_email].filter(Boolean).join(' · ')]],
       text: ev.description ? ev.description.slice(0, 300) : '',
@@ -2199,7 +2216,7 @@ export async function createApp(opts = {}) {
   }));
 
   // Contact form → Slack; replaces publishing an email address.
-  registerContact(app, { siteUrl, slack, store, requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman });
+  registerContact(app, { siteUrl, slack, store, requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, formGuard });
   // Personal data: delete one address on request, export subscribers (server/privacy.js).
   registerPrivacy(app, { store, requireAdmin, slack, nowFn: () => nowFn() });
   inbound.registerReply(app, { requireAdmin, resend: nlResend, from: newsletter.from, normalizeEmail });
@@ -2305,7 +2322,7 @@ export async function createApp(opts = {}) {
     }));
   }
 
-  sponsors.registerRoutes(app, { requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, analyticsSecret });
+  sponsors.registerRoutes(app, { requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, formGuard, analyticsSecret });
 
   app.get('/about', pageHandler(async (req, res, payload, ctx) => {
     sendHtml(res, renderAboutPage(ctx));

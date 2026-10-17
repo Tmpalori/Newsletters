@@ -829,8 +829,8 @@ export function signupFormHtml({ source = 'footer', button = 'Subscribe' } = {})
 f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector('button');b.disabled=true;m.textContent='';
 (window.vicTurnstile?window.vicTurnstile.token(f):Promise.resolve('')).then(function(t){return fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:f.email.value,hp_field:f.hp_field.value,turnstile_token:t,source:window.vic361Source?window.vic361Source(f.getAttribute('data-source')):f.getAttribute('data-source'),ref:window.vic361Ref?window.vic361Ref():''})});})
 .then(function(r){return r.json().catch(function(){return{};}).then(function(j){return{ok:r.ok,j:j};});})
-.then(function(x){m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form',lead:!!x.j.lead});}})
-.catch(function(){m.textContent='Something went wrong. Try again.';}).then(function(){b.disabled=false;if(window.vicTurnstile)window.vicTurnstile.reset(f);});});})();
+.then(function(x){if(!x.ok&&!x.j.message&&window.vicTurnstile)window.vicTurnstile.report('subscribe','server','HTTP error on signup form');m.textContent=x.ok?'✅ '+(x.j.message||"You're on the list! Check your inbox."):(x.j.message||'Something went wrong. Try again.');if(x.ok){f.email.value='';f.classList.add('is-done');var was=false;try{was=localStorage.getItem('vic361-subscribed')==='1';localStorage.setItem('vic361-subscribed','1')}catch(e){}if(!was&&window.vic361Track)window.vic361Track('subscribe_click',{link_url:'form',lead:!!x.j.lead});}})
+.catch(function(err){if(window.vicTurnstile)window.vicTurnstile.report('subscribe','network',(err&&err.message)||'signup form');m.textContent='Something went wrong. Try again.';}).then(function(){b.disabled=false;if(window.vicTurnstile)window.vicTurnstile.reset(f);});});})();
 </script>`;
 }
 
@@ -1225,9 +1225,10 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     // answers ok), so that signup isn't a verified person either: it gets the
     // confirmation email too, or anyone could put strangers' addresses on
     // the list.
+    // A token that didn't pass (one that expired while they typed, a slow
+    // Cloudflare) used to be a 400 with only "try again"; it's the same
+    // case, so it gets the confirmation email too.
     const human = turnstileConfigured && await verifyHuman(req);
-    const hasToken = Boolean(body['cf-turnstile-response'] || body.turnstile_token);
-    if (!human && hasToken && turnstileConfigured) return res.status(400).json({ ok: false, error: 'turnstile-failed', message: "We couldn't confirm you're not a bot. Please try again." });
     const unverified = !human;
     if (unverified) console.warn(turnstileConfigured ? '[newsletter] signup without a bot-check token: sending a confirmation email instead'
       : '[newsletter] Turnstile is not configured: sending a confirmation email instead');

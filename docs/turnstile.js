@@ -98,5 +98,17 @@
     token(f).then(function () { f.__vicTsReady = true; f.submit(); });
   }, true);
 
-  window.vicTurnstile = { token: token, reset: reset };
+  // What the server can't see on a fetch-based form (the request never
+  // arrived, an answer it couldn't use) goes to the owner as a Slack alert
+  // (POST /api/form-problem, server/formGuard.js). Never throws.
+  function report(form, stage, detail) {
+    try {
+      fetch('/api/form-problem', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+        body: JSON.stringify({ form: form, stage: stage, detail: String(detail || '').slice(0, 300) })
+      }).catch(function () {});
+    } catch (e) { /* nothing more to do */ }
+  }
+
+  window.vicTurnstile = { token: token, reset: reset, report: report };
 })();

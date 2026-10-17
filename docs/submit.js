@@ -90,10 +90,19 @@
     if (d.length !== 10) return value;
     return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   }
-  function showFormError(msg) {
+  // withContact: also offer the contact form, so a person is never left
+  // with only "try again" (the contact form takes a message even when the
+  // bot check can't load).
+  function showFormError(msg, withContact) {
     const fe = $('#form-error');
     if (!fe) return;
     fe.textContent = msg;
+    if (withContact) {
+      const a = document.createElement('a');
+      a.href = '/contact?topic=event';
+      a.textContent = 'send us the details here';
+      fe.append(' If it keeps happening, ', a, ' and we\'ll add it for you.');
+    }
     fe.hidden = false;
   }
 
@@ -141,10 +150,36 @@
 
   // Load Cloudflare Turnstile script and render the widget if a site key is
   // configured. Stores the resulting token via setTurnstileToken().
-  function setTurnstileToken(t) { turnstileToken = t; }
+  //
+  // The check's state: 'off' (no site key), 'loading' (script or widget still
+  // working), 'done' (token in hand) or 'failed' (a blocked script, an
+  // error). Submit waits up to TS_WAIT_MS on 'loading' and never on the
+  // others. Submitting before the check finished used to send no token and
+  // get "couldn't verify you aren't a bot" with nothing to retry (Oct 12, a
+  // visitor on a VPN, three tries, then gave up). A check that can't finish
+  // no longer stops the event: the server takes it, labeled for the owner.
+  const TS_WAIT_MS = 10000;
+  let tsState = 'off';
+  const tsWaiters = [];
+  function wakeTsWaiters() { tsWaiters.splice(0).forEach(w => w()); }
+  function setTurnstileToken(t) {
+    turnstileToken = t || null;
+    if (t) tsState = 'done';
+    wakeTsWaiters();
+  }
+  function turnstileFailed() {
+    turnstileToken = null;
+    tsState = 'failed';
+    wakeTsWaiters();
+  }
+  function waitForTurnstile(ms) {
+    if (tsState !== 'loading' || turnstileToken) return Promise.resolve();
+    return new Promise((resolve) => { tsWaiters.push(resolve); setTimeout(resolve, ms); });
+  }
 
   function injectTurnstile(siteKey) {
     if (!siteKey) return;
+    tsState = 'loading';
     if (window.turnstile && window.turnstile.render) {
       renderTurnstile(siteKey);
       return;
@@ -153,20 +188,43 @@
     const s = document.createElement('script');
     s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__vic361TsReady';
     s.async = true; s.defer = true;
+    s.onerror = turnstileFailed;
     window.__vic361TsReady = function () { renderTurnstile(siteKey); };
     document.head.appendChild(s);
+    // An ad blocker can swallow the script without an error event.
+    setTimeout(() => { if (tsState === 'loading' && !(window.turnstile && window.turnstile.render)) turnstileFailed(); }, TS_WAIT_MS);
   }
 
   function renderTurnstile(siteKey) {
-    if (!window.turnstile || !window.turnstile.render) return;
+    if (!window.turnstile || !window.turnstile.render) { turnstileFailed(); return; }
     const mount = $('#f-turnstile');
-    if (!mount) return;
-    window.turnstile.render(mount, {
-      sitekey: siteKey,
-      callback: token => setTurnstileToken(token),
-      'error-callback': () => setTurnstileToken(null),
-      'expired-callback': () => setTurnstileToken(null)
-    });
+    if (!mount) { turnstileFailed(); return; }
+    try {
+      window.turnstile.render(mount, {
+        sitekey: siteKey,
+        callback: token => setTurnstileToken(token),
+        'error-callback': turnstileFailed,
+        // Cloudflare fetches a fresh token on its own; wait for that one.
+        'expired-callback': () => { turnstileToken = null; tsState = 'loading'; }
+      });
+    } catch (err) {
+      turnstileFailed();
+    }
+  }
+
+  // What the server can't see (the request never arrived, an answer the
+  // page couldn't use, an error in this script) goes to the owner as a
+  // Slack alert (POST /api/form-problem, server/formGuard.js). Reporting
+  // must never break the form, so every failure here is swallowed.
+  function reportProblem(stage, detail) {
+    try {
+      fetch(API_BASE + '/api/form-problem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form: 'submit', stage, detail: String(detail || '').slice(0, 300) }),
+        keepalive: true
+      }).catch(() => {});
+    } catch (_) { /* nothing more to do */ }
   }
 
   async function loadConfig() {
@@ -220,14 +278,44 @@
     };
   }
 
+  // Whatever goes wrong in here, the button comes back and the person gets
+  // a way through (and the owner a Slack alert).
   async function handleSubmit(e) {
     e.preventDefault();
+    try {
+      await submitOnce();
+    } catch (err) {
+      reportProblem('script', (err && err.message) || String(err));
+      const btn = $('#submit-btn');
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit for review'; }
+      // Accepted by the server but the thank-you broke: still say thanks.
+      if (lastAccepted) { showThanksFallback(); return; }
+      showFormError('Something went wrong on our end. Please try again.', true);
+    }
+  }
+
+  let lastAccepted = false;
+  function showThanksFallback() {
+    const card = $('#form-card');
+    const thanks = $('#thanks-card');
+    if (card) card.hidden = true;
+    if (thanks) thanks.hidden = false;
+  }
+
+  async function submitOnce() {
+    lastAccepted = false;
     clearFieldErrors();
     const body = collectForm();
     const local = checkForm(body);
-    if (Object.keys(local).length) { showErrors(local); return; }
+    if (Object.keys(local).length) { showErrors(local); return false; }
     const btn = $('#submit-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+    if (tsState === 'loading' && !turnstileToken) {
+      if (btn) btn.textContent = 'Checking you\'re not a bot…';
+      await waitForTurnstile(TS_WAIT_MS);
+      if (btn) btn.textContent = 'Submitting…';
+    }
+    body.turnstile_token = turnstileToken;
 
     let res, json;
     try {
@@ -239,8 +327,9 @@
       json = await res.json().catch(() => null);
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = 'Submit for review'; }
-      showFormError('Could not reach the server. Try again in a moment.');
-      return;
+      reportProblem('network', (err && err.message) || 'fetch failed');
+      showFormError('Could not reach the server. Check your connection and try again.', true);
+      return false;
     }
 
     if (!res.ok || !json || json.ok === false) {
@@ -248,15 +337,17 @@
       if (json && json.errors) {
         showErrors(json.errors);
       } else if (json && json.error === 'turnstile-failed') {
-        showFormError('We couldn\'t verify you aren\'t a bot. Try the challenge again.');
+        showFormError('We couldn\'t verify you aren\'t a bot. Reload the page and try again.', true);
         if (window.turnstile && window.turnstile.reset) window.turnstile.reset();
       } else if (res.status === 429) {
-        showFormError('Too many submissions from your network. Try again later.');
+        showFormError('Too many submissions from your network. Try again later.', true);
       } else {
-        showFormError('Something went wrong. Please try again.');
+        reportProblem('server', `HTTP ${res.status}${json && json.error ? ' ' + json.error : ''}`);
+        showFormError('Something went wrong on our end. Please try again.', true);
       }
-      return;
+      return false;
     }
+    lastAccepted = true;
 
     // Success branch. Offer the paid upgrade with this event prefilled:
     // the link names the new submission and server/sponsors.js fills in the
@@ -288,6 +379,7 @@
         msg.textContent = 'Got it — we\'ll take a look.';
       }
     }
+    return true;
   }
 
   // How many people it goes in front of (GET /api/reach: rounded, null while
@@ -434,7 +526,8 @@
   // Test hook — exposes the form collector + token setter for jsdom tests.
   if (typeof window !== 'undefined') {
     window.__vic361Submit = {
-      collectForm, setTurnstileToken, buildTimeOptions, populateTimeSelects,
+      collectForm, setTurnstileToken, injectTurnstile, turnstileState: () => tsState, handleSubmit,
+      buildTimeOptions, populateTimeSelects,
       checkForm, showErrors, formatPhone, updatePreview
     };
   }
