@@ -236,7 +236,7 @@ describe('review fixes', () => {
 
   it('the event check runs Thursday before the weekend issue', () => {
     const job = JOBS.find(j => j.name === 'event-check-weekend');
-    expect(job).toMatchObject({ dow: 4, workflow: 'event-check.yml' });
+    expect(job).toMatchObject({ dow: 4, kind: 'event-check' });
     expect(dueSlot(job, new Date('2026-10-08T11:00:00Z'))).toBe('2026-10-08'); // 6:00 AM CDT
   });
 });

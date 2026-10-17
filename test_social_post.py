@@ -16,6 +16,14 @@ def no_retry_wait(monkeypatch):
     monkeypatch.setattr(sp, "RETRY_DELAYS", (0, 0), raising=False)
 
 
+@pytest.fixture(autouse=True)
+def any_page(monkeypatch):
+    # These run as Victoria with made-up page ids ("page9"); her real pin
+    # (town.py VICTORIA "meta") is checked in test_town_python.py.
+    import town as town_mod
+    monkeypatch.setitem(town_mod.TOWN, "meta", {})
+
+
 class FakeResp:
     def __init__(self, body, status=200):
         self._body, self.status_code, self.ok, self.text = body, status, status < 400, json.dumps(body)
@@ -345,12 +353,14 @@ def test_waits_for_the_jpegs_too(tmp_path, monkeypatch):
     assert [u.rsplit("/", 1)[1] for u in seen["urls"]] == ["weekend-1.png", "weekend-2.png", "weekend-1.jpg", "weekend-2.jpg"]
 
 
-def test_missing_ig_user_is_a_visible_warning(tmp_path, monkeypatch, capsys):
+def test_missing_ig_user_is_logged_but_not_a_warning(tmp_path, monkeypatch, capsys):
+    # Every town is Facebook only today: say so, without a warning each run.
     monkeypatch.setenv("META_PAGE_ID", "page9")
     monkeypatch.setenv("META_PAGE_TOKEN", "tok")
     monkeypatch.delenv("IG_USER_ID", raising=False)
     assert sp.main(["--kind", "weekend", "--kit-dir", str(write_kit(tmp_path)), "--no-wait"], session=FakeSession()) == 0
-    assert "::warning::IG_USER_ID not set" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "IG_USER_ID not set; skipping Instagram" in out and "::warning::" not in out
 
 
 def test_if_featured_posts_today_only_with_a_vics_pick(tmp_path, monkeypatch):
@@ -372,11 +382,8 @@ def test_if_featured_posts_today_only_with_a_vics_pick(tmp_path, monkeypatch):
     assert any(c[1] == "page9/feed" for c in sess.calls)
 
 
-def test_thursday_workflow_also_posts_today_with_a_pick():
-    wf = open(os.path.join(os.path.dirname(__file__), ".github", "workflows", "social-kit.yml")).read()
-    assert "social_post.py --kind today --if-featured" in wf
-    assert "'47 13 * * *'" in wf  # schedule unchanged
-
+# Thursday's extra "today" post with a pick: test_jobs_worker.py
+# test_thursday_posts_the_weekend_and_today_only_with_a_paid_pick.
 
 
 class FlakySession(FakeSession):
@@ -435,18 +442,16 @@ def test_the_publish_call_is_never_retried(tmp_path, monkeypatch):
     assert sum(c[1].endswith("/feed") for c in sess.calls) == 1
 
 
-def test_a_retired_graph_version_is_named_in_the_error_and_the_slack_alert(tmp_path, monkeypatch):
+def test_a_retired_graph_version_is_named_in_the_error_the_alert_quotes(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("META_PAGE_ID", "page9")
     monkeypatch.setenv("META_PAGE_TOKEN", "tok")
     monkeypatch.delenv("IG_USER_ID", raising=False)
-    out = tmp_path / "gh_output"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     sess = FlakySession("/photos", {"message": "(#2635) You are calling a deprecated version of the Ads API.",
                                     "code": 2635}, 400, times=99)
     kit = write_kit(tmp_path)
     assert sp.main(["--kind", "weekend", "--kit-dir", str(kit), "--no-wait"], session=sess) == 1
-    assert "alert=" in out.read_text() and sp.GRAPH_VERSION in out.read_text()
-    assert "GRAPH_API_VERSION" in out.read_text()
+    errors = [line for line in capsys.readouterr().out.splitlines() if line.startswith("::error::")]
+    assert any(sp.GRAPH_VERSION in e and "GRAPH_API_VERSION" in e and "Railway" in e for e in errors)
 
 
 def test_graph_version_comes_from_the_repo_variable_with_a_default(monkeypatch):
@@ -536,3 +541,12 @@ def test_an_unconfirmed_reel_publish_does_not_post_the_carousel_too(tmp_path, mo
     assert sp.main(["--kind", "weekend", "--kit-dir", str(kit), "--no-wait"], session=sess) == 1
     assert not any(c[2].get("media_type") == "CAROUSEL" for c in sess.calls)
     assert json.loads((kit / "posted.json").read_text())["2026-10-08:weekend"]["instagram"] == "pending"
+
+
+def test_another_town_never_posts_with_credentials_not_its_own(tmp_path, monkeypatch):
+    monkeypatch.setenv("META_PAGE_ID", "p")
+    monkeypatch.setenv("META_PAGE_TOKEN", "t")
+    monkeypatch.setattr(sp, "meta_allowed", lambda **k: False)
+    sess = FakeSession()
+    assert sp.main(["--kind", "weekend", "--kit-dir", str(write_kit(tmp_path)), "--no-wait"], session=sess) == 0
+    assert sess.calls == []

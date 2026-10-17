@@ -1,2 +1,988 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── The Crane 308 — Local Events (Kearney, NE) ─────────────────────────────
+# This file contains manually curated events and recurring events for
+# Kearney and Buffalo County.
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# Keep recurring events to genuinely interesting "things to do" —
+# not daily restaurant specials or repeated toddler sessions.
+#
+# The town feed already pulls visitkearney.org and mona.unk.edu, and the
+# collector dedups, so entries here are the backbone: weekly staples that
+# must never drop off, plus big one-time dates we want to plan ahead for.
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#   town: "Gibbon"   a nearby-town event (only big ones belong here)
+# Each day shows its best 15 events Mon–Thu and 20 Fri–Sun.
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line. "Visit Kearney
+# calendar" = visitkearney.org's The Events Calendar listing (its REST feed),
+# checked 2026-10-14, showing the series running into Nov 2026 – Jan 2027.
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── MONDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Board Game Mondays at Sip & Swirl"
+    day: monday
+    time: "3:00 PM – close"
+    venue: "Sip & Swirl Wine Bar"
+    address: "221 11th Ave, Suite E"
+    description: "All-day happy hour and board games. Bring your crew or your own favorite game; the bar has a shelf of its own and wine specials all day."
+    icons: [drinks, community, free]
+    free: true
+    url: "http://sipandswirlwinebar.com"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (weekly Mondays, Sep 7 – Nov 30 2026)
+
+  # ── TUESDAY ─────────────────────────────────────────────────────────────
+
+  - name: "Askin' Nebraskan Trivia at The Crafty Dog"
+    day: tuesday
+    time: "7:00 PM – 9:00 PM"
+    venue: "The Crafty Dog"
+    address: "1325 2nd Ave"
+    description: "Weekly team trivia hosted by The Askin' Nebraskan. Topics change every week; check their Facebook for the theme."
+    icons: [drinks, food, free]
+    free: true
+    url: "https://www.facebook.com/askinnebraskan"
+    favorite: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Tuesday, Jun 2026 – Jan 26 2027)
+
+  - name: "Knights of Columbus Bingo Night"
+    day: tuesday
+    time: "7:00 PM – 9:00 PM"
+    venue: "Old Town Hall"
+    address: "1900 Central Ave"
+    description: "Weekly bingo with cash prizes in downtown's Old Town Hall. Every dollar raised goes to charity."
+    icons: [community]
+    free: false
+    url: "https://visitkearney.org/event/bingo-night-6/"
+    favorite: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Tuesday, Jun 2026 – Jan 26 2027)
+
+  - name: "Dancing with the Stars Watch Party"
+    day: tuesday
+    time: "7:00 PM – close"
+    venue: "Sip & Swirl Wine Bar"
+    address: "221 11th Ave, Suite E"
+    description: "DWTS on the big screen every Tuesday with wine and snack specials and trivia during the breaks."
+    icons: [drinks, community, free]
+    free: true
+    url: "https://www.facebook.com/share/1EjMn7JmWS/"
+    start_date: "2026-09-15"
+    end_date: "2026-11-24"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Tuesdays Sep 15 – Nov 24 2026)
+
+  - name: "Knot Just Knitting"
+    day: tuesday
+    time: "1:00 PM – 3:00 PM"
+    venue: "Kearney Public Library"
+    address: "2020 1st Ave"
+    description: "Drop-in fiber arts circle: knitting, crochet, cross-stitch and more. Bring a project; volunteer knitting coaches on hand."
+    icons: [arts, community, free]
+    free: true
+    url: "https://kearney.events.mylibrary.digital/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Tuesday, Jun 2026 – Jan 26 2027)
+
+  # ── WEDNESDAY ───────────────────────────────────────────────────────────
+
+  - name: "Live Music Wednesday at Joy's Table"
+    day: wednesday
+    time: "6:00 PM – 8:00 PM"
+    venue: "Joy's Table"
+    address: "110 2nd Ave"
+    description: "Live music every Wednesday evening. Check their Facebook to see who's playing this week."
+    icons: [music, food, free]
+    free: true
+    url: "https://www.facebook.com/JoysTableKearney"
+    favorite: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Wednesday, Jun 2026 – Jan 27 2027)
+
+  - name: "Askin' Nebraskan Trivia at McCue's"
+    day: wednesday
+    time: "7:00 PM – 9:00 PM"
+    venue: "McCue's Nebraska Taproom"
+    address: "2008 Ave A, Suite A"
+    description: "Midweek team trivia hosted by The Askin' Nebraskan, with an all-Nebraska tap list."
+    icons: [drinks, free]
+    free: true
+    url: "https://www.facebook.com/askinnebraskan"
+    favorite: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Wednesday, Jun 2026 – Jan 27 2027)
+
+  - name: "Trivia Night at Buffalo Wild Wings"
+    day: wednesday
+    time: "7:00 PM – 9:00 PM"
+    venue: "Buffalo Wild Wings"
+    address: "5208 2nd Ave"
+    description: "Free-to-play team trivia with image and music rounds. Prizes for the winners."
+    icons: [food, drinks, free]
+    free: true
+    url: "https://visitkearney.org/event/trivia-buffalo-wild-wings/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Wednesday, Jun 2026 – Jan 27 2027)
+
+  - name: "Karaoke Wednesdays at Whistlin' Wolf"
+    day: wednesday
+    time: "8:00 PM – 11:00 PM"
+    venue: "Whistlin' Wolf"
+    address: "12 E 21st St"
+    description: "Downtown karaoke on a real sound system, run by Spencer Hansen of The Innocence. Drink specials all night."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.facebook.com/profile.php?id=61551043024109"
+    favorite: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (every Wednesday, Jun 2026 – Jan 27 2027)
+
+  # ── FRIDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Game Night Fridays at UN:Inebriated"
+    day: friday
+    time: "5:00 PM – 9:00 PM"
+    venue: "UN:Inebriated"
+    address: "2102 Central Ave"
+    description: "Sober October game nights at the downtown zero-proof bar, with a game library curated by Board & Bean Co."
+    icons: [community, drinks, free]
+    free: true
+    url: "https://www.facebook.com/photo/?fbid=122225860982488552"
+    start_date: "2026-10-02"
+    end_date: "2026-10-30"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Fridays in October 2026)
+
+  - name: "KneeKnocker Woods"
+    day: [friday, saturday]
+    time: "6:00 PM"
+    venue: "KneeKnocker Woods"
+    address: "46290 Hwy 30, Gibbon"
+    description: "Halloween trail of terror, Nana's Corn Maze, a haunted night market, midway games, food and music, a short drive east of Kearney."
+    icons: [family, outdoors, food]
+    free: false
+    url: "https://www.facebook.com/photo/?fbid=1925530032034936"
+    town: "Gibbon"
+    big: true
+    start_date: "2026-10-16"
+    end_date: "2026-10-31"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Fri/Sat Oct 16 – 31 2026, $15–$25)
+
+  - name: "Farmer Brown's Field of Screams"
+    day: [friday, saturday]
+    time: "7:00 PM"
+    venue: "Farmer Brown's Field of Screams"
+    address: "2174 28 Rd"
+    description: "Haunted trail in the dark, six nights only. Tickets sold at the door ($20)."
+    icons: [outdoors]
+    free: false
+    url: "https://www.facebook.com/photo?fbid=1077144651832289"
+    start_date: "2026-10-16"
+    end_date: "2026-10-31"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Fri/Sat Oct 16 – 31 2026)
+
+
+  # ── SATURDAY ────────────────────────────────────────────────────────────
+
+  - name: "Kearney Area Farmers Market"
+    day: saturday
+    time: "8:00 AM – 12:00 PM"
+    venue: "Hilltop Mall Parking Lot"
+    address: "5011 2nd Ave"
+    description: "Shop local, eat local: produce, meats, eggs, baked goods and crafts from area growers."
+    icons: [food, shopping, free]
+    free: true
+    url: "https://www.facebook.com/KearneyAreaFarmersMarket"
+    favorite: true
+    end_date: "2026-10-31"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Saturdays 8 AM – noon, Jun – Oct 2026)
+    # ⚠️ end_date is a guess: Visit Kearney's series runs into Jan 2027 (likely an open-ended repeat) while UNL Extension's listing says the season ends Oct 24. Confirm with the market's Facebook.
+
+  - name: "Tri-City BMX Race"
+    day: saturday
+    time: "1:00 PM"
+    venue: "Tri-City BMX Track"
+    address: "3710 30th Ave"
+    description: "USA BMX racing. Registration 1–2 PM, racing right after. Free to watch."
+    icons: [outdoors, family]
+    free: true
+    url: "https://www.usabmx.com/events/640462"
+    end_date: "2026-10-31"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Saturdays Jun – Oct 31 2026)
+
+  # ── SUNDAY ──────────────────────────────────────────────────────────────
+
+
+
+# ─── ONE-TIME EVENTS ─────────────────────────────────────────────────────────
+# Monthly series (one entry per date) first, then dated events in order.
+events:
+
+  # ── Monthly series ──────────────────────────────────────────────────────
+
+  - date: "2026-11-09"
+    name: "Jazz at The World"
+    time: "7:00 PM – 9:00 PM"
+    venue: "The World Theatre"
+    address: "2318 Central Ave"
+    description: "Free monthly jazz night on the second Monday at downtown's historic theater."
+    icons: [music, arts, free]
+    free: true
+    url: "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/"
+    # VERIFIED: World Theatre event page via Visit Kearney calendar 2026-10-14 (Sep 14, Oct 12, Nov 9, Dec 14, Jan 11)
+
+  - date: "2026-12-14"
+    name: "Jazz at The World"
+    time: "7:00 PM – 9:00 PM"
+    venue: "The World Theatre"
+    address: "2318 Central Ave"
+    description: "Free monthly jazz night on the second Monday at downtown's historic theater."
+    icons: [music, arts, free]
+    free: true
+    url: "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/"
+    # VERIFIED: World Theatre event page via Visit Kearney calendar 2026-10-14
+
+  - date: "2027-01-11"
+    name: "Jazz at The World"
+    time: "7:00 PM – 9:00 PM"
+    venue: "The World Theatre"
+    address: "2318 Central Ave"
+    description: "Free monthly jazz night on the second Monday at downtown's historic theater."
+    icons: [music, arts, free]
+    free: true
+    url: "https://www.theworldtheatre.org/about-us/events/jazz-at-the-world-2/"
+    # VERIFIED: World Theatre event page via Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-10"
+    name: "Figure Drawing at MONA"
+    time: "6:30 PM – 8:30 PM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "Open-studio drawing from a live (clothed) model. All levels; $15–$20."
+    icons: [arts]
+    free: false
+    url: "https://mona.unk.edu/event/figure-drawing-september/"
+    # VERIFIED: Visit Kearney calendar + mona.unk.edu feed 2026-10-14 (Nov 10, Dec 8, Jan 12)
+
+  - date: "2026-12-08"
+    name: "Figure Drawing at MONA"
+    time: "6:30 PM – 8:30 PM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "Open-studio drawing from a live (clothed) model. All levels; $15–$20."
+    icons: [arts]
+    free: false
+    url: "https://mona.unk.edu/event/figure-drawing-september/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2027-01-12"
+    name: "Figure Drawing at MONA"
+    time: "6:30 PM – 8:30 PM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "Open-studio drawing from a live (clothed) model. All levels; $15–$20."
+    icons: [arts]
+    free: false
+    url: "https://mona.unk.edu/event/figure-drawing-september/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-03"
+    name: "MONA Book Club"
+    time: "10:30 AM – 11:30 AM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "First-Tuesday book club for Nebraska authors and art-minded reads. November: Anita de Monte Laughs Last by Xóchitl González."
+    icons: [arts, community, free]
+    free: true
+    url: "https://mona.unk.edu/event/mona-book-club-november-6-2026/"
+    # VERIFIED: mona.unk.edu events feed 2026-10-14
+
+  - date: "2026-12-01"
+    name: "MONA Book Club"
+    time: "10:30 AM – 11:30 AM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "First-Tuesday book club for Nebraska authors and art-minded reads."
+    icons: [arts, community, free]
+    free: true
+    url: "https://mona.unk.edu"
+    # VERIFIED: mona.unk.edu events feed 2026-10-14
+
+  - date: "2026-10-15"
+    name: "Free Family Fun Night at the Children's Museum"
+    time: "4:00 PM – 7:00 PM"
+    venue: "Kearney Area Children's Museum"
+    address: "5827 4th Ave"
+    description: "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month."
+    icons: [family, free]
+    free: true
+    url: "https://www.facebook.com/events/4145987415620311"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Oct 15, Nov 19, Dec 17, Jan 21)
+
+  - date: "2026-11-19"
+    name: "Free Family Fun Night at the Children's Museum"
+    time: "4:00 PM – 7:00 PM"
+    venue: "Kearney Area Children's Museum"
+    address: "5827 4th Ave"
+    description: "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month."
+    icons: [family, free]
+    free: true
+    url: "https://kearneychildrensmuseum.org"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-17"
+    name: "Free Family Fun Night at the Children's Museum"
+    time: "4:00 PM – 7:00 PM"
+    venue: "Kearney Area Children's Museum"
+    address: "5827 4th Ave"
+    description: "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month."
+    icons: [family, free]
+    free: true
+    url: "https://kearneychildrensmuseum.org"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2027-01-21"
+    name: "Free Family Fun Night at the Children's Museum"
+    time: "4:00 PM – 7:00 PM"
+    venue: "Kearney Area Children's Museum"
+    address: "5827 4th Ave"
+    description: "Free admission to the Kearney Area Children's Museum on the third Thursday evening of the month."
+    icons: [family, free]
+    free: true
+    url: "https://kearneychildrensmuseum.org"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-06"
+    name: "Free UNK Planetarium Show"
+    time: "7:00 PM & 8:15 PM"
+    venue: "UNK Planetarium, Bruner Hall of Science"
+    address: "2401 11th Ave"
+    description: "Free first-Friday planetarium show on the UNK campus. November: A Solar Eclipse Makes It Dark."
+    icons: [family, free]
+    free: true
+    url: "https://www.facebook.com/events/1370325404676752/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (first Fridays: Sep 4, Oct 2, Nov 6, Dec 4)
+
+  - date: "2026-12-04"
+    name: "Free UNK Planetarium Show"
+    time: "7:00 PM & 8:15 PM"
+    venue: "UNK Planetarium, Bruner Hall of Science"
+    address: "2401 11th Ave"
+    description: "Free first-Friday planetarium show on the UNK campus."
+    icons: [family, free]
+    free: true
+    url: "https://visitkearney.org/event/free-unk-planetarium-show-7/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-11"
+    name: "Watercolor Wednesday"
+    time: "10:00 AM – 11:00 AM"
+    venue: "Kearney Public Library"
+    address: "2020 1st Ave"
+    description: "Free adult watercolor class (18+) on the second Wednesday of the month. Supplies and technique tips provided."
+    icons: [arts, free]
+    free: true
+    url: "https://kearney.events.mylibrary.digital/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (2nd Wednesdays: Nov 11, Dec 9, Jan 13)
+
+  - date: "2026-12-09"
+    name: "Watercolor Wednesday"
+    time: "10:00 AM – 11:00 AM"
+    venue: "Kearney Public Library"
+    address: "2020 1st Ave"
+    description: "Free adult watercolor class (18+) on the second Wednesday of the month."
+    icons: [arts, free]
+    free: true
+    url: "https://kearney.events.mylibrary.digital/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2027-01-13"
+    name: "Watercolor Wednesday"
+    time: "10:00 AM – 11:00 AM"
+    venue: "Kearney Public Library"
+    address: "2020 1st Ave"
+    description: "Free adult watercolor class (18+) on the second Wednesday of the month."
+    icons: [arts, free]
+    free: true
+    url: "https://kearney.events.mylibrary.digital/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-21"
+    name: "Wildlife Wednesday Storytime at Rowe Sanctuary"
+    time: "10:00 AM – 11:00 AM"
+    venue: "Rowe Sanctuary"
+    address: "44450 Elm Island Rd, Gibbon"
+    description: "Kids' nature storytime on the Platte. This month: feathers, spit-built nests and owl pellets."
+    icons: [family, outdoors, free]
+    free: true
+    url: "https://www.audubon.org/events?location=Iain+Nicolson+Audubon+Center+at+Rowe+Sanctuary"
+    town: "Gibbon"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (monthly: Oct 21, Nov 18)
+
+  - date: "2026-11-18"
+    name: "Wildlife Wednesday Storytime at Rowe Sanctuary"
+    time: "10:00 AM – 11:00 AM"
+    venue: "Rowe Sanctuary"
+    address: "44450 Elm Island Rd, Gibbon"
+    description: "Kids' nature storytime at Audubon's Rowe Sanctuary on the Platte River."
+    icons: [family, outdoors, free]
+    free: true
+    url: "https://www.audubon.org/events?location=Iain+Nicolson+Audubon+Center+at+Rowe+Sanctuary"
+    town: "Gibbon"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # ── Upper Room Brewery (rotating nights) ────────────────────────────────
+
+  - date: "2026-10-17"
+    name: "Askin' Nebraskan Trivia at Upper Room Brewery"
+    time: "7:00 PM"
+    venue: "The Upper Room Brewery"
+    address: "1540 W 56th St, Suite D"
+    description: "Team trivia in the taproom. Test your knowledge and win prizes."
+    icons: [drinks, free]
+    free: true
+    url: "https://www.facebook.com/events/1405946131035069/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (roughly every other week, alternating Sat/Thu)
+
+  - date: "2026-10-22"
+    name: "Bingo Night at Upper Room Brewery"
+    time: "7:00 PM"
+    venue: "The Upper Room Brewery"
+    address: "1540 W 56th St, Suite D"
+    description: "Daubers and lucky charms: bingo night in the taproom."
+    icons: [drinks, community]
+    free: false
+    url: "https://www.facebook.com/events/1075846565260873/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-29"
+    name: "Askin' Nebraskan Trivia at Upper Room Brewery"
+    time: "7:00 PM"
+    venue: "The Upper Room Brewery"
+    address: "1540 W 56th St, Suite D"
+    description: "Team trivia in the taproom. Test your knowledge and win prizes."
+    icons: [drinks, free]
+    free: true
+    url: "https://visitkearney.org/event/askin-nebraskan-trivia-18/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # ── October 2026 ────────────────────────────────────────────────────────
+
+  - date: "2026-10-15"
+    name: "Weekend Antique Show and Sale at The Hive"
+    time: "4:00 PM – 7:00 PM"
+    venue: "The Hive (Antiques and More)"
+    address: "550 W Hwy 40"
+    description: "The 'ColorFall Buzz' antique show runs Oct 15–17 at the family-run shop just north of I-80 Exit 275."
+    icons: [shopping, free]
+    free: true
+    url: "https://visitkearney.org/event/weekend-antique-show-and-sale-3/2026-10-15/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-16"
+    name: "The Isaacs"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Five decades of family bluegrass and gospel harmony. Tickets $35–$44."
+    icons: [music, arts]
+    free: false
+    url: "https://merrymancenter.org/tickets"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-16"
+    name: "From Beyond the Grave Cemetery Tour"
+    time: "5:30 PM"
+    venue: "Kearney Cemetery"
+    address: "4400 I Ave"
+    description: "Reenactors bring early Buffalo County figures to life among the headstones. Runs nightly Oct 16–18; free-will donation."
+    icons: [community, family]
+    free: true
+    url: "https://www.bchs.us/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Buffalo County Historical Society, Oct 16–18 2026)
+
+  - date: "2026-10-17"
+    name: "From Beyond the Grave Cemetery Tour"
+    time: "5:30 PM"
+    venue: "Kearney Cemetery"
+    address: "4400 I Ave"
+    description: "Reenactors bring early Buffalo County figures to life among the headstones. Free-will donation."
+    icons: [community, family]
+    free: true
+    url: "https://www.bchs.us/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-18"
+    name: "From Beyond the Grave Cemetery Tour"
+    time: "5:30 PM"
+    venue: "Kearney Cemetery"
+    address: "4400 I Ave"
+    description: "Final night of the historical society's cemetery reenactments. Free-will donation."
+    icons: [community, family]
+    free: true
+    url: "https://www.bchs.us/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-17"
+    name: "Ribbon Run / Walk"
+    time: "9:30 AM"
+    venue: "Kearney Cancer Center, Yanney Park"
+    address: "Yanney Heritage Park"
+    description: "KRMC and Cancer Partners of Nebraska's annual run/walk honoring everyone touched by cancer."
+    icons: [outdoors, community]
+    free: false
+    url: "https://www.facebook.com/events/1299620982103114"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+
+  - date: "2026-10-18"
+    name: "Walk to End Alzheimer's"
+    time: "1:00 PM"
+    venue: "Yanney Heritage Park, Cope Amphitheater"
+    address: "2020 W 11th St"
+    description: "Registration at 1, ceremony at 1:30, then the walk."
+    icons: [community, outdoors, free]
+    free: true
+    url: "http://act.alz.org/Kearney"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-20"
+    name: "Black Jacket Symphony: Bon Jovi's 'Slippery When Wet'"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "The full album note for note, then a set of Bon Jovi's greatest hits. $44."
+    icons: [music]
+    free: false
+    url: "https://merrymancenter.org/tickets"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-20"
+    name: "Library Pub Quiz: 70s, 80s & 90s Music"
+    time: "7:30 PM"
+    venue: "Cunningham's Journal (upstairs loft)"
+    address: "15 W 23rd St"
+    description: "Kearney Public Library's pub quiz: teams of 1–6, 30 questions in an hour. Registration required."
+    icons: [drinks, music, free]
+    free: true
+    url: "https://www.facebook.com/events/28295260670084012"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-22"
+    name: "Trick-or-Treat on the Bricks"
+    time: "4:00 PM – 6:00 PM"
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Kids trick-or-treat at participating downtown businesses."
+    icons: [family, free]
+    free: true
+    url: "https://downtownkearney.com/events/"
+    # VERIFIED: downtownkearney.com/events 2026-10-14
+
+  - date: "2026-10-23"
+    name: "NSAA State Cross Country Championships"
+    time: "All day"
+    venue: "Kearney Country Club"
+    address: "2800 19th Ave"
+    description: "Kearney has hosted Nebraska's state high school cross country meet for 50 years. The biggest meet of the year."
+    icons: [outdoors]
+    free: false
+    url: "https://nsaahome.org/cross-country/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-23"
+    name: "PondstOcktober V"
+    time: "All day"
+    venue: "The Other Side"
+    address: "15 E 24th St"
+    description: "Two-day music fest (Oct 23–24) with The Peculiar Pretzelmen, Poudre Valley Playboys, The Black Mariah Theater and more."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.facebook.com/events/1763583704674880/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-24"
+    name: "HalloweenFest at The Archway"
+    time: "5:00 PM – 8:30 PM"
+    venue: "The Archway"
+    address: "3060 E 1st St"
+    description: "Games, inflatable corn maze, hayrack rides, apple slingshot and food trucks, capped by the re-lighting of the Archway bridge at 8:30. 20 tickets for $10."
+    icons: [family, food]
+    free: false
+    url: "https://archway.org/events/"
+    big: true
+    # VERIFIED: archway.org/events 2026-10-14 + Visit Kearney calendar
+
+  - date: "2026-10-24"
+    name: "Costume Crawl on the Bricks"
+    time: "5:00 PM – 11:30 PM"
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Adults-only downtown costume night with themed drinks and a costume contest."
+    icons: [drinks, community]
+    free: true
+    url: "https://downtownkearney.com/events/"
+    big: true
+    # VERIFIED: downtownkearney.com/events 2026-10-14
+
+  - date: "2026-10-24"
+    name: "Kearney Regional Medical Center Trunk or Treat"
+    time: "4:30 PM – 7:00 PM"
+    venue: "Platte Valley Medical parking lot"
+    address: "804 22nd Ave"
+    description: "Kearney Regional Medical Center's annual trunk or treat, open to the public."
+    icons: [family, free]
+    free: true
+    url: "https://www.facebook.com/events/1068589992600977/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-24"
+    name: "Fall Craft Show"
+    time: ""
+    venue: "Buffalo County Fairgrounds"
+    address: "3807 Ave N"
+    description: "Fall craft and vendor show at the fairgrounds."
+    icons: [shopping]
+    free: true
+    url: "https://buffalocountyfairgrounds.com/event/fall-craft-show-102426/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-29"
+    name: "BOO!-seum at the Children's Museum"
+    time: "4:30 PM – 6:30 PM"
+    venue: "Kearney Area Children's Museum"
+    address: "5827 4th Ave"
+    description: "Come-and-go Halloween adventure through the museum. $3–$8."
+    icons: [family]
+    free: false
+    url: "https://kearneychildrensmuseum.org"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-10-31"
+    name: "Ghetto Psycho Tour: King Iso"
+    time: "6:30 PM"
+    venue: "The Other Side"
+    address: "15 E 24th St"
+    description: "Halloween night hip-hop show with King Iso and guests."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.facebook.com/events/1021624114190650"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # ── November 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-11-01"
+    name: "Menopause the Musical"
+    time: "3:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "25th anniversary tour of the hit musical comedy."
+    icons: [arts]
+    free: false
+    url: "https://merrymancenter.org/tickets"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-07"
+    name: "Veterans Day Parade"
+    time: "11:00 AM"
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Kearney's Veterans Day parade down Central Avenue."
+    icons: [community, family, free]
+    free: true
+    url: "https://visitkearney.org/events/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-07"
+    name: "Kaleidoscope Holiday Market at MONA"
+    time: "10:00 AM – 5:00 PM"
+    venue: "Museum of Nebraska Art"
+    address: "2401 Central Ave"
+    description: "MONA's festive holiday market with local artists and Nebraska makers. Free."
+    icons: [shopping, arts, free]
+    free: true
+    url: "https://mona.unk.edu/kaleidoscope/"
+    big: true
+    # VERIFIED: mona.unk.edu events feed 2026-10-14
+
+  - date: "2026-11-07"
+    name: "Downtown Holiday Open House"
+    time: ""
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Downtown shops roll out their holiday merchandise. Runs Nov 7–8."
+    icons: [shopping, free]
+    free: true
+    url: "https://downtownkearney.com/events/"
+    # VERIFIED: downtownkearney.com/events 2026-10-14
+
+
+  - date: "2026-11-08"
+    name: "38 Special"
+    time: ""
+    venue: "Viaero Center"
+    address: "609 Platte Rd"
+    description: "Southern rock legends 38 Special with Goldylocks. Tickets at kearneyevents.net."
+    icons: [music]
+    free: false
+    url: "https://kearneyevents.net/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-12"
+    name: "Howler Comedy Takeover Tour"
+    time: "7:00 PM"
+    venue: "Kinkaider Brewing Co."
+    address: "221 11th Ave"
+    description: "Touring stand-up night at Kinkaider's Kearney brewery and Bierhaus."
+    icons: [drinks, arts]
+    free: false
+    url: "https://www.facebook.com/events/1701403384490190"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-13"
+    name: "Kearney Artists Guild Holiday Art Market"
+    time: "12:00 PM – 6:00 PM"
+    venue: "First Baptist Church"
+    address: "1616 W 39th St"
+    description: "Nineteen guild artists show and sell work. Runs Nov 13–14."
+    icons: [arts, shopping]
+    free: true
+    url: "https://www.facebook.com/kearneyartistsguild/events"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-14"
+    name: "Holiday Splendor Craft Show"
+    time: ""
+    venue: "Buffalo County Fairgrounds"
+    address: "3807 Ave N"
+    description: "Holiday craft and gift show at the fairgrounds."
+    icons: [shopping]
+    free: true
+    url: "https://buffalocountyfairgrounds.com/event/holiday-splender-craft-show-111426/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-18"
+    name: "Gateway Farm Expo"
+    time: ""
+    venue: "Buffalo County Fairgrounds"
+    address: "3807 Ave N"
+    description: "The 57th Gateway Farm Expo, Nebraska's longest-running farm show, draws thousands to Kearney."
+    icons: [community, shopping]
+    free: true
+    url: "https://www.gatewayfarmexpo.org/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-20"
+    name: "NSAA 8-Man & 6-Man Football Championships"
+    time: "1:00 PM & 7:00 PM"
+    venue: "Ron & Carol Cope Stadium"
+    address: "University Dr & 29th St"
+    description: "State title games at UNK: D3 (8-man) at 1 PM, D6 (6-man) under the lights at 7 PM."
+    icons: [outdoors]
+    free: false
+    url: "https://nsaahome.org/football/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-20"
+    name: "Michael Martin Murphey's Cowboy Christmas"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Western holiday concert presented by Kearney COSMOS."
+    icons: [music]
+    free: false
+    url: "https://merrymancenter.org/tickets"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-26"
+    name: "YMCA Turkey Trot & Gobble Wobble"
+    time: "8:30 AM"
+    venue: "Kearney Family YMCA"
+    address: "4500 6th Ave"
+    description: "Thanksgiving morning run/walk at the Y."
+    icons: [family, community]
+    free: false
+    url: "https://www.facebook.com/photo?fbid=1362392272726022"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-11-28"
+    name: "Small Business Saturday Downtown"
+    time: ""
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Shop the independent stores on the bricks."
+    icons: [shopping, free]
+    free: true
+    url: "https://downtownkearney.com/events/list/page/2/"
+    # VERIFIED: downtownkearney.com/events 2026-10-14
+
+  - date: "2026-11-28"
+    name: "A Celtic Christmas by A Taste of Ireland"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Irish dance and holiday music from the Off-Broadway touring company."
+    icons: [music, arts]
+    free: false
+    url: "https://atasteofirelandshow.com/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # ── December 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-12-02"
+    name: "Blue Violin's Retro Rock & Roll Christmas"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Retro holiday rock show. $35."
+    icons: [music]
+    free: false
+    url: "https://blue-violin.com/retro-christmas/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-03"
+    name: "Christmas Walk on the Bricks"
+    time: "5:00 PM – 8:00 PM"
+    venue: "Downtown Kearney"
+    address: "Central Ave"
+    description: "Downtown's holiday kickoff: tree lighting, reindeer and family activities along Central Avenue."
+    icons: [family, community, free]
+    free: true
+    url: "https://downtownkearney.com/events/list/page/2/"
+    big: true
+    # VERIFIED: downtownkearney.com/events 2026-10-14 (2025 edition described by KSNB 2025-12-05)
+
+  - date: "2026-12-05"
+    name: "Christmas Tree Walk at Trails & Rails Museum"
+    time: ""
+    venue: "Trails & Rails Museum"
+    address: "710 W 11th St"
+    description: "The 39th annual Christmas Tree Walk, themed 'America 250: Constitutional Freedoms'. Runs Dec 5–13."
+    icons: [family, community]
+    free: false
+    url: "https://www.bchs.us/"
+    big: true
+    # VERIFIED: Visit Kearney calendar 2026-10-14 (Dec 5 – 13 2026)
+
+  - date: "2026-12-05"
+    name: "Breakfast with Santa"
+    time: ""
+    venue: "Buffalo County Fairgrounds"
+    address: "3807 Ave N"
+    description: "Pancakes and photos with Santa at the fairgrounds."
+    icons: [family, food]
+    free: false
+    url: "https://buffalocountyfairgrounds.com/event/breakfast-with-santa-120526/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-08"
+    name: "Kearney Symphony Orchestra: Holiday Favorites"
+    time: "7:30 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "The holiday concert of the KSO's 121st season, a Kearney tradition since 1905."
+    icons: [music, arts]
+    free: false
+    url: "https://www.unk.edu/kso/attend/index.php"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-17"
+    name: "The Best Christmas Pageant Ever"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Crane River Theater's holiday musical. Performances Dec 17–22. Tickets $15–$45."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-18"
+    name: "The Best Christmas Pageant Ever"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Crane River Theater's holiday musical."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-19"
+    name: "The Best Christmas Pageant Ever"
+    time: "1:00 PM & 6:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Crane River Theater's holiday musical, two shows today."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-20"
+    name: "The Best Christmas Pageant Ever"
+    time: "1:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Crane River Theater's holiday musical, Sunday matinee."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-21"
+    name: "The Best Christmas Pageant Ever"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Crane River Theater's holiday musical."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-22"
+    name: "The Best Christmas Pageant Ever"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Closing night of Crane River Theater's holiday musical."
+    icons: [arts, family]
+    free: false
+    url: "https://cranerivertheater.org/best-christmas-pageant/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  - date: "2026-12-21"
+    name: "Kearney Christmas Bird Count"
+    time: "All day"
+    venue: "Around Kearney"
+    address: ""
+    description: "Help local birders tally every bird in the Kearney count circle, in the field or from your own feeder."
+    icons: [outdoors, community, free]
+    free: true
+    url: "https://visitkearney.org/event/kearney-christmas-bird-count/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # ── January 2027 ────────────────────────────────────────────────────────
+
+  - date: "2027-01-26"
+    name: "Gravity: Leading Ladies of the West End"
+    time: "7:00 PM"
+    venue: "Merryman Performing Arts Center"
+    address: "225 W 22nd St"
+    description: "Three celebrated West End leading ladies in concert."
+    icons: [music, arts]
+    free: false
+    url: "https://merrymancenter.org/tickets/"
+    # VERIFIED: Visit Kearney calendar 2026-10-14
+
+  # Tri-City Storm home games come from the tri_city_storm feed (town.json).

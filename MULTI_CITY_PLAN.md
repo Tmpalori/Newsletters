@@ -191,7 +191,7 @@ These matter the moment a second town exists. All keep Victoria's values.
       `social-kit-*`; `review-state-`, `uptime-state-`). (Done: a `-<slug>`
       suffix on groups and a `<slug>-` prefix on cache keys, both empty for
       Victoria.)
-- [ ] **3.3 GitHub Environments for new towns only.** Each holds that
+- [x] **3.3 GitHub Environments for new towns only.** Each holds that
       town's `SITE_URL`, Meta page and IG tokens and ids, ad account, cron
       secrets, `NTFY_TOPIC`, `SOCIAL_AUTOPOST`, source toggles and digest
       recipient. Victoria's jobs keep reading repo-level secrets (an
@@ -200,6 +200,9 @@ These matter the moment a second town exists. All keep Victoria's values.
       its scheduler and Pull Now start no workflows (they'd run on
       Victoria's repo-level `SITE_URL` and secrets), and `town.py`
       `site_url()` stops any script run as another town on Victoria's URL.
+      (Done: every per-town job names `environment:` the town, "" for
+      Victoria; the newsletter keeps its Victoria-only guard until a town
+      can send by dispatch. Kearney's Environment exists, October 2026.)
 - [x] **3.4 Town matrix** from `towns/index.json` with `fail-fast: false`,
       so one town failing can't cancel Victoria's run. The DST gate reads
       the town's timezone. Stagger cron minutes per town.
@@ -259,6 +262,10 @@ These matter the moment a second town exists. All keep Victoria's values.
 
 ## Phase 5: launching a town
 
+> **Current process:** [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md). Towns now run their
+> jobs on Railway, so the GitHub Environment and workflow items below (3.3–3.5) don't apply
+> to new towns. This section is kept as the original plan.
+
 - [x] **5.1 New-town kit**: a script that creates `towns/<slug>/town.json`
       from prompts, seeds venues with `discover_venues.py`, adds the town to
       `towns/index.json`, and prints the account checklist below.
@@ -276,7 +283,7 @@ These matter the moment a second town exists. All keep Victoria's values.
     with ZIP; no issue goes out without it), `NEWSLETTER_REPLY_TO`,
     `NEWSLETTER_CRON_SECRET` (Railway and the town's GitHub Environment),
     the webhook to `/api/email/inbound` (events `email.received`,
-    `email.bounced`, `email.complained`) and `RESEND_WEBHOOK_SECRET`.
+    `email.bounced`, `email.complained`, `email.delivered`) and `RESEND_WEBHOOK_SECRET`.
   - Business identity for the legal pages (`server/legal.js`):
     `BUSINESS_LEGAL_NAME` (the LLC's legal name), `BUSINESS_CONTACT_EMAIL`
     (an inbox someone reads: refunds, privacy and deletion requests, free

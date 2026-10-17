@@ -152,7 +152,18 @@ describe('workflows for another town (until its GitHub Environment exists)', () 
     expect(townWorkflowsReady(bay, { TOWN_WORKFLOWS: '1' })).toBe(true);
   });
 
-  it("another town's Pull Now answers 409 instead of dispatching", async () => {
+  it('town.json "workflows": true turns them on too (one switch with GitHub\'s collect); TOWN_WORKFLOWS=0 turns them off', async () => {
+    const { townWorkflowsReady } = await import('../server/town.js');
+    const ready = { ...bay, workflows: true };
+    expect(townWorkflowsReady(ready, {})).toBe(true);
+    expect(townWorkflowsReady(ready, { TOWN_WORKFLOWS: '0' })).toBe(false);
+    expect(townWorkflowsReady(VICTORIA, { TOWN_WORKFLOWS: '0' })).toBe(true);
+    // A town whose jobs run on Railway, Victoria included, never runs workflows.
+    expect(townWorkflowsReady(VICTORIA, { JOBS_ON_RAILWAY: '1' })).toBe(false);
+    expect(townWorkflowsReady(ready, { JOBS_ON_RAILWAY: '1', TOWN_WORKFLOWS: '1' })).toBe(false);
+  });
+
+  it("Pull Now without jobs on Railway answers 409 instead of dispatching", async () => {
     const http = (await import('node:http')).default;
     const calls = [];
     const { app } = await boot({ town: BAY, siteUrl: OK.siteUrl, githubToken: 'gh', githubOwner: 'o', githubRepo: 'r',
@@ -165,7 +176,7 @@ describe('workflows for another town (until its GitHub Environment exists)', () 
         body: JSON.stringify({ username: 'a', password: 'b' }) })).json();
       const r = await fetch(base + '/api/admin/trigger-collect', { method: 'POST', headers: { Authorization: `Bearer ${login.token}` } });
       expect(r.status).toBe(409);
-      expect((await r.json()).error).toBe('town-workflows-not-ready');
+      expect((await r.json()).error).toBe('jobs-not-on');
       expect(calls.filter(u => /dispatches/.test(u))).toEqual([]);
     } finally {
       await new Promise(r => server.close(r));
@@ -214,5 +225,18 @@ describe('/api/config town_workflows (scripts/launch_check.py)', () => {
     expect((await config({ town: BAY, siteUrl: OK.siteUrl })).town_workflows).toBe(false);
     process.env.TOWN_WORKFLOWS = '1';
     expect((await config({ town: BAY, siteUrl: OK.siteUrl })).town_workflows).toBe(true);
+  });
+
+  it('Victoria on Railway jobs says so (for the submission review cron), and nothing else changes', async () => {
+    const off = await config({ siteUrl: 'https://www.thevic361.com' });
+    expect(off).not.toHaveProperty('jobs_on_railway');
+    const on = await config({ siteUrl: 'https://www.thevic361.com', jobs: { enabled: true, register() {} } });
+    expect(on.jobs_on_railway).toBe(true);
+    expect(on).not.toHaveProperty('town_workflows');
+    // Pull Now works with jobs on (it queues the collect); the rest is the same.
+    expect(on.sources_trigger_enabled).toBe(true);
+    const { jobs_on_railway: _a, sources_trigger_enabled: _b, ...rest } = on;
+    const { sources_trigger_enabled: _c, ...restOff } = off;
+    expect(rest).toEqual(restOff);
   });
 });

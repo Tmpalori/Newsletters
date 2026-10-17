@@ -52,8 +52,8 @@ export const VICTORIA = Object.freeze({
   // Money and limits. Amounts are in cents (what Stripe charges); the
   // price text on pages and emails is generated from them (dollars()).
   business: Object.freeze({
-    weeklyAmount: 30000,                        // weekly sponsor
-    pickAmount: { weekday: 4900, weekend: 8900 },   // a pick, Mon–Thu / Fri–Sun
+    weeklyAmount: 14900,                        // weekly sponsor
+    pickAmount: { weekday: 2900, weekend: 3900 },   // a pick, Mon–Thu / Fri–Sun
     pickCap: { weekday: 3, weekend: 4 },        // picks sold per day
     dayMax: { weekday: 15, weekend: 20 },       // events the curator lists per day
     picks: { weekday: 2, weekend: 3 },          // editor's picks per day
@@ -61,11 +61,42 @@ export const VICTORIA = Object.freeze({
     drawingAmount: 25,                          // monthly referral drawing, dollars
     rewardCards: [{ n: 5, amount: 10 }, { n: 10, amount: 25 }],   // referral gift cards, dollars
     showSubscribersFrom: 100,                   // say "N+ subscribers" only from here
-    showReadersFrom: 500                        // say "N readers this week" only from here
+    showReadersFrom: 500,                       // say "N readers this week" only from here
+    // Category partners (server/partners.js): one local business per
+    // category, monthly. The price is shown only on /advertise and its
+    // checkout; everything else names the category, never the money.
+    partnerAmount: 9900,
+    // id (stored on orders and in Stripe metadata: never rename one that
+    // has sold), label (may hold "&": always escaped when rendered), emoji, `owner` (the invite bar's "Own a …?") and the
+    // category pages it appears on (server/seo.js HUB_PAGES paths; a path a
+    // town doesn't have is skipped). A category with no page still shows in
+    // the newsletter and on /partners.
+    partnerCategories: Object.freeze([
+      Object.freeze({ id: 'food', label: 'Food & drink', emoji: '🍽️', owner: 'a restaurant or bar', pages: Object.freeze(['/food-and-drink', '/date-night']) }),
+      Object.freeze({ id: 'realestate', label: 'Real estate', emoji: '🏠', owner: 'a real estate business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'dental', label: 'Dental', emoji: '🦷', owner: 'a dental practice', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'home', label: 'Home services', emoji: '🔨', owner: 'a home services business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'pets', label: 'Pets', emoji: '🐾', owner: 'a pet business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'auto', label: 'Auto', emoji: '🚗', owner: 'an auto shop', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'fitness', label: 'Fitness', emoji: '💪', owner: 'a gym or studio', pages: Object.freeze(['/outdoor-events']) }),
+      Object.freeze({ id: 'family', label: 'Family & kids', emoji: '👨‍👩‍👧', owner: 'a business for families', pages: Object.freeze(['/kids-and-family', '/this-weekend-with-kids']) }),
+      Object.freeze({ id: 'insurance', label: 'Insurance & finance', emoji: '🛡️', owner: 'an insurance or finance office', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'legal', label: 'Legal', emoji: '⚖️', owner: 'a law office', pages: Object.freeze([]) })
+    ])
   }),
   // Job start times that differ from server/scheduler.js JOBS (Central-style
   // "HH:MM" in the town's timezone). Victoria runs the defaults.
-  schedule: Object.freeze({})
+  schedule: Object.freeze({}),
+  // The town's Instagram handle, once its account posts (social_post.py
+  // needs IG_USER_ID too). Empty: nothing sold or promised on Instagram,
+  // because nothing is posted there. Victoria has none (town.py).
+  instagram: '',
+  // Colors over docs/style.css ({ light, dark }, from towns/<slug>/BRAND.md
+  // "Palette"; brandPalette below); null keeps the stylesheet's own, which
+  // are Victoria's.
+  palette: null,
+  // TOWN_DORMANT=1: the town is paused (townDormant below).
+  dormant: false
 });
 
 // What another town starts from when its town.json leaves a number out.
@@ -99,6 +130,9 @@ function complete(id, raw) {
     ...raw,
     business: { ...SHARED_BUSINESS, ...(raw.business || {}) },
     schedule: { ...(raw.schedule || {}) },
+    instagram: String(raw.instagram || '').replace(/^@/, ''),
+    palette: raw.palette || null,
+    dormant: raw.dormant === true,
     id
   };
 }
@@ -110,7 +144,23 @@ function fromFile(id, dir) {
   try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) {
     throw new Error(`TOWN=${id}: can't read ${path.relative(ROOT, file) || file} (${err.code || err.message})`);
   }
-  return complete(id, { publicDir, ...raw });
+  return complete(id, { publicDir, palette: brandPalette(path.join(dir, id, 'BRAND.md')), ...raw });
+}
+
+// The town's site colors from its brand kit: towns/<slug>/BRAND.md's two
+// JSON blocks, the palette and then its dark-mode twin. Read from there,
+// as town.py brand_palette() does for the social slides, so the brand kit
+// stays the one place the palette is written down (a town.json "palette"
+// wins, for tests). No BRAND.md or no JSON in it: null, the stylesheet's
+// own colors; a palette that's there but malformed stops the boot (check).
+export function brandPalette(file) {
+  let text;
+  try { text = fs.readFileSync(file, 'utf8'); } catch (_) { return null; }
+  const blocks = [...text.matchAll(/```json\s*(\{[\s\S]*?\})\s*```/g)].map(m => {
+    try { return JSON.parse(m[1]); } catch (_) { return null; }
+  });
+  if (!blocks.length || !blocks[0]) return null;
+  return { light: blocks[0], dark: blocks[1] || {} };
 }
 
 function check(t) {
@@ -137,6 +187,17 @@ function check(t) {
   if (!Number.isInteger(b.drawingAmount) || !Array.isArray(b.rewardCards) || !Number.isInteger(b.showSubscribersFrom) || !Number.isInteger(b.showReadersFrom)) {
     throw new Error(`TOWN=${t.id}: business needs drawingAmount, rewardCards, showSubscribersFrom and showReadersFrom`);
   }
+  if (!cents(b.partnerAmount)) throw new Error(`TOWN=${t.id}: business.partnerAmount must be whole cents, at least 100`);
+  const cats = b.partnerCategories;
+  if (!Array.isArray(cats) || !cats.length || cats.length > 20 ||
+      new Set(cats.map(c => c && c.id)).size !== cats.length ||
+      !cats.every(c => c && /^[a-z0-9]{2,20}$/.test(String(c.id)) && /^[^<>"]+$/.test(String(c.label || '')) &&
+        /^[^<>"]+$/.test(String(c.owner || '')) && typeof c.emoji === 'string' && c.emoji.length <= 16 && !/[<>&"]/.test(c.emoji) &&
+        Array.isArray(c.pages) && c.pages.every(pg => /^\/[a-z0-9-]+$/.test(String(pg))))) {
+    throw new Error(`TOWN=${t.id}: business.partnerCategories needs 1 to 20 categories, each with a unique id, label, emoji, owner and pages`);
+  }
+  if (t.instagram && !/^[A-Za-z0-9._]{1,30}$/.test(t.instagram)) throw new Error(`TOWN=${t.id}: instagram must be a handle (letters, digits, . or _)`);
+  checkPalette(t);
   for (const [job, at] of Object.entries(t.schedule || {})) {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(at))) throw new Error(`TOWN=${t.id}: schedule.${job} must be "HH:MM"`);
   }
@@ -146,14 +207,44 @@ function check(t) {
   return Object.freeze(t);
 }
 
+// The palette's colors go into a stylesheet as they are, so each must be a
+// plain #RRGGBB. light and dark each need the five BRAND.md roles; dark
+// adds the surface and text colors BRAND.md lists for it.
+export const PALETTE_ROLES = Object.freeze({
+  light: ['primary', 'accent', 'paper', 'ink', 'highlight'],
+  dark: ['primary', 'accent', 'paper', 'surface', 'ink', 'text', 'highlight']
+});
+function checkPalette(t) {
+  if (t.palette == null) return;
+  const p = t.palette;
+  for (const [mode, roles] of Object.entries(PALETTE_ROLES)) {
+    for (const role of roles) {
+      if (!/^#[0-9A-Fa-f]{6}$/.test(String((p[mode] || {})[role] || ''))) {
+        throw new Error(`TOWN=${t.id}: palette.${mode}.${role} must be a #RRGGBB color`);
+      }
+    }
+  }
+}
+
+// TOWN_DORMANT=1: a paused town (Kearney and Tupelo since Oct 2026). Its
+// site stays up and keeps everything it has (subscribers, orders, events),
+// but takes no signups, sells nothing on /advertise, sends nothing on a
+// schedule and raises no alerts about collects it isn't running. Unset or 0
+// brings it all back. Any town, Victoria included.
+export function townDormant(env = process.env) {
+  return String(env.TOWN_DORMANT || '').trim() === '1';
+}
+
 // The town for these settings. overrides.town (a town.json-shaped object)
 // wins, for tests.
 export function townConfig(env = process.env, overrides = {}) {
-  if (overrides.town) return check(complete(overrides.town.id || 'test', overrides.town));
+  const dormant = townDormant(env);
+  if (overrides.town) return check(complete(overrides.town.id || 'test', dormant ? { ...overrides.town, dormant } : overrides.town));
   const id = String(env.TOWN || 'victoria').trim().toLowerCase();
-  if (id === 'victoria') return VICTORIA;
+  if (id === 'victoria') return dormant ? Object.freeze({ ...VICTORIA, dormant }) : VICTORIA;
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`TOWN="${env.TOWN}" isn't a town slug (lowercase letters, digits, dashes)`);
-  return check(fromFile(id, overrides.townsDir || path.join(ROOT, 'towns')));
+  const t = fromFile(id, overrides.townsDir || path.join(ROOT, 'towns'));
+  return check(dormant ? { ...t, dormant } : t);
 }
 
 // Every other town's domain, from towns/*/town.json (unreadable or
@@ -224,20 +315,22 @@ export function victoriaBootProblem(t, envSiteUrl = '') {
     `domain. Set TOWN to the town's slug (towns/<slug>/town.json), or SITE_URL to ${VICTORIA.siteUrl} for Victoria.`;
 }
 
-// Inputs for a workflow the server dispatches (MULTI_CITY_PLAN.md 3.5):
-// another town names itself in the workflows' `town` input; Victoria's
-// dispatches stay as they were (no input means victoria).
-export function townInputs(inputs, t = town) {
-  return t.id === VICTORIA.id ? inputs : { ...(inputs || {}), town: t.id };
-}
-
 // Whether this town may start GitHub workflows. Until its own GitHub
 // Environment exists (MULTI_CITY_PLAN.md 3.3) a workflow run as another
 // town would still use the repo-level settings, which are Victoria's
-// (SITE_URL, secrets, Facebook page). Victoria always may; another town
-// only once TOWN_WORKFLOWS=1 is set, after its Environment is in place.
+// (SITE_URL, secrets, Facebook page). Victoria always may; another town once
+// its town.json says "workflows": true (the same switch GitHub's scheduled
+// collect reads, set when its Environment exists) or TOWN_WORKFLOWS=1.
+// TOWN_WORKFLOWS=0 turns a town's off whatever town.json says.
+//
+// A town whose jobs run on Railway (JOBS_ON_RAILWAY=1, Victoria included
+// since JOBS_ON_RAILWAY.md phase 5) never starts a GitHub workflow: its
+// jobs worker runs every one of them, so it needs no GITHUB_TOKEN.
 export function townWorkflowsReady(t = town, env = process.env) {
-  return t.id === VICTORIA.id || String(env.TOWN_WORKFLOWS || '').trim() === '1';
+  if (String(env.JOBS_ON_RAILWAY || '').trim() === '1') return false;
+  if (t.id === VICTORIA.id) return true;
+  const flag = String(env.TOWN_WORKFLOWS || '').trim();
+  return flag === '1' || (t.workflows === true && flag !== '0');
 }
 
 // The process's town. A live binding: modules that import it see useTown's

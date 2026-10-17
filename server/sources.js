@@ -7,9 +7,9 @@
  *   - last successful collection run timestamp (file mtime fallback)
  *   - next scheduled auto-pull time, computed from the Weekly Collect cron
  *
- * The site starts the collect Sunday and Wednesday at 3:23 PM Central
- * (server/scheduler.js); the crons in `.github/workflows/weekly-collect.yml`
- * (`23 20 * * 0` and `23 20 * * 3`, UTC) are only its late fallback.
+ * The site queues the collect for the town's jobs worker Sunday and
+ * Wednesday at 3:23 PM town time (server/scheduler.js); `next_run_cron` is
+ * that slot in UTC during CDT (`23 20 * * 0,3`).
  *
  * If `collection_metadata.json` is missing (e.g. the workflow hasn't run yet
  * after this code shipped), the response falls back to "unknown" but still
@@ -46,7 +46,7 @@ const KNOWN_BY_NAME = new Map(KNOWN_SOURCES.map(s => [s.name, s]));
 // Next scheduled collect strictly AFTER `now`: the site starts it Sunday
 // and Wednesday at 3:23 PM in the town's time (server/scheduler.js,
 // weekly-collect and weekly-collect-midweek), which is 20:23 UTC in summer
-// and 21:23 UTC in winter. weekly-collect.yml's crons are only the fallback.
+// and 21:23 UTC in winter.
 export function nextWeeklyRunUtc(now) {
   const ref = now ? new Date(now.getTime()) : new Date();
   const today = localParts(ref).date;
@@ -101,6 +101,8 @@ function quietPages(q) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// githubConfigured: whether Pull Now works (it queues a collect for the
+// town's jobs worker; the name is from when it dispatched a GitHub workflow).
 export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, actionsUrl }) {
   const next = nextWeeklyRunUtc(now);
   const seenNames = new Set();
@@ -164,14 +166,10 @@ export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, ac
       ? metadata.candidates_only : null,
     trigger_enabled: Boolean(githubConfigured),
     trigger_workflow_file: 'weekly-collect.yml',
-    // Always provide the GitHub Actions URL so the UI can show a manual
-    // "Run workflow" fallback link regardless of whether one-click Pull Now
-    // is enabled. The user can run the workflow with their normal GitHub
-    // login even if no server-side token is configured.
+    // No GitHub fallback any more (jobs run on Railway); null.
     actions_url: actionsUrl || null,
-    // Save & Publish does NOT depend on the GITHUB_TOKEN required for
-    // workflow_dispatch. Surface this so the UI can reassure the user when
-    // Pull Now fails.
+    // Save & Publish doesn't depend on Pull Now. Surfaced so the UI can
+    // reassure the user when Pull Now fails.
     save_publish_unaffected: true,
     apify: apifySpend(metadata && metadata.apify),
     quiet_pages: quietPages(metadata && metadata.quiet_pages),

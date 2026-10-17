@@ -50,6 +50,23 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Soft bounces (server/inbound.js): a full mailbox or a greylist isn't a dead
+// address, but one that soft-bounces issue after issue is, and mailing it
+// forever wears down the sending domain's reputation with Gmail and Yahoo.
+// `limit` soft bounces in a run, spread over at least `minSpanMs` (a mailbox
+// full for a week, not one bad afternoon), and the address is marked bounced.
+// Bounces within `sameSendMs` of the last one count once (Resend retrying one
+// email, or two emails out the same day). The run starts over after a
+// delivery (email.delivered) or, if those aren't sent, after `resetMs` with
+// no soft bounce.
+export const SOFT_BOUNCE = {
+  limit: 4,
+  minSpanMs: 7 * 24 * 3600 * 1000,
+  sameSendMs: 12 * 3600 * 1000,
+  resetMs: 30 * 24 * 3600 * 1000
+};
+const SOFT_BOUNCE_CLEAR = { soft_bounces: 0, soft_bounce_first_at: null, soft_bounce_last_at: null };
+
 // Normalize a payload into the canonical event shape used by the rest of the
 // site so admin promotion is a straight copy. Trims strings to sane lengths
 // (defense-in-depth on top of route validation).
@@ -472,7 +489,8 @@ class FileStore {
         // comeback is a new ask and gets its own reminder.
         // weekend_optout: a fresh signup is promised both issues again.
         Object.assign(sub, { status: 'pending', token: newToken(), unsubscribed_at: null, source,
-          old_tokens: [...(sub.old_tokens || []), sub.token], pending_since: now, reminded_at: null, weekend_optout: false });
+          old_tokens: [...(sub.old_tokens || []), sub.token], pending_since: now, reminded_at: null, weekend_optout: false,
+          ...SOFT_BOUNCE_CLEAR });
         fresh = true;
       }
       await this._write(data);
@@ -551,6 +569,49 @@ class FileStore {
     });
   }
 
+  // A soft bounce for these addresses (see SOFT_BOUNCE). Only active
+  // subscribers count. Returns the addresses this marked bounced.
+  async recordSoftBounce(emails, now = new Date()) {
+    const set = new Set(emails || []);
+    if (!set.size) return [];
+    const t = now.getTime();
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const bounced = [];
+      let changed = false;
+      for (const sub of data.subscribers) {
+        if (!set.has(sub.email) || sub.status !== 'active') continue;
+        const last = sub.soft_bounce_last_at ? Date.parse(sub.soft_bounce_last_at) : null;
+        if (last !== null && t - last < SOFT_BOUNCE.sameSendMs) continue;
+        if (last === null || t - last >= SOFT_BOUNCE.resetMs) Object.assign(sub, { soft_bounces: 0, soft_bounce_first_at: now.toISOString() });
+        sub.soft_bounces = (sub.soft_bounces || 0) + 1;
+        sub.soft_bounce_last_at = now.toISOString();
+        changed = true;
+        if (sub.soft_bounces >= SOFT_BOUNCE.limit && t - Date.parse(sub.soft_bounce_first_at) >= SOFT_BOUNCE.minSpanMs) {
+          Object.assign(sub, { status: 'bounced', bounced_at: now.toISOString() });
+          bounced.push(sub.email);
+        }
+      }
+      if (changed) await this._write(data);
+      return bounced;
+    });
+  }
+
+  // A delivery (email.delivered) ends a run of soft bounces.
+  async clearSoftBounces(emails) {
+    const set = new Set(emails || []);
+    if (!set.size) return 0;
+    return this._withWrite(async () => {
+      const data = await this._read();
+      let n = 0;
+      for (const sub of data.subscribers) {
+        if (set.has(sub.email) && sub.soft_bounces) { Object.assign(sub, SOFT_BOUNCE_CLEAR); n++; }
+      }
+      if (n) await this._write(data);
+      return n;
+    });
+  }
+
   // A spam complaint (server/inbound.js): an unsubscribe by address, any
   // status, so a complainer waiting to confirm a comeback stays off too.
   async unsubscribeByEmail(emails) {
@@ -592,6 +653,23 @@ class FileStore {
   async listSubscribers({ status } = {}) {
     const data = await this._read();
     return data.subscribers.filter(x => !status || x.status === status);
+  }
+
+  // Active subscribers who confirmed after `after` (an ISO time; null: none,
+  // just the newest time), oldest first, at most `limit`, for HQ's
+  // subscriber pings (server/hq.js). Imports don't count as new signups.
+  // latest: the newest confirmed_at of any active signup, so HQ can start
+  // from now instead of a town's whole history.
+  async listConfirmedSince(after, limit = 500) {
+    const data = await this._read();
+    const t = x => new Date(x.confirmed_at).getTime();
+    const live = data.subscribers.filter(x => x.status === 'active' && x.confirmed_at && x.source !== 'import' && Number.isFinite(t(x)))
+      .sort((a, b) => t(a) - t(b));
+    const latest = live.length ? new Date(t(live[live.length - 1])).toISOString() : null;
+    if (!after) return { latest, subscribers: [] };
+    const from = new Date(after).getTime();
+    return { latest, subscribers: live.filter(x => t(x) > from).slice(0, limit)
+      .map(x => ({ email: x.email, confirmed_at: new Date(t(x)).toISOString() })) };
   }
 
   // Active subscribers who skip the Thursday weekend issue.
@@ -968,6 +1046,153 @@ class FileStore {
     return (data.scheduler_runs || []).find(r => r.job === job && r.slot === slot) || null;
   }
 
+  // ─── Jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md) ───
+  // The town's job queue (the scheduler and Pull Now add, the jobs worker
+  // claims and finishes) and the files a job hands the site (candidates,
+  // collection metadata, enrichment cache), which used to be commits.
+  // unlessPending: not when a job of the same kind is already queued or
+  // running (a worker that was down doesn't come back to a pile of them,
+  // and a second Pull Now doesn't start a second collect).
+  async enqueueJob(kind, slot, args = {}, now = new Date(), { unlessPending = false } = {}) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!Array.isArray(data.jobs)) data.jobs = [];
+      const dup = data.jobs.find(j => j.kind === kind && j.slot === slot);
+      if (dup) return { queued: false, id: dup.id };
+      const pending = unlessPending && data.jobs.find(j => j.kind === kind && (j.status === 'queued' || j.status === 'running'));
+      if (pending) return { queued: false, id: pending.id, pending: true };
+      const id = (data.jobs.reduce((m, j) => Math.max(m, j.id), 0) || 0) + 1;
+      data.jobs.push({ id, kind, slot, args, status: 'queued', queued_at: now.toISOString(), started_at: null, finished_at: null, result: null });
+      data.jobs = data.jobs.slice(-500);
+      await this._write(data);
+      return { queued: true, id };
+    });
+  }
+
+  async claimJob(now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const job = (data.jobs || []).find(j => j.status === 'queued');
+      if (!job) return null;
+      Object.assign(job, { status: 'running', started_at: now.toISOString() });
+      await this._write(data);
+      return { ...job };
+    });
+  }
+
+  async finishJob(id, { status, result = null }, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const job = (data.jobs || []).find(j => j.id === Number(id) && j.status === 'running');
+      if (!job) return null;
+      Object.assign(job, { status, result, finished_at: now.toISOString() });
+      await this._write(data);
+      return { ...job };
+    });
+  }
+
+  // Running jobs past their time limit ({kind: ms}, default for the rest):
+  // the worker died or was redeployed mid-run. Marked failed and returned.
+  async expireJobs(now = new Date(), limits = {}, fallbackMs = 30 * 60 * 1000) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const out = [];
+      for (const j of data.jobs || []) {
+        if (j.status !== 'running') continue;
+        if (Date.parse(j.started_at) + (limits[j.kind] || fallbackMs) > now.getTime()) continue;
+        Object.assign(j, { status: 'failed', finished_at: now.toISOString(), result: { error: 'timed out: the jobs worker stopped answering' } });
+        out.push({ ...j });
+      }
+      if (out.length) await this._write(data);
+      return out;
+    });
+  }
+
+  async listJobs(limit = 50) {
+    const data = await this._read();
+    return (data.jobs || []).slice(-limit).reverse().map(j => ({ ...j }));
+  }
+
+  // For HQ: each kind's last finished run however long ago, what's queued
+  // and running, and the failures in the last day.
+  async jobStats(now = new Date()) {
+    const jobs = ((await this._read()).jobs || []).slice().reverse();
+    const last = {};
+    for (const j of jobs) if (!last[j.kind] && (j.status === 'done' || j.status === 'failed')) last[j.kind] = { ...j };
+    const day = now.getTime() - 86400000;
+    return {
+      last,
+      queued: jobs.filter(j => j.status === 'queued').length,
+      running: jobs.filter(j => j.status === 'running').map(j => ({ kind: j.kind, started_at: j.started_at })),
+      failed_24h: jobs.filter(j => j.status === 'failed' && Date.parse(j.finished_at) >= day).length
+    };
+  }
+
+  async getTownFile(name) {
+    const data = await this._read();
+    const f = (data.town_files || {})[name];
+    return f ? { data: f.data, updated_at: f.updated_at } : null;
+  }
+
+  async setTownFile(name, value, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.town_files || typeof data.town_files !== 'object') data.town_files = {};
+      data.town_files[name] = { data: value, updated_at: now.toISOString() };
+      await this._write(data);
+    });
+  }
+
+  // ─── A town's social kit (server/jobs.js, JOBS_ON_RAILWAY.md 2b) ───
+  // The jobs worker uploads a kit's files under a build id, then publishes
+  // the build: /social/latest/<name> serves the published one, and every
+  // other build is deleted, so only the latest kit is kept. The pointer is
+  // the town file "social_kit" ({ build, files, bytes, published_at }).
+  async putSocialFile(build, name, type, body, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const all = data.social_files && typeof data.social_files === 'object' ? data.social_files : {};
+      const current = ((data.town_files || {}).social_kit || {}).data?.build;
+      // One build in the making at a time: an upload abandoned by a crash
+      // is dropped when the next one starts.
+      for (const b of Object.keys(all)) if (b !== build && b !== current) delete all[b];
+      all[build] = all[build] || {};
+      all[build][name] = { type, b64: Buffer.from(body).toString('base64'), size: body.length, updated_at: now.toISOString() };
+      data.social_files = all;
+      await this._write(data);
+    });
+  }
+
+  async socialBuildSize(build) {
+    const files = ((await this._read()).social_files || {})[build] || {};
+    return { files: Object.keys(files).length, bytes: Object.values(files).reduce((n, f) => n + (f.size || 0), 0), names: Object.keys(files) };
+  }
+
+  async getSocialBuildFile(build, name) {
+    const f = (((await this._read()).social_files || {})[build] || {})[name];
+    return f ? { type: f.type, body: Buffer.from(f.b64, 'base64'), updated_at: f.updated_at } : null;
+  }
+
+  async publishSocialKit(build, info, now = new Date()) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.town_files || typeof data.town_files !== 'object') data.town_files = {};
+      data.town_files.social_kit = { data: { build, ...info, published_at: now.toISOString() }, updated_at: now.toISOString() };
+      const all = data.social_files || {};
+      for (const b of Object.keys(all)) if (b !== build) delete all[b];
+      data.social_files = all;
+      await this._write(data);
+    });
+  }
+
+  // The published kit's file, or null (none published, or no such file).
+  async getSocialFile(name) {
+    const data = await this._read();
+    const build = ((data.town_files || {}).social_kit || {}).data?.build;
+    const f = build && ((data.social_files || {})[build] || {})[name];
+    return f ? { type: f.type, body: Buffer.from(f.b64, 'base64'), updated_at: f.updated_at, build } : null;
+  }
+
   // ─── Contact form messages (server/contact.js) ───
   async saveContactMessage(msg) {
     return this._withWrite(async () => {
@@ -1122,6 +1347,13 @@ class FileStore {
 const BLANK_SUBMITTER = { submitter_first_name: '', submitter_last_name: '', submitter_phone: '' };
 const OPEN_REWARD = new Set(['pending', 'held', 'failed', 'manual']);
 const FORGOTTEN = 'Skipped: the person asked us to delete their data.';
+
+// A job_queue row as the rest of the code sees it (ISO dates, numeric id).
+function jobRow(r) {
+  const iso = v => (v ? new Date(v).toISOString() : null);
+  return { id: Number(r.id), kind: r.kind, slot: r.slot, args: r.args || {}, status: r.status,
+    queued_at: iso(r.queued_at), started_at: iso(r.started_at), finished_at: iso(r.finished_at), result: r.result || null };
+}
 
 // A claimed slot can be taken again when its run asked for a retry and the
 // time has come, or when it has said "running" for 30 minutes (the process
@@ -1344,6 +1576,10 @@ class PgStore {
         await addColumn('subscribers', 'pending_since', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ');
         // Turned off the Thursday weekend issue (still gets Monday's).
         await addColumn('subscribers', 'weekend_optout', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS weekend_optout BOOLEAN NOT NULL DEFAULT FALSE');
+        // A run of soft bounces (FileStore.recordSoftBounce, SOFT_BOUNCE).
+        await addColumn('subscribers', 'soft_bounces', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounces INT NOT NULL DEFAULT 0');
+        await addColumn('subscribers', 'soft_bounce_first_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_first_at TIMESTAMPTZ');
+        await addColumn('subscribers', 'soft_bounce_last_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_last_at TIMESTAMPTZ');
         await this.pool.query(`
           CREATE TABLE IF NOT EXISTS newsletter_sends (
             week_key TEXT PRIMARY KEY,
@@ -1659,7 +1895,8 @@ class PgStore {
       // unsubscribing (Gmail's Unsubscribe on an older issue still works).
       const row = (await this.pool.query(
         `UPDATE subscribers SET status = 'pending', old_tokens = array_append(old_tokens, token), token = $2,
-           unsubscribed_at = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE WHERE email = $1 RETURNING *`,
+           unsubscribed_at = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE,
+           soft_bounces = 0, soft_bounce_first_at = NULL, soft_bounce_last_at = NULL WHERE email = $1 RETURNING *`,
         [email, newToken(), source])).rows[0];
       return { ...row, new_signup: true };
     }
@@ -1726,6 +1963,40 @@ class PgStore {
     return r.rowCount;
   }
 
+  // See FileStore.recordSoftBounce. Count first, then mark the ones whose
+  // run is long enough; the second statement re-checks, so it's safe alone.
+  async recordSoftBounce(emails, now = new Date()) {
+    if (!emails || !emails.length) return [];
+    await this.ready();
+    const ms = v => `${v} milliseconds`;
+    const counted = await this.pool.query(
+      `UPDATE subscribers SET
+         soft_bounces = CASE WHEN soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $4::interval THEN 1 ELSE soft_bounces + 1 END,
+         soft_bounce_first_at = CASE WHEN soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $4::interval THEN $2::timestamptz ELSE soft_bounce_first_at END,
+         soft_bounce_last_at = $2::timestamptz
+       WHERE email = ANY($1::text[]) AND status = 'active'
+         AND (soft_bounce_last_at IS NULL OR soft_bounce_last_at <= $2::timestamptz - $3::interval)`,
+      [emails, now.toISOString(), ms(SOFT_BOUNCE.sameSendMs), ms(SOFT_BOUNCE.resetMs)]);
+    if (!counted.rowCount) return [];
+    const r = await this.pool.query(
+      `UPDATE subscribers SET status = 'bounced'
+       WHERE email = ANY($1::text[]) AND status = 'active' AND soft_bounces >= $2
+         AND soft_bounce_last_at - soft_bounce_first_at >= $3::interval
+       RETURNING email`,
+      [emails, SOFT_BOUNCE.limit, ms(SOFT_BOUNCE.minSpanMs)]);
+    return r.rows.map(row => row.email);
+  }
+
+  // See FileStore.clearSoftBounces.
+  async clearSoftBounces(emails) {
+    if (!emails || !emails.length) return 0;
+    await this.ready();
+    const r = await this.pool.query(
+      `UPDATE subscribers SET soft_bounces = 0, soft_bounce_first_at = NULL, soft_bounce_last_at = NULL
+       WHERE email = ANY($1::text[]) AND soft_bounces > 0`, [emails]);
+    return r.rowCount;
+  }
+
   // See FileStore.unsubscribeByEmail.
   async unsubscribeByEmail(emails) {
     if (!emails || !emails.length) return 0;
@@ -1756,6 +2027,19 @@ class PgStore {
       ? await this.pool.query('SELECT id, email, status, token, weekend_optout FROM subscribers WHERE status = $1 ORDER BY created_at', [status])
       : await this.pool.query('SELECT id, email, status, token, weekend_optout FROM subscribers ORDER BY created_at');
     return r.rows;
+  }
+
+  // See FileStore.listConfirmedSince. Compared at milliseconds, the precision
+  // of the ISO cursor HQ hands back, so the last one isn't returned twice.
+  async listConfirmedSince(after, limit = 500) {
+    await this.ready();
+    const live = "status = 'active' AND confirmed_at IS NOT NULL AND COALESCE(source, '') <> 'import'";
+    const { rows: [top] } = await this.pool.query(`SELECT MAX(confirmed_at) AS latest FROM subscribers WHERE ${live}`);
+    const latest = top && top.latest ? new Date(top.latest).toISOString() : null;
+    if (!after) return { latest, subscribers: [] };
+    const r = await this.pool.query(`SELECT email, confirmed_at FROM subscribers WHERE ${live} AND date_trunc('milliseconds', confirmed_at) > $1 ORDER BY confirmed_at LIMIT $2`,
+      [new Date(after), limit]);
+    return { latest, subscribers: r.rows.map(x => ({ email: x.email, confirmed_at: new Date(x.confirmed_at).toISOString() })) };
   }
 
   async countWeekendOptouts() {
@@ -2119,6 +2403,164 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT job, slot, status, attempts, started_at, finished_at, retry_at, detail FROM scheduler_runs WHERE job = $1 AND slot = $2', [job, slot]);
     return r.rows[0] || null;
+  }
+
+  // ─── Jobs on Railway: see FileStore. The tables are created on first
+  // use, not in ready(), so a database whose town never runs jobs on
+  // Railway (Victoria's, until she moves) gets no new table.
+  async _jobTables() {
+    await this.ready();
+    if (!this._jobTablesPromise) {
+      this._jobTablesPromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS job_queue (
+          id BIGSERIAL PRIMARY KEY, kind TEXT NOT NULL, slot TEXT NOT NULL, args JSONB NOT NULL DEFAULT '{}'::jsonb,
+          status TEXT NOT NULL, queued_at TIMESTAMPTZ NOT NULL, started_at TIMESTAMPTZ, finished_at TIMESTAMPTZ,
+          result JSONB, UNIQUE (kind, slot));
+        CREATE TABLE IF NOT EXISTS town_files (name TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL);
+      `).catch(err => { this._jobTablesPromise = null; throw err; });
+    }
+    await this._jobTablesPromise;
+  }
+
+  async enqueueJob(kind, slot, args = {}, now = new Date(), { unlessPending = false } = {}) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      INSERT INTO job_queue (kind, slot, args, status, queued_at)
+      SELECT $1, $2, $3::jsonb, 'queued', $4
+       WHERE NOT $5::boolean OR NOT EXISTS (SELECT 1 FROM job_queue WHERE kind = $1 AND status IN ('queued', 'running'))
+      ON CONFLICT (kind, slot) DO NOTHING RETURNING id`, [kind, slot, JSON.stringify(args || {}), now.toISOString(), Boolean(unlessPending)]);
+    if (r.rows[0]) return { queued: true, id: Number(r.rows[0].id) };
+    if (unlessPending) {
+      const p = await this.pool.query("SELECT id FROM job_queue WHERE kind = $1 AND status IN ('queued', 'running') ORDER BY id LIMIT 1", [kind]);
+      if (p.rows[0]) return { queued: false, id: Number(p.rows[0].id), pending: true };
+    }
+    const dup = await this.pool.query('SELECT id FROM job_queue WHERE kind = $1 AND slot = $2', [kind, slot]);
+    return { queued: false, id: dup.rows[0] ? Number(dup.rows[0].id) : null };
+  }
+
+  async claimJob(now = new Date()) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      UPDATE job_queue SET status = 'running', started_at = $1
+       WHERE id = (SELECT id FROM job_queue WHERE status = 'queued' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED)
+      RETURNING *`, [now.toISOString()]);
+    return r.rows[0] ? jobRow(r.rows[0]) : null;
+  }
+
+  async finishJob(id, { status, result = null }, now = new Date()) {
+    await this._jobTables();
+    const r = await this.pool.query(`
+      UPDATE job_queue SET status = $2, result = $3::jsonb, finished_at = $4
+       WHERE id = $1 AND status = 'running' RETURNING *`, [Number(id), status, JSON.stringify(result), now.toISOString()]);
+    return r.rows[0] ? jobRow(r.rows[0]) : null;
+  }
+
+  async expireJobs(now = new Date(), limits = {}, fallbackMs = 30 * 60 * 1000) {
+    await this._jobTables();
+    // A month of history is plenty (the review alone runs 96 times a day).
+    await this.pool.query("DELETE FROM job_queue WHERE status IN ('done', 'failed') AND finished_at < $1::timestamptz - interval '30 days'", [now.toISOString()]);
+    const running = await this.pool.query("SELECT id, kind, started_at FROM job_queue WHERE status = 'running'");
+    const out = [];
+    for (const j of running.rows) {
+      if (new Date(j.started_at).getTime() + (limits[j.kind] || fallbackMs) > now.getTime()) continue;
+      const r = await this.pool.query(`
+        UPDATE job_queue SET status = 'failed', finished_at = $2, result = $3::jsonb
+         WHERE id = $1 AND status = 'running' RETURNING *`,
+      [j.id, now.toISOString(), JSON.stringify({ error: 'timed out: the jobs worker stopped answering' })]);
+      if (r.rows[0]) out.push(jobRow(r.rows[0]));
+    }
+    return out;
+  }
+
+  async listJobs(limit = 50) {
+    await this._jobTables();
+    const r = await this.pool.query('SELECT * FROM job_queue ORDER BY id DESC LIMIT $1', [limit]);
+    return r.rows.map(jobRow);
+  }
+
+  async jobStats(now = new Date()) {
+    await this._jobTables();
+    const last = await this.pool.query(`
+      SELECT DISTINCT ON (kind) * FROM job_queue WHERE status IN ('done', 'failed') ORDER BY kind, id DESC`);
+    const live = await this.pool.query("SELECT kind, status, started_at FROM job_queue WHERE status IN ('queued', 'running') ORDER BY id");
+    const failed = await this.pool.query("SELECT COUNT(*)::int AS n FROM job_queue WHERE status = 'failed' AND finished_at >= $1::timestamptz - interval '1 day'", [now.toISOString()]);
+    return {
+      last: Object.fromEntries(last.rows.map(r => [r.kind, jobRow(r)])),
+      queued: live.rows.filter(r => r.status === 'queued').length,
+      running: live.rows.filter(r => r.status === 'running').map(r => ({ kind: r.kind, started_at: new Date(r.started_at).toISOString() })),
+      failed_24h: failed.rows[0].n
+    };
+  }
+
+  async getTownFile(name) {
+    await this._jobTables();
+    const r = await this.pool.query('SELECT data, updated_at FROM town_files WHERE name = $1', [name]);
+    const row = r.rows[0];
+    return row ? { data: row.data, updated_at: new Date(row.updated_at).toISOString() } : null;
+  }
+
+  async setTownFile(name, value, now = new Date()) {
+    await this._jobTables();
+    await this.pool.query(`
+      INSERT INTO town_files (name, data, updated_at) VALUES ($1, $2::jsonb, $3)
+      ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+    [name, JSON.stringify(value), now.toISOString()]);
+  }
+
+  // ─── A town's social kit: see FileStore. Its own table, made on first
+  // use by these methods only, which a town calls only with jobs on Railway
+  // (Victoria's too since JOBS_ON_RAILWAY.md phase 5; without jobs her kit
+  // is git's, docs/social/latest, and her database gets no new table).
+  async _socialTable() {
+    await this._jobTables();
+    if (!this._socialTablePromise) {
+      this._socialTablePromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS social_files (
+          build TEXT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, body BYTEA NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (build, name))`)
+        .catch(err => { this._socialTablePromise = null; throw err; });
+    }
+    await this._socialTablePromise;
+  }
+
+  async putSocialFile(build, name, type, body, now = new Date()) {
+    await this._socialTable();
+    await this.pool.query(`
+      DELETE FROM social_files WHERE build <> $1
+         AND build <> COALESCE((SELECT data->>'build' FROM town_files WHERE name = 'social_kit'), '')`, [build]);
+    await this.pool.query(`
+      INSERT INTO social_files (build, name, type, body, updated_at) VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (build, name) DO UPDATE SET type = EXCLUDED.type, body = EXCLUDED.body, updated_at = EXCLUDED.updated_at`,
+    [build, name, type, Buffer.from(body), now.toISOString()]);
+  }
+
+  async socialBuildSize(build) {
+    await this._socialTable();
+    const r = await this.pool.query('SELECT name, octet_length(body) AS n FROM social_files WHERE build = $1', [build]);
+    return { files: r.rows.length, bytes: r.rows.reduce((n, row) => n + Number(row.n), 0), names: r.rows.map(row => row.name) };
+  }
+
+  async getSocialBuildFile(build, name) {
+    await this._socialTable();
+    const r = await this.pool.query('SELECT type, body, updated_at FROM social_files WHERE build = $1 AND name = $2', [build, name]);
+    const row = r.rows[0];
+    return row ? { type: row.type, body: row.body, updated_at: new Date(row.updated_at).toISOString() } : null;
+  }
+
+  async publishSocialKit(build, info, now = new Date()) {
+    await this._socialTable();
+    await this.setTownFile('social_kit', { build, ...info, published_at: now.toISOString() }, now);
+    await this.pool.query('DELETE FROM social_files WHERE build <> $1', [build]);
+  }
+
+  async getSocialFile(name) {
+    await this._socialTable();
+    const r = await this.pool.query(`
+      SELECT f.type, f.body, f.updated_at, f.build FROM social_files f
+        JOIN town_files t ON t.name = 'social_kit' AND t.data->>'build' = f.build
+       WHERE f.name = $1`, [name]);
+    const row = r.rows[0];
+    return row ? { type: row.type, body: row.body, updated_at: new Date(row.updated_at).toISOString(), build: row.build } : null;
   }
 
   // ─── Contact form messages (server/contact.js) ───

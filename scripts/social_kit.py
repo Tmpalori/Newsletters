@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build the weekly social kit from the live published events.
 
-Runs on a schedule (.github/workflows/social-kit.yml) and writes
-docs/social/latest/:
+Runs daily on the town's jobs worker (scripts/jobs_worker.py, which hands
+the kit to the site's database, served at /social/latest/) and writes to
+--out (docs/social/latest/ by default, Victoria's git copy before she moved):
   - week-N.png / weekend-N.png / today-N.png   Instagram/Facebook slides (1080x1350): at most
                                  three, a teaser (cover, day-by-day peek, see-all),
                                  each with a .jpg twin (Instagram only takes JPEG)
@@ -38,7 +39,7 @@ except ImportError:  # pragma: no cover
     ZoneInfo = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
+from town import TOWN, brand_palette, site_url, town_asset, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 SITE = site_url()
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", *town_paths()["social"].strip("/").split("/"))
@@ -146,13 +147,17 @@ def _short_time(t):
 
 
 _ZIP = re.compile(r"\b\d{5}(?:-\d{4})?\b")
+# Where a geocoder string's town tail starts: ", Victoria", ", TX", ", Texas"
+# for Victoria (the old literal), the town's own city and state elsewhere.
+_PLACE_TAIL = re.compile(r",\s*(?:" + "|".join(re.escape(w.lower()) + r"\b" for w in (TOWN["city"], TOWN["state"], TOWN["state_name"]))
+                         + r"|united states\b|usa\b)", re.I)
 
 
 def clean_venue(venue):
     """A venue as people say it, not a geocoder string: '3102 Miori Ln.,
     Victoria, TX, United States, Texas 77901' → '3102 Miori Ln.'."""
     v = re.sub(r"\s+", " ", str(venue or "")).strip()
-    cut = re.search(r",\s*(?:victoria\b|tx\b|texas\b|united states\b|usa\b)", v, re.I)
+    cut = _PLACE_TAIL.search(v)
     if cut and cut.start() > 0:
         v = v[:cut.start()]
     v = re.sub(r",?\s*\bunited states\b", "", v, flags=re.I)
@@ -283,8 +288,27 @@ def sponsor_lines(sponsor, start, platform):
     return [text, ""]
 
 
-def captions(groups, start, end, kind, handles=None, sponsor=None):
-    """Return {'facebook': str, 'instagram': str} for a kit."""
+def thanks_lines(partners, today):
+    """The monthly Facebook thank-you to the town's category partners
+    (server/partners.js), promised on /advertise as "a monthly Facebook
+    thank-you naming your business": in the kits built on the 1st of the
+    month, so the month's first post carries it. One line naming them and
+    one link to the town's /partners page (a link per partner cluttered
+    the post); each partner's own link there is click-counted for its
+    report. Facebook only: no town posts to Instagram yet. Never a price."""
+    if not partners or not today or today.day != 1:
+        return []
+    names = [p["name"] for p in partners if isinstance(p, dict) and p.get("name") and p.get("id")]
+    if not names:
+        return []
+    listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return [f"🙏 Thanks to our local partners for keeping {TOWN['site_name']} free: {listed}. "
+            f"Meet them 👉 {SITE}/partners {AD_TAG}", ""]
+
+
+def captions(groups, start, end, kind, handles=None, sponsor=None, partners=None, today=None):
+    """Return {'facebook': str, 'instagram': str} for a kit. partners: the
+    live category partners from /events.json (thanked on the 1st)."""
     title, _, path = TITLES[kind]
     total = sum(len(v) for v in groups.values())
     head = f"{title} ({_range_label(start, end)})" + (f": {total} event{'s' if total != 1 else ''}" if total else "")
@@ -295,11 +319,16 @@ def captions(groups, start, end, kind, handles=None, sponsor=None):
         bool(sponsor_lines(sponsor, start, "facebook"))
     if paid:
         head = f"{AD_TAG} {head}"
+    # The partners' thank-you is paid content too (Facebook only); it is
+    # labeled on its own line (thanks_lines ends it with #ad), like a paid
+    # pick's line, so the post doesn't open with #ad for it.
+    thanks = thanks_lines(partners, today)
+    fb_head = head
     tags = venue_tags(groups, handles or {})
     # Same call to action as the ad, the slides and the site: the newsletter.
     see_all = "👉 Full list: " if not total else "👉 Details: " if total == 1 else f"👉 See all {total}: "
     body = _body(groups, kind)
-    fb = "\n".join([head, ""] + sponsor_lines(sponsor, start, "facebook") + body + [f"{see_all}{SITE}{path}",
+    fb = "\n".join([fb_head, ""] + sponsor_lines(sponsor, start, "facebook") + body + thanks + [f"{see_all}{SITE}{path}",
                                           f"Don't miss a thing: get every event free in your inbox every Monday and Thursday 👉 {SITE}/subscribe", "", HASHTAGS])
 
     def ig_caption(body, tags):
@@ -336,6 +365,12 @@ MUTED = (92, 86, 120)
 ACCENT = (232, 96, 38)   # sunset, darkened a touch for contrast on cream
 SUN = (255, 201, 60)
 CARD = (255, 255, 255)
+if TOWN["id"] != "victoria":
+    # Another town's plain slides in its own colors (towns/<slug>/BRAND.md).
+    _hex = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+    _pal = brand_palette()
+    BG, INK, SUN, ACCENT = _hex(_pal["paper"]), _hex(_pal["ink"]), _hex(_pal["highlight"]), _hex(_pal["primary"])
+    MUTED = tuple(round(c + (255 - c) * 0.3) for c in INK)
 
 FONT_DIRS = ["/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu", "/Library/Fonts"]
 
@@ -365,7 +400,8 @@ def _wrap(draw, text, font, width):
     return lines
 
 
-LOGO = os.path.join(os.path.dirname(__file__), "..", "docs", "logo.png")
+# The town's own badge (Victoria's docs/logo.png); none rather than Victoria's.
+LOGO = town_asset("logo.png")
 
 
 def _header(draw, kicker, title):
@@ -373,6 +409,8 @@ def _header(draw, kicker, title):
     draw.rectangle([0, 300, W, 310], fill=INK)
     try:
         from PIL import Image
+        if not LOGO:
+            raise FileNotFoundError("no logo")
         logo = Image.open(LOGO).convert("RGBA").resize((128, 128))
         draw._image.paste(logo, (W - 72 - 128, 60), logo)
     except Exception:
@@ -475,7 +513,7 @@ def make_reel(out_dir, slides, name="weekend.mp4", seconds=4):
         for s in slides:
             f.write(f"file '{s}'\nduration {seconds}\n")
         f.write(f"file '{slides[-1]}'\n")  # concat demuxer needs the last frame repeated
-    bg = "0xFFF4D6"  # the slides' cream, so the Reel's padding blends in
+    bg = "0x" + brand_palette()["paper"].lstrip("#")  # the slides' paper, so the Reel's padding blends in
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "reel.txt",
            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
            "-vf", f"scale=1080:1350,pad=1080:1920:0:285:color={bg},fps=30,format=yuv420p",
@@ -598,7 +636,8 @@ def fetch_events(url, sleep=time.sleep):
 
 
 def fetch_payload(url, sleep=time.sleep):
-    """/events.json as {'events': [...], 'sponsor': {...} or None}."""
+    """/events.json as {'events': [...], 'sponsor': {...} or None,
+    'partners': [...live category partners]}."""
     req = urllib.request.Request(url, headers={"User-Agent": "TheVic361-SocialKit/1.0"})
     for i, wait in enumerate((*FETCH_BACKOFF, None)):
         try:
@@ -617,7 +656,15 @@ def fetch_payload(url, sleep=time.sleep):
             if isinstance(ev.get(k), str):
                 ev[k] = html.unescape(ev[k])
     sponsor = data.get("sponsor") if isinstance(data, dict) and isinstance(data.get("sponsor"), dict) else None
-    return {"events": events, "sponsor": sponsor}
+    return {"events": events, "sponsor": sponsor, "partners": live_partners(data)}
+
+
+def live_partners(data):
+    """The live category partners in /events.json's `partners` (absent until
+    a town has had one; a paused town has none)."""
+    p = data.get("partners") if isinstance(data, dict) else None
+    active = p.get("active") if isinstance(p, dict) else None
+    return [x for x in active if isinstance(x, dict)] if isinstance(active, list) else []
 
 
 def main(argv=None):
@@ -634,10 +681,10 @@ def main(argv=None):
     if args.events_file:
         with open(args.events_file) as f:
             data = json.load(f)
-        events, sponsor = data.get("events", []), data.get("sponsor")
+        events, sponsor, partners = data.get("events", []), data.get("sponsor"), live_partners(data)
     else:
         payload = fetch_payload(args.events_url)
-        events, sponsor = payload["events"], payload["sponsor"]
+        events, sponsor, partners = payload["events"], payload["sponsor"], payload["partners"]
     today = date.fromisoformat(args.today) if args.today else today_central()
     os.makedirs(args.out, exist_ok=True)
     for old in os.listdir(args.out):
@@ -662,14 +709,16 @@ def main(argv=None):
             week_groups = groups
         slides = render_slides(groups, start, end, kind, args.out)
         # featured: Vic's Picks in the kit (the Thursday run posts "today"
-        # too when it has one; see social-kit.yml).
+        # too when it has one; see scripts/jobs_worker.py social_plan).
         kit = {"slides": slides, "slides_jpg": jpeg_copies(args.out, slides),
-               "captions": captions(groups, start, end, kind, handles, sponsor),
+               "captions": captions(groups, start, end, kind, handles, sponsor, partners, today),
                "events": sum(len(v) for v in groups.values()),
                # Paid picks only: the Thursday "today" post exists so a paid
                # pick that day is always posted, not for editor's picks.
                "featured": sum(1 for v in groups.values() for e in v if is_paid_pick(e))}
-        if kind == "weekend":
+        # The Reel is for Instagram only (Facebook gets the photos), so a
+        # town with no Instagram linked (IG_USER_ID unset) skips the build.
+        if kind == "weekend" and os.environ.get("IG_USER_ID", "").strip():
             reel = make_reel(args.out, slides)
             if reel:
                 kit["reel"] = reel
@@ -682,7 +731,8 @@ def main(argv=None):
     with open(manifest_path, "w") as f:
         # `build` changes every run, so the poster can tell this deploy from an
         # earlier one the same day before it posts (see wait_for_deploy).
-        build = os.environ.get("GITHUB_RUN_ID") and f"{os.environ['GITHUB_RUN_ID']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+        # SOCIAL_BUILD: the jobs worker's own id for this run (scripts/jobs_worker.py).
+        build = os.environ.get("SOCIAL_BUILD", "").strip() or os.environ.get("GITHUB_RUN_ID") and f"{os.environ['GITHUB_RUN_ID']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
         json.dump({"generated_for": today.isoformat(), "build": build or datetime.now().isoformat(timespec="seconds"),
                    "kits": kits}, f, indent=2, ensure_ascii=False)
 

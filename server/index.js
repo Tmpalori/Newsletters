@@ -13,7 +13,7 @@
  *   - Submitter email + IP never leave the admin scope.
  */
 
-import { town, townConfig, useTown, VICTORIA, townAssetPath, townPaths, townBootProblems, townInputs, townWorkflowsReady, victoriaBootProblem } from './town.js';
+import { town, townConfig, useTown, VICTORIA, townAssetPath, townPaths, townBootProblems, townWorkflowsReady, victoriaBootProblem } from './town.js';
 import { localizeHtml } from './localize.js';
 import express from 'express';
 import compression from 'compression';
@@ -35,16 +35,19 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary, keyOk } from './hq.js';
+import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
+import { createJobs, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
+import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
 import { stripeConfig, createStripe, createSponsors, samplePreviews, renderLogoTooLargePage, sameEvent, eventWeekStats, LEAD_IN_DAYS } from './sponsors.js';
-import { slackConfig, createSlack } from './slack.js';
+import { partnerState, partnerBoxHtml, renderPartnersPage, categoryOf } from './partners.js';
+import { slackConfig, createSlack, slackEscape } from './slack.js';
 import { createInbound, inboundConfig } from './inbound.js';
 import { registerContact } from './contact.js';
 import { renderEventCard, eventCardVersion } from './ogImage.js';
@@ -71,7 +74,6 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DOCS_DIR = path.join(REPO_ROOT, 'docs');
-const WEEKLY_COLLECT_WORKFLOW = 'weekly-collect.yml';
 // Hourly site check (healthCheck): fewer upcoming events than this, or no
 // new collect in this many days (it runs Sunday and Wednesday), alerts.
 const MIN_UPCOMING = 10;
@@ -175,7 +177,10 @@ export async function createApp(opts = {}) {
   // Owner pings in Slack (server/slack.js); a no-op until SLACK_WEBHOOK_URL is set.
   // Every ping is also kept in the owner inbox for HQ (server/inbox.js).
   let inboxStore = null;
-  const rawSlack = opts.slack || createSlack(slackConfig(process.env, opts));
+  // Every town's messages carry its tag: SLACK_TOWN_TAG, else its city (as
+  // scripts/slack_notify.py does), so the shared channels read the same.
+  const townTag = opts.slackTownTag ?? ((process.env.SLACK_TOWN_TAG || '').trim() || town.city);
+  const rawSlack = opts.slack || createSlack(slackConfig(process.env, { ...opts, slackTownTag: townTag }));
   const slack = withInbox(rawSlack, () => inboxStore);
   const canonicalHost = new URL(siteUrl).host;
   const apexHost = canonicalHost.replace(/^www\./, '');
@@ -297,6 +302,26 @@ export async function createApp(opts = {}) {
   });
   const store = storeBundle.store;
   inboxStore = store;
+  // The town's jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md): off
+  // (404, nothing queued) unless JOBS_ON_RAILWAY=1 and JOBS_SECRET are set.
+  const jobs = opts.jobs || createJobs({
+    store, slack, siteUrl, env: opts.jobsEnv || process.env,
+    nowFn: () => (opts.now || (() => new Date()))(),
+    // Victoria's social kit was posted from GitHub, which kept what went out
+    // in git (docs/social/latest/posted.json): her worker starts from it, so
+    // the day she moved never posts a day and kind twice.
+    seeds: town.id === VICTORIA.id ? { social_posted: () => readJsonFile(opts.socialPostedFile || path.join(DOCS_DIR, 'social', 'latest', 'posted.json')).catch(() => null) } : {},
+    // AUTO_PUBLISH=0 (the owner publishes by hand) holds the new candidates for the admin.
+    // A publish that fails is retried hourly, which says when it caught up.
+    publish: async () => {
+      if ((opts.jobsEnv || process.env).AUTO_PUBLISH === '0') return null;
+      try {
+        const r = await publishFresh();
+        if (r && r.ok === false) autoFailed = true;
+        return r;
+      } catch (err) { autoFailed = true; throw err; }
+    }
+  });
   // Pings from before the store existed (a database alert at boot), and any
   // a database outage held back, go in now and every 2 minutes after.
   slack.flushInbox();
@@ -395,7 +420,10 @@ export async function createApp(opts = {}) {
     getVenues: () => venues,
     // The public events before placements, to show in the Sponsors tab when
     // a paid Vic's Pick isn't on the site.
-    getPayload: () => loadPublicPayload()
+    getPayload: () => loadPublicPayload(),
+    // Signs category partners' manage links (server/partners.js). A secret
+    // that doesn't change with deploys, so links in old emails keep working.
+    manageSecret: opts.partnerManageSecret ?? process.env.PARTNER_LINK_SECRET ?? process.env.ADMIN_SESSION_SECRET ?? stripeCfg.webhookSecret ?? ''
   });
   sponsors.registerWebhook(app);
   // Replies to news@thevic361.com, received by Resend, posted to Slack
@@ -412,8 +440,11 @@ export async function createApp(opts = {}) {
   const smallJson = express.json({ limit: '64kb' });
   const sponsorEditJson = express.json({ limit: '600kb' });
   const publishJson = express.json({ limit: '2mb' });
-  app.use((req, res, next) => (/^\/api\/admin\/sponsors\/[^/]+$/.test(req.path) ? sponsorEditJson
-    : req.path === '/api/admin/publish-events' ? publishJson : smallJson)(req, res, next));
+  // The jobs API (server/jobs.js) parses its own bodies, after its secret
+  // checks out: a collect's candidates are a few MB.
+  app.use((req, res, next) => (req.path.startsWith('/api/jobs/') ? next()
+    : (/^\/api\/admin\/sponsors\/[^/]+$/.test(req.path) ? sponsorEditJson
+      : req.path === '/api/admin/publish-events' ? publishJson : smallJson)(req, res, next)));
   // The sponsor checkout form can carry a logo (a data URL, shrunk in the
   // browser), so it alone gets a bigger limit.
   const smallForms = express.urlencoded({ extended: false, limit: '64kb' });
@@ -432,7 +463,7 @@ export async function createApp(opts = {}) {
       admin_legacy_token_enabled: Boolean(adminToken),
       // The admin will only show the publish button when a server-side GitHub
       // token is configured. No secret value is exposed.
-      github_publish_enabled: github.isConfigured(),
+      github_publish_enabled: !jobs.enabled && github.isConfigured(),
       github_owner: github.owner,
       github_repo: github.repo,
       github_branch: github.branch,
@@ -440,21 +471,19 @@ export async function createApp(opts = {}) {
       github_candidates_path: PATHS.candidates,
       // What the admin needs to word things for this town (docs/admin.js).
       town: { id: town.id, siteName: town.siteName, domain: town.domain, city: town.city, pickName: town.pickName, timezone: town.timezone },
-      // The Sources tab uses this to enable or disable the manual-pull button.
-      // We piggyback on github_publish_enabled because both gates require a
-      // GITHUB_TOKEN. The actual trigger endpoint also enforces this. Note:
-      // this is presence-only — the token may be present but invalid; the UI
-      // surfaces that distinction via the trigger-collect response.
-      sources_trigger_enabled: github.isConfigured(),
-      // GitHub Actions page for the Weekly Collect workflow. The admin Sources
-      // tab links to this as a manual fallback when one-click Pull Now isn't
-      // available (no token, invalid token, etc.).
-      sources_actions_url: `https://github.com/${github.owner}/${github.repo}` +
-        `/actions/workflows/${WEEKLY_COLLECT_WORKFLOW}`,
+      // The Sources tab uses this to enable or disable Pull Now, which
+      // queues a collect for the town's jobs worker.
+      sources_trigger_enabled: jobs.enabled,
+      sources_actions_url: null,
       // Another town only: whether it may start workflows yet (TOWN_WORKFLOWS=1
       // once its GitHub Environment exists), for scripts/launch_check.py. A
-      // flag, no secret. Victoria's config stays exactly as it was.
-      ...(town.id !== VICTORIA.id ? { town_workflows: townWorkflowsReady() } : {})
+      // flag, no secret. Victoria's config stays exactly as it was until her
+      // jobs move to Railway; then it says so too, which GitHub's submission
+      // review cron reads to stand down (JOBS_ON_RAILWAY.md phase 5).
+      ...(town.id !== VICTORIA.id ? { town_workflows: jobs.enabled || townWorkflowsReady(), jobs_on_railway: jobs.enabled }
+        : jobs.enabled ? { jobs_on_railway: true } : {}),
+      // A paused town (TOWN_DORMANT=1), for the admin and HQ.
+      ...(town.dormant ? { dormant: true } : {})
     });
   });
 
@@ -846,7 +875,7 @@ export async function createApp(opts = {}) {
       if (patch.status === 'duplicate') {
         let collector = [];
         try {
-          const c = await readJsonFile(candidatesFile);
+          const c = await readCandidates();
           collector = Array.isArray(c && c.events) ? c.events : [];
         } catch (_) { /* no candidates: unpublish as before */ }
         const listed = k => {
@@ -900,13 +929,36 @@ export async function createApp(opts = {}) {
   // editor sees them in the picker without needing a separate "Pull approved"
   // round trip.
   const candidatesFile = opts.candidatesFile || CANDIDATES_FILE;
+  // The collector's latest candidates: the bundled candidates.json (a
+  // commit), or with jobs on Railway the copy the last collect handed the
+  // site, whichever was collected later. Victoria (no jobs on Railway)
+  // reads only the file, as before.
+  async function readCandidates() {
+    let fromFile = null;
+    let fileErr = null;
+    try { fromFile = await readJsonFile(candidatesFile); } catch (err) { fileErr = err; }
+    // A failed read of the collect's copy fails the whole read: falling back
+    // to the bundled file would publish an older collect over a newer one.
+    const fromJobs = jobs.enabled ? (((await store.getTownFile('candidates')) || {}).data || null) : null;
+    const at = c => Date.parse((c && c.last_updated) || '') || 0;
+    if (fromJobs && (!fromFile || at(fromJobs) >= at(fromFile))) return fromJobs;
+    if (fileErr) throw fileErr;
+    return fromFile;
+  }
   app.get('/api/admin/candidates', requireAdmin, async (req, res) => {
     let sha = null;
     let events = [];
     let source = 'unknown';
     let warning = null;
 
-    if (github.isConfigured()) {
+    if (jobs.enabled) {
+      try {
+        const got = await readCandidates();
+        events = Array.isArray(got && got.events) ? got.events : [];
+        source = 'jobs';
+      } catch (_) { /* fall through to GitHub / the file */ }
+    }
+    if (source !== 'jobs' && !jobs.enabled && github.isConfigured()) {
       try {
         const got = await github.getJsonFile(PATHS.candidates);
         sha = got.sha;
@@ -918,7 +970,7 @@ export async function createApp(opts = {}) {
       }
     }
 
-    if (source !== 'github') {
+    if (source !== 'github' && source !== 'jobs') {
       try {
         const local = await readJsonFile(candidatesFile);
         events = Array.isArray(local && local.events) ? local.events : [];
@@ -1002,7 +1054,7 @@ export async function createApp(opts = {}) {
     const found = [];
     const add = list => { for (const e of list || []) if (e && eventKeyOf(e) === key) found.push(e); };
     try { add(((await store.getPublished()) || {}).events); } catch (_) { /* unreadable: unknown */ }
-    try { add((await readJsonFile(candidatesFile)).events); } catch (_) { /* none */ }
+    try { add((await readCandidates()).events); } catch (_) { /* none */ }
     try {
       for (const ed of await store.listEventEdits()) {
         if (ed.original_key === key || eventKeyOf(ed.payload || {}) === key) found.push(ed.payload || {});
@@ -1145,7 +1197,8 @@ export async function createApp(opts = {}) {
       //   1. body.extras (caller explicitly provided them)
       //   2. last published payload from the store
       //   3. bundled docs/events.json on disk
-      const PROTECTED_KEYS = new Set(['last_updated', 'events']);
+      // partners is put on at read time (sponsors.js applyPlacements).
+      const PROTECTED_KEYS = new Set(['last_updated', 'events', 'partners']);
       const extras = {};
       const explicit = (body.extras && typeof body.extras === 'object' && !Array.isArray(body.extras))
         ? body.extras : null;
@@ -1197,8 +1250,12 @@ export async function createApp(opts = {}) {
       destinations: { local: { ok: true } }
     };
 
-    // Step 2 — best-effort GitHub commit. Only attempted when configured.
-    if (github.isConfigured()) {
+    // Step 2 — best-effort GitHub commit. Only attempted when configured,
+    // and never for a town whose jobs run on Railway: its events live in its
+    // database only (docs/events.json stays as Victoria's frozen fallback).
+    if (jobs.enabled) {
+      result.destinations.github = { ok: false, error: 'github-not-configured', message: 'Events live in the database (jobs on Railway); nothing is committed to GitHub.' };
+    } else if (github.isConfigured()) {
       let sha = null;
       try {
         const cur = await github.getJsonFile(PATHS.events);
@@ -1365,24 +1422,24 @@ export async function createApp(opts = {}) {
   // candidates.json by collect_events.py). If the file is missing — e.g.
   // before the first weekly run after this code ships — we still return a
   // useful payload with placeholder rows + the next scheduled run time.
-  // Public Actions URL for the Weekly Collect workflow. Used both as a
-  // graceful fallback in 401/503 responses and as a help link the UI can
-  // always show ("Run workflow on GitHub").
-  function actionsUrl() {
-    return `https://github.com/${github.owner}/${github.repo}` +
-      `/actions/workflows/${WEEKLY_COLLECT_WORKFLOW}`;
-  }
-
   const metadataFile = opts.collectionMetadataFile || COLLECTION_METADATA_FILE;
   app.get(hqPaths('/api/admin/sources'), adminOrHq, async (req, res) => {
     try {
-      const read = await readMetadataFile(metadataFile);
+      let read = await readMetadataFile(metadataFile);
+      // With jobs on Railway the last collect handed its metadata to the
+      // site; it wins when it's newer than the bundled file.
+      if (jobs.enabled) {
+        const f = await store.getTownFile('collection_metadata').catch(() => null);
+        const ran = m => Date.parse((m && m.last_run_at) || '') || 0;
+        if (f && f.data && (!read || ran(f.data) >= ran(read.meta))) read = { meta: f.data, mtime: new Date(f.updated_at) };
+      }
       const payload = buildSourcesPayload({
         metadata: read ? read.meta : null,
         mtime: read ? read.mtime : null,
         now: new Date(),
-        githubConfigured: github.isConfigured(),
-        actionsUrl: actionsUrl(),
+        // Pull Now queues a collect for the jobs worker.
+        githubConfigured: jobs.enabled,
+        actionsUrl: null,
       });
       res.json(payload);
     } catch (err) {
@@ -1391,75 +1448,29 @@ export async function createApp(opts = {}) {
     }
   });
 
-  // ─── Admin: trigger weekly collect workflow ───────────────────────────
+  // ─── Admin: Pull Now (queue a collect) ────────────────────────────────
   // POST /api/admin/trigger-collect
-  // Fires a workflow_dispatch on the Weekly Collect GitHub Actions workflow.
-  // Requires GITHUB_TOKEN with `actions:write` scope. Degrades clearly when
-  // the token is missing (503 + diagnostic message) so the UI can disable
-  // the button instead of silently failing.
-  //
-  // Failure-mode contract (consumed by the admin Sources tab):
-  //   error: 'github-not-configured'  -> no token at all (503)
-  //   error: 'github-token-invalid'   -> 502; GitHub said 401 Bad credentials (token stale/revoked)
-  //   error: 'dispatch-failed'        -> 403/404/etc, original github_status returned
-  // In every case we include `actions_url` so the UI can offer a manual fallback,
-  // and a `save_publish_unaffected: true` flag so the UI never implies that the
-  // public site failed to publish — Save & Publish does not depend on this token.
+  // Queues a collect for the town's jobs worker (JOBS_ON_RAILWAY.md). A
+  // town without jobs on Railway can't collect from here: 409
+  // 'jobs-not-on'. `save_publish_unaffected: true` on every failure, so the
+  // UI never implies that Save & Publish failed.
   app.post('/api/admin/trigger-collect', requireAdmin, async (req, res) => {
-    if (!townWorkflowsReady()) {
-      return res.status(409).json({
-        ok: false,
-        error: 'town-workflows-not-ready',
-        message: "This town's GitHub workflows aren't set up yet (its GitHub Environment, then TOWN_WORKFLOWS=1 in Railway), so Pull Now is off. Save & Publish is unaffected.",
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
-    }
-    if (!github.isConfigured()) {
-      return res.status(503).json({
-        ok: false,
-        error: 'github-not-configured',
-        message: 'No server-side GitHub token is configured, so one-click Pull Now is disabled. You can still run the Weekly Collect workflow manually on GitHub. Save & Publish is unaffected.',
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
-    }
-    try {
-      await github.dispatchWorkflow(WEEKLY_COLLECT_WORKFLOW, github.branch, townInputs());
-      res.json({
-        ok: true,
-        workflow: WEEKLY_COLLECT_WORKFLOW,
-        ref: github.branch,
-        message: 'Weekly Collect workflow dispatched. Refresh in a minute or two to see updated counts.',
-        actions_url: actionsUrl()
-      });
-    } catch (err) {
-      console.error('[admin] trigger-collect failed:', err.message);
-      // 401 = the GITHUB_TOKEN on the server is invalid/expired/revoked. Surface
-      // this as a recognizable "token-invalid" state so the UI can render
-      // friendly copy and a fallback link instead of a raw "Bad credentials".
-      if (err.status === 401) {
-        return res.status(502).json({
-          ok: false,
-          error: 'github-token-invalid',
-          github_status: 401,
-          message: 'The server\'s GITHUB_TOKEN is invalid or expired, so one-click Pull Now can\'t dispatch the workflow. You can still run the Weekly Collect workflow manually on GitHub using your normal login. Save & Publish is unaffected — only the one-click Pull Now button needs this token.',
-          actions_url: actionsUrl(),
-          save_publish_unaffected: true
-        });
+    // Jobs on Railway: queue it for the town's jobs worker.
+    if (jobs.enabled) {
+      try {
+        const q = await jobs.enqueue('collect', `manual-${nowFn().toISOString()}`);
+        if (!q.queued) return res.json({ ok: true, queued: false, already: true, message: 'A collect is already queued or running; its events publish as soon as it finishes.' });
+        return res.json({ ok: true, queued: true, message: 'Collect queued. It takes about half an hour; the new events publish as soon as it finishes.' });
+      } catch (err) {
+        return res.status(500).json({ ok: false, error: 'queue-failed', message: err.message, save_publish_unaffected: true });
       }
-      // 403 typically means the token lacks `actions:write`. 404 = workflow
-      // file not found on the configured branch. Both are useful to surface.
-      const status = (err.status === 403 || err.status === 404) ? err.status : 502;
-      res.status(status).json({
-        ok: false,
-        error: 'dispatch-failed',
-        github_status: err.status || null,
-        message: err.detail || err.message,
-        actions_url: actionsUrl(),
-        save_publish_unaffected: true
-      });
     }
+    return res.status(409).json({
+      ok: false,
+      error: 'jobs-not-on',
+      message: "This town's jobs don't run on Railway yet (JOBS_ON_RAILWAY=1, JOBS_SECRET and its jobs service), so Pull Now is off. Save & Publish is unaffected.",
+      save_publish_unaffected: true
+    });
   });
 
   // ─── Admin: approved -> candidate-shaped events ───
@@ -1853,8 +1864,8 @@ export async function createApp(opts = {}) {
   // Cron secrets, one per endpoint: NEWSLETTER_CRON_SECRET (newsletter
   // send), EVENT_CHECK_SECRET (hide events), SUBMISSION_REVIEW_SECRET
   // (approve and publish submissions). The fallbacks below (and the same
-  // chain in event-check.yml / submission-review.yml) keep setups made
-  // before the later two existed working, but then one leaked value grants
+  // chain in the jobs worker's scripts) keep setups made before the later
+  // two existed working, but then one leaked value grants
   // all three, so the setup checklist flags a shared secret.
   const eventCheckSecret = opts.eventCheckSecret ??
     (process.env.EVENT_CHECK_SECRET || process.env.NEWSLETTER_CRON_SECRET || '');
@@ -1863,13 +1874,16 @@ export async function createApp(opts = {}) {
 
   // Growth (server/growth.js): Admin → Growth, and Meta's daily ad spend
   // from scripts/meta_ads.py. ADS_SPEND_SECRET, else the submission review
-  // secret (meta-ads.yml sends the same fallback); it can only add numbers.
+  // secret (the jobs worker sends the same fallback); it can only add numbers.
   const adsSpendSecret = opts.adsSpendSecret ?? (process.env.ADS_SPEND_SECRET || submissionReviewSecret);
   registerGrowth(app, {
     store, requireAdmin, adminOrHq, nowFn: () => (opts.now || (() => new Date()))(), secret: adsSpendSecret,
     getEvents: async () => [...(((await getPublicPayload()) || {}).events || []), ...(await listArchived().catch(() => []))],
     getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : [])
   });
+
+  // The town's jobs worker (server/jobs.js): claim, finish, hand over files.
+  jobs.register(app);
 
   // GitHub workflows' alerts into the owner inbox (server/opsReport.js).
   registerOpsReport(app, {
@@ -1922,6 +1936,8 @@ export async function createApp(opts = {}) {
       try {
         const h = crypto.createHash('sha1');
         for (const f of ['base.css', 'style.css', 'app.js']) h.update(readFileSync(path.join(DOCS_DIR, f)));
+        // Another town's /style.css carries its palette (server/palette.js).
+        h.update(townStyleCss(town));
         assetVersion = h.digest('hex').slice(0, 10);
       } catch (_) { assetVersion = ''; }
     }
@@ -2005,7 +2021,9 @@ export async function createApp(opts = {}) {
       const archived = withoutHidden(await listArchived(), payload);
       const now = nowFn();
       res.locals.seasons = activeSeasons(payload.events, archived, now);
-      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, archived, venues });
+      // partners: live category partners and open categories (null in a
+      // paused town: nothing about partners shows).
+      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues });
     } catch (err) {
       next(err);
     }
@@ -2032,9 +2050,17 @@ export async function createApp(opts = {}) {
     app.get(page.path, pageHandler(async (req, res, payload, ctx) => {
       // Day pages (today, this weekend, next week) are day lists; the
       // category pages (free, kids, music...) are guides and keep everything.
-      sendHtml(res, renderHubPage(page, page.range === 'upcoming' ? payload.events : shown(payload.events), ctx));
+      sendHtml(res, renderHubPage(page, page.range === 'upcoming' ? payload.events : shown(payload.events),
+        { ...ctx, partnerBox: partnerBoxHtml(page.path, ctx.partners, siteUrl) }));
     }));
   }
+
+  // Our local partners (server/partners.js): no prices here; a paused town
+  // has no such page.
+  app.get('/partners', pageHandler(async (req, res, payload, ctx, next) => {
+    if (!ctx.partners) return sendHtml(res, renderNotFoundPage({ siteUrl, kind: 'page' }), 404);
+    sendHtml(res, renderPartnersPage({ siteUrl, state: ctx.partners }));
+  }));
 
   // { ev } for a page to show; { moved: page } for a renamed or re-dated
   // event (301 there); { gone: true } (410) for an event deliberately taken
@@ -2163,7 +2189,8 @@ export async function createApp(opts = {}) {
     let subscribers = 0;
     try { subscribers = typeof store.countSubscribers === 'function' ? (await store.countSubscribers()).active || 0 : 0; } catch (_) { /* numbers are a bonus */ }
     sendHtml(res, renderAdvertisePage({ ...ctx, checkout: stripeCfg.enabled, previews: samplePreviews(),
-      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers, (reachNow() || {}).readers || 0) }));
+      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers, (reachNow() || {}).readers || 0),
+      partnerOpen: ctx.partners ? ctx.partners.open.map(id => (categoryOf(id) || { label: id }).label) : null }));
   }));
 
   // Contact form → Slack; replaces publishing an email address.
@@ -2301,6 +2328,7 @@ export async function createApp(opts = {}) {
     res.set('Cache-Control', 'public, max-age=300');
     const extraPaths = [
       '/venues', '/subscribe', '/privacy', '/terms', '/advertising-terms', '/accessibility', '/referral-rules',
+      ...(ctx.partners ? ['/partners'] : []),
       ...activeSeasons(payload.events, ctx.archived, ctx.now).map(s => s.path),
       ...venuesWithEvents(venues, payload.events, ctx.archived, ctx.now).map(v => v.path)
     ];
@@ -2327,7 +2355,7 @@ export async function createApp(opts = {}) {
   // new candidates go live without anyone opening the admin. Production
   // only, so PR environments and tests never publish on their own.
   const autoPublish = createAutoPublish({
-    store, candidatesFile, readJsonFile, siteUrl, slack, archiveEvents,
+    store, candidatesFile, readJsonFile: f => (f === candidatesFile ? readCandidates() : readJsonFile(f)), siteUrl, slack, archiveEvents,
     nowFn: () => (opts.now || (() => new Date()))()
   });
   app.post('/api/admin/auto-publish', requireAdmin, async (req, res, next) => {
@@ -2434,8 +2462,10 @@ export async function createApp(opts = {}) {
     }
   });
 
-  const autoOnBoot = opts.autoPublish ??
-    (process.env.AUTO_PUBLISH !== '0' && process.env.RAILWAY_ENVIRONMENT_NAME === 'production');
+  // A paused town (TOWN_DORMANT=1) leaves its published list as it is: no
+  // collect is coming, and a missing candidates file isn't news.
+  const autoOnBoot = !town.dormant && (opts.autoPublish ??
+    (process.env.AUTO_PUBLISH !== '0' && process.env.RAILWAY_ENVIRONMENT_NAME === 'production'));
   // One collector publish at a time: the hourly retry below must not race
   // a boot run that is still waiting on a slow database.
   let autoRun = null;
@@ -2444,14 +2474,28 @@ export async function createApp(opts = {}) {
     if (!autoRun) autoRun = autoPublish.run().finally(() => { autoRun = null; });
     return autoRun;
   }
+  // A run that reads the candidates now: one already under way may have read
+  // the old ones (the jobs worker's upload of new candidates).
+  function publishFresh() {
+    return (autoRun || Promise.resolve()).catch(() => {}).then(() => runAutoPublish());
+  }
+  // Jobs and workflows off: nothing collects for this town (Kearney and
+  // Tupelo while paused). Victoria always has one or the other.
+  const townPaused = () => !jobs.enabled && !townWorkflowsReady();
   if (autoOnBoot) {
     const t = setTimeout(() => {
-      runAutoPublish().then(r => {
-        // A town whose workflows aren't on yet has never collected, so it has
-        // no candidates.json: expected until launch, not an alert (it fired
-        // on every deploy of main). Victoria is always ready.
-        if (r && !r.ok && r.error === 'no-candidates' && !townWorkflowsReady()) {
-          console.log('[auto-publish] no candidates yet; this town has not collected (TOWN_WORKFLOWS is off)');
+      runAutoPublish().then(async r => {
+        // A town that has never collected has no candidates.json: expected
+        // until its first collect, not an alert (it fired on every deploy of
+        // main). Victoria has always collected.
+        if (r && !r.ok && r.error === 'no-candidates' && town.id !== VICTORIA.id && !(await hasCollected())) {
+          console.log('[auto-publish] no candidates yet; this town has not collected');
+          return;
+        }
+        // A paused town can't collect again, so a missing candidates.json is
+        // expected, not news on every deploy.
+        if (r && !r.ok && r.error === 'no-candidates' && townPaused()) {
+          console.log('[auto-publish] no candidates; this town is paused (jobs and workflows off)');
           return;
         }
         // e.g. candidates.json unreadable: run() reports it rather than throwing.
@@ -2475,7 +2519,7 @@ export async function createApp(opts = {}) {
   // a boot publish was missed. Failures here only log; the boot alert has
   // already said so, and the site check flags a stalled list.
   async function retryAutoPublish() {
-    if (!autoOnBoot) return null;
+    if (!autoOnBoot || townPaused()) return null;
     try {
       const r = await runAutoPublish();
       if (r && r.ok && !r.skipped && autoFailed) {
@@ -2494,7 +2538,11 @@ export async function createApp(opts = {}) {
   // The server is the clock for the Monday newsletter and the daily
   // GitHub workflows, because GitHub's own cron runs hours late.
   const scheduler = opts.scheduler || createScheduler({
-    store, github, slack, siteUrl, nowFn: () => nowFn(),
+    store, slack, siteUrl, nowFn: () => nowFn(),
+    // Jobs on Railway: the town's worker jobs go to its jobs worker (every
+    // town's, Victoria's included); without them they don't run.
+    queueJob: jobs.enabled ? (job, slot) => jobs.enqueue(job.kind, slot) : null,
+    canQueue: job => canRunOnWorker(job),
     handlers: {
       newsletter: () => newsletterApi.scheduledSend(),
       newsletterReady: () => newsletter.enabled && newsletter.autosend,
@@ -2508,30 +2556,42 @@ export async function createApp(opts = {}) {
           : undefined,
       // Daily: personal-data retention (server/privacy.js).
       privacyPurge: now => purgePersonalData(store, now),
+      collected: () => hasCollected(),
       health: async now => {
         await retryAutoPublish();
         // Hourly: the one "tap to confirm" reminder to yesterday's
-        // unconfirmed signups (server/newsletter.js).
-        try { await newsletterApi.sendConfirmReminders(now); } catch (err) { console.warn('[newsletter] confirm reminders failed:', err.message); }
+        // unconfirmed signups (server/newsletter.js). Not from a paused town.
+        if (!town.dormant) {
+          try { await newsletterApi.sendConfirmReminders(now); } catch (err) { console.warn('[newsletter] confirm reminders failed:', err.message); }
+        }
         return healthCheck(now);
       }
     }
   });
   if (opts.startScheduler ?? schedulerEnabled()) scheduler.start();
 
-  // The fallback GitHub crons ask this before repeating a job; public, as
-  // it only says whether a named job ran in its latest slot.
-  app.get('/api/scheduler/ran', wrap(async (req, res) => {
-    const out = await scheduler.ran(String(req.query.job || ''));
-    if (!out) return res.status(404).json({ ok: false, error: 'unknown-job' });
-    res.set('Cache-Control', 'no-store').json({ ok: true, ...out });
-  }));
+  // Whether the town has ever collected: auto-publish records when the
+  // candidates it published were collected. Victoria always has.
+  function collectedPayload(pub) {
+    return town.id === VICTORIA.id || Boolean(pub && pub.auto_publish && pub.auto_publish.from);
+  }
+  // Or candidates exist (a town that publishes by hand, AUTO_PUBLISH=0, or
+  // whose published list was wiped).
+  async function hasCollected(pub) {
+    if (town.id === VICTORIA.id) return true;
+    try {
+      if (collectedPayload(pub === undefined ? await store.getPublished() : pub)) return true;
+      return Boolean(((await readCandidates().catch(() => null)) || {}).last_updated);
+    } catch { return true; }
+  }
 
   // Hourly in-process check (the uptime workflow only runs every few
   // hours): database reachable, events coming up, collector not stalled.
   // Alerts when a problem appears, again daily while it lasts, and says
   // when it clears.
   const healthState = new Map(); // problem key → last alerted (ms)
+  const bootedAt = nowFn().getTime();
+  const JOBS_WORKER_SILENT_MS = 30 * 60 * 1000;
   async function healthCheck(now) {
     const problems = {};
     if (missingDatabase) problems.nodb = NO_DATABASE;
@@ -2539,26 +2599,42 @@ export async function createApp(opts = {}) {
     // own (shown in the admin checklist too; see slackRefusedText).
     const slackDead = slackRefusedText();
     if (slackDead) problems.slack = slackDead;
+    // Jobs on Railway: a run the worker never finished alerts (once, in
+    // jobs.expire), and so does a worker that has stopped asking for work.
+    // A paused town (TOWN_DORMANT=1) runs no jobs and sends no issues, so
+    // only the database, Slack and subscriber checks apply to it.
+    const dormant = town.dormant;
+    if (jobs.enabled && !dormant) {
+      try { await jobs.expire(now); } catch (err) { console.warn('[jobs] expire failed:', err.message); }
+      const polled = jobs.state.lastPollAt ? Date.parse(jobs.state.lastPollAt) : bootedAt;
+      // A worker running a job doesn't ask for work; it's alive until that
+      // job's time limit (past it, jobs.expire above says so).
+      const busy = await jobs.busy(now).catch(() => false);
+      if (!busy && now.getTime() - polled > JOBS_WORKER_SILENT_MS) {
+        problems.jobs_worker = `The jobs worker hasn't asked for work since ${jobs.state.lastPollAt || 'this deploy started'}, so collects and checks aren't running. Check the town's jobs service in Railway.`;
+      }
+    }
     let pub = null;
     try {
       pub = (await store.getPublished()) || {};
     } catch (err) {
       problems.db = `The database is unreachable (${err.message}); the site is serving the old bundled event list.`;
     }
-    // A town that can't collect yet (TOWN_WORKFLOWS off) has no events by
-    // design, so "only 0 upcoming" and "stale" would alert every day until
-    // launch. The other checks (database, Slack, subscribers) still run.
-    if (pub && townWorkflowsReady()) {
+    // A town that hasn't collected yet, or can't (its workflows are off), has
+    // no events by design, so "only 0 upcoming", "stale" and "missed collect"
+    // would alert every day until launch. The other checks (database, Slack,
+    // subscribers) still run.
+    if (pub && !dormant && (jobs.enabled || townWorkflowsReady()) && await hasCollected(pub)) {
       const today = localDateStr(now);
       const upcoming = visibleKeyed(pub, []).filter(e => e && e.date >= today).length;
       if (upcoming < MIN_UPCOMING) {
-        problems.upcoming = `Only ${upcoming} upcoming events are on the site. Check the Weekly Collect run and the Sources tab.`;
+        problems.upcoming = `Only ${upcoming} upcoming events are on the site. Check the ${jobs.enabled ? 'last collect in the jobs service\'s Railway logs' : 'Weekly Collect run'} and the Sources tab.`;
       }
       const from = Date.parse((pub.auto_publish && pub.auto_publish.from) || '');
       const age = Number.isFinite(from) ? Math.floor((now.getTime() - from) / 86400000) : null;
       // Collect runs Sunday and Wednesday, so 4 days is the normal maximum.
       if (age != null && age >= STALE_COLLECT_DAYS) {
-        problems.stale = `No new events collected in ${age} days. The collector or auto-publish may be broken: check the Weekly Collect workflow.`;
+        problems.stale = `No new events collected in ${age} days. The collector or auto-publish may be broken: check ${jobs.enabled ? 'the town\'s jobs service in Railway (Pull Now runs a collect)' : 'the Weekly Collect workflow'}.`;
       }
       // A collect that should have landed hours ago (GitHub skipped or
       // queued it, the run failed, or the deploy didn't publish it).
@@ -2566,7 +2642,9 @@ export async function createApp(opts = {}) {
       if (missed) {
         const day = missed.job === 'weekly-collect' ? 'Sunday' : 'Wednesday';
         problems.collect = `${day}'s event collect (${startLabel(missed.job)}) hasn't come in after ${COLLECT_LATE_HOURS} hours, so the site still shows the last collect's events. ` +
-          `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`;
+          (jobs.enabled
+            ? 'Start it by hand with Pull Now in admin (Sources); if it fails again, its jobs service\'s Railway logs say why.'
+            : `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`);
       }
     }
     // A list that sent to people last time and now has nobody active: the
@@ -2587,7 +2665,7 @@ export async function createApp(opts = {}) {
     // An issue that hasn't gone out by its noon cutoff: the scheduler never
     // ran (the server was down), its retries ran out, or Resend isn't set
     // up. Only with readers waiting and automatic sending on.
-    if (pub && newsletter.autosend && typeof store.getNewsletterSend === 'function' && typeof store.countSubscribers === 'function') {
+    if (pub && !dormant && newsletter.autosend && typeof store.getNewsletterSend === 'function' && typeof store.countSubscribers === 'function') {
       try {
         const active = Number((await store.countSubscribers() || {}).active) || 0;
         const today = localDateStr(now);
@@ -2612,12 +2690,22 @@ export async function createApp(opts = {}) {
       const last = healthState.get(key);
       if (last == null || t - last >= 86400000) {
         healthState.set(key, t);
-        slack.alert(`health-${key}-${t}`, 'Site check', text, `${siteUrl}/admin.html`);
+        // Once a day per problem across restarts too: every deploy used to
+        // forget it and say it again (a town redeploys several times a day).
+        let first = true;
+        try {
+          const day = localDateStr(now);
+          first = (await store.claimJobRun(`alert:health-${key}`, day, now)).claimed;
+          if (first) await store.finishJobRun(`alert:health-${key}`, day, { status: 'done' });
+        } catch { /* alert anyway */ }
+        if (first) slack.alert(`health-${key}-${t}`, 'Site check', text, `${siteUrl}/admin.html`);
       }
     }
     for (const key of [...healthState.keys()]) {
       if (!problems[key]) {
         healthState.delete(key);
+        // Cleared: if it comes back today, it's said again.
+        try { await store.finishJobRun(`alert:health-${key}`, localDateStr(now), { status: 'retry' }); } catch { /* best effort */ }
         slack.notify({ title: '✅ Site check: back to normal', text: `Cleared: ${key}`, channel: 'alerts' });
       }
     }
@@ -2631,7 +2719,7 @@ export async function createApp(opts = {}) {
     const list = typeof slack.refused === 'function' ? slack.refused() : [];
     if (!list.length) return '';
     return 'Slack refused alerts on ' + list.map(r => `${r.channel} (HTTP ${r.status}${r.error ? ` ${r.error}` : ''} at ${r.at})`).join(', ') +
-      '. The channel may be archived or the Slack app removed: make a new incoming webhook and update the SLACK_*_WEBHOOK_URL variable in Railway (and GitHub).';
+      '. The channel may be archived or the Slack app removed: make a new incoming webhook and update the SLACK_*_WEBHOOK_URL variable in Railway (and its jobs service\'s reference).';
   }
 
   // ─── Admin home: setup checklist + at-a-glance numbers ───
@@ -2641,7 +2729,6 @@ export async function createApp(opts = {}) {
   // counts).
   async function setupReport() {
     const env = process.env;
-    const ghSecrets = `https://github.com/${github.owner}/${github.repo}/settings/secrets/actions`;
     const cronSecrets = [newsletter.cronSecret, eventCheckSecret, submissionReviewSecret].filter(Boolean);
     const checks = [
       { key: 'database', label: 'Database', ok: storeBundle.kind === 'postgres', level: 'required',
@@ -2655,7 +2742,7 @@ export async function createApp(opts = {}) {
       { key: 'auto_publish', label: 'Auto-publish events', ok: env.AUTO_PUBLISH !== '0', level: 'required',
         fix: 'Remove AUTO_PUBLISH=0 from Railway.' },
       { key: 'slack', label: 'Slack alerts', ok: slack.enabled && slack.alertsRouted !== false && !slackRefusedText(), level: 'recommended',
-        fix: slackRefusedText() || 'Set SLACK_WEBHOOK_URL in Railway (and as a GitHub secret) to get pings for breakage, sponsors and submissions. Optional: SLACK_SALES_WEBHOOK_URL, SLACK_ACTIVITY_WEBHOOK_URL, SLACK_ALERTS_WEBHOOK_URL, SLACK_HYPE_WEBHOOK_URL (new subscribers and sponsors) and SLACK_INBOX_WEBHOOK_URL (replies and contact messages) send each kind to its own channel.' },
+        fix: slackRefusedText() || 'Set SLACK_WEBHOOK_URL in Railway to get pings for breakage, sponsors and submissions. Optional: SLACK_SALES_WEBHOOK_URL, SLACK_ACTIVITY_WEBHOOK_URL, SLACK_ALERTS_WEBHOOK_URL, SLACK_HYPE_WEBHOOK_URL (new subscribers and sponsors) and SLACK_INBOX_WEBHOOK_URL (replies and contact messages) send each kind to its own channel.' },
       { key: 'newsletter', label: 'Email newsletter (Resend)', ok: newsletter.enabled && Boolean(newsletter.address), level: 'recommended',
         fix: newsletter.enabled ? 'Set NEWSLETTER_ADDRESS (a mailing address is required by law in every email).' : 'Set RESEND_API_KEY and NEWSLETTER_ADDRESS in Railway.' },
       { key: 'business_name', label: 'Legal pages name your business', ok: hasLegalName(), level: 'recommended',
@@ -2666,24 +2753,23 @@ export async function createApp(opts = {}) {
         fix: 'Set NEWSLETTER_ADDRESS in Railway (a PO box or a registered mailbox is fine). The legal pages print it as the business address, and every newsletter must carry it.' },
       { key: 'newsletter_auto', label: newsletter.weekend ? `Newsletter sends itself (Mondays ${startLabel('newsletter')}, Thursdays ${startLabel('newsletter-weekend')})` : `Newsletter sends itself (Mondays ${startLabel('newsletter')})`, ok: newsletter.enabled && newsletter.autosend, level: 'recommended',
         fix: !newsletter.enabled ? 'Set RESEND_API_KEY in Railway first.'
-          : 'NEWSLETTER_AUTOSEND=0 is set in Railway; remove it to send automatically. (Optional backup: NEWSLETTER_CRON_SECRET in Railway and GitHub lets GitHub retry later in the day.)' },
+          : 'NEWSLETTER_AUTOSEND=0 is set in Railway; remove it to send automatically.' },
       { key: 'reply_to', label: 'Email replies reach you', ok: Boolean(newsletter.replyTo || newsletter.inbound), level: 'recommended',
         fix: `Replies to news@ go to Slack once Resend receives for ${town.domain}: in Resend, turn on receiving for the domain and add its MX record; add a webhook (event email.received) to ` + siteUrl +
           '/api/email/inbound and put its signing secret in Railway as RESEND_WEBHOOK_SECRET. (Or set NEWSLETTER_REPLY_TO to an inbox you read.)' },
       { key: 'scheduler', label: 'Event collect, social posts, event check, ads report and AI review start on time',
-        ok: github.isConfigured() && !scheduler.state.dispatchBlocked, level: 'recommended',
-        fix: scheduler.state.dispatchBlocked
-          ? `GitHub refused the token (HTTP ${scheduler.state.dispatchBlocked.status}). Give GITHUB_TOKEN in Railway Actions: write (and Contents: write) on this repo.`
-          : 'Set GITHUB_TOKEN in Railway: a fine-grained token on this repo with Actions: write and Contents: write. Without it these wait for GitHub\'s own schedule, which runs hours late (the newsletter is sent on time either way).' },
+        // The town's jobs worker runs them (JOBS_ON_RAILWAY.md); nothing runs on GitHub.
+        ok: jobs.enabled, level: 'recommended',
+        fix: 'Set JOBS_ON_RAILWAY=1 and JOBS_SECRET (32+ characters) on this service and add its jobs service (RAILWAY.md "Jobs on Railway"). Until then the collect, event check, AI review, social posts and ads report don\'t run (the newsletter is sent on time either way).' },
       { key: 'submission_review', label: 'AI review publishes good free submissions',
-        ok: Boolean(submissionReviewSecret), level: 'recommended', link: ghSecrets,
-        fix: 'Set SUBMISSION_REVIEW_SECRET in Railway and as a GitHub secret (the same long random string), plus OPENAI_API_KEY in GitHub. Until then new submissions wait for you in the Submissions tab.' },
+        ok: Boolean(submissionReviewSecret), level: 'recommended',
+        fix: 'Set SUBMISSION_REVIEW_SECRET in Railway (a long random string; the jobs service references it), plus OPENAI_API_KEY on the jobs service. Until then new submissions wait for you in the Submissions tab.' },
       { key: 'meta_pixel', label: 'Meta Pixel (ad tracking)', ok: Boolean(pixelId(opts.metaPixelId ?? env.META_PIXEL_ID)), level: 'recommended',
         fix: 'Set META_PIXEL_ID in Railway (the digits from Meta Events Manager) so ad visits and signups are counted.' },
-      { key: 'meta_ads', label: 'Daily Meta ads report', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: META_ADS_TOKEN (a system-user token with ads_read and ads_management, the ad account assigned). Without it the report uses the Page token, which works once the ad account is assigned to its system user.' },
-      { key: 'instagram', label: 'Instagram posting', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: IG_USER_ID (the Instagram business account linked to the Facebook Page). Without it only Facebook gets the daily post.' },
+      { key: 'meta_ads', label: 'Daily Meta ads report', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: META_ADS_TOKEN (a system-user token with ads_read and ads_management, the ad account assigned), META_TOWN and META_AD_ACCOUNT_ID (the ad account its town.json pins). Without META_ADS_TOKEN the report uses the Page token, which works once the ad account is assigned to its system user.' },
+      { key: 'instagram', label: 'Instagram posting', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: IG_USER_ID (the Instagram business account linked to the Facebook Page), once it is pinned in the town\'s settings ("meta".ig_user_id). Without it only Facebook gets the daily post.' },
       { key: 'stripe', label: 'Sponsor payments (Stripe)', ok: stripeCfg.enabled, level: 'recommended',
         fix: 'In Stripe: create a restricted key (Checkout Sessions, Products and Prices: write) and a webhook to ' + siteUrl +
           '/api/stripe/webhook on API version 2026-09-30.endive. Put them in Railway as STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET.' },
@@ -2693,18 +2779,18 @@ export async function createApp(opts = {}) {
         fix: 'STRIPE_SECRET_KEY in Railway is a test key (sk_test_ or rk_test_), so sponsors can book with Stripe\'s test card and nothing is charged. ' +
           'Once the launch test checkout is done, switch to the live restricted key and the live webhook endpoint\'s STRIPE_WEBHOOK_SECRET.' }] : []),
       { key: 'event_check', label: 'Event check hides church events, non-events and duplicates',
-        ok: Boolean(eventCheckSecret), level: 'recommended', link: ghSecrets,
-        fix: 'Set EVENT_CHECK_SECRET in Railway and as a GitHub secret (any long random string, the same in both). Until then the check only reports to Slack.' },
-      { key: 'separate_secrets', label: 'Each automation has its own secret', ok: new Set(cronSecrets).size === cronSecrets.length, level: 'optional', link: ghSecrets,
-        fix: 'NEWSLETTER_CRON_SECRET, EVENT_CHECK_SECRET and SUBMISSION_REVIEW_SECRET share a value (or one is unset and borrows another), so one leak could send the newsletter, hide events and publish submissions. Give each its own long random string, the same in Railway and GitHub.' },
+        ok: Boolean(eventCheckSecret), level: 'recommended',
+        fix: 'Set EVENT_CHECK_SECRET in Railway (any long random string; the jobs service references it). Until then the check only reports to Slack.' },
+      { key: 'separate_secrets', label: 'Each automation has its own secret', ok: new Set(cronSecrets).size === cronSecrets.length, level: 'optional',
+        fix: 'NEWSLETTER_CRON_SECRET, EVENT_CHECK_SECRET and SUBMISSION_REVIEW_SECRET share a value (or one is unset and borrows another), so one leak could send the newsletter, hide events and publish submissions. Give each its own long random string in Railway (the jobs service references them).' },
       // Required: without it every newsletter signup must confirm by email
       // (newsletter.js), and the forms have no bot check at all.
       { key: 'spam', label: 'Spam protection on forms (Turnstile)', ok: Boolean(turnstileSecret && turnstileSiteKey), level: 'required',
         fix: `In Cloudflare Turnstile, add a widget (or add www.${town.domain} to an existing one) in Managed mode, then set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in Railway. Protects Submit, Contact, newsletter signup and sponsor checkout; until then every newsletter signup has to confirm by email.` },
-      { key: 'social', label: 'Auto-post to Facebook + Instagram', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub: secrets META_PAGE_ID, META_PAGE_TOKEN and the repo variable SOCIAL_AUTOPOST = 1.' },
-      { key: 'collector_keys', label: 'Event collector keys (OpenAI, Apify, Gemini)', ok: null, level: 'recommended', link: ghSecrets,
-        fix: 'In GitHub secrets: OPENAI_API_KEY (cleanup + junk filter), APIFY_TOKEN (Facebook, Instagram, Eventbrite) and GEMINI_API_KEY (Google Search discovery; free key at aistudio.google.com).' }
+      { key: 'social', label: 'Auto-post to Facebook + Instagram', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway: META_TOWN, META_PAGE_ID (the page the town\'s settings pin), META_PAGE_TOKEN and SOCIAL_AUTOPOST = 1.' },
+      { key: 'collector_keys', label: 'Event collector keys (OpenAI, Apify, Gemini)', ok: null, level: 'recommended',
+        fix: 'On the jobs service in Railway (project-shared variables): OPENAI_API_KEY (cleanup + junk filter), APIFY_TOKEN (Facebook, Instagram, Eventbrite) and GEMINI_API_KEY (Google Search discovery; free key at aistudio.google.com).' }
     ];
 
     const status = {};
@@ -2719,7 +2805,7 @@ export async function createApp(opts = {}) {
       status.auto_published_at = (pub.auto_publish && pub.auto_publish.at) || null;
       status.published_at = pub.last_updated || null;
     } catch { /* leave blank */ }
-    try { status.collected_at = (await readJsonFile(candidatesFile)).last_updated || null; } catch { /* none */ }
+    try { status.collected_at = (await readCandidates()).last_updated || null; } catch { /* none */ }
     try { status.pending_submissions = (await store.list({ status: 'pending' })).length; } catch { /* none */ }
     try {
       if (typeof store.countSubscribers === 'function') status.subscribers = (await store.countSubscribers()).active || 0;
@@ -2753,18 +2839,29 @@ export async function createApp(opts = {}) {
     clientKey,
     inbox: (since, limit) => (typeof store.listInboxEvents === 'function' ? store.listInboxEvents(since, limit) : []),
     latestInbox: () => (typeof store.latestInboxId === 'function' ? store.latestInboxId() : null),
+    subscribers: async (after) => ({ name: town.siteName, total: (await store.countSubscribers()).active, ...(await store.listConfirmedSince(after, 500)) }),
+    // Straight to the #hype webhook: no [town] tag (it's every town's news)
+    // and not this town's owner inbox.
+    hype: (msg) => { const { title, blocks } = hypeBlocks(msg, slackEscape); return slack.post(title, blocks, 'hype'); },
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),
       getEvents: async () => [...(((await getPublicPayload()) || {}).events || []), ...(await listArchived().catch(() => []))],
       getOrders: async () => (typeof store.listSponsorOrders === 'function' ? store.listSponsorOrders() : []),
       setup: setupReport,
+      getJobs: jobs.enabled ? async () => jobsSummary(await jobs.stats()) : null,
+      getNewsletterRuns: async () => ({ weekly: await scheduler.ran('newsletter'), weekend: await scheduler.ran('newsletter-weekend') }),
+      getAdCampaigns: typeof store.getTownFile === 'function' ? async () => {
+        const f = await store.getTownFile('ad_campaigns');
+        return f ? { campaigns: (f.data && f.data.campaigns) || [], updated_at: f.updated_at } : null;
+      } : null,
+      dormant: Boolean(town.dormant),
       // database: Postgres configured and answering a ping now (3 s), not
       // just configured: a town whose database is down must not read healthy.
       health: async () => {
         const configured = storeBundle.kind === 'postgres';
         const database = configured && storeBundle.pool ? await pingDatabase(3000).then(() => true, () => false) : configured;
-        return { database, database_configured: configured, scheduler_blocked: Boolean(scheduler.state.dispatchBlocked),
+        return { database, database_configured: configured, scheduler_blocked: !jobs.enabled && schedulerEnabled(),
           slack_refused: Boolean(slackRefusedText()) };
       }
     })
@@ -2786,6 +2883,17 @@ export async function createApp(opts = {}) {
       if (file === path.join(DOCS_DIR, 'robots.txt')) text = text.split('https://www.thevic361.com').join(siteUrl);
       res.type('text/plain').send(text);
     }));
+    // The shared stylesheets with the town's own colors appended
+    // (server/palette.js); without a palette they're served as they are.
+    for (const [file, extra] of [['style.css', townStyleCss], ['submit.css', townSubmitCss]]) {
+      const css = extra(town);
+      if (!css) continue;
+      let text = null;
+      app.get('/' + file, wrap(async (req, res) => {
+        if (text === null || opts.reloadTemplates) text = await fsp.readFile(path.join(DOCS_DIR, file), 'utf8') + css;
+        res.set('Cache-Control', 'public, max-age=600').type('text/css').send(text);
+      }));
+    }
     let submitPage = null;
     app.get(['/submit', '/submit.html'], wrap(async (req, res) => {
       if (!submitPage || opts.reloadTemplates) submitPage = localizeHtml(await fsp.readFile(path.join(DOCS_DIR, 'submit.html'), 'utf8'));
@@ -2811,16 +2919,73 @@ export async function createApp(opts = {}) {
     }
   });
   if (town.publicDir && existsSync(town.publicDir)) app.use(express.static(town.publicDir, staticOptions(town.publicDir)));
+  // The town's social kit, built and posted by its jobs worker and kept in
+  // its database (server/jobs.js); Facebook and Instagram fetch the slides
+  // from here. → 'sent', 'none' (no such file) or 'error'.
+  const SOCIAL_FILE = /^\/social\/latest\/([a-z0-9][a-z0-9_-]{0,63}\.(?:png|jpg|mp4|json|html|txt))$/;
+  async function sendSocialFile(name, req, res) {
+    if (!(req.method === 'GET' || req.method === 'HEAD') || typeof store.getSocialFile !== 'function') return 'none';
+    let f = null;
+    try { f = await store.getSocialFile(name); } catch (err) {
+      console.warn('[social] read failed:', err.message);
+      return 'error';
+    }
+    if (!f) return 'none';
+    res.set({ 'Content-Type': f.type, 'Cache-Control': 'public, max-age=300', 'X-Robots-Tag': 'noindex',
+      'X-Content-Type-Options': 'nosniff', 'Last-Modified': new Date(f.updated_at).toUTCString() });
+    res.send(f.body);
+    return 'sent';
+  }
+  // Victoria's kit moved from git (docs/social/latest/, committed by GitHub)
+  // to her database with her jobs (JOBS_ON_RAILWAY.md phase 5). Until her
+  // worker publishes its first kit, and whenever the database can't answer,
+  // the git copy is served, so links and posts already out keep working.
+  // Without jobs on (staging, a PR copy) only git's, and her database isn't
+  // asked (its social table is made on first use).
+  if (town.id === VICTORIA.id && jobs.enabled) {
+    app.use(async (req, res, next) => {
+      let p = req.path;
+      try { p = path.posix.normalize(decodeURIComponent(p)); } catch (_) { return next(); }
+      const m = SOCIAL_FILE.exec(p);
+      if (!m) return next();
+      const got = await sendSocialFile(m[1], req, res);
+      if (got === 'sent') return;
+      if (got === 'none' && typeof store.getSocialFile === 'function') {
+        // A kit in the database is the whole kit: a name it doesn't have is
+        // gone, not one to find in git's older kit.
+        let hasKit = false;
+        try { hasKit = Boolean(await store.getSocialFile('kit.json')); } catch (_) { hasKit = false; }
+        if (hasKit) return res.status(404).type('text/plain').send('Not found');
+      }
+      next();
+    });
+  }
   // docs/ holds Victoria's own data next to the shared site files: its
   // bundled events.json and its social kit. Another town without its own
   // copy gets an empty list and a 404, never Victoria's events or posts.
+  // Decide on the path express.static will use (it decodes %-escapes and
+  // normalizes), so /%65vents.json, /index or /%73ubmit can't reach
+  // Victoria's raw docs/ copies: her events, social kit, homepage (with her
+  // GA tag) and submit form. Those pages are routed above by exact spelling.
   if (town.id !== VICTORIA.id) {
-    app.use((req, res, next) => {
-      if (req.path === '/events.json') {
+    app.use(async (req, res, next) => {
+      let p = req.path;
+      try { p = path.posix.normalize(decodeURIComponent(p)); } catch (_) { return next(); }
+      if (/^\/events\.json$/i.test(p)) {
         res.set('Cache-Control', 'no-store');
         return res.json({ last_updated: null, events: [] });
       }
-      if (req.path.startsWith('/social/')) return res.status(404).type('text/plain').send('Not found');
+      // The town's own social kit (sendSocialFile). Nothing else under
+      // /social: never Victoria's.
+      if (/^\/social(\/|$)/i.test(p)) {
+        const m = SOCIAL_FILE.exec(p);
+        const got = m ? await sendSocialFile(m[1], req, res) : 'none';
+        if (got === 'sent') return;
+        if (got === 'error') return res.status(503).set('Retry-After', '60').type('text/plain').send('Try again shortly');
+        return res.status(404).type('text/plain').send('Not found');
+      }
+      if (/^\/index(\.html)?$/i.test(p)) return res.redirect(301, '/');
+      if (/^\/submit(\.html)?$/i.test(p)) return res.redirect(301, '/submit');
       next();
     });
   }
@@ -2880,7 +3045,7 @@ export async function createApp(opts = {}) {
 
   await archiveReady;
   await refreshReach();
-  return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
+  return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi, sponsors };
 }
 
 // Start the server when invoked directly. Importing this module (e.g. from

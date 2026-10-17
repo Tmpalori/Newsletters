@@ -44,6 +44,14 @@ VICTORIA = {
     "area_code": "361",
     "timezone": "America/Chicago",
     # Social posts
+    # Her own Meta ids, as another town's town.json pins them under "meta"
+    # (meta_allowed): the Facebook page The Vic 361 posts to. No Instagram
+    # id until one is linked and pinned (Facebook only), no ad account pin
+    # (her token sees exactly one ad account). That account is shared with
+    # the other towns, so her ads report reads only her campaigns
+    # (scripts/meta_ads.py CAMPAIGN_PREFIX: "Vic Newsletter Leads",
+    # "Vic Newsletter Leads - Copy").
+    "meta": {"page_id": "1388965530960534", "campaign_prefix": "Vic Newsletter Leads"},
     "hashtags": "#VictoriaTX #ThingsToDoVictoria #VictoriaTexas #361 #TheVic361",
     # Collector (collect_events.py): the area it lists, what it asks sources
     # for, and the place names its checks and AI prompts use.
@@ -204,6 +212,47 @@ def site_url(town=None, env=None):
     return url
 
 
+def meta_allowed(town=None, env=None, use="post"):
+    """Whether this run may use the Meta (Facebook, Instagram, ads)
+    settings it was given. Victoria's are the repo-level ones. Another
+    town's count only when its settings say they're its own
+    (META_TOWN=<slug>) and the ids match the ones its town.json pins
+    ("meta": {"page_id", "ig_user_id", "ad_account_id"}): a GitHub
+    Environment missing one of them falls back to Victoria's repo-level
+    value, which would post the town's kit on Victoria's page or read her
+    ad account. use: "post" (page, Instagram) or "ads" (ad account)."""
+    env = os.environ if env is None else env
+    town = town or TOWN
+    pins = town.get("meta") if isinstance(town.get("meta"), dict) else {}
+    pin = lambda k: str(pins.get(k) or "").strip()
+    got = lambda k: env.get(k, "").strip()
+    if town["id"] == VICTORIA["id"]:
+        # Victoria's settings were the repo-level ones on GitHub, so
+        # META_TOWN may be unset; on Railway (JOBS_ON_RAILWAY.md phase 5)
+        # what she's given must still be hers: a jobs service left on
+        # TOWN=victoria with another town's page, Instagram or ad account
+        # would post or report that town's as hers.
+        if got("META_TOWN").lower() not in ("", VICTORIA["id"]):
+            return False
+        if got("META_PAGE_ID") and pin("page_id") and got("META_PAGE_ID") != pin("page_id"):
+            return False
+        if got("IG_USER_ID") and pin("ig_user_id") and got("IG_USER_ID") != pin("ig_user_id"):
+            return False
+        account = lambda v: v.removeprefix("act_")
+        if use == "ads" and got("META_AD_ACCOUNT_ID") and pin("ad_account_id") \
+                and account(got("META_AD_ACCOUNT_ID")) != account(pin("ad_account_id")):
+            return False
+        return True
+    if env.get("META_TOWN", "").strip().lower() != town["id"]:
+        return False
+    if use == "ads":
+        account = lambda v: v.removeprefix("act_")
+        return bool(pin("ad_account_id")) and account(got("META_AD_ACCOUNT_ID")) == account(pin("ad_account_id"))
+    if not pin("page_id") or got("META_PAGE_ID") != pin("page_id"):
+        return False
+    return not got("IG_USER_ID") or got("IG_USER_ID") == pin("ig_user_id")
+
+
 def tz(town=None):
     """The town's timezone (None without zoneinfo)."""
     return ZoneInfo((town or TOWN)["timezone"]) if ZoneInfo else None
@@ -232,6 +281,45 @@ def town_paths(town=None):
 def repo_path(key, town=None):
     """An absolute path to one of the town's files (town_paths key)."""
     return os.path.join(ROOT, town_paths(town)[key])
+
+
+def town_asset(name, town=None):
+    """An absolute path to one of the town's own brand files (logo-512.png,
+    skyline.svg…), or None. Victoria's are in docs/; another town's in
+    towns/<slug>/public/, and a file it lacks is None, never Victoria's
+    copy: the server's static overlay falls through to docs/, but a social
+    slide drawn with Victoria's logo would post her brand on another page."""
+    t = town or TOWN
+    path = os.path.join(ROOT, town_paths(t)["social"].split("social/")[0], name)
+    return path if os.path.isfile(path) else None
+
+
+# The site's shared look (docs/style.css): Victoria's, and the fallback for
+# a town without a BRAND.md palette.
+SITE_PALETTE = {"ink": "#1F1A3D", "paper": "#FFF4D6", "primary": "#4B3FD1", "highlight": "#FFC93C", "accent": "#FF8FC0"}
+
+
+def brand_palette(town=None):
+    """The town's colors for its social slides: the first JSON block of
+    towns/<slug>/BRAND.md ("primary", "accent", "paper", "ink",
+    "highlight"), each a #RRGGBB; missing ones (and Victoria) keep the
+    site's. Read here rather than added to town.json, so the brand kit
+    stays the one place the palette is written down."""
+    t = town or TOWN
+    out = dict(SITE_PALETTE)
+    if t["id"] == VICTORIA["id"]:
+        return out
+    try:
+        with open(os.path.join(ROOT, "towns", t["id"], "BRAND.md"), encoding="utf-8") as f:
+            m = re.search(r"```json\s*(\{.*?\})\s*```", f.read(), re.S)
+        raw = json.loads(m.group(1)) if m else {}
+    except (OSError, ValueError):
+        raw = {}
+    for k in out:
+        v = raw.get(k) if isinstance(raw, dict) else None
+        if isinstance(v, str) and re.match(r"^#[0-9A-Fa-f]{6}$", v):
+            out[k] = v.upper()
+    return out
 
 
 # The process's town.

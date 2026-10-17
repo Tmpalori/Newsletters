@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="The Star 402">
+  <defs><clipPath id="c"><circle cx="64" cy="64" r="57"/></clipPath></defs>
+  <circle cx="64" cy="64" r="57" fill="#33417E"/>
+  <g clip-path="url(#c)" stroke="#1F2433" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <g fill="#FFE7A3" stroke="none"><circle cx="18" cy="72" r="2.2"/><circle cx="86" cy="22" r="2.4"/><circle cx="104" cy="70" r="1.8"/><circle cx="30" cy="26" r="1.8"/></g>
+    <g fill="#222B5F" stroke="none">
+      <path d="M86 106V93H114V106Z"/>
+      <path d="M93.5 93V54H106.5V93Z"/>
+      <path d="M95.5 54V48H104.5V54Z"/>
+      <path d="M95.5 48A4.5 4.5 0 0 1 104.5 48Z" fill="#E9B85C"/>
+      <path d="M99.2 43.6V38.5H100.8V43.6Z"/>
+    </g>
+    <path d="M-4 104Q32 96 64 102T132 100V132H-4Z" fill="#E9B85C"/>
+    <path d="M54.0 22.0L64.0 43.2L87.3 46.2L70.2 62.3L74.6 85.3L54.0 74.0L33.4 85.3L37.8 62.3L20.7 46.2L44.0 43.2Z" fill="#FFC93C"/>
+    <path d="M31 49.5L40 48.5" fill="none" stroke="#FFF1C2" stroke-width="3.5"/>
+  </g>
+  <circle cx="64" cy="64" r="57" fill="none" stroke="#1F2433" stroke-width="6"/>
+</svg>

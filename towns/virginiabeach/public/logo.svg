@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="The Tide 757">
+  <defs><clipPath id="c"><circle cx="64" cy="64" r="57"/></clipPath></defs>
+  <circle cx="64" cy="64" r="57" fill="#BFE6F2"/>
+  <g clip-path="url(#c)" stroke="#13263A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="90" cy="76" r="20" fill="#FFC94A"/>
+    <path d="M-4 82H132V132H-4Z" fill="#2E86AB"/>
+    <path d="M70 98Q80 93 90 98T110 98" fill="none" stroke="#FFFFFF" stroke-width="3.5"/>
+    <path d="M-4 82H13C18 78 20 72 22 64C27 46 39 34 58 33C76 34 87 46 84 59C81 70 67 71 64 63C61 55 70 51 73 58C70 46 52 46 48 62C44 80 56 98 82 106C96 110 112 108 132 106V132H-4Z" fill="#1F6E96"/>
+    <path d="M26 62C30 50 40 42 52 40" fill="none" stroke="#FFFFFF" stroke-width="3.5" opacity="0.85"/>
+  </g>
+  <circle cx="64" cy="64" r="57" fill="none" stroke="#13263A" stroke-width="6"/>
+</svg>

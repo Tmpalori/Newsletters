@@ -374,8 +374,29 @@ def http_get(url, headers=None, timeout=TIMEOUT, fallback_safari=True):
     h = dict(headers) if headers else dict(HEADERS)
     resp = requests.get(url, headers=h, timeout=timeout)
     if resp.status_code == 403 and fallback_safari:
-        resp = requests.get(url, headers=HEADERS_SAFARI, timeout=timeout)
+        h = dict(HEADERS_SAFARI)
+        resp = requests.get(url, headers=h, timeout=timeout)
+    # A host's "are you human" check (409 and a script that sets a humans_N
+    # cookie and reloads; msnha.una.edu): set the cookie and ask again.
+    cookie = _HUMANS_COOKIE.search(resp.text[:500]) if resp.status_code in (200, 409) else None
+    if cookie:
+        resp = requests.get(url, headers=h, cookies={cookie[1]: cookie[2]}, timeout=timeout)
     resp.raise_for_status()
+    return resp
+
+
+_HUMANS_COOKIE = re.compile(r'document\.cookie\s*=\s*"(humans_\d+)=(\w+)"')
+
+
+def feed_get(url, timeout=TIMEOUT):
+    """http_get for a town feed. A JSON API (/wp-json/, /api/) that answers
+    with a web page instead (a firewall that lets Safari through but not
+    Chrome, from some networks) is asked once more as Safari."""
+    resp = http_get(url, timeout=timeout)
+    if ("/wp-json/" in url or "/api/" in url) and "json" not in resp.headers.get("content-type", "").lower():
+        safari = http_get(url, headers=HEADERS_SAFARI, timeout=timeout, fallback_safari=False)
+        if "json" in safari.headers.get("content-type", "").lower():
+            return safari
     return resp
 
 # Icon categories — keywords in event name/desc/venue trigger auto-tagging
@@ -495,6 +516,8 @@ def _coerce_yaml_events(data):
             elif k == "time" and isinstance(v, int) and not isinstance(v, bool):
                 h, m = divmod(v, 60)
                 out[k] = f"{(h % 12) or 12}:{m:02d} {'PM' if h % 24 >= 12 else 'AM'}" if h < 24 else str(v)
+            elif k == "day" and isinstance(v, list):
+                out[k] = [str(d) for d in v]        # [friday, saturday] (recurring_days)
             elif k in ("name", "venue", "address", "description", "day") and v is not None and not isinstance(v, str):
                 out[k] = str(v)
         return out
@@ -3895,15 +3918,17 @@ def fetch_town_feeds(days_ahead=14):
     events, counts = [], []
     for feed in feeds:
         try:
-            get = (lambda u, t=feed["timeout"]: http_get(u, timeout=t)) if feed.get("timeout") else http_get
+            get = lambda u, t=feed.get("timeout", TIMEOUT): feed_get(u, timeout=t)
             got = town_feeds.excluded(town_feeds.fetch_feed(feed, get, tz, _WINDOW_START, _WINDOW_END), feed.get("exclude"))
             got = town_feeds.place(got, feed.get("venue", ""), feed.get("address", ""))
+            got = town_feeds.renamed(got, feed.get("rename"))
+            got = town_feeds.renamed(got, feed.get("rename_venue"), "venue")
         except Exception as e:
             _warn(f"[Feeds] {feed['name']} failed: {type(e).__name__}: {e}", feed=feed["name"], url=feed["url"])
             _mark_partial("town_feeds", f"{feed['name']} failed")
             counts.append(f"{feed['name']} failed")
             continue
-        if not got:
+        if not got and not feed.get("sparse"):
             _warn(f"[Feeds] {feed['name']} returned 0 events", feed=feed["name"], url=feed["url"])
         for ev in town_feeds.collapse_runs([e for e in got if e.get("name")]):
             if feed.get("library"):
@@ -4356,7 +4381,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
             "url": (item.get("url") or "").split("?")[0],
         })
 
-    print(f"  [Eventbrite] Extracted {len(events)} Victoria events ({len(items)} raw, "
+    print(f"  [Eventbrite] Extracted {len(events)} {TOWN['city']} events ({len(items)} raw, "
           + ", ".join(f"{v} {k}" for k, v in skipped.items()) + ")")
     return events
 
@@ -4443,7 +4468,7 @@ def fetch_apify_facebook_events(days_ahead=14):
     # support search queries — which is more useful for us anyway since it
     # discovers events from venues we haven't even cataloged yet. We post-filter
     # for Victoria-area events using the address/location text.
-    print(f"  [Apify FB] Searching Facebook events for Victoria TX...")
+    print(f"  [Apify FB] Searching Facebook events for {TOWN['city']} {TOWN['state']}...")
 
     # Two search actors with the same output schema return different
     # events for the same query (Oct 2026 probe: 39 and 31 Victoria events,
@@ -4574,8 +4599,8 @@ def fetch_apify_facebook_events(days_ahead=14):
         })
 
     print(
-        f"  [Apify FB] Extracted {len(events)} Victoria events "
-        f"({len(items)} raw, {skipped_off_locality} non-Victoria, "
+        f"  [Apify FB] Extracted {len(events)} {TOWN['city']} events "
+        f"({len(items)} raw, {skipped_off_locality} elsewhere, "
         f"{skipped_off_window} out-of-window, {skipped_no_data} missing data)"
     )
     return events
@@ -5737,7 +5762,7 @@ def enabled_web_sources(town=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="The Vic 361 — Event Collector")
+    parser = argparse.ArgumentParser(description=f"{TOWN['site_name']} — Event Collector")
     parser.add_argument("--output", default="./events.json", help="Output JSON path")
     parser.add_argument("--candidates", default="./" + town_paths()["candidates"], help="Candidates JSON path (all raw events for screening)")
     parser.add_argument("--days", type=int, default=14, help="Days ahead to collect (default 14)")
@@ -5777,7 +5802,7 @@ def main():
     print(f"   Window: {_WINDOW_START} → {_WINDOW_END} "
           f"({(_WINDOW_END - _WINDOW_START).days + 1} days)")
 
-    print(f"\n🏙️  The Vic 361 — Event Collector")
+    print(f"\n🏙️  {TOWN['site_name']} — Event Collector")
     print(f"   {datetime.now().strftime('%A, %B %d %Y at %I:%M %p')}")
     print(f"   Collecting next {args.days} days...\n")
 

@@ -1,137 +1,135 @@
 {
-  "last_run_at": "2026-10-11T19:21:37-05:00",
-  "window_start": "2026-10-05",
-  "window_end": "2026-10-25",
+  "last_run_at": "2026-10-14T15:59:28-05:00",
+  "window_start": "2026-10-12",
+  "window_end": "2026-10-28",
   "days_ahead": 14,
   "candidates_only": true,
-  "merged_count": 392,
-  "raw_count": 514,
+  "merged_count": 308,
+  "raw_count": 430,
   "sources": [
     {
       "name": "local_events",
-      "count": 205,
+      "count": 169,
       "status": "ok",
-      "started_at": "2026-10-11T18:45:35-05:00",
-      "finished_at": "2026-10-11T18:45:35-05:00"
+      "started_at": "2026-10-14T15:23:50-05:00",
+      "finished_at": "2026-10-14T15:23:50-05:00"
     },
     {
       "name": "google_sheet",
       "count": 0,
       "status": "empty",
-      "started_at": "2026-10-11T18:45:35-05:00",
-      "finished_at": "2026-10-11T18:45:36-05:00"
+      "started_at": "2026-10-14T15:23:50-05:00",
+      "finished_at": "2026-10-14T15:23:51-05:00"
     },
     {
       "name": "city_calendar",
       "count": 23,
       "status": "ok",
-      "started_at": "2026-10-11T18:45:36-05:00",
-      "finished_at": "2026-10-11T18:46:03-05:00"
+      "started_at": "2026-10-14T15:23:51-05:00",
+      "finished_at": "2026-10-14T15:24:18-05:00"
     },
     {
       "name": "chamber",
-      "count": 3,
+      "count": 2,
       "status": "ok",
-      "started_at": "2026-10-11T18:46:03-05:00",
-      "finished_at": "2026-10-11T18:46:06-05:00"
+      "started_at": "2026-10-14T15:24:18-05:00",
+      "finished_at": "2026-10-14T15:24:21-05:00"
     },
     {
       "name": "library",
-      "count": 31,
+      "count": 23,
       "status": "ok",
-      "started_at": "2026-10-11T18:46:06-05:00",
-      "finished_at": "2026-10-11T18:46:07-05:00"
+      "started_at": "2026-10-14T15:24:21-05:00",
+      "finished_at": "2026-10-14T15:24:23-05:00"
     },
     {
       "name": "moonshine",
-      "count": 0,
-      "status": "empty",
-      "started_at": "2026-10-11T18:46:07-05:00",
-      "finished_at": "2026-10-11T18:46:09-05:00",
-      "message": "site lists 6 dates, none in the window"
+      "count": 4,
+      "status": "ok",
+      "started_at": "2026-10-14T15:24:23-05:00",
+      "finished_at": "2026-10-14T15:24:24-05:00"
     },
     {
       "name": "vtx_artwalk",
       "count": 0,
       "status": "empty",
-      "started_at": "2026-10-11T18:46:09-05:00",
-      "finished_at": "2026-10-11T18:46:14-05:00",
-      "message": "partial: captcha page"
+      "started_at": "2026-10-14T15:24:24-05:00",
+      "finished_at": "2026-10-14T15:24:24-05:00"
     },
     {
       "name": "jwelch",
       "count": 0,
       "status": "empty",
-      "started_at": "2026-10-11T18:46:14-05:00",
-      "finished_at": "2026-10-11T18:46:17-05:00"
+      "started_at": "2026-10-14T15:24:24-05:00",
+      "finished_at": "2026-10-14T15:24:28-05:00"
     },
     {
       "name": "theatre_victoria",
-      "count": 3,
-      "status": "ok",
-      "started_at": "2026-10-11T18:46:17-05:00",
-      "finished_at": "2026-10-11T18:46:17-05:00"
+      "count": 0,
+      "status": "empty",
+      "started_at": "2026-10-14T15:24:28-05:00",
+      "finished_at": "2026-10-14T15:24:28-05:00",
+      "message": "no show in the window"
     },
     {
       "name": "generals",
       "count": 0,
       "status": "empty",
-      "started_at": "2026-10-11T18:46:17-05:00",
-      "finished_at": "2026-10-11T18:46:18-05:00"
+      "started_at": "2026-10-14T15:24:28-05:00",
+      "finished_at": "2026-10-14T15:24:29-05:00"
     },
     {
       "name": "allevents",
-      "count": 45,
+      "count": 46,
       "status": "partial",
-      "started_at": "2026-10-11T18:46:18-05:00",
-      "finished_at": "2026-10-11T18:46:24-05:00",
+      "started_at": "2026-10-14T15:24:29-05:00",
+      "finished_at": "2026-10-14T15:24:36-05:00",
       "message": "partial: all returned 45 (capped)"
     },
     {
       "name": "gemini_search",
-      "count": 4,
+      "count": 3,
       "status": "ok",
-      "started_at": "2026-10-11T18:46:24-05:00",
-      "finished_at": "2026-10-11T18:48:47-05:00"
+      "started_at": "2026-10-14T15:24:36-05:00",
+      "finished_at": "2026-10-14T15:26:13-05:00"
     },
     {
       "name": "apify_facebook",
-      "count": 41,
+      "count": 25,
       "status": "partial",
-      "started_at": "2026-10-11T18:48:47-05:00",
-      "finished_at": "2026-10-11T18:51:53-05:00",
-      "message": "partial: apify~facebook-events-scraper hit the 50-event cap, alfalfa~facebook-events-scraper hit the 50-event cap"
+      "started_at": "2026-10-14T15:26:13-05:00",
+      "finished_at": "2026-10-14T15:28:04-05:00",
+      "message": "partial: alfalfa~facebook-events-scraper hit the 50-event cap"
     },
     {
       "name": "apify_eventbrite",
-      "count": 11,
+      "count": 12,
       "status": "partial",
-      "started_at": "2026-10-11T18:51:53-05:00",
-      "finished_at": "2026-10-11T18:52:45-05:00",
+      "started_at": "2026-10-14T15:28:04-05:00",
+      "finished_at": "2026-10-14T15:29:17-05:00",
       "message": "partial: hit the 60-result cap"
     },
     {
       "name": "apify_facebook_posts",
-      "count": 148,
+      "count": 105,
       "status": "ok",
-      "started_at": "2026-10-11T18:52:45-05:00",
-      "finished_at": "2026-10-11T19:16:20-05:00"
+      "started_at": "2026-10-14T15:29:17-05:00",
+      "finished_at": "2026-10-14T15:50:26-05:00"
     },
     {
       "name": "apify_instagram_posts",
-      "count": 0,
-      "status": "empty",
-      "started_at": "2026-10-11T19:16:20-05:00",
-      "finished_at": "2026-10-11T19:16:20-05:00",
-      "message": "stopped at the 30-minute scrape budget; skipped 20 of 20 accounts"
+      "count": 18,
+      "status": "ok",
+      "started_at": "2026-10-14T15:50:26-05:00",
+      "finished_at": "2026-10-14T15:54:10-05:00",
+      "message": "stopped at the 30-minute scrape budget; skipped 9 of 20 accounts"
     }
   ],
   "warnings": {
-    "count": 2,
+    "count": 1,
     "first": [
-      "[VTX Art Walk] captcha page (status=202)",
-      "[Apify IG Posts] scrape budget reached (skipped=20)"
+      "[Apify IG Posts] scrape budget reached (skipped=9)"
     ],
-    "summary": "2 warnings: [VTX Art Walk] captcha page (status=202); [Apify IG Posts] scrape budget reached (skipped=20)"
+    "summary": "1 warning: [Apify IG Posts] scrape budget reached (skipped=9)"
   }
 }

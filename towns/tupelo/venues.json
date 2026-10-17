@@ -1,1 +1,915 @@
-[]
+[
+ {
+  "name": "Blue Canoe",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/BlueCanoeTupelo",
+  "facebook_events": "https://www.facebook.com/BlueCanoeTupelo/events",
+  "event_potential": "Original live music 4-6 nights a week since 2011 (touring + regional acts), 46 taps; 2006 N Gloster St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (bluecanoebar.com); its Events Calendar can't be read from Railway (bot check), so its Fri/Sat shows are a weekly entry in local_events.yaml",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "bluewaterwagon"
+  ],
+  "instagram_url": "https://www.instagram.com/bluewaterwagon/",
+  "website": "https://bluecanoebar.com"
+ },
+ {
+  "name": "Backline Music Hall",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/profile.php?id=61580251545634",
+  "facebook_events": "https://www.facebook.com/profile.php?id=61580251545634&sk=events",
+  "event_potential": "Ticketed shows most Fri/Sat, tribute nights, Backline Bike Nite, youth concert series, vintage markets; 5339 Cliff Gookin Blvd",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory listing",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "backline_music_hall"
+  ],
+  "instagram_url": "https://www.instagram.com/backline_music_hall/",
+  "website": "https://www.backlinemusichall.com"
+ },
+ {
+  "name": "Queen's Reward Meadery",
+  "category": "Meadery / Tasting Room",
+  "facebook_page": "https://www.facebook.com/QueensRewardMead",
+  "facebook_events": "https://www.facebook.com/QueensRewardMead/events",
+  "event_potential": "Thursday Singo Night and Trivia Night (alternating, food trucks), paint & sip classes; 1719 McCullough Blvd",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory; event calendar at queensreward.com/event-calendar",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "queensrewardmead"
+  ],
+  "instagram_url": "https://www.instagram.com/queensrewardmead/",
+  "website": "https://queensreward.com"
+ },
+ {
+  "name": "Woody's Tupelo Steakhouse",
+  "category": "Restaurant / Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/tupelosteak",
+  "facebook_events": "https://www.facebook.com/tupelosteak/events",
+  "event_potential": "Karaoke Thu-Sat 8:30 PM, live music; 619 N Gloster St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (woodyssteak.com links facebook.com/tupelosteak, also linked from Visit Tupelo events); second page facebook.com/woodystupelo seen in FB search; IG via instagram.com search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "woodystupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/woodystupelo/",
+  "website": "http://www.woodyssteak.com"
+ },
+ {
+  "name": "Holland's Bar & Grill",
+  "category": "Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/p/Hollands-Bar-Grill-Tupelo-61564625471623",
+  "facebook_events": "https://www.facebook.com/p/Hollands-Bar-Grill-Tupelo-61564625471623/events",
+  "event_potential": "Karaoke Tue-Sat (and Sun per Visit Tupelo), game-day watch parties; 3952 N Gloster St",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result (page lists 3952 North Gloster, 'Karaoke Tues-Saturday'); Visit Tupelo directory links facebook.com/hollandsgrills instead",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "Jobos",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/jobostupelo",
+  "facebook_events": "https://www.facebook.com/jobostupelo/events",
+  "event_potential": "Thursday live music 6-8 PM on the downtown patio; 314 E Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (jobostupelo.com); also linked from Visit Tupelo events",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "jobostupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/jobostupelo/",
+  "website": "https://jobostupelo.com"
+ },
+ {
+  "name": "Romie's Grocery",
+  "category": "Restaurant / Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/romiesgrocery",
+  "facebook_events": "https://www.facebook.com/romiesgrocery/events",
+  "event_potential": "Live music on the back patio every weekend (bar Thu-Sat 5 PM-late); 804 W Jackson St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (romies.net)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "romiesgrocery.tupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/romiesgrocery.tupelo/",
+  "website": "https://romies.net"
+ },
+ {
+  "name": "Elvis Presley Birthplace & Museum",
+  "category": "Museum / Music Venue",
+  "facebook_page": "https://www.facebook.com/elvispresleybirthplace",
+  "facebook_events": "https://www.facebook.com/elvispresleybirthplace/events",
+  "event_potential": "Blues Friday lunchtime music, Live at the Birthplace concerts, Tupelo Sessions songwriter nights, Christmas show, Elvis birthday (Jan 8); 306 Elvis Presley Dr",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (elvispresleybirthplace.com); also Visit Tupelo",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "elvispresleybirthplace"
+  ],
+  "instagram_url": "https://www.instagram.com/elvispresleybirthplace/",
+  "website": "https://elvispresleybirthplace.com"
+ },
+ {
+  "name": "Link Centre",
+  "category": "Performing Arts Center",
+  "facebook_page": "https://www.facebook.com/LinkCentreTup",
+  "facebook_events": "https://www.facebook.com/LinkCentreTup/events",
+  "event_potential": "Concerts, West of Shake Rag comedy/variety, Artful Awakening art nights, Sessions open mic, Mosh for Meals; 1800 W Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (link-centre.org); its Events Calendar is also a town feed",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "linkcentre"
+  ],
+  "instagram_url": "https://www.instagram.com/linkcentre/",
+  "website": "https://link-centre.org"
+ },
+ {
+  "name": "Downtown Tupelo Main Street Association",
+  "category": "Downtown Association / Festivals",
+  "facebook_page": "https://www.facebook.com/downtowntupelo",
+  "facebook_events": "https://www.facebook.com/downtowntupelo/events",
+  "event_potential": "Farmers Market at The Depot, Chili Festival, Ale Trail, Holiday Open House, Deck the Depot, Christmas Parade, NYE party",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (tupelomainstreet.com); also linked from Visit Tupelo events",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "downtowntupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/downtowntupelo/",
+  "website": "https://www.tupelomainstreet.com"
+ },
+ {
+  "name": "Visit Tupelo",
+  "category": "Tourism Bureau / Events Calendar",
+  "facebook_page": "https://www.facebook.com/MyTupelo",
+  "facebook_events": "https://www.facebook.com/MyTupelo/events",
+  "event_potential": "Citywide events calendar, NYE party, Elvis events; its tupelo.net calendar is a town feed",
+  "confidence": "high",
+  "notes": "FB/IG from tupelo.net footer",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "mytupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/mytupelo/",
+  "website": "https://www.tupelo.net"
+ },
+ {
+  "name": "Lost + Found Coffee Co",
+  "category": "Coffee Shop / Game Nights",
+  "facebook_page": "https://www.facebook.com/lostandfoundcoffeeco",
+  "facebook_events": "https://www.facebook.com/lostandfoundcoffeeco/events",
+  "event_potential": "Dungeons & Dragons nights, themed trivia nights (Harry Potter), seasonal events; 910 Robert E Lee Dr",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (lostandfoundcoffee.co); also Visit Tupelo",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "lostandfoundcoffeeco"
+  ],
+  "instagram_url": "https://www.instagram.com/lostandfoundcoffeeco/",
+  "website": "https://www.lostandfoundcoffee.co"
+ },
+ {
+  "name": "Brick and Spoon Tupelo",
+  "category": "Brunch Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/Brick-and-Spoon-Tupelo-MS-106004345501161",
+  "facebook_events": "https://www.facebook.com/Brick-and-Spoon-Tupelo-MS-106004345501161/events",
+  "event_potential": "Weekend brunch live music (Eric Stogner Sat/Sun mornings); 1201 N Gloster St",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG via instagram.com-restricted search result",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "brickandspoontupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/brickandspoontupelo/",
+  "website": "http://www.brickandspoonrestaurant.com"
+ },
+ {
+  "name": "Huntington Bank Arena",
+  "category": "Arena / Convention Center",
+  "facebook_page": "https://www.facebook.com/hbarenacc",
+  "facebook_events": "https://www.facebook.com/hbarenacc/events",
+  "event_potential": "Concerts, Disney On Ice, Harlem Globetrotters, comedy, conventions (formerly Cadence Bank / BancorpSouth Arena); 375 E Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (hbarena.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "hbarenacc"
+  ],
+  "instagram_url": "https://www.instagram.com/hbarenacc/",
+  "website": "https://www.hbarena.com"
+ },
+ {
+  "name": "Tupelo Community Theatre (Lyric Theatre)",
+  "category": "Community Theatre",
+  "facebook_page": "https://www.facebook.com/profile.php?id=100063737732773",
+  "facebook_events": "https://www.facebook.com/profile.php?id=100063737732773&sk=events",
+  "event_potential": "Mainstage season at the Lyric (A Christmas Carol, Madagascar Jr.) plus TCT Off Broadway shows; 201 N Broadway St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (tctlyric.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "tctlyric"
+  ],
+  "instagram_url": "https://www.instagram.com/tctlyric/",
+  "website": "https://tctlyric.com"
+ },
+ {
+  "name": "GumTree Museum of Art",
+  "category": "Art Museum",
+  "facebook_page": "https://www.facebook.com/GumTreeMuseum",
+  "facebook_events": "https://www.facebook.com/GumTreeMuseum/events",
+  "event_potential": "Rotating exhibitions with opening receptions, open studio days, workshops, summer camps; 211 W Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (gumtreemuseum.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "gumtreemuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/gumtreemuseum/",
+  "website": "https://www.gumtreemuseum.com"
+ },
+ {
+  "name": "Oren Dunn City Museum",
+  "category": "History Museum",
+  "facebook_page": "https://www.facebook.com/orendunnmuseum",
+  "facebook_events": "https://www.facebook.com/orendunnmuseum/events",
+  "event_potential": "Monthly Singer/Songwriter Jam Session (4th Monday), Dudie Burger Festival, Ballard Park lighting open house; 689 Rutherford Rd",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (orendunncitymuseum.com); also Visit Tupelo",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://www.orendunncitymuseum.com"
+ },
+ {
+  "name": "North Mississippi Symphony Orchestra",
+  "category": "Orchestra",
+  "facebook_page": "https://www.facebook.com/NMSymphonyOrchestra",
+  "facebook_events": "https://www.facebook.com/NMSymphonyOrchestra/events",
+  "event_potential": "Season concerts (Ellis Island Oct, Christmas with the NMSO Dec, spring concerts) at THS Performing Arts Center",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (nmsymphony.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "nmsymphony"
+  ],
+  "instagram_url": "https://www.instagram.com/nmsymphony/",
+  "website": "https://nmsymphony.com"
+ },
+ {
+  "name": "Lee County Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/leecountylibraryms",
+  "facebook_events": "https://www.facebook.com/leecountylibraryms/events",
+  "event_potential": "Storytime, StoryPlay, Teen Tuesday, Lego Club, film nights, author talks; 219 N Madison St (feed)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (leeitawambalibrary.org); its events page is a town feed",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "leecountylibraryms"
+  ],
+  "instagram_url": "https://www.instagram.com/leecountylibraryms/",
+  "website": "https://www.leeitawambalibrary.org"
+ },
+ {
+  "name": "Tupelo Parks & Recreation",
+  "category": "City Parks Department",
+  "facebook_page": "https://www.facebook.com/TupeloParkRec",
+  "facebook_events": "https://www.facebook.com/TupeloParkRec/events",
+  "event_potential": "Veterans Day program, Ballard Park Christmas lighting, Touch-A-Truck, Cherry Blossom Festival, Celebration of Cultures",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (tupeloparksandrec.org); IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "tupeloparkrec"
+  ],
+  "instagram_url": "https://www.instagram.com/tupeloparkrec/",
+  "website": "https://tupeloparksandrec.org"
+ },
+ {
+  "name": "DownUnder",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/downundertupelo",
+  "facebook_events": "https://www.facebook.com/downundertupelo/events",
+  "event_potential": "Live music every week, acoustic sets, Cocktail Trail stop; 216A W Main St (Tue-Sat)",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (downundertupelo.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "downundertupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/downundertupelo/",
+  "website": "https://downundertupelo.com"
+ },
+ {
+  "name": "Amsterdam Bar & Grill",
+  "category": "Bar / Restaurant",
+  "facebook_page": "https://www.facebook.com/AmsterdamDeli",
+  "facebook_events": "https://www.facebook.com/AmsterdamDeli/events",
+  "event_potential": "Boos & Brews Halloween bar crawl, Cocktail Trail stop, past open-mic comedy; 128 W Main St",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "amsterdam.grill"
+  ],
+  "instagram_url": "https://www.instagram.com/amsterdam.grill/"
+ },
+ {
+  "name": "Lone Star Schooner Bar & Grill",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/p/Lone-Star-Schooner-Bar-Grill-100057194930340",
+  "facebook_events": "https://www.facebook.com/p/Lone-Star-Schooner-Bar-Grill-100057194930340/events",
+  "event_potential": "Local live music in an intimate room (per The Local Palate, 2025); 3952 N Gloster St Suite F",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result (address matches); Visit Tupelo directory links an older page facebook.com/Lone-Star-Schooner-Bar-Grill-110697973880773",
+  "source": "seed",
+  "tier": "HIGH"
+ },
+ {
+  "name": "Mugshots Grill & Bar - Tupelo",
+  "category": "Bar / Restaurant",
+  "facebook_page": "https://www.facebook.com/mugshotstupelo",
+  "facebook_events": "https://www.facebook.com/mugshotstupelo/events",
+  "event_potential": "Live music, watch parties, fundraisers; 374 E Main St (Fairpark)",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "mugshotstupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/mugshotstupelo/"
+ },
+ {
+  "name": "The Gin Restaurant and Catering",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/thegintupeloms",
+  "facebook_events": "https://www.facebook.com/thegintupeloms/events",
+  "event_potential": "Weekend live music (Saturday nights), cornhole nights; 4187 W Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (thegintupelo.com); FB also in facebook.com search",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://thegintupelo.com"
+ },
+ {
+  "name": "Fleet Feet Tupelo",
+  "category": "Running Store / Run Club",
+  "facebook_page": "https://www.facebook.com/fleetfeettupelo",
+  "facebook_events": "https://www.facebook.com/fleetfeettupelo/events",
+  "event_potential": "Free Friday 5:00/5:30 AM group run from the store, monthly downtown public runs, races; 323 W Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (fleetfeet.com/s/tupelo)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "fleetfeettupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/fleetfeettupelo/",
+  "website": "https://www.fleetfeet.com/s/tupelo/"
+ },
+ {
+  "name": "Tupelo Buffalo Park & Zoo",
+  "category": "Zoo / Family Attraction",
+  "facebook_page": "https://www.facebook.com/tupelobuffalopark",
+  "facebook_events": "https://www.facebook.com/tupelobuffalopark/events",
+  "event_potential": "October pumpkin patch, buffalo-herd tours, seasonal events; 2272 N Coley Rd",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (tupelobuffalopark.com)",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://www.tupelobuffalopark.com"
+ },
+ {
+  "name": "Natchez Trace Parkway Visitor Center",
+  "category": "National Park / Visitor Center",
+  "facebook_page": "https://www.facebook.com/NatchezTraceParkwayNPS",
+  "facebook_events": "https://www.facebook.com/NatchezTraceParkwayNPS/events",
+  "event_potential": "Movies on the Trace, North Mississippi Dulcimers first-Saturday shows, ranger programs; 2680 Natchez Trace Pkwy",
+  "confidence": "high",
+  "notes": "FB linked from Visit Tupelo event page (Movies on the Trace); NPS calendar at nps.gov/natr",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.nps.gov/natr/"
+ },
+ {
+  "name": "Crave",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/cravetupelo",
+  "facebook_events": "https://www.facebook.com/cravetupelo/events",
+  "event_potential": "Downtown restaurant & bar on Main; open for NYE downtown, occasional live music; 108 E Main St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (cravetupelo.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "cravetupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/cravetupelo/",
+  "website": "https://cravetupelo.com"
+ },
+ {
+  "name": "Park Heights",
+  "category": "Restaurant / Event Venue",
+  "facebook_page": "https://www.facebook.com/ParkHeightsTupelo",
+  "facebook_events": "https://www.facebook.com/ParkHeightsTupelo/events",
+  "event_potential": "Blue Bar, rooftop over Fairpark, Cooking Like the Stars, wine dinners; 335 E Main St",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result; IG via instagram.com search (bio: since 2000)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "parkheightsrestaurant_"
+  ],
+  "instagram_url": "https://www.instagram.com/parkheightsrestaurant_/",
+  "website": "http://www.parkheightsrestaurant.com"
+ },
+ {
+  "name": "Fairpark Grill",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/fairparkgrill",
+  "facebook_events": "https://www.facebook.com/fairparkgrill/events",
+  "event_potential": "Downtown grill on Fairpark, NYE downtown, watch parties; 343 E Main St Suite A",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "http://www.eatwiththegrill.com"
+ },
+ {
+  "name": "The Stables Downtown Grill",
+  "category": "Bar / Restaurant",
+  "facebook_page": "https://www.facebook.com/TheStablesDowntownGrill",
+  "facebook_events": "https://www.facebook.com/TheStablesDowntownGrill/events",
+  "event_potential": "21+ after 8:30 PM bar and grill, occasional bands; 206 N Spring St",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; also Visit Tupelo directory",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Nautical Whimsey Italian Bistro & Wine Bar",
+  "category": "Wine Bar / Restaurant",
+  "facebook_page": "https://www.facebook.com/NauticalWhimsey",
+  "facebook_events": "https://www.facebook.com/NauticalWhimsey/events",
+  "event_potential": "Cocktail Trail stop, wine nights, live music; 210 W Main St",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Sippi's Bar and Grill",
+  "category": "Bar / Karaoke",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Karaoke nights, live bands and DJs",
+  "confidence": "medium",
+  "notes": "No FB page confirmed; IG via instagram.com search (Tupelo, MS; bio lists karaoke, live bands, DJs)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "sippisbar"
+  ],
+  "instagram_url": "https://www.instagram.com/sippisbar/"
+ },
+ {
+  "name": "The Petty Betty Art Studio",
+  "category": "Art Studio / Classes",
+  "facebook_page": "https://www.facebook.com/christystewartart",
+  "facebook_events": "https://www.facebook.com/christystewartart/events",
+  "event_potential": "Paint & sip, ornament and pottery workshops (incl. pop-ups at Queen's Reward and Bishop's Flower Shop); 1820 E Main St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (pettybettyartstudio.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thepettybettyartstudio"
+  ],
+  "instagram_url": "https://www.instagram.com/thepettybettyartstudio/",
+  "website": "https://www.pettybettyartstudio.com"
+ },
+ {
+  "name": "Reed's GumTree Bookstore",
+  "category": "Bookstore",
+  "facebook_page": "https://www.facebook.com/reedsms",
+  "facebook_events": "https://www.facebook.com/reedsms/events",
+  "event_potential": "Author signings, Page & Table book events, comedy happy hours; 111 S Spring St",
+  "confidence": "high",
+  "notes": "FB/IG links from the venue's own website (reedsgumtreebookstore.com -> reedsms.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "reeds1905"
+  ],
+  "instagram_url": "https://www.instagram.com/reeds1905/",
+  "website": "https://reedsms.com"
+ },
+ {
+  "name": "Tupelo Flea Market (Tupelo Furniture Market)",
+  "category": "Flea Market / Expo Center",
+  "facebook_page": "https://www.facebook.com/tupelofleamarket",
+  "facebook_events": "https://www.facebook.com/tupelofleamarket/events",
+  "event_potential": "Monthly flea market + gun & knife show, Black Friday and Christmas flea markets, Celebration Village, Dancing with the King; 1879 Coley Rd",
+  "confidence": "high",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "HIGH",
+  "website": "https://tupelofleamarket.net"
+ },
+ {
+  "name": "Boys & Girls Clubs of North Mississippi",
+  "category": "Nonprofit / Fundraisers",
+  "facebook_page": "https://www.facebook.com/bgcnms",
+  "facebook_events": "https://www.facebook.com/bgcnms/events",
+  "event_potential": "Burger Bash, Cooking Like the Stars",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (bgcnms.org); also Visit Tupelo",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "boysgirlsclubsnms"
+  ],
+  "instagram_url": "https://www.instagram.com/boysgirlsclubsnms/",
+  "website": "https://www.bgcnms.org"
+ },
+ {
+  "name": "Just Love Coffee Cafe - Tupelo",
+  "category": "Coffee Shop",
+  "facebook_page": "https://www.facebook.com/justlovetupelo",
+  "facebook_events": "https://www.facebook.com/justlovetupelo/events",
+  "event_potential": "Cookie-decorating classes, Santa events, kids' activities; 1600 N Gloster St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (justlovecoffeecafe.com/tupelo)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "justlovetupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/justlovetupelo/",
+  "website": "https://justlovecoffeecafe.com/tupelo/"
+ },
+ {
+  "name": "Neon Pig Tupelo",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/neon.pig",
+  "facebook_events": "https://www.facebook.com/neon.pig/events",
+  "event_potential": "Butcher-shop restaurant with bar; occasional chef dinners; 1203 N Gloster St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (neonpigtupelo.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "neonpigtupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/neonpigtupelo/",
+  "website": "https://neonpigtupelo.com"
+ },
+ {
+  "name": "Clay's House of Pig",
+  "category": "BBQ Restaurant",
+  "facebook_page": "https://www.facebook.com/C.H.O.P.BBQ",
+  "facebook_events": "https://www.facebook.com/C.H.O.P.BBQ/events",
+  "event_potential": "BBQ joint; occasional live music and pop-ups; 205 S Veterans Memorial Blvd",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (clayshouseofpig.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "c.h.o.p.bbq"
+  ],
+  "instagram_url": "https://www.instagram.com/c.h.o.p.bbq/",
+  "website": "https://www.clayshouseofpig.com"
+ },
+ {
+  "name": "Backswings Golf & Grill",
+  "category": "Golf Simulator / Grill",
+  "facebook_page": "https://www.facebook.com/backswingsgolfandgrill",
+  "facebook_events": "https://www.facebook.com/backswingsgolfandgrill/events",
+  "event_potential": "Simulator leagues, watch parties, tournaments; 1014 Commonwealth Blvd",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (backswingsgolfandgrill.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "backswingsgolfandgrill"
+  ],
+  "instagram_url": "https://www.instagram.com/backswingsgolfandgrill/",
+  "website": "https://www.backswingsgolfandgrill.com"
+ },
+ {
+  "name": "D'Cracked Egg Tupelo",
+  "category": "Restaurant / Party Venue",
+  "facebook_page": "https://www.facebook.com/dcrackedeggtupelo",
+  "facebook_events": "https://www.facebook.com/dcrackedeggtupelo/events",
+  "event_potential": "Themed parties and after-parties (Mimosa Festival after-party, Fall in the Bushes bash); 206 Troy St",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result (206 Troy St); IG via instagram.com-restricted search result",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "dcrackedeggtupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/dcrackedeggtupelo/"
+ },
+ {
+  "name": "Tupelo Elvis Festival",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/TupeloElvisFestival",
+  "facebook_events": "https://www.facebook.com/TupeloElvisFestival/events",
+  "event_potential": "Annual June festival (Elvis tribute artist competition, concerts); 2027 dates TBA",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (tupeloelvisfestival.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "tupeloelvisfestival"
+  ],
+  "instagram_url": "https://www.instagram.com/tupeloelvisfestival/",
+  "website": "https://www.tupeloelvisfestival.com"
+ },
+ {
+  "name": "Dancing with the King",
+  "category": "Fundraiser / Dance Show",
+  "facebook_page": "https://www.facebook.com/dancingwiththeking",
+  "facebook_events": "https://www.facebook.com/dancingwiththeking/events",
+  "event_potential": "Annual Elvis-themed dance competition fundraiser (Oct 30 at Tupelo Furniture Market)",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (dancingwiththeking.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "dancingandsingingwiththeking"
+  ],
+  "instagram_url": "https://www.instagram.com/dancingandsingingwiththeking/",
+  "website": "https://dancingwiththeking.com"
+ },
+ {
+  "name": "Celebration Village",
+  "category": "Holiday Market",
+  "facebook_page": "https://www.facebook.com/CelebrationVillageFanPage",
+  "facebook_events": "https://www.facebook.com/CelebrationVillageFanPage/events",
+  "event_potential": "Annual holiday shopping market benefiting Sanctuary Hospice (Oct 21-24, Tupelo Furniture Market)",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "https://www.sanctuaryhospicehouse.com"
+ },
+ {
+  "name": "Communities Forward Festival",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/CommunitiesForwardFestival",
+  "facebook_events": "https://www.facebook.com/CommunitiesForwardFestival/events",
+  "event_potential": "Annual October festival at Gumtree Park + Fun Night",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "The Dance Studio of Tupelo",
+  "category": "Ballroom Dance Studio",
+  "facebook_page": "https://www.facebook.com/dancestudiotupelo",
+  "facebook_events": "https://www.facebook.com/dancestudiotupelo/events",
+  "event_potential": "Ballroom/social dance classes and showcases; 108 N Spring St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (thedancestudiotupelo.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thedancestudiooftupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/thedancestudiooftupelo/",
+  "website": "http://www.thedancestudiotupelo.com"
+ },
+ {
+  "name": "Tupelo Ballet",
+  "category": "Ballet Company",
+  "facebook_page": "https://www.facebook.com/tupeloballet",
+  "facebook_events": "https://www.facebook.com/tupeloballet/events",
+  "event_potential": "Seasonal productions (Nutcracker / spring shows)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Greatest Hits Music & Books",
+  "category": "Record & Book Store",
+  "facebook_page": "https://www.facebook.com/profile.php?id=100057134755219",
+  "facebook_events": "https://www.facebook.com/profile.php?id=100057134755219&sk=events",
+  "event_potential": "In-store events, Record Store Day; 675 W Main St",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (ghmusicandbooks.com); IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "greatesthits.tupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/greatesthits.tupelo/",
+  "website": "https://ghmusicandbooks.com"
+ },
+ {
+  "name": "Strange Brew Coffeehouse",
+  "category": "Coffee Shop",
+  "facebook_page": "https://www.facebook.com/Brewpelo",
+  "facebook_events": "https://www.facebook.com/Brewpelo/events",
+  "event_potential": "Coffeehouse hangout; occasional music/open mics; 220 N Gloster St",
+  "confidence": "medium",
+  "notes": "FB from Visit Tupelo directory; IG via instagram.com search (@brewpelo says accounts consolidated into @sbcoffeehouse)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "sbcoffeehouse"
+  ],
+  "instagram_url": "https://www.instagram.com/sbcoffeehouse/",
+  "website": "http://www.strangebrewcoffeehouse.com"
+ },
+ {
+  "name": "Tupelo Veterans Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/tupeloveteransmuseum",
+  "facebook_events": "https://www.facebook.com/tupeloveteransmuseum/events",
+  "event_potential": "Veterans Day, Memorial Day programs at Veterans Park; 689 Rutherford Rd",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "http://www.tupeloveteransmuseum.com"
+ },
+ {
+  "name": "Buffalo Wild Wings Tupelo",
+  "category": "Sports Bar",
+  "facebook_page": "https://www.facebook.com/BWWTupeloMS",
+  "facebook_events": "https://www.facebook.com/BWWTupeloMS/events",
+  "event_potential": "Game-day watch parties; 3485 Tupelo Commons Dr",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Cantina Del Sol",
+  "category": "Mexican Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/cantinadelsoltupelo",
+  "facebook_events": "https://www.facebook.com/cantinadelsoltupelo/events",
+  "event_potential": "Margarita specials, watch parties; 3120 N Gloster St",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "cantinadelsoltupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/cantinadelsoltupelo/"
+ },
+ {
+  "name": "Lost Pizza Co. Tupelo",
+  "category": "Pizza / Bar",
+  "facebook_page": "https://www.facebook.com/lostpizzatupelo",
+  "facebook_events": "https://www.facebook.com/lostpizzatupelo/events",
+  "event_potential": "Family pizza spot with bar; kids' nights, watch parties",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from Visit Tupelo directory",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lostpizzatupelo"
+  ],
+  "instagram_url": "https://www.instagram.com/lostpizzatupelo/",
+  "website": "https://www.lostpizza.com"
+ },
+ {
+  "name": "Blu Majik Restaurant and Lounge",
+  "category": "Lounge / Restaurant",
+  "facebook_page": "https://www.facebook.com/profile.php?id=100089862879848",
+  "facebook_events": "https://www.facebook.com/profile.php?id=100089862879848&sk=events",
+  "event_potential": "Lounge nights, DJs, day parties; 883 S Green St",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page; IG from blumajik.com",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "blumajik_"
+  ],
+  "instagram_url": "https://www.instagram.com/blumajik_/",
+  "website": "https://blumajik.com"
+ },
+ {
+  "name": "Garner at Goodlett",
+  "category": "Event Venue",
+  "facebook_page": "https://www.facebook.com/garneratgoodlett",
+  "facebook_events": "https://www.facebook.com/garneratgoodlett/events",
+  "event_potential": "Downtown event space at 219 N Broadway St; pop-ups and private events",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (garneratgoodlett.com)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "garneratgoodlett"
+  ],
+  "instagram_url": "https://www.instagram.com/garneratgoodlett/",
+  "website": "https://www.garneratgoodlett.com"
+ },
+ {
+  "name": "Waldo's Chicken & Beer",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/waldoschicken",
+  "facebook_events": "https://www.facebook.com/waldoschicken/events",
+  "event_potential": "Music bingo (Cerrito Entertainment lists Waldo's; Tupelo N Gloster location hosted Friday Music Bingo in 2025)",
+  "confidence": "medium",
+  "notes": "FB/IG links from the venue's own website (waldoschicken.com, chain page covering Tupelo)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "waldoschicken"
+  ],
+  "instagram_url": "https://www.instagram.com/waldoschicken/",
+  "website": "https://waldoschicken.com"
+ },
+ {
+  "name": "Event Zona",
+  "category": "Bowling / Family Entertainment",
+  "facebook_page": "https://www.facebook.com/p/Event-Zona-100047441276205",
+  "facebook_events": "https://www.facebook.com/p/Event-Zona-100047441276205/events",
+  "event_potential": "Bowling leagues, laser tag, arcade, parties; 790 Moncrief Dr (operating status unclear)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result; a commenter asked about reopening, so confirm it is open",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Harvey's",
+  "category": "Restaurant / Bar",
+  "facebook_page": "https://www.facebook.com/harveys.tupelo",
+  "facebook_events": "https://www.facebook.com/harveys.tupelo/events",
+  "event_potential": "Longtime Tupelo grill and bar; 424 S Gloster St",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "http://www.eatwithharveys.com"
+ },
+ {
+  "name": "Vanelli's Bistro",
+  "category": "Restaurant",
+  "facebook_page": "https://www.facebook.com/vanellisfans",
+  "facebook_events": "https://www.facebook.com/vanellisfans/events",
+  "event_potential": "Downtown Italian/Greek bistro; occasional events; 206 W Main St",
+  "confidence": "medium",
+  "notes": "FB link from the venue's own Visit Tupelo (tupelo.net) directory or event page",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "website": "http://www.vanellis.com"
+ },
+ {
+  "name": "Spring Street Cigar Bar",
+  "category": "Cigar Bar / Lounge",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Cigar lounge downtown; occasional tastings; 208 N Spring St",
+  "confidence": "medium",
+  "notes": "Listed in Visit Tupelo directory with no social links; no FB confirmed",
+  "source": "seed",
+  "tier": "MEDIUM"
+ },
+ {
+  "name": "Tupelo Hunger Coalition",
+  "category": "Nonprofit / Fundraisers",
+  "facebook_page": "https://www.facebook.com/hungercoalitionnems",
+  "facebook_events": "https://www.facebook.com/hungercoalitionnems/events",
+  "event_potential": "Steak Challenge fundraiser at Huntington Bank Arena",
+  "confidence": "medium",
+  "notes": "FB linked from Visit Tupelo event page",
+  "source": "seed",
+  "tier": "MEDIUM"
+ }
+]

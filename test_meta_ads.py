@@ -1,4 +1,5 @@
 """Tests for scripts/meta_ads.py, the Meta ads reader/manager."""
+import json
 import os
 import sys
 
@@ -61,6 +62,9 @@ def env(monkeypatch):
     monkeypatch.delenv("META_AD_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
     monkeypatch.setattr(ma.slack_notify, "main", lambda args: sent.append(args) or 0)
+    # The account-wide path (a town with no campaign_prefix); the shared
+    # account's per-town filter has its own tests below.
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "")
     sent.clear()
 
 
@@ -213,13 +217,12 @@ def test_a_retired_api_version_is_named_not_blamed_on_the_token(tmp_path, monkey
             self.calls.append((method, url))
             return Resp({"error": {"message": "(#2635) You are calling a deprecated version of the Ads API. "
                                               "Please update to the latest version.", "code": 2635}}, 400)
-    out = tmp_path / "gh_output"
-    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     assert ma.main(["report", "--scheduled"], session=Retired()) == 1
     printed = capsys.readouterr().out
-    assert ma.GRAPH_VERSION in printed and "GRAPH_API_VERSION" in printed
-    alert = out.read_text()
-    assert alert.startswith("alert=") and ma.GRAPH_VERSION in alert and "token" not in alert
+    # The ::error:: line is what the jobs worker's alert quotes.
+    error = next(line for line in printed.splitlines() if line.startswith("::error::"))
+    assert ma.GRAPH_VERSION in error and "GRAPH_API_VERSION" in error and "token" not in error
+    assert "repo variable" not in error
 
 
 def test_graph_version_comes_from_the_repo_variable_with_a_default(monkeypatch):
@@ -300,6 +303,37 @@ def test_report_sends_daily_spend_to_the_site_and_adds_the_real_cost(monkeypatch
     assert "✅ Real, from the site: yesterday: 31 new subscribers ($0.92 each) · last 7 days: 120 new subscribers ($1.05 each)" in sent[0][0]
 
 
+def test_report_sends_hq_this_towns_campaigns_with_budget_and_last_7_days(monkeypatch):
+    monkeypatch.setenv("ADS_SPEND_SECRET", "s3cret")
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402")
+    posted = []
+
+    class Shared(FakeMeta):
+        def request(self, method, url, **k):
+            if url.startswith(ma.SITE):
+                posted.append(k["json"])
+                return Resp({"ok": True})
+            p = k.get("params") or {}
+            if url.endswith("/insights") and p.get("level") == "campaign" and p.get("date_preset") == "last_7d":
+                return Resp({"data": [
+                    {"campaign_name": "The Star 402 Newsletter Leads", "spend": "41.79", "inline_link_clicks": "116",
+                     "actions": [{"action_type": "offsite_conversion.fb_pixel_lead", "value": "54"}]},
+                    {"campaign_name": "Shoals Setlist Newsletter Leads", "spend": "35.38", "inline_link_clicks": "159", "actions": []}]})
+            if url.endswith("/campaigns"):
+                return Resp({"data": [
+                    {"id": "1", "name": "The Star 402 Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "5500"},
+                    {"id": "2", "name": "The Star 402 Old Test", "effective_status": "ARCHIVED"},
+                    {"id": "3", "name": "Shoals Setlist Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "5500"}]})
+            if url.endswith("/adsets"):
+                return Resp({"data": []})
+            if url.endswith("/ads"):
+                return Resp({"data": []})
+            return super().request(method, url, **k)
+    assert ma.main(["report"], session=Shared()) == 0
+    assert posted[0]["campaigns"] == [{"name": "The Star 402 Newsletter Leads", "status": "ACTIVE", "daily_budget": 55.0,
+                                       "spend_7_days": 41.79, "leads_7_days": 54, "clicks_7_days": 116}]
+
+
 def test_report_still_goes_out_when_the_site_is_down(monkeypatch, capsys):
     monkeypatch.setenv("ADS_SPEND_SECRET", "s3cret")
 
@@ -338,3 +372,119 @@ def test_a_quiet_week_still_sends_the_days(monkeypatch):
             return super().request(method, url, **k)
     assert ma.main(["report"], session=Quiet(spend="0")) == 0
     assert len(posted) == 1 and len(posted[0]["days"]) == 30
+
+
+def test_another_town_never_uses_ads_credentials_not_its_own(monkeypatch, capsys):
+    monkeypatch.setenv("META_ADS_TOKEN", "tok")
+    monkeypatch.setattr(ma, "meta_allowed", lambda **k: False)
+    monkeypatch.setattr(ma, "Api", lambda *a, **k: pytest.fail("no Graph call for another town's credentials"))
+    assert ma.main(["report", "--scheduled"]) == 0
+    assert "aren't" in capsys.readouterr().out
+
+
+def test_the_workers_run_writes_the_report_for_the_site_instead_of_slack(tmp_path):
+    # scripts/jobs_worker.py job_meta_ads: the site posts it to Slack.
+    out = tmp_path / "r.json"
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=FakeMeta()) == 0
+    got = json.loads(out.read_text())
+    assert sent == []
+    assert got["report"].startswith("📈 Meta ads: yesterday") and got["link"].startswith("https://adsmanager.facebook.com/")
+    # A quiet week: no report, nothing for the site to post.
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=FakeMeta(spend="0")) == 0
+    assert json.loads(out.read_text()) == {"report": None, "link": None}
+
+
+class SharedAccount(FakeMeta):
+    """One ad account, two towns' campaigns (A2): Victoria's two and
+    Lincoln's one, with a rejected ad of Lincoln's."""
+    CAMPAIGNS = [{"id": "c1", "name": "Vic Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "6800"},
+                 {"id": "c2", "name": "Vic Newsletter Leads - Copy", "effective_status": "ACTIVE", "daily_budget": "4000"},
+                 {"id": "c3", "name": "The Star 402 Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "5500"}]
+    ROWS = {"c1": {"spend": "20", "reach": "500", "impressions": "1000", "inline_link_clicks": "10", "lead": "5"},
+            "c2": {"spend": "10", "reach": "250", "impressions": "500", "inline_link_clicks": "5", "lead": "3"},
+            "c3": {"spend": "50", "reach": "2000", "impressions": "4000", "inline_link_clicks": "80", "lead": "40"}}
+
+    def request(self, method, url, **k):
+        params = k.get("params") or {}
+        if url.endswith("/insights"):
+            assert params.get("level") == "campaign"
+            names = {c["id"]: c["name"] for c in self.CAMPAIGNS}
+            day = {"date_start": "2026-10-07"} if params.get("time_increment") else {}
+            return Resp({"data": [{"campaign_id": cid, "campaign_name": names[cid], **day,
+                                   **{f: v for f, v in r.items() if f != "lead"},
+                                   "actions": [{"action_type": "lead", "value": r["lead"]}]}
+                                  for cid, r in self.ROWS.items()]})
+        if url.endswith("/campaigns"):
+            return Resp({"data": self.CAMPAIGNS})
+        if url.endswith("/adsets"):
+            return Resp({"data": [{"id": f"s{n}", "name": f"Set {n}", "campaign_id": f"c{n}", "effective_status": "ACTIVE"}
+                                  for n in (1, 2, 3)]})
+        if url.endswith("/ads"):
+            return Resp({"data": [{"id": "a1", "name": "Halloween Ad", "adset_id": "s1", "effective_status": "ACTIVE"},
+                                  {"id": "a3", "name": "Star ad", "adset_id": "s3", "effective_status": "DISAPPROVED"}]})
+        return super().request(method, url, **k)
+
+
+def test_towns_sharing_one_ad_account_each_report_only_their_own_campaigns(monkeypatch):
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "Vic Newsletter Leads")
+    assert ma.main(["report"], session=SharedAccount()) == 0
+    vic = sent[0][0]
+    assert "yesterday $30.00 spent, 750 people reached, 15 link clicks (1.00% CTR)" in vic
+    assert "8 signups ($3.75 each)" in vic and "frequency 2.00" in vic
+    assert "Star ad" not in vic and "Star 402" not in vic
+    sent.clear()
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402 Newsletter Leads")
+    assert ma.main(["report"], session=SharedAccount()) == 0
+    star = sent[0][0]
+    assert "yesterday $50.00 spent" in star and "40 signups ($1.25 each)" in star
+    assert "Ad *Star ad* is disapproved" in star and "Vic Newsletter" not in star
+
+
+def test_the_site_gets_only_the_towns_own_daily_spend(monkeypatch):
+    # HQ adds every town's spend_30_days, so each must be the town's own.
+    api = ma.Api(TOKEN, SharedAccount())
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "Vic Newsletter Leads")
+    vic = {r["day"]: r for r in ma.daily_rows(api, "act_1", today=ma.dt.date(2026, 10, 9))}
+    assert vic["2026-10-07"] == {"day": "2026-10-07", "spend": 30.0, "impressions": 1500, "clicks": 15, "leads": 8}
+    assert vic["2026-10-08"]["spend"] == 0
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402 Newsletter Leads")
+    star = {r["day"]: r for r in ma.daily_rows(api, "act_1", today=ma.dt.date(2026, 10, 9))}
+    assert star["2026-10-07"]["spend"] == 50.0 and star["2026-10-07"]["leads"] == 40
+
+
+def test_a_live_budget_over_the_limit_is_noted_but_never_sends_a_report(monkeypatch, capsys):
+    # A22: the owner runs $55/day on purpose; say so, don't block it.
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "Vic Newsletter Leads")
+    assert ma.main(["report"], session=SharedAccount()) == 0
+    assert "ℹ️ *Vic Newsletter Leads* is at $68.00/day, over the $50/day safety limit" in sent[0][0]
+    assert "Copy* is at" not in sent[0][0]            # $40/day is under it
+    assert ma.main(["status"], session=SharedAccount()) == 0
+    assert "*Vic Newsletter Leads* is at $68.00/day" in capsys.readouterr().out
+    # A paused or finished campaign's budget isn't live.
+    now = ma.dt.datetime(2026, 10, 16, tzinfo=ma.dt.timezone.utc)
+    done = [{"id": "x", "name": "Old", "effective_status": "PAUSED", "daily_budget": "9000"},
+            {"id": "y", "name": "Ended", "effective_status": "ACTIVE", "daily_budget": "9000",
+             "stop_time": "2026-10-01T00:00:00-0500"}]
+    assert ma.over_budget(done, [], now=now) == []
+    # Over the limit alone, in a quiet week, sends nothing.
+    class QuietBig(FakeMeta):
+        def request(self, method, url, **k):
+            if url.endswith("/campaigns"):
+                return Resp({"data": [{"id": "1", "name": "Big", "effective_status": "PAUSED", "daily_budget": "9000"}]})
+            return super().request(method, url, **k)
+    sent.clear()
+    assert ma.main(["report"], session=QuietBig(spend="0")) == 0
+    assert sent == []
+
+
+def test_every_town_names_its_own_campaigns_in_the_shared_account():
+    import town as town_mod
+    assert town_mod.VICTORIA["meta"]["campaign_prefix"] == "Vic Newsletter Leads"
+    want = {"lincoln": "The Star 402 Newsletter Leads", "virginiabeach": "The Tide 757 Newsletter Leads",
+            "medford": "The Rogue 541 Newsletter Leads", "shoals": "Shoals Setlist Newsletter Leads"}
+    for slug, prefix in want.items():
+        meta = town_mod.town_config({"TOWN": slug})["meta"]
+        assert meta["campaign_prefix"] == prefix and meta["ad_account_id"] == "2614503002399063"
+    # No prefix starts another's, so no campaign is counted by two towns.
+    prefixes = [town_mod.VICTORIA["meta"]["campaign_prefix"], *want.values()]
+    assert not any(a != b and b.startswith(a) for a in prefixes for b in prefixes)

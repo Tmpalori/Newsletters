@@ -30,11 +30,14 @@ let tmpDir, server, baseUrl, store, sent, nlApi;
 const TURNSTILE_PASS = async () => ({ ok: true, json: async () => ({ success: true }) });
 let autoToken = false;
 
+// Each app gets its own outbox: a welcome email the previous test's app sends
+// late (after its response) must not land in the next test's `sent`.
 function fakeResend() {
-  sent = { single: [], batches: [] };
+  const box = { single: [], batches: [] };
+  sent = box;
   return {
-    send: async (msg) => { sent.single.push(msg); return { id: 'e1' }; },
-    batch: async (msgs, key) => { sent.batches.push({ msgs, key }); return { data: msgs.map((_, i) => ({ id: `b${i}` })) }; }
+    send: async (msg) => { box.single.push(msg); return { id: 'e1' }; },
+    batch: async (msgs, key) => { box.batches.push({ msgs, key }); return { data: msgs.map((_, i) => ({ id: `b${i}` })) }; }
   };
 }
 
@@ -49,7 +52,7 @@ async function startApp(extra = {}) {
     storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, now: () => NOW,
     siteUrl: 'https://www.thevic361.com', adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c',
     resendApiKey: 're_test', newsletterAddress: '123 Main St, Victoria, TX 77901',
-    newsletterCronSecret: 'cron-secret', resend: fakeResend(), ...extra
+    newsletterCronSecret: 'cron-secret', ...(extra.resend ? {} : { resend: fakeResend() }), ...extra
   });
   const { app } = made;
   nlApi = made.newsletter;
@@ -323,26 +326,15 @@ describe('signup flow', () => {
     expect(welcome.html).toContain('Farmers Market');
     expect(welcome.html).toContain('Acme Tacos');
     expect(welcome.html).toContain('123 Main St, Victoria, TX 77901');
-    // One subscriber isn't a multiple of 5: no Slack ping.
-    expect(pings.filter(p => / subscribers$/.test(p.title))).toHaveLength(0);
+    expect(pings.filter(p => p.channel === 'hype')).toHaveLength(0);
   });
 
-  it('Slack pings once every 5 subscribers, with the total', async () => {
+  it('a signup alone never pings Slack: HQ posts every 10 across all newsletters', async () => {
     const pings = [];
     await startApp({ slack: { enabled: true, notify: async (m) => { pings.push(m); return true; }, alert: async () => {} } });
-    const subs = () => pings.filter(p => / subscribers$/.test(p.title));
-    for (let i = 1; i <= 4; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
+    for (let i = 1; i <= 10; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
     await new Promise(r => setTimeout(r, 50));
-    expect(subs()).toHaveLength(0);
-    await post('/api/subscribe', { email: 'fan5@example.com' });
-    await vi.waitFor(() => expect(subs()).toHaveLength(1), { timeout: 2000 });
-    expect(subs()[0]).toMatchObject({ channel: 'hype', title: '📬 The Vic 361: 5 subscribers' });
-    expect(subs()[0].fields).toEqual([['Newsletter', 'The Vic 361'], ['Total subscribers', 5]]);
-    expect(subs()[0].text).toBe('Newest 5:\nfan5@example.com\nfan4@example.com\nfan3@example.com\nfan2@example.com\nfan1@example.com');
-    for (let i = 6; i <= 10; i++) await post('/api/subscribe', { email: `fan${i}@example.com` });
-    await vi.waitFor(() => expect(subs()).toHaveLength(2), { timeout: 2000 });
-    expect(subs()[1].title).toBe('📬 The Vic 361: 10 subscribers');
-    expect(subs()[1].text).toBe('Newest 5:\nfan10@example.com\nfan9@example.com\nfan8@example.com\nfan7@example.com\nfan6@example.com');
+    expect(pings.filter(p => p.channel === 'hype')).toHaveLength(0);
   });
 
   it('a comeback must confirm from its own inbox: confirmation email, GET shows a button, POST activates', async () => {
@@ -563,6 +555,21 @@ describe('signups where the bot check never loaded', () => {
     const r = await post('/api/subscribe', { email: 'real@example.com', turnstile_token: 'ok' });
     expect((await r.json()).message).toBe("You're on the list! Check your inbox.");
     expect((await store.countSubscribers()).active).toBe(1);
+  });
+
+  it('only a signup that joins right away may count as a Meta Lead', async () => {
+    await startApp({ turnstileSecret: 'fake-secret', fetch: pass });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const lead = async (body) => (await (await post('/api/subscribe', body)).json()).lead;
+      expect(await lead({ email: 'real@example.com', turnstile_token: 'ok' })).toBe(true);
+      // The same for an address already on the list: it says nothing of who's subscribed.
+      expect(await lead({ email: 'real@example.com', turnstile_token: 'ok' })).toBe(true);
+      // Waiting on a Confirm tap (no bot check, or a referral code) or a honeypot hit: no Lead.
+      expect(await lead({ email: 'iab@example.com' })).toBeUndefined();
+      expect(await lead({ email: 'friend@example.com', turnstile_token: 'ok', ref: 'abcdefg' })).toBeUndefined();
+      expect(await lead({ email: 'bot@example.com', turnstile_token: 'ok', hp_field: 'spam' })).toBeUndefined();
+    } finally { warn.mockRestore(); }
   });
 
   it('after a signup the form shows only the confirmation (no empty-form second tap)', async () => {
@@ -944,6 +951,16 @@ describe('sending', () => {
     const dup = await (await post('/api/newsletter/cron', {}, { 'X-Cron-Secret': 'cron-secret' })).json();
     expect(dup.error).toBe('already-sent');
     expect(sent.batches).toHaveLength(1);
+  });
+
+  it('a scheduled send says what it did, and nobody to send to is an alert, not a quiet "ran"', async () => {
+    const alerts = [];
+    await startApp({ slack: { enabled: true, notify: async () => true, alert: async (k, t) => { alerts.push({ k, t }); return true; } } });
+    const empty = await nlApi.scheduledSend();
+    expect(empty).toMatchObject({ ok: true, sent_ok: false, detail: 'no-subscribers' });
+    expect(alerts.map(a => a.k)).toContain('newsletter-no-subscribers');
+    await store.importSubscribers(['a@example.com'], 'import');
+    expect(await nlApi.scheduledSend()).toMatchObject({ ok: true, sent_ok: true, detail: 'sent: 1 recipients' });
   });
 
   it('cron is closed when no secret is configured', async () => {
@@ -1689,8 +1706,10 @@ describe('reply ask and open counting', () => {
     const pixels = sent.batches.flatMap(b => b.msgs).map(m => m.html.match(/<img src="https:\/\/www\.thevic361\.com(\/email\/o\/[^"]+)"/)[1]);
     expect(pixels).toHaveLength(150);
     for (const p of pixels) await fetch(baseUrl + p); // all from 127.0.0.1, like Gmail's proxy
+    // Each open is saved after its response, one rewrite of the file store at
+    // a time; 150 of them took over 3 s on a CI runner.
     await vi.waitFor(async () => {
       expect(await store.countEmailOpens(['2026-10-05'])).toEqual({ '2026-10-05': 150 });
-    }, { timeout: 3000 });
-  });
+    }, { timeout: 20000, interval: 200 });
+  }, 30000);
 });

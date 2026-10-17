@@ -1,0 +1,17 @@
+# The town's jobs worker (scripts/jobs_worker.py, JOBS_ON_RAILWAY.md): its
+# own Railway service, "<domain>-jobs", built from this file. The web
+# service keeps building with Railpack; this file is only for the worker.
+FROM python:3.11-slim
+# The social kit (JOBS_ON_RAILWAY.md 2b): Chromium screenshots the branded
+# slides (scripts/social_slides.py; without it they fall back to plain
+# Pillow slides), ffmpeg stitches the weekend Reel (without it Instagram
+# gets the carousel), DejaVu is the plain slides' font.
+RUN apt-get update -qq \
+ && apt-get install -y -qq --no-install-recommends chromium ffmpeg fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-u", "scripts/jobs_worker.py"]

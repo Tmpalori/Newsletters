@@ -1,1 +1,1054 @@
-[]
+[
+ {
+  "name": "Swampers Bar & Grille",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/SwampersBarandGrille",
+  "facebook_events": "https://www.facebook.com/SwampersBarandGrille/events",
+  "event_potential": "Live music every night: 5-7pm happy-hour set Tue-Fri plus a 7:30/8pm set nightly, inside the Renaissance Shoals Resort (800 Cox Creek Pkwy S)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG bio 'live music on weekdays'; nightly lineup on visitflorenceal.com/music/live-music (week of Oct 14 2026)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "swampersbarandgrille"
+  ],
+  "instagram_url": "https://www.instagram.com/swampersbarandgrille/"
+ },
+ {
+  "name": "The Rising Crust",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/TRCofFlorence",
+  "facebook_events": "https://www.facebook.com/TRCofFlorence/events",
+  "event_potential": "Live bands Thu-Sun, karaoke Wednesdays; pizza, craft cocktails",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; schedule on Visit Florence live-music page (Oct 14-21 2026); IG @therisingcrust (Rising Crust Pizza & Hops, 4136 Florence Blvd, Killen) not confirmed as the same business, left out",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Lava Room",
+  "category": "Bar / Karaoke",
+  "facebook_page": "https://www.facebook.com/lavaroomflorence",
+  "facebook_events": "https://www.facebook.com/lavaroomflorence/events",
+  "event_potential": "Karaoke Mon-Thu 8pm, live music Saturdays; downtown Florence dining/entertainment venue",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; karaoke nights on Visit Florence live-music page (Oct 14-21 2026)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "FloBama Music Hall",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/flobamadowntown",
+  "facebook_events": "https://www.facebook.com/flobamadowntown/events",
+  "event_potential": "Live bands Fri and some weeknights, late-night karaoke Fridays, Songwriters Festival stage; 311 N Court St",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (page 'Flo Bama'); Visit Florence lists facebook.com/flobamamusic as well; IG bio 'Restaurant / Music Hall' downtown Florence",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "flobamadowntown"
+  ],
+  "instagram_url": "https://www.instagram.com/flobamadowntown/"
+ },
+ {
+  "name": "Rattlesnake Saloon",
+  "category": "Bar / Live Music",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Outdoor stage in a cave: live Muscle Shoals music Thu-Sat 6:30-10pm, karaoke Thursdays (Feb-Nov season); 1292 Mt Mills Rd, Tuscumbia",
+  "confidence": "medium",
+  "notes": "No official FB page found (Visit Florence links a FB group: facebook.com/groups/149991225027652); website rattlesnakesaloon.net (Wix); schedule from Visit Florence live-music page + UNA Music Trail guide",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.rattlesnakesaloon.net"
+ },
+ {
+  "name": "Champy's Shoals",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/ChampysShoals",
+  "facebook_events": "https://www.facebook.com/ChampysShoals/events",
+  "event_potential": "'Brews, Blues and Bird' patio shows Wed and Fri 7-9pm; touring blues acts; 120 2nd St, Muscle Shoals",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @champysshoals; shows on Visit Florence live-music page (Oct 14-21 2026)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "champysshoals"
+  ],
+  "instagram_url": "https://www.instagram.com/champysshoals/",
+  "website": "https://champyschicken.com"
+ },
+ {
+  "name": "Singin' River Live",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/singinriverlive",
+  "facebook_events": "https://www.facebook.com/singinriverlive/events",
+  "event_potential": "5,000 sq ft concert room behind Singin' River Brewing (526 B E College St): ticketed tribute and touring shows",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; shows also come through The Shoals Now and chamber feeds",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://singinriverlive.com"
+ },
+ {
+  "name": "Singin' River Brewing Company",
+  "category": "Brewery",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Taproom shows (Bottomland, Cole Phillips, Stolen Faces in Oct-Nov 2026), trivia per Yelp reviews; 526 E College St",
+  "confidence": "medium",
+  "notes": "No separate brewery FB page found (search returns only Singin' River Live); IG @singinriver verified via instagram.com search",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "singinriver"
+  ],
+  "instagram_url": "https://www.instagram.com/singinriver/",
+  "website": "https://www.singinriverbrewing.com"
+ },
+ {
+  "name": "For The Record Music Hall",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/p/For-The-Record-Music-Hall-100089005832961/",
+  "facebook_events": "https://www.facebook.com/p/For-The-Record-Music-Hall-100089005832961/events",
+  "event_potential": "21+ bar, lounge and music venue open 6 days/week; Big Stage Karaoke Thursdays per older Visit Florence listing; 1401 Huntsville Rd",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (bio: full service bar & music venue in the Shoals area, 21+)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Boiler Room",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/BoilerRoomFlo",
+  "facebook_events": "https://www.facebook.com/BoilerRoomFlo/events",
+  "event_potential": "Basement bar under The Stricklin Hotel (313 N Court St): live music, games, ladies' nights",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; listed on Visit Florence live-music page",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "On The Rocks",
+  "category": "Bar / Live Music",
+  "facebook_page": "https://www.facebook.com/FlorenceOTR",
+  "facebook_events": "https://www.facebook.com/FlorenceOTR/events",
+  "event_potential": "Downtown burger joint, bar and live music venue (110 N Court St); status unclear (FB says 'Opening Soon')",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; status conflict noted, check before relying on it",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://florenceontherocks.com"
+ },
+ {
+  "name": "Ray's at the Bank",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/Raysatthebank",
+  "facebook_events": "https://www.facebook.com/Raysatthebank/events",
+  "event_potential": "Upscale Southern restaurant in the Sweetwater District (1411 Huntsville Rd); listed among Visit Florence live-music venues",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @raysatthebank (Florence, AL)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "raysatthebank"
+  ],
+  "instagram_url": "https://www.instagram.com/raysatthebank/"
+ },
+ {
+  "name": "Lil Capone's Italian Bar & Grill",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/lilcapones",
+  "facebook_events": "https://www.facebook.com/lilcapones/events",
+  "event_potential": "Live entertainment and bar service, Italian food (3370 Cloverdale Rd)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @lilcapones bio mentions live entertainment",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lilcapones"
+  ],
+  "instagram_url": "https://www.instagram.com/lilcapones/"
+ },
+ {
+  "name": "The Mane Room",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/UNAmaneroom",
+  "facebook_events": "https://www.facebook.com/UNAmaneroom/events",
+  "event_potential": "UNA Entertainment Industry's performance venue (310 N Pine St): student showcases, First Friday songwriter showcases, Songwriters Festival workshops",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @themaneroomuna",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "themaneroomuna"
+  ],
+  "instagram_url": "https://www.instagram.com/themaneroomuna/"
+ },
+ {
+  "name": "GunRunner Hotel & Bar",
+  "category": "Hotel Bar / Events",
+  "facebook_page": "https://www.facebook.com/GunRunnerHotel",
+  "facebook_events": "https://www.facebook.com/GunRunnerHotel/events",
+  "event_potential": "Wine and spirits tastings, Halloween social, live music in the hotel bar (310 E Tennessee St)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @gunrunnerhotel (Florence, AL); events appear on The Shoals Now calendar",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "gunrunnerhotel"
+  ],
+  "instagram_url": "https://www.instagram.com/gunrunnerhotel/",
+  "website": "https://gunrunnerhotel.com"
+ },
+ {
+  "name": "North Wood Social",
+  "category": "Restaurant / Trivia",
+  "facebook_page": "https://www.facebook.com/northwoodsocial",
+  "facebook_events": "https://www.facebook.com/northwoodsocial/events",
+  "event_potential": "Wednesday trivia nights (themed, 8pm); 1121 N Wood Ave",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; Yelp (May 2026) ranks it #1 for trivia in Florence",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "River Bottom Grille",
+  "category": "Bar & Grill / Live Music",
+  "facebook_page": "https://www.facebook.com/RiverBottomGrille",
+  "facebook_events": "https://www.facebook.com/RiverBottomGrille/events",
+  "event_potential": "Riverside bar & grill (1050 Clayborn Liles Dr) with weekend bands",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @stanfields_rbg; UNA Music Trail lists weekend live music",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "stanfields_rbg"
+  ],
+  "instagram_url": "https://www.instagram.com/stanfields_rbg/"
+ },
+ {
+  "name": "Lost Pizza Co. Shoals",
+  "category": "Restaurant / Live Music",
+  "facebook_page": "https://www.facebook.com/LPCShoals",
+  "facebook_events": "https://www.facebook.com/LPCShoals/events",
+  "event_potential": "Songwriters Festival host venue across from the Shoals Theatre (201 N Seminary St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @lpcshoals",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "lpcshoals"
+  ],
+  "instagram_url": "https://www.instagram.com/lpcshoals/"
+ },
+ {
+  "name": "Mugshots Grill and Bar",
+  "category": "Bar & Grill",
+  "facebook_page": "https://www.facebook.com/mugshotsflorenceal",
+  "facebook_events": "https://www.facebook.com/mugshotsflorenceal/events",
+  "event_potential": "Downtown Court St bar (321 N Court St); occasional live music and game-day crowds",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Drink Factory",
+  "category": "Bar",
+  "facebook_page": "https://www.facebook.com/p/Drink-Factory-100072873519020/",
+  "facebook_events": "https://www.facebook.com/p/Drink-Factory-100072873519020/events",
+  "event_potential": "Sports bar and drinking lounge (1418 Huntsville Rd); Eventbrite-ticketed parties",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Odette",
+  "category": "Restaurant",
+  "facebook_page": "https://www.facebook.com/odettealabama",
+  "facebook_events": "https://www.facebook.com/odettealabama/events",
+  "event_potential": "Downtown restaurant (120 N Court St): wine dinners, ShoalsFest tie-ins",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://odettealabama.com"
+ },
+ {
+  "name": "Muscle Shoals Church of Sound",
+  "category": "Music Venue",
+  "facebook_page": "https://www.facebook.com/MuscleShoalsChurchOfSound",
+  "facebook_events": "https://www.facebook.com/MuscleShoalsChurchOfSound/events",
+  "event_potential": "Musician community and venue (1515 Southern Blvd, Sheffield) for local and touring acts; FB shows 'Closing Soon'",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; status unclear",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Vinyl Junkie Record Lounge",
+  "category": "Record Store",
+  "facebook_page": "https://www.facebook.com/vinyljunkierecordlounge",
+  "facebook_events": "https://www.facebook.com/vinyljunkierecordlounge/events",
+  "event_potential": "Record store and lounge (1815 N Wood Ave): in-store listening and release events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @vinyl_junkie_record_lounge",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "vinyl_junkie_record_lounge"
+  ],
+  "instagram_url": "https://www.instagram.com/vinyl_junkie_record_lounge/"
+ },
+ {
+  "name": "Shoals Gold Record Room",
+  "category": "Event Space / Music",
+  "facebook_page": "https://www.facebook.com/201southcourt",
+  "facebook_events": "https://www.facebook.com/201southcourt/events",
+  "event_potential": "Music-themed event room at 201 S Court St",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Norton Auditorium",
+  "category": "Theater / Concert Hall",
+  "facebook_page": "https://www.facebook.com/nortonauditorium",
+  "facebook_events": "https://www.facebook.com/nortonauditorium/events",
+  "event_potential": "1,500-seat UNA hall: touring shows (Fraggle Rock Live Oct 26 2026), Shoals Symphony, Battle of the Bands",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @norton_auditorium",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "norton_auditorium"
+  ],
+  "instagram_url": "https://www.instagram.com/norton_auditorium/"
+ },
+ {
+  "name": "The Ritz Theatre",
+  "category": "Theater / Concert Hall",
+  "facebook_page": "https://www.facebook.com/OfficialRitzSheffield",
+  "facebook_events": "https://www.facebook.com/OfficialRitzSheffield/events",
+  "event_potential": "Tennessee Valley Arts Association's Sheffield theater: concerts (Penn & Oldham Nov 19 2026), plays, films",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @ritztheatresheffield; its shows are in local_events.yaml until Apify reads this page (tennesseevalleyarts.org blocks Railway)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "ritztheatresheffield"
+  ],
+  "instagram_url": "https://www.instagram.com/ritztheatresheffield/",
+  "website": "https://tennesseevalleyarts.org"
+ },
+ {
+  "name": "Shoals Community Theatre",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/ShoalsCommunityTheatre",
+  "facebook_events": "https://www.facebook.com/ShoalsCommunityTheatre/events",
+  "event_potential": "Historic Shoals Theatre (123 N Seminary St): plays, concerts, classic movie nights, Gingerbread Players youth shows",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; movie guild IG @shoalstheatremovies",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "shoalstheatremovies"
+  ],
+  "instagram_url": "https://www.instagram.com/shoalstheatremovies/",
+  "website": "https://shoalstheatre.org"
+ },
+ {
+  "name": "Gingerbread Players",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/gingerbreadplayers",
+  "facebook_events": "https://www.facebook.com/gingerbreadplayers/events",
+  "event_potential": "Youth wing of Shoals Community Theatre (Carver's Creepy Crawly Halloween Festival, holiday shows)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Historic Zodiac Playhouse",
+  "category": "Theater",
+  "facebook_page": "https://www.facebook.com/HistoricZodiacPlayhouse",
+  "facebook_events": "https://www.facebook.com/HistoricZodiacPlayhouse/events",
+  "event_potential": "Florence performance-art venue: plays, readings, small concerts",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Shoals Symphony at UNA",
+  "category": "Orchestra",
+  "facebook_page": "https://www.facebook.com/shoalssymphony",
+  "facebook_events": "https://www.facebook.com/shoalssymphony/events",
+  "event_potential": "Season concerts at Norton Auditorium (Lenny LeBlanc opener Aug 22, Billy Allen & Caleb Elliott Sep 12 2026)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; UNA Pressroom 2026 releases",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://una.edu/shoals-symphony"
+ },
+ {
+  "name": "UNA Department of Music",
+  "category": "College Music",
+  "facebook_page": "https://www.facebook.com/unamusic1",
+  "facebook_events": "https://www.facebook.com/unamusic1/events",
+  "event_potential": "Recitals, choral and band concerts (UNA events feed carries most)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Muscle Shoals Sound Studio",
+  "category": "Music Landmark",
+  "facebook_page": "https://www.facebook.com/muscleshoalssoundstudio",
+  "facebook_events": "https://www.facebook.com/muscleshoalssoundstudio/events",
+  "event_potential": "Tours Tue-Sat; occasional live recordings and special events (3614 Jackson Hwy, Sheffield)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @muscleshoalssoundstudio",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "muscleshoalssoundstudio"
+  ],
+  "instagram_url": "https://www.instagram.com/muscleshoalssoundstudio/",
+  "website": "https://muscleshoalssoundstudio.org"
+ },
+ {
+  "name": "FAME Recording Studios",
+  "category": "Music Landmark",
+  "facebook_page": "https://www.facebook.com/famestudios",
+  "facebook_events": "https://www.facebook.com/famestudios/events",
+  "event_potential": "Tours and anniversary events at the Hit Recording Capital landmark (603 E Avalon Ave, Muscle Shoals)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (81k followers)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://famestudios.com"
+ },
+ {
+  "name": "Alabama Music Hall of Fame",
+  "category": "Museum / Concerts",
+  "facebook_page": "https://www.facebook.com/alamhof",
+  "facebook_events": "https://www.facebook.com/alamhof/events",
+  "event_potential": "Concerts, Shoals Holiday Concert, flashlight tours, induction events (617 Hwy 72 W, Tuscumbia)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; site alamhof.org (Squarespace, no events collection)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.alamhof.org"
+ },
+ {
+  "name": "Renaissance Shoals Resort & Spa",
+  "category": "Hotel / Events",
+  "facebook_page": "https://www.facebook.com/RenShoals",
+  "facebook_events": "https://www.facebook.com/RenShoals/events",
+  "event_potential": "Presenting partner of the Muscle Shoals Songwriters Festival; houses Swampers; holiday events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Kennedy-Douglass Center for the Arts",
+  "category": "Arts Center",
+  "facebook_page": "https://www.facebook.com/kdartcenter",
+  "facebook_events": "https://www.facebook.com/kdartcenter/events",
+  "event_potential": "Exhibits, workshops, monthly open mic (poetry & music) at Southall House, Arts Alive",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @kdartcenter; florencealmuseums.com calendar feed",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "kdartcenter"
+  ],
+  "instagram_url": "https://www.instagram.com/kdartcenter/"
+ },
+ {
+  "name": "Florence Arts and Museums",
+  "category": "Museums",
+  "facebook_page": "https://www.facebook.com/florencealmuseums",
+  "facebook_events": "https://www.facebook.com/florencealmuseums/events",
+  "event_potential": "City museum network (KD Center, Florence Mound, Pope's Tavern, Rosenbaum House): workshops, storytimes, Día de los Muertos",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @florencealmuseums; Squarespace calendar used as a feed",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "florencealmuseums"
+  ],
+  "instagram_url": "https://www.instagram.com/florencealmuseums/",
+  "website": "https://www.florencealmuseums.com"
+ },
+ {
+  "name": "Pope's Tavern Museum",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/PopesTavernMuseum",
+  "facebook_events": "https://www.facebook.com/PopesTavernMuseum/events",
+  "event_potential": "19th-century history museum: archaeology open houses, history talks",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @popestavernmuseum",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "popestavernmuseum"
+  ],
+  "instagram_url": "https://www.instagram.com/popestavernmuseum/"
+ },
+ {
+  "name": "Rosenbaum House",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/FLWRosenbaumHouse",
+  "facebook_events": "https://www.facebook.com/FLWRosenbaumHouse/events",
+  "event_potential": "Alabama's only Frank Lloyd Wright house (601 Riverview Dr): tours, special openings",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @flwrosenbaumhouse",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "flwrosenbaumhouse"
+  ],
+  "instagram_url": "https://www.instagram.com/flwrosenbaumhouse/",
+  "website": "https://wrightinalabama.com"
+ },
+ {
+  "name": "Florence Mound and Museum",
+  "category": "Museum",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Storytime Atop the Mound (monthly Saturdays), archaeology programs",
+  "confidence": "medium",
+  "notes": "No FB page found (museum posts via Florence Arts and Museums); IG @the_florence_mound",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "the_florence_mound"
+  ],
+  "instagram_url": "https://www.instagram.com/the_florence_mound/"
+ },
+ {
+  "name": "Tennessee Valley Museum of Art",
+  "category": "Museum",
+  "facebook_page": "https://www.facebook.com/TheTVMA",
+  "facebook_events": "https://www.facebook.com/TheTVMA/events",
+  "event_potential": "TVAA's Tuscumbia gallery: exhibits, Winter Art Market (Dec 1 2026)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://tennesseevalleyarts.org"
+ },
+ {
+  "name": "Helen Keller's Birthplace - Ivy Green",
+  "category": "Historic Site",
+  "facebook_page": "https://www.facebook.com/p/Helen-Kellers-Birthplace-Ivy-Green-100057237678847/",
+  "facebook_events": "https://www.facebook.com/p/Helen-Kellers-Birthplace-Ivy-Green-100057237678847/events",
+  "event_potential": "Tours, holiday events; The Miracle Worker outdoor play in June-July",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://helenkellerbirthplace.org"
+ },
+ {
+  "name": "Belle Mont Mansion",
+  "category": "Historic Site",
+  "facebook_page": "https://www.facebook.com/BelleMontMansion",
+  "facebook_events": "https://www.facebook.com/BelleMontMansion/events",
+  "event_potential": "Quilt show (through Oct), Celtic Fest (May), Plantation Christmas (1st Sun in Dec)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @belle.mont.mansion.ala",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "belle.mont.mansion.ala"
+  ],
+  "instagram_url": "https://www.instagram.com/belle.mont.mansion.ala/"
+ },
+ {
+  "name": "Stella & Goose",
+  "category": "Studio / Gallery",
+  "facebook_page": "https://www.facebook.com/stellaandgooseflorence",
+  "facebook_events": "https://www.facebook.com/stellaandgooseflorence/events",
+  "event_potential": "Adult painting classes (icon painting, monthly classes) in Florence",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; classes appear on The Shoals Now calendar",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Billy Reid Florence",
+  "category": "Retail / Events",
+  "facebook_page": "https://www.facebook.com/billyreidflorence",
+  "facebook_events": "https://www.facebook.com/billyreidflorence/events",
+  "event_potential": "Flagship store (114 N Court St): trunk shows, Shindig-related events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Court Street Books",
+  "category": "Bookstore",
+  "facebook_page": "https://www.facebook.com/courtstreetbooksal",
+  "facebook_events": "https://www.facebook.com/courtstreetbooksal/events",
+  "event_potential": "Author readings, book club nights downtown",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Cold Water Books",
+  "category": "Bookstore / Cafe",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Tuscumbia bookstore and coffee shop: author events, walking-tour start point",
+  "confidence": "medium",
+  "notes": "No FB page found; IG @coldwaterbookstore via instagram.com search",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "coldwaterbookstore"
+  ],
+  "instagram_url": "https://www.instagram.com/coldwaterbookstore/"
+ },
+ {
+  "name": "Florence-Lauderdale Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/FLPLibrary",
+  "facebook_events": "https://www.facebook.com/FLPLibrary/events",
+  "event_potential": "Teen D&D, silent book club, family nights, film talks (three Google Calendar feeds)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @flplibrary",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "flplibrary"
+  ],
+  "instagram_url": "https://www.instagram.com/flplibrary/",
+  "website": "https://flpl.org"
+ },
+ {
+  "name": "FLPL Youth Services",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/FLPLYouthServices",
+  "facebook_events": "https://www.facebook.com/FLPLYouthServices/events",
+  "event_potential": "Storytimes, Fall Family Night, Halloween Boo Bash",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @flplyouthservices",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "flplyouthservices"
+  ],
+  "instagram_url": "https://www.instagram.com/flplyouthservices/"
+ },
+ {
+  "name": "Muscle Shoals Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/p/Muscle-Shoals-Public-Library-100079855515048/",
+  "facebook_events": "https://www.facebook.com/p/Muscle-Shoals-Public-Library-100079855515048/events",
+  "event_potential": "Storytimes, storytelling (Dolores Hydock Oct 20 2026), programs (1918 Avalon Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @muscleshoalspubliclibrary",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "muscleshoalspubliclibrary"
+  ],
+  "instagram_url": "https://www.instagram.com/muscleshoalspubliclibrary/"
+ },
+ {
+  "name": "Helen Keller Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/HelenKellerLibrary",
+  "facebook_events": "https://www.facebook.com/HelenKellerLibrary/events",
+  "event_potential": "Tuscumbia library programs, America 250 events (511 N Main St)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @helenkellerpubliclibrary",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "helenkellerpubliclibrary"
+  ],
+  "instagram_url": "https://www.instagram.com/helenkellerpubliclibrary/",
+  "website": "https://hkpl.org"
+ },
+ {
+  "name": "Sheffield Public Library",
+  "category": "Library",
+  "facebook_page": "https://www.facebook.com/p/Sheffield-Public-Library-100083516884812/",
+  "facebook_events": "https://www.facebook.com/p/Sheffield-Public-Library-100083516884812/events",
+  "event_potential": "Storytimes and community programs (316 N Montgomery Ave)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Shoals After Dark",
+  "category": "Concert Series",
+  "facebook_page": "",
+  "facebook_events": "",
+  "event_potential": "Saturday-night free concerts at Mobile Plaza downtown Florence (Dalton Bush, Them Dirty Roses, Get Sideways Oct-Nov 2026)",
+  "confidence": "medium",
+  "notes": "No FB page found via search; listed by Shoals Chamber and The Shoals Now feeds",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "First Fridays Florence",
+  "category": "Street Festival",
+  "facebook_page": "https://www.facebook.com/FirstFridaysFlorence",
+  "facebook_events": "https://www.facebook.com/FirstFridaysFlorence/events",
+  "event_potential": "Court Street art, music and vendors first Friday of the month (5:30-8pm), presented by Bank Independent",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; alabama.travel 2026 listing (May 1 - Nov 6 2026)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Downtown Florence Alliance",
+  "category": "Organizer",
+  "facebook_page": "https://www.facebook.com/downtownflorencealliance",
+  "facebook_events": "https://www.facebook.com/downtownflorencealliance/events",
+  "event_potential": "Runs First Fridays, Christmas parade and downtown events",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Muscle Shoals Songwriters Festival",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/muscleshoalssf",
+  "facebook_events": "https://www.facebook.com/muscleshoalssf/events",
+  "event_potential": "Nov 6-8 2026: 50+ songwriters, 25+ shows across Shoals venues",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; dates from muscleshoalssongfest.com",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://muscleshoalssongfest.com"
+ },
+ {
+  "name": "ShoalsFest",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/ShoalsFest",
+  "facebook_events": "https://www.facebook.com/ShoalsFest/events",
+  "event_potential": "Big October festival at McFarland Park (Jason Isbell 2026); off-season announcements",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @shoalsfest",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "shoalsfest"
+  ],
+  "instagram_url": "https://www.instagram.com/shoalsfest/"
+ },
+ {
+  "name": "W.C. Handy Music Festival",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/p/WC-Handy-Music-Festival-100057338685092/",
+  "facebook_events": "https://www.facebook.com/p/WC-Handy-Music-Festival-100057338685092/events",
+  "event_potential": "Late-July festival week across the Shoals; occasional off-season fundraisers",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://wchandymusicfestival.com"
+ },
+ {
+  "name": "Florence After Five",
+  "category": "Concert Series",
+  "facebook_page": "https://www.facebook.com/FlorenceAfterFive",
+  "facebook_events": "https://www.facebook.com/FlorenceAfterFive/events",
+  "event_potential": "Last-Friday downtown concerts April-September",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Oka Kapassa Festival",
+  "category": "Festival",
+  "facebook_page": "https://www.facebook.com/OkaKapassa",
+  "facebook_events": "https://www.facebook.com/OkaKapassa/events",
+  "event_potential": "Native American 'Return to Coldwater' festival, Spring Park, September",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Walker Ranch",
+  "category": "Farm / Festival",
+  "facebook_page": "https://www.facebook.com/walker.ranch.217664/",
+  "facebook_events": "https://www.facebook.com/walker.ranch.217664/events",
+  "event_potential": "Fall Festival weekends in October, annual rodeo, trail rides",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @thewalkerranch; fall festival dates on The Shoals Now",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "thewalkerranch"
+  ],
+  "instagram_url": "https://www.instagram.com/thewalkerranch/"
+ },
+ {
+  "name": "North Alabama Athletics (UNA Lions)",
+  "category": "Sports",
+  "facebook_page": "https://www.facebook.com/unaathletics",
+  "facebook_events": "https://www.facebook.com/unaathletics/events",
+  "event_potential": "Home football at Bank Independent Stadium, volleyball and basketball at Flowers Hall",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @una_athletics; roarlions.com ICS feed (Incapsula-flaky)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "una_athletics"
+  ],
+  "instagram_url": "https://www.instagram.com/una_athletics/",
+  "website": "https://roarlions.com"
+ },
+ {
+  "name": "University of North Alabama",
+  "category": "University",
+  "facebook_page": "https://www.facebook.com/northalabama",
+  "facebook_events": "https://www.facebook.com/northalabama/events",
+  "event_potential": "Homecoming, ghost walks, concerts, lectures (apps.una.edu Events Calendar feed)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.una.edu"
+ },
+ {
+  "name": "UNA Planetarium and Observatory",
+  "category": "Planetarium",
+  "facebook_page": "https://www.facebook.com/unaplanetarium",
+  "facebook_events": "https://www.facebook.com/unaplanetarium/events",
+  "event_potential": "Public planetarium shows and observing nights",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Florence Parks, Recreation & Sports Tourism",
+  "category": "Parks",
+  "facebook_page": "https://www.facebook.com/florenceparksandrec",
+  "facebook_events": "https://www.facebook.com/florenceparksandrec/events",
+  "event_potential": "McFarland Park, Wilson Park, Music in the Park, Howl-O-Ween Dash, holiday events",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @flotownrec",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "flotownrec"
+  ],
+  "instagram_url": "https://www.instagram.com/flotownrec/"
+ },
+ {
+  "name": "Florence-Lauderdale Coliseum",
+  "category": "Arena",
+  "facebook_page": "https://www.facebook.com/florencecoliseum",
+  "facebook_events": "https://www.facebook.com/florencecoliseum/events",
+  "event_potential": "Banquets, expos, shows, concerts moved indoors",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Muscle Shoals Parks and Recreation",
+  "category": "Parks",
+  "facebook_page": "https://www.facebook.com/MSParksandRec",
+  "facebook_events": "https://www.facebook.com/MSParksandRec/events",
+  "event_potential": "Gattman Park events, youth sports, seasonal events",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Tuscumbia Parks & Recreation",
+  "category": "Parks",
+  "facebook_page": "https://www.facebook.com/p/Tuscumbia-Parks-Recreation-100063510042777/",
+  "facebook_events": "https://www.facebook.com/p/Tuscumbia-Parks-Recreation-100063510042777/events",
+  "event_potential": "Spring Park events, water shows, Dickens Christmas tie-ins",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Spring Park - Tuscumbia",
+  "category": "Park",
+  "facebook_page": "https://www.facebook.com/friendsofspringpark",
+  "facebook_events": "https://www.facebook.com/friendsofspringpark/events",
+  "event_potential": "Coldwater Falls, fountain water shows, Oka Kapassa, holiday lights",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (Friends of Spring Park)",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": ""
+ },
+ {
+  "name": "Joe Wheeler State Park",
+  "category": "State Park",
+  "facebook_page": "https://www.facebook.com/joewheelerstatepark",
+  "facebook_events": "https://www.facebook.com/joewheelerstatepark/events",
+  "event_potential": "Lodge events, guided hikes, holiday dinners (Rogersville, east Lauderdale Co.)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @joewheelerstatepark",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [
+   "joewheelerstatepark"
+  ],
+  "instagram_url": "https://www.instagram.com/joewheelerstatepark/"
+ },
+ {
+  "name": "Visit The Shoals (Florence-Lauderdale Tourism)",
+  "category": "Tourism",
+  "facebook_page": "https://www.facebook.com/VisitTheShoalsAL",
+  "facebook_events": "https://www.facebook.com/VisitTheShoalsAL/events",
+  "event_potential": "Official CVB: weekly live-music lineup (visitflorenceal.com/music/live-music) and event calendar",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (web.facebook.com result)",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://www.visitflorenceal.com"
+ },
+ {
+  "name": "Colbert County Tourism",
+  "category": "Tourism",
+  "facebook_page": "https://www.facebook.com/colbert.tourism",
+  "facebook_events": "https://www.facebook.com/colbert.tourism/events",
+  "event_potential": "Tuscumbia/Sheffield/Muscle Shoals events: walking tours, Dickens Christmas, Holly Jolly Trolley",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15 (video page owner); site behind Cloudflare challenge",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://colbertcountytourism.org"
+ },
+ {
+  "name": "Muscle Shoals National Heritage Area",
+  "category": "Heritage / Events",
+  "facebook_page": "https://www.facebook.com/125364347490354/",
+  "facebook_events": "https://www.facebook.com/125364347490354/events",
+  "event_potential": "River Riot, heritage programs, Songwriter Showcase (msnha.una.edu feed)",
+  "confidence": "medium",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15",
+  "source": "seed",
+  "tier": "MEDIUM",
+  "instagrams": [],
+  "instagram_url": "",
+  "website": "https://msnha.una.edu"
+ },
+ {
+  "name": "Muscle Shoals Music Now",
+  "category": "Music Listings",
+  "facebook_page": "https://www.facebook.com/muscleshoalsmusicnow",
+  "facebook_events": "https://www.facebook.com/muscleshoalsmusicnow/events",
+  "event_potential": "Weekly Shoals live-music roundups (useful for scraping who's playing where)",
+  "confidence": "high",
+  "notes": "FB URL from facebook.com-restricted web search result 2026-10-15; IG @muscleshoalsmusicnow",
+  "source": "seed",
+  "tier": "HIGH",
+  "instagrams": [
+   "muscleshoalsmusicnow"
+  ],
+  "instagram_url": "https://www.instagram.com/muscleshoalsmusicnow/"
+ }
+]

@@ -270,7 +270,7 @@ describe('sponsor checkout', () => {
       }
     });
     expect((await form(weekly('w@x.example'))).status).toBe(303);
-    expect(sessions[1].line_items[0].price_data.unit_amount).toBe(30000);
+    expect(sessions[1].line_items[0].price_data.unit_amount).toBe(14900);
   });
 
   it('the Stripe client forgets a cached price on request', async () => {

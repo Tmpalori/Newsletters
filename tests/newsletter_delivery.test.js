@@ -9,7 +9,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import crypto from 'node:crypto';
 import { createApp } from '../server/index.js';
-import { FileStore, importSkip } from '../server/db.js';
+import { FileStore, importSkip, SOFT_BOUNCE } from '../server/db.js';
 import { batchErrorOutcome, KEY_WINDOW_MS } from '../server/newsletter.js';
 import { isHardBounce, recipientAddresses } from '../server/inbound.js';
 import { promises as fs } from 'node:fs';
@@ -315,6 +315,57 @@ describe('Resend bounce and complaint webhooks', () => {
     // The next issue skips the dead address.
     await nl.sendWeekly();
     expect(resend.calls[0].to).toEqual(['full@example.com']);
+  });
+
+  it('a run of soft bounces over a week marks the address bounced; a delivery ends the run', async () => {
+    await startApp();
+    await store.importSubscribers(['full@example.com', 'busy@example.com'], 'import');
+    const DAY = 24 * 3600 * 1000;
+    // Signed at the app's clock, which moves between issues here.
+    const at = (ms, ev) => {
+      clock = new Date(MON.getTime() + ms);
+      const body = JSON.stringify(ev), id = 'msg_' + crypto.randomUUID(), ts = Math.floor(clock.getTime() / 1000);
+      const sig = crypto.createHmac('sha256', Buffer.from(SECRET.slice(6), 'base64')).update(`${id}.${ts}.${body}`).digest('base64');
+      return fetch(baseUrl + '/api/email/inbound', { method: 'POST', body,
+        headers: { 'Content-Type': 'application/json', 'svix-id': id, 'svix-timestamp': String(ts), 'svix-signature': `v1,${sig}` } })
+        .then(r => r.json()).then(j => j.result);
+    };
+    const soft = to => event('email.bounced', to, { bounce: { type: 'Transient', subType: 'MailboxFull' } });
+    // Mon, Thu, Mon, Thu: the fourth is ten days after the first.
+    const issues = [0, 3, 7, 10].map(d => d * DAY);
+    for (const t of issues.slice(0, 3)) expect(await at(t, soft('full@example.com'))).toBe('soft-bounce');
+    // Resend retrying the same email hours later counts once.
+    expect(await at(7 * DAY + 3600 * 1000, soft('full@example.com'))).toBe('soft-bounce');
+    expect(await statusOf('full@example.com')).toBe('active');
+    expect(await at(issues[3], soft('full@example.com'))).toBe('bounced');
+    expect(await statusOf('full@example.com')).toBe('bounced');
+
+    // Same pattern, but Thursday's issue got through in between.
+    for (const t of issues.slice(0, 2)) await at(t, soft('busy@example.com'));
+    expect(await at(5 * DAY, event('email.delivered', 'busy@example.com'))).toBe('delivered');
+    for (const t of issues.slice(2)) expect(await at(t, soft('busy@example.com'))).toBe('soft-bounce');
+    expect(await statusOf('busy@example.com')).toBe('active');
+  });
+
+  it('recordSoftBounce: the run needs its span, and starts over after a quiet month', async () => {
+    await startApp();
+    await store.importSubscribers(['a@example.com', 'b@example.com', 'gone@example.com'], 'import');
+    await store.unsubscribe(await tokenOf('gone@example.com'));
+    const DAY = 24 * 3600 * 1000;
+    const at = d => new Date(MON.getTime() + d * DAY);
+    // Four soft bounces on four days in a row: too short a run to drop them.
+    for (let d = 0; d < SOFT_BOUNCE.limit; d++) expect(await store.recordSoftBounce(['a@example.com'], at(d))).toEqual([]);
+    expect(await statusOf('a@example.com')).toBe('active');
+    // A week on from the first, the next one does.
+    expect(await store.recordSoftBounce(['a@example.com'], at(7))).toEqual(['a@example.com']);
+    // Three, then a month with none: the count starts again from one.
+    for (const d of [0, 3, 7]) await store.recordSoftBounce(['b@example.com'], at(d));
+    for (const d of [40, 43, 47]) expect(await store.recordSoftBounce(['b@example.com'], at(d))).toEqual([]);
+    expect(await statusOf('b@example.com')).toBe('active');
+    expect(await store.recordSoftBounce(['b@example.com'], at(50))).toEqual(['b@example.com']);
+    // Only active subscribers count.
+    for (const d of [0, 3, 7, 10]) expect(await store.recordSoftBounce(['gone@example.com'], at(d))).toEqual([]);
+    expect(await statusOf('gone@example.com')).toBe('unsubscribed');
   });
 
   it('a spam complaint unsubscribes them, and they stop counting for their referrer', async () => {

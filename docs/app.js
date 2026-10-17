@@ -299,7 +299,8 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
     try { return localStorage.getItem(SUB_KEY) === '1'; } catch (e) { return false; }
   }
   function insertNewsletterCard(container, fromIdx) {
-    if (alreadySubscribed() || /[?&]preview/.test(location.search)) return;
+    // A paused town (TOWN_DORMANT=1) takes no signups.
+    if (TOWN.dormant || alreadySubscribed() || /[?&]preview/.test(location.search)) return;
     var sections = container.querySelectorAll('.day-section');
     var after = sections[Math.min(fromIdx + 1, sections.length - 1)];
     if (!after) return;
@@ -344,7 +345,7 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
           // form can't reveal who's subscribed), so this device decides.
           var was = alreadySubscribed();
           try { localStorage.setItem(SUB_KEY, '1'); } catch (e2) { /* private mode */ }
-          if (!was && window.vic361Track) window.vic361Track('subscribe_click', { link_url: 'list-card' });
+          if (!was && window.vic361Track) window.vic361Track('subscribe_click', { link_url: 'list-card', lead: !!x.j.lead });
         }
       }).catch(function () {
         msg.textContent = 'Something went wrong. Try again.';

@@ -1,56 +1,117 @@
 {
- "2026-10-11|champagne sundaze hallo queen drag loteria 2026|moonshine drinkery": {
-  "checked": "2026-10-11",
+ "2026-10-14|country|starlight dance studio": {
+  "checked": "2026-10-14",
   "found": {
-   "description": "Grab your friends & some cash for a Sunday of joy, drag, and loteria! Come enjoy a special Hallo-queen drag brunch featuring loteria! Individual tickets are $30 each including your brunch."
+   "description": "Starlight Dance Studio hosts a Country group lesson on Wednesdays. All ages and experience levels are welcome."
   }
  },
- "2026-10-11|champagne sundaze halloqueeen drag brunch|moonshine drinkery": {
-  "checked": "2026-10-11",
+ "2026-10-14|early dine|texas roadhouse": {
+  "checked": "2026-10-14",
   "found": {
-   "description": "Champagne Sundaze HalloQUEEEN Drag Brunch will be held at Moonshine Drinkery, featuring drag performances, loteria, and a Jamaican brunch. Tickets are $30 per person, including brunch, with table and couch section opt…"
+   "description": "Texas Roadhouse offers an Early Dine special with 11 of your favorite entrees for $12.99. This discounted dinner menu typically runs Monday through Thursday."
   }
  },
- "2026-10-11|coming out shouldn t be spooky celebration|mitchell event annex": {
-  "checked": "2026-10-11",
+ "2026-10-14|indoor pickleball open play|victoria recreation center": {
+  "checked": "2026-10-14",
   "found": {}
  },
- "2026-10-11|cuero turkeyfest|downtown cuero": {
-  "checked": "2026-10-11",
-  "found": {}
- },
- "2026-10-11|live band karaoke|moonshine drinkery": {
-  "checked": "2026-10-11",
-  "found": {}
- },
- "2026-10-11|open pickleball|victoria recreation center": {
-  "checked": "2026-10-11",
-  "found": {}
- },
- "2026-10-11|sunday brunch at j welch farms|j welch farms": {
-  "checked": "2026-10-11",
+ "2026-10-14|karaoke cantina night|la cantina tacos tequila": {
+  "checked": "2026-10-14",
   "found": {
-   "description": "Sunday brunch at the farm. Reservations: 361-412-7677."
+   "description": "It's Karaoke + Cantina Night every Wednesday at La Cantina in Victoria, TX! Sing your heart out while enjoying ice-cold beers, margaritas, and draft specials.",
+   "url": "https://www.instagram.com/lacantinavictoria/"
   }
  },
- "2026-10-11|sunday brunch|the pumphouse riverside restaurant bar": {
-  "checked": "2026-10-11",
+ "2026-10-14|mini pie clay magnets|crossroads art house": {
+  "checked": "2026-10-14",
   "found": {}
  },
- "2026-10-11|terror on tate road|outlaw pass family fun center": {
-  "checked": "2026-10-11",
+ "2026-10-14|pink out breakfast presented by detar cancer center|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "DeTar Cancer Center will host its annual Pink Out Breakfast on Wednesday, October 14, 2026, at the DeTar Hospital Navarro Café. The $10 breakfast will feature pink-themed favorites, with all proceeds benefiting Crossr…",
+   "url": "https://www.detar.com/news-room/detar-highlights-breast-cancer-awareness-month-wit-22484",
+   "time": "7:00 AM – 9:30 AM",
+   "address": "101 Medical Dr, Victoria, TX 77904"
+  }
+ },
+ "2026-10-14|stroller barre|ethel lee tracy park pavilion": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Stroller Barre is an exciting low-impact, full-body workout designed to improve posture, stability, mobility, flexibility, and core strength for all fitness levels from Fit4Mom Crossroads.",
+   "url": "https://www.victoriatx.gov/Calendar.aspx?EID=3988",
+   "time": "9:00 AM – 10:00 AM"
+  }
+ },
+ "2026-10-14|trivia night at evan s|evan s fire brick oven pizza": {
+  "checked": "2026-10-14",
   "found": {}
  },
- "2026-10-12|early dine|texas roadhouse": {
-  "checked": "2026-10-11",
+ "2026-10-14|varra wednesday night run|riverside stadium parking lot": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "The Victoria Area Road Runners' Association (VARRA) holds a midweek group run/walk on Wednesday nights. This event is free and open to all levels.",
+   "url": "https://runsignup.com/MemberOrg/VictoriaAreaRoadRunnersAssociation",
+   "time": "6:30 PM"
+  }
+ },
+ "2026-10-14|victoria texas historic mystery|deleon city plaza": {
+  "checked": "2026-10-14",
   "found": {}
  },
- "2026-10-12|victoria texas historic mystery|deleon city plaza": {
-  "checked": "2026-10-11",
+ "2026-10-14|well appointed wednesdays|": {
+  "checked": "2026-10-14",
   "found": {}
+ },
+ "2026-10-14|wildcard wednesdays special|weber brewing": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-15|art doors collaborative treasure hunt for golden crescent habitat for humanity|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Start looking for art doors all around town! Clues will be posted daily, and for every door you find, scan the QR Code to enter to win prizes. Find a Habitat bracelet on the door handle to keep for prizes.",
+   "url": "https://allevents.in/victoria/art-doors-collaborative-treasure-hunt-for-golden-crescent-habitat-for-humanity/200030772681457",
+   "time": "12:00 AM – 12:00 AM",
+   "address": "4103 N Navarro St, Suite 200"
+  }
+ },
+ "2026-10-15|ballroom|starlight dance studio": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "This event is a group lesson for ballroom dancing."
+  }
+ },
+ "2026-10-15|bourbon society mixer|moonshine drinkery": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-15|crossroadzz crew kb s bbq|": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-15|early dine|texas roadhouse": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Enjoy 11 of your favorite entrees for only $12.99."
+  }
+ },
+ "2026-10-15|fall landscape|crossroads art house": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "This is a Youth Art Class focused on Fall Landscape."
+  }
  },
  "2026-10-15|henry emiliano live|evan s fire brick oven pizza": {
   "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-15|indoor pickleball open play|victoria recreation center": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-15|open mic|weber brewing": {
+  "checked": "2026-10-14",
   "found": {}
  },
  "2026-10-15|story strolls audiobook walking group|riverside park": {
@@ -61,9 +122,59 @@
   "checked": "2026-10-11",
   "found": {}
  },
+ "2026-10-15|vvc design is kicking off the holiday season|christmas at the shop upstairs from the green cow creamery victoria": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "VVC Design is kicking off the holiday season with a shop full of Christmas inspiration at Christmas at The Shop (upstairs from The Green Cow Creamery-Victoria)."
+  }
+ },
+ "2026-10-15|wine club pickup|j welch farms": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "This event is for WINE CLUB PICKUP. Wine club members eat free, and non-members can attend for $21.99."
+  }
+ },
+ "2026-10-16|create with fruends|crossroads art house": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-16|howl2go by howl at the moon dueling pianos|community center": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-16|indoor pickleball open play|victoria recreation center": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
  "2026-10-16|jessica coleman music live|evan s fire brick oven pizza": {
   "checked": "2026-10-11",
   "found": {}
+ },
+ "2026-10-16|practice party|starlight dance studio": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Starlight Dance Studio hosts a Friday Practice Party. All ages and experience levels are welcome."
+  }
+ },
+ "2026-10-16|rose marie|weber brewing": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-16|victorias only haunted attraction|": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-16|yorktown western days|downtown yorktown": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-17|2026 south texas spirits cigar festival|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Step back in time and immerse yourself in the opulence of the Prohibition Era at this premier whiskey event, featuring over 400 spirits, beers, wines, and cigars from 75 vendors, gourmet food trucks, and an outdoor co…",
+   "url": "https://stxspirits.com/",
+   "time": "4:00 PM – 9:00 PM"
+  }
  },
  "2026-10-17|caturday halloween month|petsmart": {
   "checked": "2026-10-11",
@@ -73,13 +184,47 @@
   "checked": "2026-10-11",
   "found": {}
  },
+ "2026-10-17|crossroads sports center season finale all star volleyball tournament|crossroads sports center": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-17|fall festival open house|": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
  "2026-10-17|halloween havoc|": {
   "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|indoor pickleball open play|victoria recreation center": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-17|joe fox band|weber brewing": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "The Joe Fox Band will be at Weber Brewing on Saturday night for a Ska-turday, offering cold beer and party music in the Biergarten."
+  }
+ },
+ "2026-10-17|kusama inspired pumpkins|crossroads art house": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "A youth art class focused on creating Kusama-Inspired Pumpkins."
+  }
+ },
+ "2026-10-17|lowe s kids craft|lowe s": {
+  "checked": "2026-10-14",
   "found": {}
  },
  "2026-10-17|melissa ann live|evan s fire brick oven pizza": {
   "checked": "2026-10-11",
   "found": {}
+ },
+ "2026-10-17|pictures in the patch|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "Gather the whole family to make fall memories and snap beautiful fall photos in the Pumpkin Patch. Admission is free, and photos are encouraged."
+  }
  },
  "2026-10-17|riverside oaks trunk or treat|riverside oaks": {
   "checked": "2026-10-11",
@@ -87,6 +232,49 @@
  },
  "2026-10-17|trunk or treat by denny s la quinta|parking lot between denny s and la quinta": {
   "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-17|uniting hearts music festival|deleon plaza": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "The 7th Annual Uniting Hearts Music Festival is a day of faith, fellowship, music, community, and family, featuring live performances and booth spaces for churches, nonprofits, and businesses."
+  }
+ },
+ "2026-10-17|viva la texas film fest promo event|victoria public library": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-17|vocal technique and outdoor projection|": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-17|yorktown western days|downtown yorktown": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-18|legacy banquet|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "The Legacy Banquet is an annual event by Faith Family Church that inspires hope and faith for partnering with God in redeeming the community and the world. It includes a delicious meal, inspiring stories, updates on g…"
+  }
+ },
+ "2026-10-18|october fnb food share|": {
+  "checked": "2026-10-14",
+  "found": {
+   "url": "https://allevents.in/victoria/october-fnb-food-share/200030434219603",
+   "address": "1302 E Crestwood Dr, Victoria, TX"
+  }
+ },
+ "2026-10-18|pedals pipes and pumpkins|": {
+  "checked": "2026-10-14",
+  "found": {
+   "description": "The Victoria Crossroads Chapter of the American Guild of Organists will present their annual Pedals, Pipes & Pumpkins Halloween Organ Concert. This family-friendly concert is free and open to the public, and attendees…",
+   "url": "https://allevents.in/victoria/pedals-pipes-and-pumpkins/200030773062704",
+   "address": "407 N Bridge Street, Victoria, TX, United States, Texas 77901"
+  }
+ },
+ "2026-10-18|yorktown western days|downtown yorktown": {
+  "checked": "2026-10-14",
   "found": {}
  },
  "2026-10-19|kids night at texas roadhouse|texas roadhouse": {
@@ -169,6 +357,18 @@
  },
  "2026-10-24|trick or treat bag workshop|flocking fabulous iggy s": {
   "checked": "2026-10-11",
+  "found": {}
+ },
+ "2026-10-28|golden corral trunk or treat|golden corral": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-28|trinity episcopal church trunk or treat|trinity episcopal church": {
+  "checked": "2026-10-14",
+  "found": {}
+ },
+ "2026-10-28|trivia night at evan s|evan s fire brick oven pizza": {
+  "checked": "2026-10-14",
   "found": {}
  },
  "2026-10-31|boo fest|downtown port lavaca": {

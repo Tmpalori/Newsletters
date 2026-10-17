@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AI review of free event submissions (server/submissionReview.js).
 
-Runs from .github/workflows/submission-review.yml every 15 minutes. For
+Runs on the town's jobs worker (scripts/jobs_worker.py) every 15 minutes. For
 each submission waiting on the site:
 
   1. Rules first, the same ones the collector and event check use:
@@ -609,7 +609,7 @@ def main(argv=None):
         print(f"::warning::The site didn't answer ({e}); trying again next run.")
         return 0
     if r.status_code == 401:
-        print("::error::The site rejected the secret (it must match in Railway and GitHub).")
+        print("::error::The site rejected the secret (SUBMISSION_REVIEW_SECRET must match on the town's web and jobs services in Railway).")
         return 1
     if r.status_code >= 500:
         print(f"::warning::The site answered HTTP {r.status_code} (down or database out); trying again next run.")

@@ -15,6 +15,9 @@ Types:
   squarespace  a Squarespace events page (<page>?format=json, its "upcoming")
   growthzone  a GrowthZone/ChamberMaster chamber calendar: the event links
             on /events/calendar/<YYYY-MM-01>, then each event's own iCalendar
+  lineup    a live-music lineup page: day headings, a venue line, then its
+            acts ("- Back Alley String Band 7-9pm"; Visit Florence's
+            /music/live-music/)
   cards     a Craft CMS tourism site's event listing (Visit Tupelo's
             tupelo.net/events: article.card blocks, "?page=N"; the time comes
             from each event page's schema.org startDate)
@@ -22,7 +25,13 @@ Types:
 Optional per feed: "library": true (its events go through the collector's
 library cap), "exclude": a regular expression (case-insensitive) for names
 or venues to drop, "timeout": seconds (5-240) for a slow site, "venue" and
-"address": where its events are when they don't say (a library's calendar).
+"address": where its events are when they don't say (a library's calendar),
+"rename": [[pattern, replacement], ...] regular expressions (case-insensitive)
+applied to each name in order (a college sports feed's "University of
+Nebraska - Kearney Football" to "UNK Football"), and "rename_venue" the same
+for venues ("Kearney, NE, Cope Stadium" to "Cope Stadium"). "sparse": true
+for a calendar with only a few events a season (a parks department): two
+empty weeks are normal, so they don't warn.
 
 Each parser is pure: text or JSON in, events out, in the town's timezone and
 inside [start, end] (dates). The collector adds icons and its own checks.
@@ -38,7 +47,7 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9
     ZoneInfo = None
 
-TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone")
+TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone", "lineup")
 MAX_PAGES = 10          # tribe and localist pagination cap (50 or 100 a page)
 MAX_DETAILS = 80        # event pages a growthzone feed fetches per run
 _SLUG = re.compile(r"^[a-z0-9_]+$")
@@ -62,8 +71,9 @@ def check_feeds(feeds):
             raise ValueError(f'feed {name}: type must be one of {", ".join(TYPES)}')
         if not isinstance(url, str) or not url.startswith("https://"):
             raise ValueError(f"feed {name}: url must start with https://")
-        if not isinstance(f.get("library", False), bool):
-            raise ValueError(f"feed {name}: library must be true or false")
+        for key in ("library", "sparse"):
+            if not isinstance(f.get(key, False), bool):
+                raise ValueError(f"feed {name}: {key} must be true or false")
         if "exclude" in f:
             try:
                 re.compile(f["exclude"])
@@ -72,6 +82,19 @@ def check_feeds(feeds):
         for k in ("venue", "address"):
             if k in f and not isinstance(f[k], str):
                 raise ValueError(f"feed {name}: {k} must be text")
+        for key in ("rename", "rename_venue"):
+            rules = f.get(key, [])
+            if not isinstance(rules, list) or not all(
+                    isinstance(r, list) and len(r) == 2 and all(isinstance(x, str) for x in r) for r in rules):
+                raise ValueError(f"feed {name}: {key} must be a list of [pattern, replacement]")
+            for pattern, repl in rules:
+                try:
+                    # "|" lets it match the empty string, so the replacement
+                    # is expanded and a bad group reference ("\\2" with one
+                    # group) fails here, not in the middle of a collect.
+                    re.compile(f"(?:{pattern})|").sub(repl, "", count=1)
+                except (re.error, IndexError):
+                    raise ValueError(f"feed {name}: {key} pattern {pattern!r} or its replacement is not valid")
         t = f.get("timeout", 15)
         if not isinstance(t, int) or isinstance(t, bool) or not 5 <= t <= 240:
             raise ValueError(f"feed {name}: timeout must be 5-240 seconds")
@@ -124,6 +147,15 @@ def excluded(events, pattern):
         return events
     rx = re.compile(pattern, re.I)
     return [e for e in events if not rx.search(f'{e.get("name", "")} | {e.get("venue", "")}')]
+
+
+def renamed(events, rules, key="name"):
+    """Each event's `key` rewritten by the feed's [pattern, replacement] rules, in order."""
+    for pattern, repl in rules or []:
+        rx = re.compile(pattern, re.I)
+        for e in events:
+            e[key] = clean(rx.sub(repl, e.get(key, "")))
+    return events
 
 
 _HIDDEN_VENUE = re.compile(r"^private location\b", re.I)
@@ -441,6 +473,83 @@ def parse_cards(page_html, start, end):
     return events, past_end
 
 
+# ─── A live-music lineup page (Visit Florence's /music/live-music/) ─────────
+# The page lists days, under each day a venue, under each venue its acts:
+#   Friday, October 16 / Champy's / - Back Alley String Band 7-9pm
+
+_DAY_HEAD = re.compile(r"^(?:mon|tues|wednes|thurs|fri|satur|sun)day,?\s+([a-z]{3})[a-z]*\.?\s+(\d{1,2})$", re.I)
+_CLOCK = r"\d{1,2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?"
+_ACT = re.compile(rf"^[-–•]\s*(.+?)\s*:?\s+({_CLOCK})(?:\s*[-–]\s*({_CLOCK}|close))?\s*$", re.I)
+
+
+def _clock(text, ampm=None):
+    """'7:30', 'pm' → (hour, minute); ampm is the other end's when this one
+    has none, else evening (a lineup's unmarked "8-11" is a night set)."""
+    m = re.match(r"(\d{1,2})(?::(\d{2}))?\s*([ap])?", (text or "").strip().lower())
+    if not m:
+        return None
+    h, mi, half = int(m.group(1)), int(m.group(2) or 0), m.group(3) or ampm or "p"
+    if h > 12 or mi > 59:
+        return None
+    return h % 12 + (12 if half == "p" else 0), mi
+
+
+def _set_times(start_text, end_text):
+    """((h, m) start, (h, m) end or None) for '7-9pm', '11-1pm', '9-close'."""
+    has = lambda t: re.search(r"\d\s*([ap])", (t or "").lower())
+    end_half = has(end_text) and has(end_text).group(1)
+    start_half = has(start_text) and has(start_text).group(1)
+    e = _clock(end_text) if end_text and end_text != "close" else None
+    s = _clock(start_text, None if start_half else end_half)
+    # "11-1pm": the start borrowed pm, but 11 PM to 1 PM runs backwards:
+    # it's 11 AM.
+    if s and e and not start_half and s > e and s[0] >= 12:
+        s = (s[0] - 12, s[1])
+    # An end at or before the start ("6-9" read 6 PM to 9 PM is fine; "10-2"
+    # runs past midnight) is dropped rather than shown wrong.
+    if s and e and e <= s:
+        e = None
+    return s, e
+
+
+def parse_lineup(page_html, tz, start, end):
+    """Events from a lineup page: each act on its day at its venue, with its
+    time. Lines outside a day and a venue are ignored."""
+    from bs4 import BeautifulSoup
+    text = BeautifulSoup(page_html or "", "html.parser").get_text("\n")
+    day = venue = None
+    events = []
+    for line in (clean(x) for x in text.split("\n")):
+        if not line:
+            continue
+        m = _DAY_HEAD.match(line)
+        if m:
+            mon = _MONTHS.get(m.group(1).lower())
+            if not mon:
+                day = None
+                continue
+            year = start.year + (1 if mon < start.month - 6 else 0)
+            try:
+                day = date(year, mon, int(m.group(2)))
+            except ValueError:
+                day = None
+            venue = None
+            continue
+        if day is None:
+            continue
+        a = _ACT.match(line)
+        if a and venue:
+            if not (start <= day <= end):
+                continue
+            s_clock, e_clock = _set_times(a.group(2), (a.group(3) or "").lower())
+            s_dt = datetime(day.year, day.month, day.day, *s_clock, tzinfo=tz) if s_clock else None
+            e_dt = datetime(day.year, day.month, day.day, *e_clock, tzinfo=tz) if e_clock else None
+            events.append(_event(day, a.group(1).strip(" -–:"), s_dt, e_dt, venue=venue))
+        elif not line.startswith(("-", "–", "•")) and len(line) <= 60:
+            venue = line
+    return events
+
+
 def parse_card_detail(page_html, tz):
     """(start, end, free) from an event page: the schema.org Event's times
     (the date is the listing's: a repeating event's startDate is its first
@@ -464,6 +573,17 @@ def _on_day(day, t):
 
 # ─── Fetching ───────────────────────────────────────────────────────────────
 
+def _json(resp):
+    """A JSON feed's body. A page that isn't JSON (a firewall's challenge)
+    says what came back, so the warning shows why."""
+    try:
+        return resp.json()
+    except ValueError:
+        head = re.sub(r"\s+", " ", resp.text or "")[:80]
+        kind = resp.headers.get("content-type", "?")
+        raise ValueError(f"not JSON: HTTP {resp.status_code} {kind}: {head!r}") from None
+
+
 def fetch_feed(feed, get, tz, start, end):
     """One feed's events. `get(url)` returns a response (raises on HTTP
     errors). Pagination stops at MAX_PAGES."""
@@ -474,19 +594,21 @@ def fetch_feed(feed, get, tz, start, end):
     if kind == "tribe":
         page_url, pages = tribe_url(url, start, end), 0
         while page_url and pages < MAX_PAGES:
-            got, page_url = parse_tribe(get(page_url).json(), tz, start, end)
+            got, page_url = parse_tribe(_json(get(page_url)), tz, start, end)
             events.extend(got)
             pages += 1
         return events
     if kind == "localist":
         page, total = 1, 1
         while page <= min(total, MAX_PAGES):
-            got, total = parse_localist(get(localist_url(url, start, end, page)).json(), tz, start, end)
+            got, total = parse_localist(_json(get(localist_url(url, start, end, page))), tz, start, end)
             events.extend(got)
             page += 1
         return events
+    if kind == "lineup":
+        return parse_lineup(get(url).text, tz, start, end)
     if kind == "squarespace":
-        return parse_squarespace(get(url).json(), tz, start, end, base=squarespace_base(url))
+        return parse_squarespace(_json(get(url)), tz, start, end, base=squarespace_base(url))
     if kind == "growthzone":
         base = url.rstrip("/")
         months = sorted({date(start.year, start.month, 1), date(end.year, end.month, 1)})

@@ -4,6 +4,7 @@ social posts, AI prompts and alerts name it, never Victoria."""
 import importlib
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -343,3 +344,76 @@ def test_victorias_venue_links_stay_in_victoria(town_as):
     assert vic.fill_gaps([dict(ev)], templates=False)[0]["url"] == "https://www.victoriatx.gov/1330/Parks-Recreation"
     ce = town_as(DENVER, slug="denver")
     assert ce.fill_gaps([dict(ev)], templates=False)[0].get("url", "") == ""
+
+
+def test_meta_credentials_count_only_for_their_own_town(tmp_path):
+    # A town without its own Meta secrets inherits Victoria's repo-level ones
+    # in GitHub, one setting at a time; it must never post or read ads with them.
+    vic = town_mod.town_config({})
+    assert town_mod.meta_allowed(vic, {}) and town_mod.meta_allowed(vic, {}, use="ads")
+    (tmp_path / "bay").mkdir()
+    (tmp_path / "bay" / "town.json").write_text(json.dumps({**BAY, "meta": {"page_id": "111", "ig_user_id": "222", "ad_account_id": "act_333"}}))
+    bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
+    own = {"META_TOWN": "bay", "META_PAGE_ID": "111", "IG_USER_ID": "222", "META_AD_ACCOUNT_ID": "333"}
+    assert town_mod.meta_allowed(bay, own) and town_mod.meta_allowed(bay, own, use="ads")
+    assert not town_mod.meta_allowed(bay, {**own, "META_TOWN": ""})
+    assert not town_mod.meta_allowed(bay, {**own, "META_PAGE_ID": "999"})            # Victoria's page
+    assert not town_mod.meta_allowed(bay, {**own, "IG_USER_ID": "999"})
+    assert town_mod.meta_allowed(bay, {**own, "IG_USER_ID": ""})                     # Facebook only
+    assert not town_mod.meta_allowed(bay, {**own, "META_AD_ACCOUNT_ID": ""}, use="ads")
+    assert not town_mod.meta_allowed(bay, {**own, "META_AD_ACCOUNT_ID": "act_999"}, use="ads")
+    (tmp_path / "bay" / "town.json").write_text(json.dumps(BAY))                    # nothing pinned
+    bay = town_mod.town_config({"TOWN": "bay", "TOWNS_DIR": str(tmp_path)})
+    assert not town_mod.meta_allowed(bay, own) and not town_mod.meta_allowed(bay, own, use="ads")
+
+
+def test_victorias_meta_pin_keeps_another_towns_settings_off_her_jobs_service():
+    # JOBS_ON_RAILWAY.md phase 5: her page is pinned like another town's;
+    # META_TOWN may be unset (her old repo-level settings) or "victoria".
+    vic = town_mod.town_config({})
+    assert vic["meta"] == {"page_id": "1388965530960534", "campaign_prefix": "Vic Newsletter Leads"}
+    ok = {"META_PAGE_ID": "1388965530960534"}
+    assert town_mod.meta_allowed(vic, ok) and town_mod.meta_allowed(vic, {**ok, "META_TOWN": "victoria"})
+    assert not town_mod.meta_allowed(vic, {**ok, "META_TOWN": "medford"})
+    assert not town_mod.meta_allowed(vic, {"META_PAGE_ID": "1444476842072503"})          # Medford's page
+    assert not town_mod.meta_allowed(vic, {"META_PAGE_ID": "1444476842072503"}, use="ads")
+    # Her ads: the one account her token sees (no ad account pinned).
+    assert town_mod.meta_allowed(vic, {**ok, "META_AD_ACCOUNT_ID": "act_1"}, use="ads")
+
+
+@pytest.mark.parametrize("slug", ["medford", "shoals", "lincoln", "virginiabeach"])
+def test_a_towns_slides_use_its_own_logo_skyline_colors_and_words(slug, monkeypatch):
+    """The social kit the town's jobs worker posts (JOBS_ON_RAILWAY.md 2b):
+    its brand kit (towns/<slug>/public, BRAND.md palette), never Victoria's
+    logo, skyline, colors or name."""
+    from datetime import date
+    monkeypatch.setenv("TOWN", slug)
+    monkeypatch.delenv("SITE_URL", raising=False)
+    names = ["town", "social_kit", "social_slides"]
+    try:
+        mods = {n: importlib.reload(importlib.import_module(n)) for n in names}
+        sk, ss, t = mods["social_kit"], mods["social_slides"], mods["town"]
+        pal = t.brand_palette()
+        events = [{"date": "2026-10-16", "name": "Fish Fry", "venue": f"Hall, {t.TOWN['city']}, {t.TOWN['state']} 12345",
+                   "time": "6:00 PM", "featured": True}]
+        start, end = sk.weekend_bounds(date(2026, 10, 15))
+        groups = sk.select_events(events, start, end)
+        _, doc = ss.slides_html(groups, start, end, "weekend")
+        # The category icons (docs/icons.svg) are shared by every town's site.
+        doc = re.sub(r'<svg style="display:none">.*?</svg></svg>|<svg style="display:none">.*?(?=<section)', "", doc, flags=re.S)
+        own = os.path.join(HERE, "towns", slug, "public")
+        assert f"file://{own}/logo-512.png" in doc and f"file://{own}/skyline.svg" in doc
+        assert "/docs/logo" not in doc and "/docs/skyline" not in doc
+        assert pal["primary"] != "#4B3FD1" and pal["primary"] in doc and pal["ink"] in doc and pal["paper"] in doc
+        for victoria_color in ("#4B3FD1", "#FFF4D6", "#FF8FC0", "#554E7A"):
+            assert victoria_color not in doc
+        assert no_leak(doc.replace(HERE, "<repo>")) == []      # the checkout folder may be named thevic361
+        assert sk.LOGO == os.path.join(own, "logo.png")
+        assert sk.clean_venue(events[0]["venue"]) == "Hall"
+        caps = sk.captions(groups, start, end, "weekend", {}, None)
+        assert no_leak(caps["facebook"] + caps["instagram"]) == []
+        assert t.TOWN["domain"] in caps["facebook"]
+    finally:
+        monkeypatch.delenv("TOWN")
+        for n in names:
+            importlib.reload(importlib.import_module(n))

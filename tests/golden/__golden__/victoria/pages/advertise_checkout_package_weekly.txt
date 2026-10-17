@@ -62,7 +62,7 @@
 
     <p><a href="/advertise">← All packages</a></p>
     <h1 class="page-title">Weekly sponsor</h1>
-    <p class="page-lead">$300 / week. Pick a week and write your message; it goes live on its own that Monday.</p>
+    <p class="page-lead">$149 / week. Pick a week and write your message; it goes live on its own that Monday.</p>
     
     <form class="co-form" method="post" action="/advertise/checkout" data-turnstile>
       <input type="hidden" name="package" value="weekly">
@@ -191,6 +191,7 @@
             <li><a href="/submit">Submit an event</a></li>
             <li><a href="/venues">Venues</a></li>
             <li><a href="/advertise">Advertise</a></li>
+            <li><a href="/partners">Our partners</a></li>
             <li><a href="/contact">Contact</a></li>
           </ul>
         </div>

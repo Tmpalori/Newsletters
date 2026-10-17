@@ -1,2 +1,433 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── Tupelo Current — Local Events (Tupelo, MS) ─────────────────────────────
+# This file contains manually curated events and recurring events for
+# Tupelo and Lee County.
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# Keep recurring events to genuinely interesting "things to do" —
+# not daily restaurant specials or repeated toddler sessions.
+#
+# The town feed already pulls tupelo.net (Visit Tupelo: Woody's and
+# Holland's karaoke, Jobos Thursday music, Brick and Spoon weekend brunch
+# music, Elvis Birthplace Blues Friday, Backline shows through late Oct,
+# arena shows, the Christmas parade),
+# link-centre.org, the Lee County Library, the CDF chamber and Tupelo Parks,
+# and the collector dedups, so entries here are what those feeds miss:
+# weekly staples that must never drop off, plus one-time dates found on
+# venue sites and AllEvents.
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#   town: "Saltillo" a nearby-town event (only big ones belong here)
+# Each day shows its best 15 events Mon–Thu and 20 Fri–Sun.
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line. Church-hosted
+# events are left out on purpose (the collector drops them anyway).
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── WEEKLY: Blue Canoe ──────────────────────────────────────────────────
+  # Named generically so the collector merges it into the act when Facebook
+  # names one; bluecanoebar.com's calendar can't be read from Railway (a bot
+  # check), so this keeps its weekend shows on the calendar.
+
+  - name: "Live Music at Blue Canoe"
+    day: [friday, saturday]
+    time: "8:30 PM"
+    venue: "Blue Canoe"
+    address: "2006 N Gloster St"
+    description: "Tupelo's original live-music bar: touring and regional acts on the stage most weekend nights, plus 46 taps."
+    icons: [music, drinks]
+    free: false
+    url: "https://bluecanoebar.com/"
+    favorite: true
+    # VERIFIED: bluecanoebar.com events calendar 2026-10-15 (every listed Friday and Saturday Sep – Nov 2026 at 8:30 PM, 13 of 13; e.g. Huge Ghost Oct 16, Music by KOTA Oct 17)
+
+  # ── DAILY (October) ─────────────────────────────────────────────────────
+
+  - name: "Pumpkin Patch at Tupelo Buffalo Park & Zoo"
+    day: [monday, tuesday, wednesday, thursday]
+    time: "10:00 AM – 2:00 PM"
+    venue: "Tupelo Buffalo Park & Zoo"
+    address: "2272 N Coley Rd"
+    description: "The zoo's annual October pumpkin patch: pick a pumpkin from the fields, then meet the buffalo herd and the rest of the animals."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.tupelobuffalopark.com/pumpkin-patch"
+    end_date: "2026-10-31"
+    # VERIFIED: tupelobuffalopark.com/pumpkin-patch 2026-10-15 (October 1–31; Mon–Thu 10–2, Fri–Sat 10–4, Sun 11–4)
+
+  - name: "Pumpkin Patch at Tupelo Buffalo Park & Zoo"
+    day: [friday, saturday]
+    time: "10:00 AM – 4:00 PM"
+    venue: "Tupelo Buffalo Park & Zoo"
+    address: "2272 N Coley Rd"
+    description: "The zoo's annual October pumpkin patch: pick a pumpkin from the fields, then meet the buffalo herd and the rest of the animals."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.tupelobuffalopark.com/pumpkin-patch"
+    end_date: "2026-10-31"
+    # VERIFIED: tupelobuffalopark.com/pumpkin-patch 2026-10-15
+
+  - name: "Pumpkin Patch at Tupelo Buffalo Park & Zoo"
+    day: sunday
+    time: "11:00 AM – 4:00 PM"
+    venue: "Tupelo Buffalo Park & Zoo"
+    address: "2272 N Coley Rd"
+    description: "The zoo's annual October pumpkin patch: pick a pumpkin from the fields, then meet the buffalo herd and the rest of the animals."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.tupelobuffalopark.com/pumpkin-patch"
+    end_date: "2026-10-31"
+    # VERIFIED: tupelobuffalopark.com/pumpkin-patch 2026-10-15
+
+  # ── TUESDAY – SATURDAY ──────────────────────────────────────────────────
+
+  - name: "Chromatic Landscapes by Chatham Kemp at GumTree Museum"
+    day: [tuesday, wednesday, thursday, friday]
+    time: "10:00 AM – 4:00 PM"
+    venue: "GumTree Museum of Art"
+    address: "211 W Main St"
+    description: "Fall exhibition of Chatham Kemp's color-saturated landscape paintings in downtown Tupelo's art museum."
+    icons: [arts]
+    free: false
+    url: "https://www.gumtreemuseum.com/exhibition-schedule"
+    start_date: "2026-10-03"
+    end_date: "2026-11-25"
+    # VERIFIED: gumtreemuseum.com/exhibition-schedule 2026-10-15 (Oct 3 – Nov 25 2026; Tue–Fri 10–4, Sat 11–3)
+
+  - name: "Chromatic Landscapes by Chatham Kemp at GumTree Museum"
+    day: saturday
+    time: "11:00 AM – 3:00 PM"
+    venue: "GumTree Museum of Art"
+    address: "211 W Main St"
+    description: "Fall exhibition of Chatham Kemp's color-saturated landscape paintings in downtown Tupelo's art museum."
+    icons: [arts]
+    free: false
+    url: "https://www.gumtreemuseum.com/exhibition-schedule"
+    start_date: "2026-10-03"
+    end_date: "2026-11-21"
+    # VERIFIED: gumtreemuseum.com/exhibition-schedule 2026-10-15
+
+  # ── FRIDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Fleet Feet Friday Morning Group Run"
+    day: friday
+    time: "5:00 AM & 5:30 AM"
+    venue: "Fleet Feet Tupelo"
+    address: "323 W Main St"
+    description: "Free weekly group run from the downtown store, two start times. All paces welcome, walkers too; no registration, just show up."
+    icons: [outdoors, free]
+    free: true
+    url: "https://www.fleetfeet.com/s/tupelo/run-with-us"
+    # VERIFIED: fleetfeet.com/s/tupelo/run-with-us 2026-10-15 ("Every Friday, 5:00 AM and 5:30 AM")
+
+  - name: "Friday Karaoke at Holland's Bar & Grill"
+    day: friday
+    time: "8:00 PM – 11:30 PM"
+    venue: "Holland's Bar and Grill"
+    address: "3952 N Gloster St"
+    description: "Friday karaoke at the north Gloster bar and grill, with big screens and wing specials. The Visit Tupelo feed carries its other karaoke nights."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.facebook.com/p/Hollands-Bar-Grill-Tupelo-61564625471623"
+    # VERIFIED: Holland's Bar & Grill Tupelo Facebook page (via facebook.com search) 2026-10-15 ("Karaoke Tues-Saturday"); Visit Tupelo lists Tue/Wed/Thu/Sat/Sun 8 PM
+
+  - name: "Weekend Live Music at Romie's Grocery"
+    day: [friday, saturday]
+    time: "Evening (bar opens 5:00 PM)"
+    venue: "Romie's Grocery"
+    address: "804 W Jackson St"
+    description: "Live music on the back patio every weekend at the old Jackson West neighborhood grocery turned restaurant, with steaks, catfish and a full bar."
+    icons: [music, food, drinks]
+    free: true
+    url: "https://romies.net"
+    favorite: true
+    # VERIFIED: romies.net 2026-10-15 ("Live Music every weekend"; bar Thu–Sat 5 PM–until)
+
+  # ── SATURDAY ────────────────────────────────────────────────────────────
+
+  - name: "Tupelo Farmers Market at The Depot"
+    day: saturday
+    time: "8:00 AM – 12:00 PM"
+    venue: "The Depot"
+    address: "208 N Front St"
+    description: "Downtown Tupelo's Saturday market with local produce, baked goods and crafts, plus live music, coffee trucks and kids' activities."
+    icons: [food, shopping, family]
+    free: true
+    url: "https://www.tupelomainstreet.com/farmers-market"
+    end_date: "2026-10-31"
+    favorite: true
+    # VERIFIED: tupelomainstreet.com/farmers-market 2026-10-15 (Saturdays 8 AM–noon, May 16 through October 2026)
+
+events:
+
+  # ── October 2026 ────────────────────────────────────────────────────────
+
+  - date: "2026-10-15"
+    name: "Cornhole Night at The Gin"
+    time: "6:30 PM"
+    venue: "The Gin Restaurant and Catering"
+    address: "4187 W Main St"
+    description: "Bring a partner and toss some bags: friendly cornhole competition with food and cold drinks."
+    icons: [drinks, food, community]
+    free: true
+    url: "https://www.facebook.com/thegintupeloms"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/cornhole-night-at-the-gin) 2026-10-15
+
+  - date: "2026-10-15"
+    name: "Live at the Birthplace: Silas Caldwell"
+    time: "7:30 PM – 9:30 PM"
+    venue: "Elvis Presley Birthplace & Museum"
+    address: "306 Elvis Presley Dr"
+    description: "An intimate evening with North Mississippi vocalist and songwriter Silas Caldwell. Limited seating; tickets on Eventbrite."
+    icons: [music, arts]
+    free: false
+    url: "https://elvispresleybirthplace.com/news-and-events/"
+    # VERIFIED: elvispresleybirthplace.com/news-and-events 2026-10-15
+
+  - date: "2026-10-16"
+    name: "Opening Reception: Chromatic Landscapes by Chatham Kemp"
+    time: "5:00 PM – 7:00 PM"
+    venue: "GumTree Museum of Art"
+    address: "211 W Main St"
+    description: "Meet the artist at the reception for GumTree's fall exhibition of Chatham Kemp's landscape paintings."
+    icons: [arts, community, free]
+    free: true
+    url: "https://www.gumtreemuseum.com/exhibition-schedule"
+    # VERIFIED: gumtreemuseum.com/exhibition-schedule 2026-10-15 (reception Friday Oct 16, 5–7 PM)
+
+  - date: "2026-10-17"
+    name: "Open Studio with Chatham Kemp"
+    time: "10:00 AM"
+    venue: "GumTree Museum of Art"
+    address: "211 W Main St"
+    description: "Bring a piece you're working on and spend a creative day painting in the museum alongside exhibiting artist Chatham Kemp."
+    icons: [arts, community]
+    free: false
+    url: "https://www.gumtreemuseum.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/open-studio-with-chatham-kemp) 2026-10-15
+
+  - date: "2026-10-17"
+    name: "BOND Food Fight: Tupelo 2026"
+    time: "1:00 PM – 5:00 PM"
+    venue: "Springhill District Building"
+    address: "2556 Clayton Rd"
+    description: "A 70s-themed food fight: local bakers compete in a groovy cake competition and guests get to taste and vote."
+    icons: [food, family, community]
+    free: false
+    url: "https://allevents.in/tupelo/2026-bond-food-fight/200029988159400"
+    # VERIFIED: AllEvents listing 2026-10-15
+
+  - date: "2026-10-22"
+    name: "Page & Table: A Dark and Secret Magic"
+    time: "6:00 PM – 8:00 PM"
+    venue: "Reed's GumTree Bookstore"
+    address: "111 S Spring St"
+    description: "Reed's book-and-supper series goes spooky with a witchy fall novel. Dark secrets and eerie magic downtown."
+    icons: [arts, food, community]
+    free: false
+    url: "https://reedsms.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/page-and-table-presents-a-dark-and-secret-magic) 2026-10-15
+
+  - date: "2026-10-23"
+    name: "Hall-GLOW-een Singo Night at Queen's Reward Meadery"
+    time: "6:00 PM food · 7:00 PM Singo"
+    venue: "Queen's Reward Meadery"
+    address: "1719 McCullough Blvd"
+    description: "Music bingo hosted by Brooks Weaver. Come dressed in your spookiest neon. El Rey food truck on site; seating first-come, first-served."
+    icons: [music, drinks, community]
+    free: true
+    url: "https://queensreward.com/event-calendar/"
+    # VERIFIED: queensreward.com/event-calendar 2026-10-15
+
+  - date: "2026-10-24"
+    name: "Zombie Color 5K Run/Walk"
+    time: "6:30 PM"
+    venue: "Ballard Park"
+    address: "Rutherford Rd"
+    description: "An evening color run/walk with a zombie twist at Ballard Park. Register on RunSignup."
+    icons: [outdoors, family]
+    free: false
+    url: "https://runsignup.com/Race/Register/?raceId=214105"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/zombie-color-5k-run-walk) 2026-10-15
+
+  - date: "2026-10-27"
+    name: "The Tupelo Sessions: Songs & Stories"
+    time: "7:00 PM – 9:00 PM"
+    venue: "Elvis Presley Birthplace & Museum"
+    address: "306 Elvis Presley Dr"
+    description: "A songwriters' round at the Birthplace with James Goolsby, Zach Bragg, CK Kenny Little, Abby Frances and Cameron Moore. Tickets on Eventbrite."
+    icons: [music, arts]
+    free: false
+    url: "https://elvispresleybirthplace.com/news-and-events/"
+    # VERIFIED: elvispresleybirthplace.com/news-and-events 2026-10-15 + AllEvents (7–9 PM)
+
+  - date: "2026-10-29"
+    name: "Trivia Night & Halloween Costume Contest at Queen's Reward"
+    time: "6:00 PM food · 7:00 PM trivia"
+    venue: "Queen's Reward Meadery"
+    address: "1719 McCullough Blvd"
+    description: "Trivia Master Zac Bragg hosts trivia plus the meadery's annual costume contest. Jo's Cafe serves dinner; seating is first-come."
+    icons: [drinks, community, free]
+    free: true
+    url: "https://queensreward.com/event-calendar/"
+    # VERIFIED: queensreward.com/event-calendar 2026-10-15
+
+  - date: "2026-10-30"
+    name: "Boos & Brews: The Shriek-quel Halloween Bar Crawl"
+    time: "8:00 PM – 11:00 PM"
+    venue: "Amsterdam Bar & Grill"
+    address: "128 W Main St"
+    description: "Amsterdam's Halloween bar crawl is back. Costumes encouraged as the night moves through downtown."
+    icons: [drinks, community]
+    free: false
+    url: "https://www.facebook.com/AmsterdamDeli"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/boos-and-brews-the-shriek-quel) 2026-10-15
+
+  # ── November 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-11-04"
+    name: "Cattywampus Happy Hour with Ellen Skrmetti"
+    time: "5:00 PM – 6:30 PM"
+    venue: "Reed's GumTree Bookstore"
+    address: "111 S Spring St"
+    description: "Book signing meets comedy happy hour with comedian Ellen Skrmetti."
+    icons: [arts, drinks, community]
+    free: false
+    url: "https://reedsms.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/cattywampus-happy-hour-with-ellen-skrmetti) 2026-10-15
+
+  - date: "2026-11-06"
+    name: "Modern Bodies & Little Brother at Backline Music Hall"
+    time: "Doors 6:30 PM · Show 7:30 PM"
+    venue: "Backline Music Hall"
+    address: "5339 Cliff Gookin Blvd"
+    description: "Tupelo's own Modern Bodies brings jangly garage rock, shoegaze and fuzz to Backline, with Little Brother. Ages 15+."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.backlinemusichall.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/110626-modern-bodies-and-little-brother-15) 2026-10-15
+
+  - date: "2026-11-07"
+    name: "NEMDSS Holiday Vendor Market"
+    time: "10:00 AM – 4:00 PM"
+    venue: "Fairpark"
+    address: "E Main St"
+    description: "Family fun and early holiday shopping with local vendors, hosted by the Northeast Mississippi Down Syndrome Society."
+    icons: [shopping, family, community]
+    free: true
+    url: "https://allevents.in/tupelo/nemdss-holiday-vendor-market/200030773090110"
+    # VERIFIED: AllEvents listing 2026-10-15
+
+  - date: "2026-11-07"
+    name: "The Fairy Ball"
+    time: "4:00 PM – 11:00 PM"
+    venue: "The Gathering"
+    address: "852 N Gloster St"
+    description: "The Magnolia State Renaissance Festival's formal evening of costumes, music and enchantment. Wear your finest fairy attire."
+    icons: [arts, music, community]
+    free: false
+    url: "https://allevents.in/tupelo/the-fairy-ball/200030799962732"
+    # VERIFIED: AllEvents listing 2026-10-15
+
+  - date: "2026-11-12"
+    name: "Holiday Tree Fest: Tinsel Through Time"
+    time: "6:00 PM"
+    venue: "Tupelo Country Club"
+    address: "4462 Winged Foot Rd"
+    description: "Over 15 fully decorated Christmas trees, live music and dancing, festive food and drinks. Benefits five local charities."
+    icons: [music, food, community]
+    free: false
+    url: "https://allevents.in/tupelo/holiday-tree-fest-2026-tinsel-through-time/200030576584838"
+    # VERIFIED: AllEvents listing 2026-10-15
+
+  - date: "2026-11-13"
+    name: "Backline Bike Nite: Leather Rose"
+    time: "Doors 6:30 PM · Music 7:00 PM"
+    venue: "Backline Music Hall"
+    address: "5339 Cliff Gookin Blvd"
+    description: "Free bike night with live music from Leather Rose and the Bleu Collar Toasties kitchen open 6:30–9. Ages 18+."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.backlinemusichall.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/111326-backline-bike-nite-leather-rose-18) 2026-10-15
+
+  - date: "2026-11-21"
+    name: "A Shoals Tribute to Tom Petty & the Heartbreakers"
+    time: "Doors 6:30 PM · Show 7:30 PM"
+    venue: "Backline Music Hall"
+    address: "5339 Cliff Gookin Blvd"
+    description: "Jordan Dean and Muscle Shoals friends play a night of Tom Petty sing-alongs. $10 advance, $15 at the door; 18+."
+    icons: [music, drinks]
+    free: false
+    url: "https://www.backlinemusichall.com"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/112126-a-shoals-tribute-to-tom-petty-and-the-heartbreakers-18) 2026-10-15
+
+  # ── December 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-12-05"
+    name: "Holiday Dulcimer Music on the Natchez Trace"
+    time: "10:00 AM – 12:00 PM"
+    venue: "Natchez Trace Parkway Visitor Center"
+    address: "2680 Natchez Trace Pkwy"
+    description: "The North Mississippi Dulcimer Association plays holiday tunes on the Appalachian mountain dulcimer at the Parkway Visitor Center near milepost 266."
+    icons: [music, family, free]
+    free: true
+    url: "https://allevents.in/tupelo/welcome-the-holiday-season-with-the-north-mississippi-dulcimers/200030799808625"
+    # VERIFIED: AllEvents listing 2026-10-15
+
+  - date: "2026-12-08"
+    name: "Paint Ornaments with Petty Betty at Queen's Reward"
+    time: "6:00 PM – 9:00 PM"
+    venue: "Queen's Reward Meadery"
+    address: "1719 McCullough Blvd"
+    description: "Get festive painting holiday ornaments with The Petty Betty Art Studio over a glass of mead."
+    icons: [arts, drinks]
+    free: false
+    url: "https://queensreward.com/event-calendar/"
+    # VERIFIED: AllEvents listing (allevents.in/tupelo/paint-ornaments-with-petty-betty-at-queens-reward) 2026-10-15
+
+  - date: "2026-12-19"
+    name: "Elvis Presley Birthplace Christmas Show"
+    time: "Doors 5:00 PM · Show 6:00 PM"
+    venue: "Elvis Presley Birthplace & Museum"
+    address: "306 Elvis Presley Dr"
+    description: "ETA and Dawson Horn perform with special guests Santa and Mrs. Claus. $30; $15 of each ticket goes to St. Jude."
+    icons: [music, family]
+    free: false
+    url: "https://elvispresleybirthplace.com/news-and-events/"
+    big: true
+    # VERIFIED: elvispresleybirthplace.com/news-and-events 2026-10-15
+
+  - date: "2026-12-31"
+    name: "Tupelo's New Year's Eve Party"
+    time: "6:00 PM – 12:15 AM"
+    venue: "Fairpark"
+    address: "71 E Troy St"
+    description: "Free, family-friendly NYE downtown: KidsFest and 8 PM fireworks, bands on two stages (Dr. Zarr's Amazing Funk Monster, G3, The ShotgunBillys and more), midnight ball drop and fireworks."
+    icons: [music, family, free]
+    free: true
+    url: "https://www.tupelo.net/events/newyear/"
+    big: true
+    # VERIFIED: tupelo.net/events/newyear 2026-10-15 (Dec 31 2026, 6 PM–12:15 AM, full stage lineup)
+
+  # ── January 2027 ────────────────────────────────────────────────────────
+
+  - date: "2027-01-02"
+    name: "North Mississippi Dulcimers on the Natchez Trace"
+    time: "10:00 AM – 12:00 PM"
+    venue: "Natchez Trace Parkway Visitor Center"
+    address: "2680 Natchez Trace Pkwy"
+    description: "First-Saturday performance by the North Mississippi Dulcimer Association at the Parkway Visitor Center near milepost 266."
+    icons: [music, family, free]
+    free: true
+    url: "https://allevents.in/tupelo/north-mississippi-dulcimers-performance/200030799869656"
+    # VERIFIED: AllEvents listing 2026-10-15 (Jan 2 – Apr 3 2027 series)

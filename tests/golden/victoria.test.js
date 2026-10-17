@@ -25,7 +25,7 @@ import { withPages } from '../../server/seo.js';
 import { renderWeekly, renderWelcomeEmail, renderConfirmEmail, renderReferralRules, createResend } from '../../server/newsletter.js';
 import {
   renderSubmissionReceived, renderSubmissionLive, renderSponsorConfirmed, renderSponsorTooLate,
-  renderSponsorReport, renderPickReport
+  renderSponsorReport, renderPickReport, renderPartnerReceived, renderPartnerLive, renderPartnerRejected, renderPartnerCanceled, renderPartnerReport
 } from '../../server/notify.js';
 import { renderReply } from '../../server/inbound.js';
 import { createSlack, slackConfig } from '../../server/slack.js';
@@ -107,6 +107,7 @@ describe('Victoria pages and feeds', () => {
   const file = p => (p === '/' ? 'home' : p.slice(1).replace(/[/?=&.]+/g, '_')) + '.txt';
 
   const PAGES = ['/', '/about', '/privacy', '/advertise', '/advertise/checkout?package=weekly', '/advertise/checkout?package=featured',
+    '/advertise/checkout?package=category', '/partners',
     '/subscribe', '/referral-rules', '/contact', '/submit', '/venues', '/no-such-page', '/events.json', '/events.json?all=1',
     '/terms', '/advertising-terms', '/refunds', '/accessibility',
     '/sitemap.xml', '/llms.txt', '/robots.txt', '/pixel.js',
@@ -148,6 +149,19 @@ describe('Victoria emails', () => {
     email: 'ms@example.com', event: { name: 'Fall Festival at De Leon Plaza', date: '2026-10-10', time: '10:00 AM', venue: 'De Leon Plaza' }
   };
 
+  // A category partner (server/partners.js) and the issue it shows in.
+  const partner = {
+    id: 'ord-3', kind: 'category', category: 'food', status: 'active', amount: 9900, created_at: '2026-09-07T15:00:00Z', paid_at: '2026-09-07T15:05:00Z',
+    business: 'Mesquite Smokehouse', email: 'owner@mesquite.example',
+    partner: { name: 'Mesquite Smokehouse', line: 'Brisket Fridays. Kids eat free on Tuesdays.', cta: 'See the menu', url: 'https://mesquite.example' }
+  };
+  const manageUrl = `${SITE}/partners/manage?o=ord-3&t=TOKEN`;
+  const partners = { active: [
+    { id: 'ord-3', category: 'food', label: 'Food & drink', emoji: '🍽️', name: 'Mesquite Smokehouse', line: 'Brisket Fridays. Kids eat free on Tuesdays.', cta: 'See the menu' },
+    { id: 'ord-4', category: 'dental', label: 'Dental', emoji: '🦷', name: 'Riverside Family Dental', line: 'New patients welcome. Saturday hours.', cta: 'Book a visit' },
+    { id: 'ord-5', category: 'auto', label: 'Auto', emoji: '🚗', name: 'Navarro Street Auto', line: 'Oil change and tire rotation in 45 minutes.', cta: 'See specials' }
+  ], open: ['realestate', 'home', 'pets', 'fitness', 'family', 'insurance', 'legal'] };
+
   const CASES = {
     'weekly-issue': () => renderWeekly(evs, { siteUrl: SITE, now: new Date('2026-10-05T12:43:00Z'), sponsor, unsubscribeUrl: `${SITE}/unsubscribe?token=t0k3nt0k3nt0k3nt0k3n`,
       address: ADDRESS, openPixelUrl: `${SITE}/email/o/2026-10-05/sub-1.gif`, referral, edition: 'weekly', prefsUrl: `${SITE}/email-prefs?token=t0k3nt0k3nt0k3nt0k3n`, replyAsk: true }),
@@ -166,6 +180,14 @@ describe('Victoria emails', () => {
       week_start: '2026-09-28', week_end: '2026-10-04', views: 812, view_people: 401, where: [{ type: 'Homepage', views: 500 }, { type: 'Event pages', views: 312 }],
       site_clicks: 14, site_people: 12, email_clicks: 9, email_people: 8, social_clicks: 3, social_people: 3, site_visitors: 1530, newsletter_recipients: 152, newsletter_issues: 2
     }, { siteUrl: SITE, address: ADDRESS }),
+    'weekly-issue-partners': () => renderWeekly(evs, { siteUrl: SITE, now: new Date('2026-10-05T12:43:00Z'), sponsor, partners, unsubscribeUrl: `${SITE}/unsubscribe?token=t0k3nt0k3nt0k3nt0k3n`,
+      address: ADDRESS, edition: 'weekly' }),
+    'partner-received': () => renderPartnerReceived({ ...partner, status: 'pending_approval' }, { siteUrl: SITE, address: ADDRESS, manageUrl }),
+    'partner-live': () => renderPartnerLive(partner, { siteUrl: SITE, address: ADDRESS, manageUrl }),
+    'partner-rejected': () => renderPartnerRejected(partner, { siteUrl: SITE, address: ADDRESS, manageUrl, reason: 'We already list a similar business.' }),
+    'partner-canceled': () => renderPartnerCanceled(partner, { siteUrl: SITE, address: ADDRESS, manageUrl }),
+    'partner-report': () => renderPartnerReport(partner, { start: '2026-09-07', end: '2026-10-06', views: 1240, click_people: 31, newsletter_people: 18, site_people: 11, social_people: 2,
+      newsletter_recipients: 1520, newsletter_issues: 8, where: [{ type: 'Guides & venues', views: 700 }, { type: 'Other', views: 540 }] }, { siteUrl: SITE, address: ADDRESS, manageUrl }),
     'pick-report': () => renderPickReport(pick, { shown: 640, page_views: 88, clicks: 21, calendar: 7, shares: 4, where: [{ type: 'Homepage', views: 400 }] }, { siteUrl: SITE, address: ADDRESS })
   };
   for (const [name, fn] of Object.entries(CASES)) {
@@ -233,7 +255,9 @@ describe('Victoria outbound requests', () => {
       const w = await post({ package: 'weekly', week: '2026-10-12', business: 'Acme Tacos', text: 'Best tacos in town.', url: 'acme.example', cta: 'Order', email: 'owner@acme.example', agree: '1' }, '10.0.0.1');
       const f = await post({ package: 'featured', event_name: 'Fall Festival', date: '2026-10-10', time: '10 AM', venue: 'De Leon Plaza',
         address: '101 N Main St', description: 'Food, music, rides.', business: 'Main Street', email: 'ms@example.com', agree: '1' }, '10.0.0.2');
-      expect([w.status, f.status]).toEqual([303, 303]);
+      const c = await post({ package: 'category', category: 'food', business: 'Mesquite Smokehouse', line: 'Brisket Fridays.', url: 'mesquite.example',
+        cta: 'See the menu', email: 'owner@mesquite.example', agree: '1' }, '10.0.0.3');
+      expect([w.status, f.status, c.status]).toEqual([303, 303, 303]);
       await expect(json(rec.shown())).toMatchFileSnapshot(golden('outbound/stripe.json'));
     } finally {
       await new Promise(r => server.close(r));

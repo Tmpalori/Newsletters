@@ -90,7 +90,23 @@ def test_outreach_lists_each_venue_once(tmp_path):
     ]
 
 
-def test_kinds_rebuild_keeps_other_kits(tmp_path):
+def test_no_reel_is_built_for_a_town_without_instagram(tmp_path, monkeypatch):
+    # The Reel only goes to Instagram; Facebook gets the photos.
+    import json as _json
+    import pytest
+    pytest.importorskip("PIL")
+    monkeypatch.delenv("IG_USER_ID", raising=False)
+    monkeypatch.setattr(sk, "make_reel", lambda *a, **k: pytest.fail("no Reel without Instagram"))
+    ev = tmp_path / "events.json"
+    ev.write_text(_json.dumps({"events": [
+        {"date": "2026-10-09", "name": "Show", "time": "8 PM", "venue": "Aero Crafters"}]}))
+    out = tmp_path / "out"
+    sk.main(["--events-file", str(ev), "--today", "2026-10-08", "--out", str(out), "--kinds", "weekend"])
+    assert "reel" not in _json.loads((out / "kit.json").read_text())["kits"]["weekend"]
+
+
+def test_kinds_rebuild_keeps_other_kits(tmp_path, monkeypatch):
+    monkeypatch.setenv("IG_USER_ID", "ig7")       # the Reel is Instagram's
     import json as _json
     import shutil as _shutil
     import pytest
@@ -422,3 +438,30 @@ def test_slides_tag_paid_picks_sponsored():
 def test_free_paid_pick_line_ends_with_ad():
     ev = {"name": "Wags", "time": "4 PM", "venue": "Park", "free": True, "featured": True}
     assert sk._line(ev) == "⭐ 4 PM Wags @ Park (free) #ad"
+
+
+def test_partners_get_a_facebook_thank_you_on_the_first_of_the_month():
+    partners = [{"id": "ord-3", "name": "Mesquite Smokehouse", "label": "Food & drink", "line": "Brisket."},
+                {"id": "ord-4", "name": "Smile Dental", "label": "Dental"}]
+    first, second = date(2026, 11, 1), date(2026, 11, 2)
+    lines = sk.thanks_lines(partners, first)
+    assert lines == ["🙏 Thanks to our local partners for keeping The Vic 361 free: Mesquite Smokehouse and Smile Dental. "
+                     "Meet them 👉 https://www.thevic361.com/partners #ad", ""]
+    assert sk.thanks_lines(partners[:1], first)[0].startswith("🙏 Thanks to our local partners for keeping The Vic 361 free: Mesquite Smokehouse. ")
+    assert sk.thanks_lines(partners, second) == []
+    assert sk.thanks_lines([], first) == []
+    plain = {"date": "2026-11-01", "name": "Plain", "time": "9 AM"}
+    caps = sk.captions(sk.select_events([plain], first, first), first, first, "today", partners=partners, today=first)
+    assert not caps["facebook"].startswith("#ad")                # labeled on its own line, not up top
+    assert "/partners #ad" in caps["facebook"]
+    assert "Mesquite Smokehouse" in caps["facebook"] and "/partners" in caps["facebook"]
+    assert "Mesquite" not in caps["instagram"] and not caps["instagram"].startswith("#ad ")
+    assert "$" not in caps["facebook"]
+    caps = sk.captions(sk.select_events([plain], second, second), second, second, "today", partners=partners, today=second)
+    assert "Mesquite" not in caps["facebook"] and not caps["facebook"].startswith("#ad ")
+
+
+def test_live_partners_read_from_events_json():
+    assert sk.live_partners({"partners": {"active": [{"id": "a", "name": "A"}], "open": ["food"]}}) == [{"id": "a", "name": "A"}]
+    assert sk.live_partners({"events": []}) == []
+    assert sk.live_partners({"partners": "nope"}) == []

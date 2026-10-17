@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Post the social kit to the Facebook Page and Instagram account.
 
-Runs from .github/workflows/social-kit.yml after the kit is committed and
-deployed, and only when the SOCIAL_AUTOPOST repo variable is 1. Monday
+Runs on the town's jobs worker (scripts/jobs_worker.py) after the kit is on
+the site, and only when SOCIAL_AUTOPOST is 1 on the jobs service. Monday
 posts "this week", Thursday posts "this weekend" (as a Reel on Instagram
 when the kit has one; Reels reach people who don't follow us yet), and
 the other days post "today". Thursday also posts "today" when it has a
 Vic's Pick (--if-featured), so a paid pick that day is always posted.
 
-Needs (GitHub Actions secrets):
+Needs (the jobs service's variables, with META_TOWN; town.py meta_allowed):
   META_PAGE_ID        Facebook Page id
   META_PAGE_TOKEN     a Page access token, or a system-user token with the
                       Page assigned (the Page's own token is looked up);
@@ -19,7 +19,7 @@ Needs (GitHub Actions secrets):
                       (optional; Facebook still posts without it)
 
 Instagram fetches images by URL, so the slides must be live on
-thevic361.com first; we wait for the deploy before posting. Instagram only
+the town's site first; we wait for them before posting. Instagram only
 accepts JPEG there, so it gets the kit's .jpg twins (slides_jpg).
 """
 import argparse
@@ -32,12 +32,12 @@ import time
 import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, site_url, tz, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
+from town import TOWN, meta_allowed, site_url, tz, town_paths  # noqa: E402  (repo root; TOWN unset = Victoria)
 
 SITE = site_url()
-# One place for the Graph API version. The GRAPH_API_VERSION repo variable
-# (passed in social-kit.yml) overrides it, so moving off a version Meta
-# retires needs no code change; empty (variable unset) means the default.
+# One place for the Graph API version. GRAPH_API_VERSION on the town's jobs
+# service overrides it, so moving off a version Meta retires needs no code
+# change; empty (variable unset) means the default.
 GRAPH_VERSION = os.environ.get("GRAPH_API_VERSION", "").strip() or "v23.0"
 GRAPH_VERSION = GRAPH_VERSION if GRAPH_VERSION.startswith("v") else f"v{GRAPH_VERSION}"
 GRAPH = f"https://graph.facebook.com/{GRAPH_VERSION}"
@@ -61,6 +61,11 @@ class Unconfirmed(PostError):
     may not exist. Never retried automatically (it could post twice)."""
 
 
+class StateNotSaved(PostError):
+    """on_save (the jobs worker storing posted.json on the site) failed:
+    nothing is published without its "pending" mark saved first."""
+
+
 class _SentButNoAnswer(PostError):
     """A POST timed out waiting for the answer: Meta may have acted on it."""
 
@@ -81,8 +86,8 @@ def version_problem(err):
     msg = str(err.get("message") or "")
     if err.get("code") in (12, 2635) or re.search(r"(deprecated|unsupported|unknown|invalid)\W+(api\W+)?version",
                                                   msg, re.I):
-        return (f"Meta refused Graph API {GRAPH_VERSION} (retired or unsupported?). Set the "
-                f"GRAPH_API_VERSION repo variable to a current version, e.g. v24.0.")
+        return (f"Meta refused Graph API {GRAPH_VERSION} (retired or unsupported?). Set "
+                f"GRAPH_API_VERSION on the jobs service in Railway to a current version, e.g. v24.0.")
     return None
 
 
@@ -256,7 +261,11 @@ def page_token(page_id, token, session):
     return body.get("access_token") or token
 
 
-def main(argv=None, session=None):
+def main(argv=None, session=None, on_save=None):
+    """on_save(posted): called after every write of posted.json with its
+    contents. The jobs worker (scripts/jobs_worker.py) stores it on the
+    town's site, so a retried or restarted job never posts twice; when it
+    raises, the post that was about to go out doesn't."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--kind", choices=["week", "weekend", "today"], required=True)
     ap.add_argument("--kit-dir", default=KIT_DIR)
@@ -266,6 +275,9 @@ def main(argv=None, session=None):
     args = ap.parse_args(argv)
     session = session or requests.Session()
 
+    if not meta_allowed():
+        print(f"These Meta settings aren't {TOWN['id']}'s own (META_TOWN and the page and Instagram ids its town.json pins); not posting.")
+        return 0
     page_id = os.environ.get("META_PAGE_ID", "").strip()
     token = os.environ.get("META_PAGE_TOKEN", "").strip()
     ig_user = os.environ.get("IG_USER_ID", "").strip()
@@ -280,7 +292,7 @@ def main(argv=None, session=None):
         print(f"No events in the {args.kind} kit; not posting an empty list.")
         return 0
     if args.if_featured and not kit.get("featured"):
-        print(f"No Vic's Pick in the {args.kind} kit; nothing extra to post.")
+        print(f"No {TOWN['pick_name_plain']} in the {args.kind} kit; nothing extra to post.")
         return 0
 
     looked_up = page_token(page_id, token, session)
@@ -325,15 +337,21 @@ def main(argv=None, session=None):
             posted.pop(k, None)
         with open(posted_path, "w") as f:
             json.dump(posted, f, indent=2)
+        if on_save:
+            try:
+                on_save(posted)
+            except Exception as e:  # noqa: BLE001 - any failure to store it stops the post
+                raise StateNotSaved(f"couldn't save what was posted ({type(e).__name__}: {e})") from None
 
     failures = []
+    where_posted = "the site's social_posted file (RAILWAY.md)" if on_save else "docs/social/latest/posted.json"
 
     def already(label, platform):
         """True (and says why) when this slot shouldn't be posted again."""
         if slot.get(platform) == PENDING:
             print(f"::warning::{label}: an earlier run timed out publishing {slot_key} and may have posted it. "
                   f"Not posting again; check the {label} account by hand, and to retry remove "
-                  f'"{platform}" under "{slot_key}" in docs/social/latest/posted.json.')
+                  f'"{platform}" under "{slot_key}" in {where_posted}.')
             return True
         if slot.get(platform):
             print(f"{label}: already posted {slot[platform]} for {slot_key}; skipping.")
@@ -341,16 +359,27 @@ def main(argv=None, session=None):
         return False
 
     def failed(label, platform, e):
+        if isinstance(e, StateNotSaved):
+            # Whatever the site last stored stands (a "pending" mark keeps
+            # re-runs off this platform); nothing more is written now.
+            failures.append(f"{label}: {e}")
+            return
         if isinstance(e, Unconfirmed):
-            remember(platform, PENDING)
+            try:
+                remember(platform, PENDING)
+            except StateNotSaved:
+                pass  # saved as "pending" just before the publish call already
             failures.append(f"{label}: {e}; it may have posted anyway. Check {label} by hand; "
-                            f"re-runs skip it until \"{platform}\" is removed from posted.json.")
+                            f"re-runs skip it until \"{platform}\" under \"{slot_key}\" is removed from {where_posted}.")
         else:
             # Meta answered with an error: nothing posted, so drop this
             # run's pending mark and let a re-run try again.
             if slot.get(platform) == PENDING:
                 slot.pop(platform)
-                remember_all()
+                try:
+                    remember_all()
+                except StateNotSaved:
+                    pass  # the stored "pending" stays: safe, a person clears it
             failures.append(f"{label}: {e}")
 
     def pending(platform):
@@ -368,7 +397,8 @@ def main(argv=None, session=None):
         except PostError as e:
             failed("Facebook", "facebook", e)
     if not ig_user:
-        print("::warning::IG_USER_ID not set; skipping Instagram (Facebook only).")
+        # Facebook only is how every town runs today, not a fault.
+        print("IG_USER_ID not set; skipping Instagram (Facebook only).")
     elif not already("Instagram", "instagram"):
         try:
             ig_id = None
@@ -392,21 +422,11 @@ def main(argv=None, session=None):
         except PostError as e:
             failed("Instagram", "instagram", e)
 
+    # The jobs worker's alert quotes these lines, so a retired Graph version
+    # is named there rather than read as a token problem.
     for f in failures:
         print(f"::error::{f}")
-    if any(GRAPH_VERSION in f and "GRAPH_API_VERSION" in f for f in failures):
-        # social-kit.yml's Slack alert says this instead of its generic text.
-        set_output("alert", f"🚨 Social posts failed: Meta refused Graph API {GRAPH_VERSION}. "
-                            "Set the GRAPH_API_VERSION repo variable to a current version.")
     return 1 if failures else 0
-
-
-def set_output(name, value):
-    """A step output for the workflow (single line), when run in Actions."""
-    path = os.environ.get("GITHUB_OUTPUT")
-    if path:
-        with open(path, "a") as f:
-            f.write(f"{name}={value.replace(chr(10), ' ')}\n")
 
 
 if __name__ == "__main__":

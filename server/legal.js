@@ -29,7 +29,7 @@ import { layout, escHtml, AD_PACKAGES, CANCEL_NOTICE_DAYS } from './seo.js';
 // ─── Versions ────────────────────────────────────────────────────────────
 // YYYY-MM-DD of the wording in force. ADVERTISING_TERMS_VERSION is stored on
 // every sponsor order (terms_version) and sent to Stripe as metadata.
-export const ADVERTISING_TERMS_VERSION = '2026-10-10';
+export const ADVERTISING_TERMS_VERSION = '2026-10-17';
 export const TERMS_VERSION = '2026-10-10';
 export const PRIVACY_VERSION = '2026-10-10';
 export const ACCESSIBILITY_VERSION = '2026-10-10';
@@ -234,7 +234,7 @@ export function renderTermsPage({ siteUrl }) {
 //   - cancellations: by email to contactEmail(), CANCEL_NOTICE_DAYS ahead
 export function renderAdvertisingTermsPage({ siteUrl }) {
   const op = escHtml(operatorName());
-  const [weekly, pick] = AD_PACKAGES;
+  const [weekly, pick, partner] = AD_PACKAGES;
   const points = p => `<ul>${p.points.map(([b, rest]) => `<li><strong>${escHtml(b)}</strong>${rest ? ` (${escHtml(rest)})` : ''}</li>`).join('')}</ul>`;
   const d = CANCEL_NOTICE_DAYS;
   const body = `
@@ -244,13 +244,15 @@ export function renderAdvertisingTermsPage({ siteUrl }) {
     ${section('who', '1. Who we are', `<p>${operatorSentence()} "We" and "us" mean ${op}; "you" means the person or business buying a placement. These terms, together with your order (the package, dates and price shown at checkout and in your confirmation email), are our agreement. You accept them by ticking the box at checkout. If you buy for a business, you confirm you're allowed to accept them for it.</p>`)}
     ${section('what', '2. What you\'re buying', `<p><strong>${escHtml(weekly.name)}</strong> (${escHtml(weekly.price)}): one Monday-to-Sunday week. It includes:</p>${points(weekly)}
     <p><strong>${escHtml(pick.name)}</strong> (${escHtml(pick.price)}): one event on one day. It includes:</p>${points(pick)}
-    <p>Paid placements are labeled as advertising: the weekly sponsor as "This week's sponsor" and a paid ${town.pickName} with "#ad" at the end of its description (and at the start of a social media caption that includes it). Where a placement sits within a page, an email or a post, and when posts go out, is up to us. Venue partner subscriptions are no longer sold; ones bought earlier keep running under these terms until cancelled.</p>`)}
+    <p><strong>${escHtml(partner.name)}</strong> (billed monthly at the price shown at checkout): one business per category for as long as you stay subscribed. It includes:</p>${points(partner)}
+    <p>Paid placements are labeled as advertising: the weekly sponsor as "This week's sponsor", a category partner as "Our local partners" or "Our [category] partner", and a paid ${town.pickName} with "#ad" at the end of its description (and at the start of a social media caption that includes it). Where a placement sits within a page, an email or a post, and when posts go out, is up to us. Venue partner subscriptions are no longer sold; ones bought earlier keep running under these terms until cancelled.</p>`)}
     ${section('booking', '3. Booking and scheduling', ul([
       `You can book a sponsor week from next week up to ${BOOKING.weeksAhead} weeks ahead, and a ${town.pickName} for a date up to ${BOOKING.pickDaysAhead} days ahead. Each week has one sponsor, and each day has a limited number of ${town.pickName}s.`,
       `Your spot is held for about ${BOOKING.holdMinutes} minutes while you pay, and is booked once your payment goes through. A bank payment that is still processing keeps the spot held until it clears. Close to the date (within ${BOOKING.cardsOnlyDays} days), checkout takes only cards, which clear at once.`,
       'A sponsor week goes live on its own on its Monday. A ' + town.pickName + ' is checked by our editors before it\'s listed (usually the same day) and is highlighted on its day once it is.',
       town.pickName + 's are starred in the newsletter only when bought before the issue that covers their day goes out (we say in your confirmation which issues it will be in).',
-      'You write your own message, link and button (and add a logo, for a sponsor week) at checkout, and see a preview before you pay. To change something before it runs, reply to your confirmation email.'
+      'You write your own message, link and button (and add a logo, for a sponsor week) at checkout, and see a preview before you pay. To change something before it runs, reply to your confirmation email.',
+      'A category partner is checked by us before it goes live: we review every new partner, usually within 1 business day. Only one business holds a category at a time; a category someone is paying for or waiting on our review for can\'t be bought.'
     ]))}
     ${section('content', '4. Your content and our right to refuse it', `<p>We may edit your copy for length, clarity, style and accuracy, and resize or crop your logo. <strong>We may refuse, pause or remove any ad or ${town.pickName} at any time, for any reason, in our sole discretion.</strong> If we do that for a reason other than your breach of these terms, we refund the part that hasn't run (see section 11).</p>`)}
     ${section('prohibited', '5. What we don\'t accept', ul([
@@ -271,11 +273,12 @@ export function renderAdvertisingTermsPage({ siteUrl }) {
     ${section('license', '7. Permission to show your ad', `<p>You give us a non-exclusive, royalty-free license to copy, resize, display and share your name, logo and ad content in the placement you bought, in archived and web copies of our newsletters and pages, and in our social media posts for it. You can ask us to leave you out of any mention of our past sponsors by emailing us. We keep all rights in our own sites, newsletters and materials.</p>`)}
     ${section('makegoods', '8. If something goes wrong on our side', `<p>In normal conditions we run what you booked on schedule. <strong>If a newsletter issue you booked doesn't go out, or your placement is left out of it or off the site because of us, we give you an equivalent placement in the next open slot or, at our option, refund the affected part.</strong> Small variations (send time, position, formatting, or an email provider delaying delivery) don't count as failures.</p>`)}
     ${section('results', '9. No guaranteed results', `<p><strong>We don't guarantee any number of subscribers, views, opens, clicks, visits, leads or sales.</strong> The numbers in your results report are our own counts and estimates; some readers block our counter, so real numbers can be a little higher.</p>`)}
-    ${section('payment', '10. Payment', '<p>You pay in US dollars through Stripe, at the price shown at checkout. Stripe emails your receipt. We never see your card number. A venue partner subscription bought earlier renews monthly until cancelled; email us to cancel it and it stops at the end of the month you\'ve paid for.</p>')}
+    ${section('payment', '10. Payment', '<p>You pay in US dollars through Stripe, at the price shown at checkout. Stripe emails your receipt. We never see your card number. A category partner subscription renews monthly until you cancel it, from the link in any of our partner emails (it opens Stripe\'s billing page) or by emailing us; you stay listed through the month you\'ve paid for and aren\'t charged again. A venue partner subscription bought earlier renews monthly until cancelled; email us to cancel it and it stops at the end of the month you\'ve paid for.</p>')}
     ${section('refunds', '11. Cancellations and refunds', `<p>We want every placement to work for you. If something goes wrong on our side, we make it right.</p>
     ${ul([
       `<strong>${escHtml(weekly.name)}:</strong> cancel at least ${d} days before the Monday your week starts for a full refund. After that, there's no refund, but if you ask before your week starts we'll try to move you to another open week once.`,
       `<strong>${town.pickName}:</strong> cancel at least ${d} days before your event's date for a full refund. After that, there's no refund. If the organizer cancels or moves the event before its date, tell us and we'll refund you or move the ${town.pickName} to the new date, whichever you prefer.`,
+      `<strong>${escHtml(partner.name)}:</strong> if we don't approve your listing, we cancel the subscription and refund your first payment in full. After you're live you can cancel anytime; you stay listed through the month you've paid for, which isn't refunded, and nothing more is charged.`,
       '<strong>Double-booked:</strong> if someone else paid for the same week, or your day\'s spots filled up moments before your payment, we contact you within 1 business day to move you to another open week or day or refund you in full, whichever you prefer.',
       '<strong>Payment arrived too late:</strong> if a bank payment clears only after your date has passed, we refund you in full (or set up another date, if you\'d like).',
       `<strong>We decline or remove your placement:</strong> if we refuse or take down your ad or ${town.pickName} for a reason other than your breach of these terms, we refund the part that hasn't run. If it breaks these terms, there's no refund.`,

@@ -1,4 +1,4 @@
-"""Tests for scripts/feed_age.py (uptime.yml's daily stale-feed check)."""
+"""Tests for scripts/feed_age.py (the manual stale-feed check)."""
 import datetime as dt
 import json
 import os

@@ -79,7 +79,7 @@ describe('/api/hq/summary', () => {
     expect(body.sponsors.weeks).toEqual([
       { week_start: '2026-10-12', booked: true }, { week_start: '2026-10-19', booked: false },
       { week_start: '2026-10-26', booked: false }, { week_start: '2026-11-02', booked: false }]);
-    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null });
+    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null, meta_7_days: null, meta_30_days: null });
     const text = JSON.stringify(body);
     for (const personal of ['@', 'reader', 'Acme', 'owner']) expect(text).not.toContain(personal);
   });
@@ -127,6 +127,16 @@ describe('a town whose database is down', () => {
     expect(body).not.toHaveProperty('failed');
     expect(body.health).toEqual({ database: true, scheduler_blocked: false, slack_refused: false });
     expect(body.subscribers.active).toBe(0);
+    expect(body).not.toHaveProperty('newsletter_runs');
+  });
+
+  it("carries each issue's latest slot: sent, or why not", async () => {
+    const store = new FileStore(path.join(os.tmpdir(), `vic361-hq-${process.pid}-${Date.now()}-r.json`));
+    const weekly = { job: 'newsletter', slot: '2026-10-05', ran: true, outcome: 'no-subscribers', detail: 'no-subscribers' };
+    const body = await buildSummary({ store, nowFn: () => NOW, town: VICTORIA, siteUrl: 'https://www.thevic361.com',
+      getEvents: async () => [], getOrders: async () => [], setup: async () => ({ checks: [], status: {} }), health: async () => null,
+      getNewsletterRuns: async () => ({ weekly, weekend: null }) });
+    expect(body.newsletter_runs).toEqual({ weekly, weekend: null });
   });
 
   it('reads issue dates the way Postgres returns them (Date objects)', async () => {
@@ -178,5 +188,105 @@ describe('a town whose database is down', () => {
     const body = await (await get('/api/hq/summary', `Bearer ${KEY}`)).json();
     expect(body.health.database).toBe(false);
     expect(body.failed).toContain('database');
+  });
+});
+
+describe('/api/hq/subscribers and /api/hq/hype (HQ\'s combined subscriber ping)', () => {
+  const confirm = async (email, at) => {
+    const sub = await store.addSubscriber({ email, source: 'web' });
+    await store.confirmSubscriber(sub.token);
+    if (at) {   // pin the time (FileStore keeps it in its JSON file)
+      const data = await store._read();
+      data.subscribers.find(x => x.email === email).confirmed_at = at;
+      await store._write(data);
+    }
+  };
+
+  it('starts from now: no after gives just the newest time; after gives the newer ones, oldest first', async () => {
+    await start({ hqApiKey: KEY });
+    expect((await get('/api/hq/subscribers')).status).toBe(401);
+    await confirm('a@example.com', '2026-10-09T10:00:00.000Z');
+    await confirm('b@example.com', '2026-10-09T11:00:00.000Z');
+    await store.importSubscribers(['imported@example.com'], 'import');   // a list import isn't a signup
+    const first = await (await get('/api/hq/subscribers', `Bearer ${KEY}`)).json();
+    expect(first).toMatchObject({ ok: true, name: 'The Vic 361', latest: '2026-10-09T11:00:00.000Z', subscribers: [] });
+    expect(first.total).toBe(3);   // every active subscriber, imports too
+    await confirm('c@example.com', '2026-10-09T12:00:00.000Z');
+    const next = await (await get(`/api/hq/subscribers?after=${first.latest}`, `Bearer ${KEY}`)).json();
+    expect(next.subscribers).toEqual([{ email: 'c@example.com', confirmed_at: '2026-10-09T12:00:00.000Z' }]);
+    expect(next.latest).toBe('2026-10-09T12:00:00.000Z');
+    const older = await (await get('/api/hq/subscribers?after=2026-10-09T09:00:00.000Z', `Bearer ${KEY}`)).json();
+    expect(older.subscribers.map(s => s.email)).toEqual(['a@example.com', 'b@example.com', 'c@example.com']);
+    expect((await get('/api/hq/subscribers?after=yesterday', `Bearer ${KEY}`)).status).toBe(400);
+  });
+
+  it('posts HQ\'s batch to #hype, laid out and escaped by the town, with no town tag', async () => {
+    const posts = [];
+    await start({ hqApiKey: KEY, slack: { enabled: true, notify: async () => true, alert: async () => true,
+      post: async (text, blocks, channel) => { posts.push({ text, blocks, channel }); return true; } } });
+    const send = body => fetch(base + '/api/hq/hype', { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    expect((await fetch(base + '/api/hq/hype', { method: 'POST' })).status).toBe(401);
+    expect((await send({ count: 10, groups: [] })).status).toBe(400);
+    const r = await send({ count: 10, all_total: 3148, groups: [
+      { name: 'The Star 402', total: 412, emails: ['maria.k@gmail.com', 'jdoyle@yahoo.com'] },
+      { name: 'The Vic 361', total: 1847, emails: ['<@channel>@x.example'] }] });
+    expect(r.status).toBe(200);
+    expect(posts).toHaveLength(1);
+    const [{ text, blocks, channel }] = posts;
+    expect(channel).toBe('hype');
+    expect(text).toBe('📬 10 new subscribers');
+    expect(blocks[0]).toEqual({ type: 'header', text: { type: 'plain_text', text: '📬 10 new subscribers' } });
+    expect(blocks[1].text.text).toBe('*The Star 402* · 412 total\nmaria.k@gmail.com\njdoyle@yahoo.com');
+    expect(blocks[2].text.text).toBe('*The Vic 361* · 1,847 total\n&lt;@channel&gt;@x.example');
+    expect(blocks[4].elements[0].text).toBe('All newsletters: 3,148 subscribers');
+  });
+});
+
+const PG = process.env.TEST_DATABASE_URL;
+describe.skipIf(!PG)('listConfirmedSince on Postgres (TEST_DATABASE_URL)', () => {
+  it('same answers as the file store, and the last one at microseconds never comes back twice', async () => {
+    const { default: pg } = await import('pg');
+    const { createStore } = await import('../server/db.js');
+    const admin = new pg.Client({ connectionString: PG });
+    await admin.connect();
+    const dbName = `hq_subs_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const url = new URL(PG);
+    url.pathname = `/${dbName}`;
+    url.searchParams.set('sslmode', 'disable');
+    const bundle = await createStore({ databaseUrl: url.toString() });
+    try {
+      const s = bundle.store;
+      expect(await s.listConfirmedSince(null)).toEqual({ latest: null, subscribers: [] });
+      for (const e of ['a@example.com', 'b@example.com']) await s.confirmSubscriber((await s.addSubscriber({ email: e, source: 'web' })).token);
+      await s.importSubscribers(['imported@example.com'], 'import');
+      await bundle.pool.query("UPDATE subscribers SET confirmed_at = '2026-10-09T10:00:00.123456Z' WHERE email = 'a@example.com'");
+      await bundle.pool.query("UPDATE subscribers SET confirmed_at = '2026-10-09T11:00:00.654321Z' WHERE email = 'b@example.com'");
+      const first = await s.listConfirmedSince(null);
+      expect(first).toEqual({ latest: '2026-10-09T11:00:00.654Z', subscribers: [] });
+      expect(await s.listConfirmedSince(first.latest)).toEqual({ latest: first.latest, subscribers: [] });
+      expect((await s.listConfirmedSince('2026-10-09T10:00:00.123Z')).subscribers)
+        .toEqual([{ email: 'b@example.com', confirmed_at: '2026-10-09T11:00:00.654Z' }]);
+      expect((await s.listConfirmedSince('2026-10-09T00:00:00.000Z', 1)).subscribers.map(x => x.email)).toEqual(['a@example.com']);
+    } finally {
+      await bundle.pool.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+      await admin.end();
+    }
+  });
+});
+
+describe('the summary for HQ: Meta detail, campaigns and dormant', () => {
+  it('adds up Meta\'s days, carries the campaigns, and says dormant only when it is', async () => {
+    await start({ hqApiKey: KEY });
+    await store.saveAdSpend([{ day: '2026-10-08', spend: 10, impressions: 1000, clicks: 50, leads: 20 },
+      { day: '2026-10-05', spend: 5, impressions: 400, clicks: 10, leads: 5 }, { day: '2026-09-01', spend: 99, impressions: 1, clicks: 1, leads: 1 }]);
+    await store.setTownFile('ad_campaigns', { campaigns: [{ name: 'Vic Newsletter Leads', status: 'ACTIVE', daily_budget: 68 }] }, new Date('2026-10-09T13:37:00Z'));
+    const s = await (await get('/api/hq/summary', `Bearer ${KEY}`)).json();
+    expect(s.ads.meta_7_days).toEqual({ spend: 15, impressions: 1400, clicks: 60, leads: 25, cost_per_lead: 0.6 });
+    expect(s.ads.meta_30_days.spend).toBe(15);
+    expect(s.ads.campaigns).toEqual([{ name: 'Vic Newsletter Leads', status: 'ACTIVE', daily_budget: 68 }]);
+    expect(s.ads.campaigns_updated_at).toBe('2026-10-09T13:37:00.000Z');
+    expect(s.dormant).toBeUndefined();
   });
 });

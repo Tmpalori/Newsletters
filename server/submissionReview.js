@@ -1,6 +1,6 @@
 /* server/submissionReview.js — The AI review of free event submissions.
  *
- * scripts/review_submissions.py (.github/workflows/submission-review.yml,
+ * scripts/review_submissions.py (the jobs worker's submission-review job,
  * every 15 minutes) reads the pending public submissions here, runs the
  * collector's rules and one OpenAI pass over them, and posts back one
  * decision per submission:

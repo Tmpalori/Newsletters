@@ -6,18 +6,24 @@ API from one service backed by Railway Postgres. `www.thevic361.com` is a
 CNAME to the Railway service (see AGENTS.md "Production hosting").
 
 The environment variable reference lives in **AGENTS.md → Environment
-variables** (Railway variables, collector secrets, and GitHub Actions
-secrets/variables). This file only covers standing up an environment and
-checking it works.
+variables**. This file only covers standing up an environment and checking
+it works.
 
-How events go live (details in AGENTS.md): the collector runs Sunday and
-Wednesday at 20:23 UTC with `--candidates-only` and commits `candidates.json`
-(never `docs/events.json`); that commit redeploys the service, and on boot in
-production `server/autopublish.js` publishes the upcoming candidates plus
-approved submissions into the `published_events` row. Free public
-submissions are reviewed by the AI review (`submission-review.yml`); the
-good ones wait for the owner's OK unless `SUBMISSION_AUTOAPPROVE=1` (paid
-picks publish on their own).
+Every town, Victoria included, runs its jobs on its own Railway jobs
+service (JOBS_ON_RAILWAY.md; "Jobs on Railway" below). GitHub only holds
+the code and runs the tests: no workflow runs a town's jobs, and no service
+needs a `GITHUB_TOKEN`.
+
+How events go live (details in AGENTS.md): the site's scheduler queues a
+collect Sunday and Wednesday at 3:23 PM town time; the town's jobs worker
+runs the collector with `--candidates-only` (never `docs/events.json`) and
+hands its candidates to the site, which stores them (`town_files`) and
+`server/autopublish.js` publishes the upcoming candidates plus approved
+submissions into the `published_events` row at once. Free public
+submissions are reviewed by the AI review (the worker's
+`submission-review` job, every 15 minutes); the good ones wait for the
+owner's OK unless `SUBMISSION_AUTOAPPROVE=1` (paid picks publish on their
+own).
 
 ## One-time setup
 
@@ -35,17 +41,28 @@ picks publish on their own).
    Then work down the
    admin Home tab's setup checklist, which says what each missing variable
    turns on (Slack, Resend newsletter, Stripe, cron secrets, Turnstile,
-   GitHub token). PR and staging environments don't inherit `ADMIN_*`
-   automatically; set them per environment or as shared variables.
+   jobs on Railway). Victoria's `staging` environment doesn't inherit
+   `ADMIN_*`; set them there too (never as project-shared variables, see
+   "New town on Railway"). PR environments are off.
 4. **Cron secrets** (`NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
-   `SUBMISSION_REVIEW_SECRET`) must match between Railway and the GitHub
-   secrets of the same name. Give each its own value; see AGENTS.md
-   "Security notes".
-5. **Stripe** (sponsor checkout; each town has its own Stripe account and
-   endpoint). Live restricted key (`rk_live_`) in production as
-   `STRIPE_SECRET_KEY`; a test key there shows a Setup checklist warning,
-   and with a live key a test-mode payment is never fulfilled. Webhook
-   endpoint `<SITE_URL>/api/stripe/webhook` on API version
+   `SUBMISSION_REVIEW_SECRET`) live on the web service; the jobs service
+   reads them as references (`${{<web>.<NAME>}}`), so nothing is copied.
+   Give each its own value; see AGENTS.md "Security notes".
+5. **Stripe** (sponsor checkout). Every town sells through **one shared
+   Stripe account**; each town has its own key and its own webhook
+   endpoint on it. Orders stay apart by `metadata.town` on each session,
+   payment and subscription (Victoria's say `victoria`; older untagged
+   ones are hers) and by matching only the town's own orders; each town's
+   webhook skips the others' sessions and subscriptions. The card
+   statement reads the account's prefix plus the town
+   (`statement_descriptor_suffix`, e.g. "VIC 361"), so set the account's
+   public name and statement descriptor prefix in the Dashboard to
+   something neutral (the LLC or a shared brand, 10 characters or fewer).
+   Live restricted key (`rk_live_`: Checkout Sessions, Products and
+   Prices: write) in production as `STRIPE_SECRET_KEY`, one per town so
+   one can be revoked alone; a test key there shows a Setup checklist
+   warning, and with a live key a test-mode payment is never fulfilled.
+   Webhook endpoint `<SITE_URL>/api/stripe/webhook` on API version
    `2026-09-30.endive`, its signing secret as `STRIPE_WEBHOOK_SECRET`,
    subscribed to: `checkout.session.completed`,
    `checkout.session.async_payment_succeeded`,
@@ -59,8 +76,11 @@ picks publish on their own).
 6. **Resend webhook.** In Resend → Webhooks, add one endpoint at
    `$SITE/api/email/inbound` and subscribe it to **`email.received`**
    (replies to news@ post to Slack), **`email.bounced`** (a hard bounce
-   marks the subscriber bounced) and **`email.complained`** (a spam
-   complaint unsubscribes them). Put its signing secret in Railway as
+   marks the subscriber bounced; soft ones are counted, and a week-plus
+   run of them does the same), **`email.complained`** (a spam complaint
+   unsubscribes them) and **`email.delivered`** (a delivery ends a run of
+   soft bounces; without it a run ends after 30 quiet days, so a mailbox
+   that's only sometimes full can still be dropped). Put its signing secret in Railway as
    `RESEND_WEBHOOK_SECRET`. Without the last two events, a dead or
    complaining address stays active: it keeps getting issues and counts in
    referral rewards and sponsors' copies sent. Each town's endpoint acts
@@ -80,25 +100,29 @@ curl -sf $SITE/api/health
 #   → {"ok":true,"storage":"postgres"}
 # 2. Config reports the right flags
 curl -s $SITE/api/config
-#   → admin_login_enabled:true (github_publish_enabled:true only with GITHUB_TOKEN)
+#   → admin_login_enabled:true, jobs_on_railway:true, sources_trigger_enabled:true
 # 3. The published list is there
 curl -s $SITE/events.json | jq '.events | length'
 ```
 
 Use `www` (or the Railway domain), not the bare `thevic361.com`: the apex is
-forwarded by Squarespace and its deep links 404.
+forwarded by Squarespace, which drops the query string (the server
+collapses the `//path` it sends).
 
 Then sign in at `$SITE/admin.html`: the Home tab shows the setup checklist,
 upcoming events and anything waiting for you.
 
-## Save & Publish and `GITHUB_TOKEN`
+## Save & Publish (no `GITHUB_TOKEN`)
 
-`POST /api/admin/publish-events` always writes the `published_events` row,
-which the site serves immediately. When `GITHUB_TOKEN` is set it also
-commits `docs/events.json` (the bundled fallback) to `main`; a failure there
-is reported as a warning and doesn't undo the save. Without the token the
-admin still loads candidates from the bundled `candidates.json` plus
-approved submissions.
+`POST /api/admin/publish-events` writes the `published_events` row, which
+the site serves immediately. A town with `JOBS_ON_RAILWAY=1` (every town,
+Victoria included) never commits anything to GitHub, even with a leftover
+`GITHUB_TOKEN`: the admin loads the last collect's candidates from the
+database (`town_files`) plus approved submissions, and Pull Now queues a
+collect for the jobs worker. `docs/events.json` stays in git only as
+Victoria's frozen fallback, served when her database has nothing published
+yet. (A service without jobs on Railway, such as a staging copy with a
+`GITHUB_TOKEN`, still commits `docs/events.json` on publish as before.)
 
 ## New town on Railway
 
@@ -138,8 +162,8 @@ copy a value from Victoria's project, or from another town's: a copied
    - `SITE_URL=https://www.<domain>` (the town's own; Victoria's is refused).
 3. **Admin login.** `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
    (fresh). Don't set `ADMIN_TOKEN` on a new town.
-4. **Cron secrets** (fresh, one each, the same value in the town's GitHub
-   Environment): `NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
+4. **Cron secrets** (fresh, one each; the jobs service references them):
+   `NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
    `SUBMISSION_REVIEW_SECRET`, `ADS_SPEND_SECRET`.
 5. **Email (Resend).** Verify the town's domain in Resend (SPF, DKIM, and MX
    for replies). `RESEND_API_KEY`; `NEWSLETTER_FROM="<Site name>
@@ -149,20 +173,22 @@ copy a value from Victoria's project, or from another town's: a copied
    and use receiving instead); receiving: a webhook (event `email.received`)
    to `https://www.<domain>/api/email/inbound` with its secret as
    `RESEND_WEBHOOK_SECRET`.
-6. **Stripe: the town's own account** (Stripe → account menu → New
-   account; same LLC, EIN and payout bank), with its public business name,
-   logo and statement descriptor, so checkout and card statements show the
-   town, not The Vic 361. Its keys only: `STRIPE_SECRET_KEY` (a restricted
-   key: Checkout Sessions, Products and Prices: write) and
-   `STRIPE_WEBHOOK_SECRET` from a webhook endpoint at
-   `https://www.<domain>/api/stripe/webhook` (API version as in the admin
-   setup checklist) sending these events:
-   `checkout.session.completed`, `checkout.session.expired`,
+6. **Stripe: the shared account** (One-time setup step 5). No new
+   account: on the shared one, a new restricted key for the town
+   (Checkout Sessions, Products and Prices: write) as `STRIPE_SECRET_KEY`,
+   and `STRIPE_WEBHOOK_SECRET` from a new webhook endpoint at
+   `https://www.<domain>/api/stripe/webhook` (API version
+   `2026-09-30.endive`, as in the admin setup checklist) sending all 12
+   events: `checkout.session.completed`,
    `checkout.session.async_payment_succeeded`,
-   `checkout.session.async_payment_failed`, `charge.refunded`,
-   `charge.dispute.created`, `customer.subscription.updated`,
-   `customer.subscription.deleted`, `invoice.payment_failed`,
-   `radar.early_fraud_warning.created`. Check it with a test-mode checkout.
+   `checkout.session.async_payment_failed`, `checkout.session.expired`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.payment_failed`, `invoice.paid`, `charge.refunded`,
+   `charge.dispute.created`, `charge.dispute.closed`,
+   `radar.early_fraud_warning.created`. The code tags the town's sessions
+   (`metadata.town=<slug>`), its catalog prices and keys (`town.keyPrefix`)
+   and its card statement suffix, so nothing else is set per town. Check
+   it with a test-mode checkout.
 7. **Referral gift cards (Tremendous).** The town's own campaign (its name
    and logo on the reward email): `TREMENDOUS_API_KEY`,
    `TREMENDOUS_CAMPAIGN_ID`, `TREMENDOUS_FUNDING_SOURCE`. Or leave them out
@@ -170,13 +196,11 @@ copy a value from Victoria's project, or from another town's: a copied
 8. **Forms (Turnstile).** Add `www.<domain>` to a Turnstile widget (Managed
    mode); `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`. A site key without
    the town's hostname fails every form.
-9. **GitHub.** `GITHUB_TOKEN`: a fine-grained token on this repo only, with
-   Contents: write and Actions: write and nothing else (publishing the
-   town's `events.json` and starting its workflows).
+9. **GitHub.** Nothing: no `GITHUB_TOKEN` (its jobs run on Railway).
 10. **Slack.** `SLACK_WEBHOOK_URL` (and the optional `SLACK_*_WEBHOOK_URL`
     channels, shared with Victoria is fine) and `SLACK_TOWN_TAG` (the city,
-    e.g. `Bay City`), so the town's posts read `[Bay City] …`. Set
-    `SLACK_TOWN_TAG` in the town's GitHub Environment too (step 12).
+    e.g. `Bay City`), so the town's posts read `[Bay City] …` (the jobs
+    service references it).
 11. **HQ.** `HQ_API_KEY` and `HQ_SSO_SECRET` (both fresh, different per
     town and from each other). Then on the HQ service add
     `HQ_TOWN_<SLUG>` = `{"site_url":"https://www.<domain>","key":"<its HQ_API_KEY>"}`
@@ -185,26 +209,27 @@ copy a value from Victoria's project, or from another town's: a copied
     open the admin signed in). HQ is its own repo and Railway project
     (`tmpalori/tristen-hq`, project Tristen HQ): it holds no town data and
     reads each town through its key.
-12. **`TOWN_WORKFLOWS=1` only after** the town's GitHub Environment exists
-    (MULTI_CITY_PLAN.md 3.3: its `SITE_URL`, Meta page and Instagram,
-    `NTFY_TOPIC`, cron secrets, `SLACK_TOWN_TAG`). Before that the town
-    starts no collect, social kit, submission review or event check, since
-    they would run on Victoria's repo-level settings. At the same time, add
-    `"workflows": true` to `towns/<slug>/town.json` (a PR): the scheduled
-    Sunday and Wednesday collects then run the town beside Victoria, each
-    in its own job, and Event Check follows each town whose collect
-    succeeded. 3.5 must be done before launch too.
+12. **Jobs.** `JOBS_ON_RAILWAY=1`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`
+    and the town's jobs service ("Jobs on Railway" below). `town.json`
+    keeps `"workflows": false` (nothing runs on GitHub). Until the town's
+    first collect lands, its scheduler queues only the collect and it sends
+    no auto-publish, "0 upcoming" or missed-collect alerts. The social kit
+    and the ads report use Meta settings only when the jobs service sets
+    `META_TOWN=<slug>` and its page, Instagram and ad account ids match the
+    ones `town.json` pins (`"meta": {"page_id", "ig_user_id",
+    "ad_account_id"}`).
 13. **Optional:** `META_PIXEL_ID` (the town's own pixel); the GA stream is
     `gaId` in `town.json` (a PR).
 14. **Domain.** Add `www.<domain>` as a custom domain and CNAME it to the
     Railway target. Make the apex redirect to `www` with the path kept (a
     DNS host's 301 that keeps paths, or the apex on Railway too, where the
     server redirects it). Don't repeat Victoria's Squarespace forwarding,
-    which breaks every deep link on the apex.
+    which doubles the slash and drops the query string (`?ref=`).
 15. **PR environments** are off for the Newsletters project (see the top
     of this section); check they still are.
 16. **Watch paths** (MULTI_CITY_PLAN.md 2.6): the service watches
-    `/server/**`, `/docs/**`, `/package.json`, `/package-lock.json`,
+    `/server/**`, `/docs/**` except Victoria's bot files
+    (`!/docs/social/**`, `!/docs/events.json`), `/package.json`, `/package-lock.json`,
     `/.nvmrc`, `/railpack.json`, `/town.py`, `/towns/<slug>/**` and
     `/towns/*/town.json` (the inbound email filter reads every town's
     domain), so the bot commits of other towns (and Victoria's) don't
@@ -218,8 +243,157 @@ copy a value from Victoria's project, or from another town's: a copied
 
 Then: `python3 scripts/launch_check.py --town <slug>` (every automatic
 check passes, including 10+ upcoming events, a collect in the last 8 days
-and workflows on), its manual list, and `python3 scripts/live_check.py`
+and jobs on Railway), its manual list, and `python3 scripts/live_check.py`
 for Victoria before and after.
+
+## Jobs on Railway (a town's jobs service)
+
+JOBS_ON_RAILWAY.md is the plan; this is the setup. A town on it runs its
+collect, event check and submission review on its own **jobs service**
+instead of GitHub Actions, so it needs no GitHub Environment, no
+`GITHUB_TOKEN` and no copied cron secrets, and a collect publishes without
+a commit or a redeploy.
+
+1. **On the town's web service:** `JOBS_SECRET` = `${{SUBMISSION_REVIEW_SECRET}}`
+   (a reference to the town's own fresh secret, so nothing is copied) and
+   `JOBS_ON_RAILWAY=1`. Its scheduler and Pull Now then queue jobs in the
+   town's database (`server/jobs.js`).
+2. **Project-shared variables (once, for every town):** `APIFY_TOKEN`,
+   `OPENAI_API_KEY`, `GEMINI_API_KEY`. These three are the only shared
+   secrets: every town already uses the same accounts, capped per town by
+   `limits` in its `town.json`. Never share a town's own secrets.
+3. **The jobs service:** a new service named `<domain>-jobs` from this repo
+   (`main`), in `production` only, built from `Dockerfile.jobs`, no domain,
+   watch paths `/*.py`, `!/test_*.py`, `/scripts/**`, `/requirements.txt`,
+   `/Dockerfile.jobs`, `/towns/<slug>/**`, `/towns/*/town.json` (the test
+   files are left out: a redeploy stops a collect under way). Its
+   variables, all references, so nothing is copied:
+   - `TOWN=<slug>`, `SITE_URL=https://www.<domain>`
+   - `JOBS_SECRET=${{<web>.JOBS_SECRET}}`
+   - `EVENT_CHECK_SECRET`, `SUBMISSION_REVIEW_SECRET`,
+     `NEWSLETTER_CRON_SECRET`, `SLACK_TOWN_TAG` and the `SLACK_*`
+     webhooks: `${{<web>.<NAME>}}` each
+   - `OPS_REPORT_URL=https://www.<domain>`,
+     `OPS_REPORT_SECRET=${{<web>.SUBMISSION_REVIEW_SECRET}}`
+   - `APIFY_TOKEN`, `OPENAI_API_KEY`, `GEMINI_API_KEY`:
+     `${{shared.<NAME>}}`
+   - `FB_POSTS_ENABLED=1`, `IG_POSTS_ENABLED=1` (the collector's other
+     sources are on by default)
+   - The social kit (daily at 8:47 AM town time, every town's):
+     `META_TOWN=<slug>`, `META_PAGE_ID` (the page id its `town.json` pins
+     under `"meta"`; Victoria's is in `town.py` VICTORIA), `META_PAGE_TOKEN`, `IG_USER_ID` (only
+     once pinned as `"meta".ig_user_id`; without it Facebook only),
+     optional `GRAPH_API_VERSION`, and `SOCIAL_AUTOPOST=1` to post. These
+     are the town's own (set here or as references to its web service's),
+     never shared. Without `SOCIAL_AUTOPOST=1` the kit is still built and
+     served at `https://www.<domain>/social/latest/`; with it but settings
+     that aren't the town's own, the job fails and alerts and posts
+     nothing. What was posted is the town file `social_posted` (per day and
+     kind; `"pending"` means a publish call may have gone out: check the
+     Page, then remove that entry, e.g. `UPDATE town_files SET data = data
+     #- '{2026-10-15:today,facebook}' WHERE name = 'social_posted'`).
+     Victoria's file starts from what GitHub posted
+     (`docs/social/latest/posted.json`, merged under it on every read).
+   - The ads report (daily at 8:37 AM town time): `META_ADS_TOKEN` (a
+     system-user token with ads_read and ads_management; without it the
+     report uses `META_PAGE_TOKEN`), `META_AD_ACCOUNT_ID` (the ad account
+     `town.json` pins as `"meta".ad_account_id`; optional for Victoria,
+     whose token sees one account), and `META_TOWN`. `ADS_SPEND_SECRET`
+     is optional (else `SUBMISSION_REVIEW_SECRET`, as on the site): the
+     daily spend goes to Admin → Growth. A town with no ad account pinned,
+     or no token, does nothing. The report itself goes to Slack activity
+     through the site; a dead token or lost access fails the job and alerts.
+   - The digest (Sunday 9 PM town time, optional): `SMTP_EMAIL`,
+     `SMTP_PASSWORD` (a Gmail app password), optional `DIGEST_TO` (default
+     the owner's Gmail). Without them the job does nothing.
+4. **Nothing on GitHub:** `"workflows": false` in `towns/<slug>/town.json`
+   (the default). With `JOBS_ON_RAILWAY=1` the scheduler never starts a
+   GitHub workflow and the site ignores `GITHUB_TOKEN`; remove it.
+5. **Check:** Pull Now in the town's admin queues a collect; the jobs
+   service's log shows it start, and the site says "Collect done" in Slack
+   when the new events are live. The hourly site check alerts if the
+   worker stops asking for work for 30 minutes, and a job that never
+   finishes is started once more and alerted.
+
+The jobs service runs every scheduled job a town has (collect, event
+check, submission review, social kit, ads report, digest); the web service
+runs the newsletter, sponsor reports, privacy purge and the hourly check.
+
+## Victoria moved (JOBS_ON_RAILWAY.md phase 5)
+
+Victoria runs exactly like the other towns. What changed in Railway and
+GitHub when she moved (the code is merged first; the order below avoids a
+double post or a missed run):
+
+1. **`thevic361-jobs`** (her jobs service) adds: `META_TOWN=victoria`,
+   `META_PAGE_ID=1388965530960534` (her pinned page), `META_PAGE_TOKEN`
+   (her Page token, the GitHub secret of the same name), `SOCIAL_AUTOPOST=1`,
+   optional `GRAPH_API_VERSION`; for the ads report `META_ADS_TOKEN` if
+   she has a system-user token (GitHub used `META_PAGE_TOKEN`), no
+   `META_AD_ACCOUNT_ID` (her token sees one account; set it only together
+   with a pin), `ADS_SPEND_SECRET=${{thevic361.ADS_SPEND_SECRET}}` if her
+   web service has one; for the digest `SMTP_EMAIL` and `SMTP_PASSWORD`.
+   No `IG_USER_ID` until her Instagram id is pinned in `town.py`.
+2. **Victoria's web service** removes `GITHUB_TOKEN` (and `GITHUB_PAT`,
+   `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH` if set). Keep
+   `JOBS_ON_RAILWAY=1` and `JOBS_SECRET`.
+3. **Other towns' jobs services** need nothing new: their ads report does
+   nothing until an ad account is pinned and `META_AD_ACCOUNT_ID` set.
+4. **GitHub:** delete the repo secrets only the retired workflows read
+   (`META_PAGE_ID`, `META_PAGE_TOKEN`, `META_ADS_TOKEN`, `IG_USER_ID`,
+   `ADS_SPEND_SECRET`, `SMTP_EMAIL`, `SMTP_PASSWORD`, `NTFY_TOPIC`,
+   `OPENAI_API_KEY`, `PREVIEWS_DEPLOY_KEY`) and variables
+   (`SOCIAL_AUTOPOST`, `META_AD_ACCOUNT_ID`, `META_TOWN`,
+   `GRAPH_API_VERSION`, `SLACK_TOWN_TAG`, the collector knobs such as
+   `FB_POSTS_MAX_VENUES`), and the towns' GitHub Environments. Keep what
+   `tests.yml` and the manual tools read: `SLACK_WEBHOOK_URL`,
+   `SLACK_ALERTS_WEBHOOK_URL`, `OPS_REPORT_SECRET` (or the cron secret it
+   falls back to), `SITE_URL`, `APIFY_TOKEN`, `GEMINI_API_KEY`,
+   `GEMINI_MODEL`.
+
+## New town, the simple way (jobs on Railway)
+
+The full owner-and-agent checklist (brand art, email, Stripe, Meta, ads,
+monitoring) is [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md); this section is its Railway part.
+
+What an agent does end to end with the Railway connector and the Cloudflare
+API, once the town's files are in `towns/<slug>/` (feeds, venues, local
+events) and merged:
+
+1. **Postgres:** `Postgres-<Town>` in `production`, backups on (the owner
+   turns backups on in Railway; the API can't).
+2. **Web service** `<domain-without-tld>` from `main`, start `node
+   server/index.js`, healthcheck `/api/health`, the watch paths of step 16
+   above. Variables before the first deploy: `TOWN`, `SITE_URL`,
+   `DATABASE_URL=${{Postgres-<Town>.DATABASE_URL}}`, `ADMIN_USERNAME`,
+   `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `NEWSLETTER_CRON_SECRET`,
+   `EVENT_CHECK_SECRET`, `SUBMISSION_REVIEW_SECRET`, `HQ_API_KEY`,
+   `HQ_SSO_SECRET`, `HQ_REPLY_KEY` (each fresh, 32+ characters, never
+   copied from another town), `SLACK_*` (shared channels are fine),
+   `SLACK_TOWN_TAG`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`,
+   `JOBS_ON_RAILWAY=1`. The town's `town.json` keeps `"workflows": false`:
+   it never runs on GitHub.
+3. **Jobs service** `<web>-jobs`: "Jobs on Railway" above.
+4. **Domain:** `www.<domain>` on the web service; in Cloudflare (DNS only,
+   not proxied) the `www` CNAME to Railway's target and its verification
+   TXT, and the apex redirected to `www` with the path kept (a Cloudflare
+   redirect rule, or the apex on Railway too).
+5. **HQ:** on the HQ service, `HQ_TOWN_<SLUG>` =
+   `{"site_url":"https://www.<domain>","key":"<its HQ_API_KEY>"}` plus
+   `HQ_SSO_<SLUG>` and `HQ_REPLY_<SLUG>` (references don't cross
+   projects, so these are the only copies; the owner pastes them if the
+   agent can't read secrets).
+6. **First collect:** Pull Now in the town's admin (or wait for its first
+   Sunday or Wednesday); HQ shows it under the town's jobs.
+7. **Owner, when ready to sell and send:** Resend domain and key, the
+   town's key and webhook on the shared Stripe account, the mailing
+   address and business name, the
+   Facebook page and Instagram (then `META_TOWN` and the social kit move,
+   JOBS_ON_RAILWAY.md 2b). Turnstile: add `www.<domain>` to the widget.
+
+Fresh secrets are generated (`openssl rand -hex 32`) and set straight on
+the service. An agent session that isn't allowed to generate secrets asks
+the owner to run that once per town, or to allow it.
 
 ## HQ dashboard (its own repo and project)
 
@@ -319,24 +493,21 @@ again every few months.
   similar) on `https://www.thevic361.com/api/health?deep=1` every 1 to 5
   minutes, plus a keyword check that `/events.json` contains `"events"`.
   Send it to the Slack alerts webhook and a phone push. The in-process
-  checks and `uptime.yml` can't see a dead process or a DNS/TLS break, and
-  GitHub's cron runs hours late.
+  checks can't see a dead process or a DNS/TLS break (HQ's watch does,
+  every few minutes).
 - **Two-factor sign-in** on every account that can change the site or take
   money: GitHub, Railway, Stripe, Resend, Cloudflare, Squarespace (DNS),
   Slack and Meta. Account takeover is the most likely way in.
-- **`GITHUB_TOKEN` scope.** Use a fine-grained token on this repo only,
-  with an expiry date and a calendar reminder to renew it. It needs
-  Actions: write for the scheduler; Contents: write only lets Save &
-  Publish commit `docs/events.json`, and also lets anyone holding the token
-  push code to `main`, which deploys to production. Drop Contents: write if
-  you can live without that commit. Add a ruleset on `main` (no
-  force-push, no deletion) and keep PR environments from receiving
-  production secrets.
+- **No `GITHUB_TOKEN` on any service.** Jobs run on Railway, so nothing
+  on Railway needs to write to GitHub; a token there would only let anyone
+  holding it push to `main`, which deploys to production. Add a ruleset on
+  `main` (no force-push, no deletion) and keep PR environments from
+  receiving production secrets.
 - **Key rotation.** Keep a list of every secret, where it's set (Railway,
-  GitHub) and when it was last changed: `GITHUB_TOKEN`, `STRIPE_SECRET_KEY`
+  GitHub) and when it was last changed: `STRIPE_SECRET_KEY`
   / `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET`,
   `TREMENDOUS_API_KEY`, `OPENAI_API_KEY` / `APIFY_TOKEN` / `GEMINI_API_KEY`,
-  the `META_*` tokens, the SMTP app password, `PREVIEWS_DEPLOY_KEY`, the
+  the `META_*` tokens, the SMTP app password, the
   three cron secrets, `HQ_API_KEY` and the `ADMIN_*` values. Rotate after
   anyone with access leaves or a secret may have leaked, and at least
   yearly. Changing `ADMIN_PASSWORD` or `ADMIN_SESSION_SECRET` signs every

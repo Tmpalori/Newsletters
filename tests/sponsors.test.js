@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { sameEvent, verifyStripeSignature, formEncode, bookableWeeks, pickAvailability, isWeekendDate, renderPreview, sponsorCalendar, parseLogo,
-  newsletterCovers, sponsorStats, sponsorLandingUrl, renderThanksPage } from '../server/sponsors.js';
+  newsletterCovers, sponsorStats, sponsorLandingUrl, renderThanksPage, statementSuffix } from '../server/sponsors.js';
 import { promises as fs } from 'node:fs';
 import { renderSubmissionReceived, renderSponsorConfirmed } from '../server/notify.js';
 import { sponsorLinkUrl } from '../server/seo.js';
@@ -167,7 +167,7 @@ describe('weekly sponsor', () => {
     expect(r.headers.get('location')).toBe('https://checkout.stripe.com/c/pay/cs_test_1');
     const s = sessions[0];
     expect(s.params).toMatchObject({ mode: 'payment', customer_email: 'owner@acme.example' });
-    expect(s.params.line_items[0].price_data.unit_amount).toBe(30000);
+    expect(s.params.line_items[0].price_data.unit_amount).toBe(14900);
     expect(s.key).toBe(`vic361-order-${s.params.client_reference_id}`);
 
     // While that buyer is paying, the week can't be sold again.
@@ -213,7 +213,7 @@ describe('featured event', () => {
     });
     expect(r.status).toBe(303);
     // Saturday: weekend Vic’s Pick price.
-    expect(sessions[0].params.line_items[0].price_data.unit_amount).toBe(8900);
+    expect(sessions[0].params.line_items[0].price_data.unit_amount).toBe(3900);
     await completed(sessions[0]);
 
     const subs = await store.list({});
@@ -420,7 +420,7 @@ describe('Stripe best practices', () => {
 
     stripe.ensurePrice = async () => { throw new Error('catalog down'); };
     await form({ ...weekly('beta'), week: '2026-11-02' });
-    expect(sessions[1].params.line_items[0].price_data.unit_amount).toBe(30000);
+    expect(sessions[1].params.line_items[0].price_data.unit_amount).toBe(14900);
   });
 });
 
@@ -459,16 +459,16 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     event: { date, name: 'Taken', time: '7 PM', venue: 'X' }
   });
 
-  it('weekdays are $49, Fri–Sun $89, with its own Stripe product name', async () => {
+  it('weekdays are $29, Fri–Sun $39, with its own Stripe product name', async () => {
     expect([isWeekendDate('2026-10-08'), isWeekendDate('2026-10-09'), isWeekendDate('2026-10-11'), isWeekendDate('2026-10-12')])
       .toEqual([false, true, true, false]);
     await startApp();
     expect((await pick('2026-10-08')).status).toBe(303);   // Thursday
     expect((await pick('2026-10-09')).status).toBe(303);   // Friday
-    expect(sessions.map(x => x.params.line_items[0].price_data.unit_amount)).toEqual([4900, 8900]);
+    expect(sessions.map(x => x.params.line_items[0].price_data.unit_amount)).toEqual([2900, 3900]);
     expect(sessions[1].params.line_items[0].price_data.product_data.name).toContain('Fri–Sun');
     const amounts = (await store.listSponsorOrders()).map(o => o.amount).sort();
-    expect(amounts).toEqual([4900, 8900]);
+    expect(amounts).toEqual([2900, 3900]);
   });
 
   it('a weekday holds 3 picks and a weekend day 4; live checkouts count, expired ones don’t', async () => {
@@ -484,10 +484,10 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     for (let i = 0; i < 3; i++) await order('2026-10-10', 'paid');
     expect((await pick('2026-10-10')).status).toBe(303);            // 4th Saturday spot
     const sat = await (await fetch(baseUrl + '/api/vics-pick/availability?date=2026-10-10')).json();
-    expect(sat).toMatchObject({ ok: true, weekend: true, cap: 4, taken: 4, left: 0, price: '$89' });
+    expect(sat).toMatchObject({ ok: true, weekend: true, cap: 4, taken: 4, left: 0, price: '$39' });
     expect((await pick('2026-10-10', { email: 'someone@else.example' })).status).toBe(400);
     const thu = await (await fetch(baseUrl + '/api/vics-pick/availability?date=2026-10-08')).json();
-    expect(thu).toMatchObject({ weekend: false, cap: 3, left: 0, price: '$49' });
+    expect(thu).toMatchObject({ weekend: false, cap: 3, left: 0, price: '$29' });
     expect((await fetch(baseUrl + '/api/vics-pick/availability?date=soon')).status).toBe(400);
   });
 
@@ -497,7 +497,7 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     expect(page).toContain('Preview: exactly how it’ll look');
     expect(page).toContain('event-entry event-entry--featured');            // same markup as the site
     expect(page).toContain('Pumpkin &lt;Patch&gt;');                        // prefilled and escaped
-    expect(page).toContain('Saturday, Oct 10: $89');
+    expect(page).toContain('Saturday, Oct 10: $39');
     expect(page).toContain('4 of 4 Vic’s Pick spots left');
     expect(page.indexOf('co-preview')).toBeLessThan(page.indexOf('Continue to payment'));
 
@@ -514,10 +514,10 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
   it('the advertise page says where each option shows, its limits, and shows examples', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
-    expect(html).toContain('$49 Mon–Thu · $89 Fri–Sun');
+    expect(html).toContain('$29 Mon–Thu · $39 Fri–Sun');
     expect(html).toContain('Only 3 a day Mon–Thu and 4 a day Fri–Sun');
     expect(html).not.toContain('Where it shows:'); // the checklist and the "Where your ad goes" diagram say it
-    expect((html.match(/ad-package__preview/g) || []).length).toBe(2);
+    expect((html.match(/ad-package__preview/g) || []).length).toBe(3);
     expect(html).toContain('Book your sponsor week →');
     expect(html).toContain('Give my event the Vic’s Pick badge →');
     expect(html).toContain('See a live preview before you pay');
@@ -550,9 +550,9 @@ describe('admin sponsorship calendar', () => {
     expect(cal[0].weekly).toBeNull();
     expect(cal[1].weekly).toMatchObject({ business: 'Acme Tacos', state: 'booked' });
     const sat = cal[0].days.find(d => d.date === '2026-10-10');
-    expect(sat).toMatchObject({ weekend: true, cap: 4, taken: 2, left: 2, price: '$89', past: false });
+    expect(sat).toMatchObject({ weekend: true, cap: 4, taken: 2, left: 2, price: '$39', past: false });
     expect(sat.picks.map(p => [p.business, p.state])).toEqual([['Titan', 'booked'], ['Weber', 'held']]);
-    expect(cal[0].days.find(d => d.date === '2026-10-06')).toMatchObject({ past: true, cap: 3, price: '$49' });
+    expect(cal[0].days.find(d => d.date === '2026-10-06')).toMatchObject({ past: true, cap: 3, price: '$29' });
   });
 
   it('comes back from the admin API', async () => {
@@ -1114,8 +1114,8 @@ describe('selling it on /advertise', () => {
     const html = await (await fetch(baseUrl + '/advertise')).text();
     expect(html).toContain('class="ad-stats"');
     expect(html).not.toContain('newsletters a week');   // a small number on a sales page undersells
-    expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(2);
-    expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(2);
+    expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(3);
+    expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(3);
     expect(html).toContain('THIS WEEK\'S SPONSOR');
     expect(html.match(/src="\/sample-logo.svg"/g)).toHaveLength(3); // the example logo: the diagram, the site and the email
     expect(html).toContain('★ VIC’S PICK');
@@ -1144,7 +1144,8 @@ describe('selling it on /advertise', () => {
   });
 });
 
-describe('weekly sponsor on Facebook and Instagram', () => {
+describe('weekly sponsor on Facebook (and Instagram once a town posts there)', () => {
+  afterEach(() => useTown(VICTORIA));
   const weeklyOrder = (extra = {}) => ({
     id: 'wk1', kind: 'weekly', status: 'paid', amount: 30000, week_start: '2026-09-28', created_at: '2026-09-20T00:00:00Z',
     business: 'Acme Tacos', email: 'acme@example.com',
@@ -1162,28 +1163,56 @@ describe('weekly sponsor on Facebook and Instagram', () => {
     expect(stats).toMatchObject({ social_clicks: 1, social_people: 1, email_clicks: 0 });
     const { renderSponsorReport } = await import('../server/notify.js');
     const report = renderSponsorReport(weeklyOrder({ week_start: '2026-10-05' }), { ...stats, site_people: 0, email_people: 0 }, { siteUrl: 'https://www.thevic361.com', address: '1 Main' });
-    expect(report.text).toContain('- Clicked your link in our Facebook and Instagram posts: 1 person');
+    // No town posts to Instagram yet (town.instagram), so the report doesn't say it.
+    expect(report.text).toContain('- Clicked your link in our Facebook posts: 1 person');
+    expect(report.text).not.toMatch(/instagram/i);
     expect(report.subject).toBe('Your Vic 361 sponsor week: 1 person clicked');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    expect(renderSponsorReport(weeklyOrder({ week_start: '2026-10-05' }), { ...stats, site_people: 0, email_people: 0 }, { siteUrl: 'https://www.thevic361.com', address: '1 Main' }).text)
+      .toContain('- Clicked your link in our Facebook and Instagram posts: 1 person');
   });
 
   it('/advertise sells it as a checklist of perks', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
-    expect(html.match(/<p class="ad-checklist-title">What you get<\/p>/g)).toHaveLength(2);
-    for (const perk of ['Top of the newsletter', 'Every page of thevic361.com', 'Shout-out on Facebook', 'Shout-out on Instagram',
-      'Your results report', 'Featured first on Facebook', 'Featured first on Instagram', 'Starred in the newsletter']) {
+    expect(html.match(/<p class="ad-checklist-title">What you get<\/p>/g)).toHaveLength(3);
+    for (const perk of ['Top of the newsletter', 'Every page of thevic361.com', 'Shout-out on Facebook',
+      'Your results report', 'Featured first on Facebook', 'Starred in the newsletter']) {
       expect(html).toContain(`<strong>${perk}</strong>`);
     }
+    // Nothing posts to Instagram, so nothing is sold there (the make-good
+    // terms would owe it back), on the page or in the advertising terms.
+    expect(html).not.toMatch(/instagram/i);
+    expect(await (await fetch(baseUrl + '/advertising-terms')).text()).not.toMatch(/on Instagram/);
+  });
+
+  it('a town with an Instagram handle sells the Instagram lines', async () => {
+    const { AD_PACKAGES } = await import('../server/seo.js');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    const perks = AD_PACKAGES.flatMap(p => p.points.map(([b]) => b));
+    expect(perks).toContain('Shout-out on Instagram');
+    expect(perks).toContain('Featured first on Instagram');
   });
 });
 
 describe('where your ad goes', () => {
-  it('shows the ad with arrows to the site, newsletter, Facebook and Instagram', async () => {
+  afterEach(() => useTown(VICTORIA));
+  it('shows the ad with arrows to the site, newsletter and Facebook', async () => {
     const { adFlowHtml } = await import('../server/seo.js');
     const html = adFlowHtml();
-    for (const name of ['thevic361.com', 'The newsletter', 'Facebook', 'Instagram']) expect(html).toContain(`<strong>${name}</strong>`);
-    expect(html.match(/<path d="M6 160 C/g)).toHaveLength(4); // one arrow per channel
+    for (const name of ['thevic361.com', 'The newsletter', 'Facebook']) expect(html).toContain(`<strong>${name}</strong>`);
+    expect(html).not.toContain('Instagram');
+    expect(html.match(/<path d="M6 118 C/g)).toHaveLength(3); // one arrow per channel, from the middle of 236px
+    expect(html).toContain('viewBox="0 0 140 236"');
     expect(html).toContain('class="ad-flow__down"');            // phones: one arrow down
+  });
+  it('adds Instagram for a town that posts there', async () => {
+    const { adFlowHtml } = await import('../server/seo.js');
+    useTown({ ...VICTORIA, instagram: 'thevic361' });
+    const html = adFlowHtml();
+    expect(html).toContain('<strong>Instagram</strong>');
+    expect(html.match(/<path d="M6 160 C/g)).toHaveLength(4);
+    expect(html).toContain('viewBox="0 0 140 320"');
   });
 });
 
@@ -1195,14 +1224,14 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
   const slackFake = alerts => ({ enabled: true, notify: async () => true, alert: async (...a) => { alerts.push(a); } });
   afterEach(() => useTown(VICTORIA));
 
-  it("Victoria's sessions stay untagged; it skips events tagged for another town", async () => {
+  it("Victoria's sessions are tagged victoria; it skips events tagged for another town", async () => {
     const alerts = [];
     await startApp({ slack: slackFake(alerts) });
     await weekly();
     const s = sessions[0];
     const id = s.params.client_reference_id;
-    expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String) });
-    expect(s.params.payment_intent_data).toBeUndefined();
+    expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String), town: 'victoria' });
+    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'victoria' }, statement_descriptor_suffix: 'VIC 361' });
     await completed(s, { metadata: { town: 'bay' } });
     expect(await status()).toBe('pending');
     await completed(s); // untagged: from before towns, so Victoria's
@@ -1218,7 +1247,7 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
     const s = sessions[0];
     const id = s.params.client_reference_id;
     expect(s.params.metadata).toEqual({ order_id: id, package: 'weekly', terms_version: ADVERTISING_TERMS_VERSION, terms_accepted_at: expect.any(String), town: 'bay' });
-    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'bay' } });
+    expect(s.params.payment_intent_data).toEqual({ metadata: { order_id: id, town: 'bay' }, statement_descriptor_suffix: 'BAY 979' });
     expect(s.key).toBe(`bay-order-${id}`);
     await completed(s); // untagged = Victoria's
     await completed(s, { metadata: { town: 'victoria' } });
@@ -1227,6 +1256,18 @@ describe('towns sharing one Stripe account (MULTI_CITY_PLAN.md 2.2)', () => {
     expect(await status()).toBe('paid');
     await fraud();
     expect(alerts).toEqual([]);
+  });
+
+  it("statementSuffix keeps each town inside Stripe's descriptor limits", () => {
+    expect(statementSuffix('The Vic 361')).toBe('VIC 361');
+    expect(statementSuffix('Shoals Setlist')).toBe('SHOALS');     // cut at a word
+    expect(statementSuffix('Tupelo Current')).toBe('TUPELO');
+    expect(statementSuffix('Abcdefghijklmn')).toBe('ABCDEFGHIJ'); // one long word: cut
+    expect(statementSuffix('The "Bay" <979>*')).toBe('BAY 979');  // characters Stripe refuses dropped
+    expect(statementSuffix('The 361')).toBeUndefined();           // Stripe needs a letter
+    for (const name of ['The Crane 308', 'The Star 402', 'The Rogue 541', 'The Tide 757']) {
+      expect(statementSuffix(name).length).toBeLessThanOrEqual(10);
+    }
   });
 
   it("skips another town's subscription events", async () => {

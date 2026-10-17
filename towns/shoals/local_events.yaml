@@ -1,2 +1,423 @@
-# Hand-added events for this town (same format as Victoria's local_events.yaml).
-events: []
+# ─── Shoals Setlist — Local Events (Florence, Muscle Shoals, Sheffield, Tuscumbia, AL) ───
+# Manually curated recurring and one-time events for the Shoals
+# (Lauderdale and Colbert counties).
+#
+# RECURRING events auto-generate for each matching day of the week.
+#   day: "friday" / "fri & sat" / [friday, saturday] all work.
+#   start_date / end_date (YYYY-MM-DD) bound a seasonal run.
+#   There is no "2nd Tuesday" rule: monthly events go under ONE-TIME
+#   events below, one entry per date.
+# ONE-TIME events only show on their specific date.
+#
+# The town feeds already pull the Shoals Chamber (GrowthZone), The Shoals
+# Now and Florence Arts & Museums (Squarespace), MSNHA, UNA
+# events, UNA athletics and the Florence-Lauderdale library calendars, and
+# the collector dedups. So entries here are the backbone the feeds miss:
+# the bar-and-restaurant live music that makes the Shoals the Shoals, plus
+# big one-time dates we want to plan ahead for. Shoals After Dark (Mobile
+# Plaza, Saturdays), UNA recitals and home games,
+# Walker Ranch and the library programs come through the feeds. The Ritz
+# (TVAA) shows are here by hand: tennesseevalleyarts.org answers Railway's
+# servers with a bot check, and the Ritz's Facebook (venues.json) takes over
+# once Apify is set.
+#
+# Optional tags (they feed the event score; see server/scoring.js):
+#   big: true        a big draw; shows in "Coming up" and scores high
+#   favorite: true   a well-known weekly staple; keeps its spot on busy days
+#   town: "Rogersville"  a nearby-town event (only big ones belong here)
+# Each day shows its best 15 events Mon–Thu and 20 Fri–Sun.
+#
+# Every entry carries a "# VERIFIED: <source> <date>" line. "Visit Florence
+# live-music page" = visitflorenceal.com/music/live-music/, the CVB's weekly
+# who's-playing-where lineup, read 2026-10-15 (it showed Wed Oct 14 – Wed
+# Oct 21 2026). That page is also a feed (visit_florence_music), which names
+# each night's act for the coming week; these weekly nights are named
+# generically ("Live Music") so the collector merges them into that act
+# when both list the same venue and start, and they fill the weeks after.
+# ─────────────────────────────────────────────────────────────────────────────
+
+recurring:
+
+  # ── NIGHTLY ─────────────────────────────────────────────────────────────
+
+  - name: "Live Music at Swampers"
+    day: [sunday, monday, tuesday, wednesday, thursday]
+    time: "7:30 PM – 10:00 PM"
+    venue: "Swampers Bar & Grille"
+    address: "800 Cox Creek Pkwy S, Florence"
+    description: "The Shoals' every-night music bar, inside the Renaissance Shoals Resort and lined with Muscle Shoals recording history. A different local singer-songwriter takes the stage each night."
+    icons: [music, drinks, food, free]
+    free: true
+    url: "https://www.facebook.com/SwampersBarandGrille"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (7:30–10pm sets Sun Oct 18 – Thu, e.g. Mitch Mann, Barry Billings, Tim Cannon, Trey Nichols, Bailey White); IG bio "live music" 2026-10-15
+
+  - name: "Live Music at Swampers"
+    day: [friday, saturday]
+    time: "8:00 PM – 11:00 PM"
+    venue: "Swampers Bar & Grille"
+    address: "800 Cox Creek Pkwy S, Florence"
+    description: "Late weekend sets at Swampers, the hotel bar named for the Muscle Shoals Rhythm Section. Local players, no cover."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.facebook.com/SwampersBarandGrille"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Fri Oct 16 Laura Lane 8–11pm, Sat Oct 17 Bryson Bishop + Chandler Brewer 8–11pm)
+
+  - name: "Live Music at Swampers"
+    day: [tuesday, wednesday, thursday, friday]
+    time: "5:00 PM – 7:00 PM"
+    venue: "Swampers Bar & Grille"
+    address: "800 Cox Creek Pkwy S, Florence"
+    description: "An early acoustic set before the night show: Will + Janet, Justin Holder and friends and other Shoals regulars."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.facebook.com/SwampersBarandGrille"
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (5–7pm sets Wed Oct 14, Thu Oct 15, Fri Oct 16, Tue Oct 20, Wed Oct 21)
+
+  # ── MONDAY – THURSDAY ───────────────────────────────────────────────────
+
+  - name: "Karaoke Night at Lava Room"
+    day: [monday, tuesday, wednesday, thursday]
+    time: "8:00 PM"
+    venue: "Lava Room"
+    address: "116 W Mobile St, Florence"
+    description: "Downtown Florence karaoke four nights a week at the Lava Room's dining and entertainment space."
+    icons: [music, drinks, free]
+    free: true
+    url: "https://www.facebook.com/lavaroomflorence"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Karaoke Night 8pm Wed Oct 14, Thu Oct 15, Mon Oct 19, Tue Oct 20, Wed Oct 21); address from iExit listing
+
+  # ── WEDNESDAY ───────────────────────────────────────────────────────────
+
+  - name: "Karaoke Night at The Rising Crust"
+    day: wednesday
+    time: "8:00 PM – 10:00 PM"
+    venue: "The Rising Crust"
+    address: "Florence"
+    description: "Midweek karaoke with pizza, pasta and craft cocktails."
+    icons: [music, food, drinks, free]
+    free: true
+    url: "https://www.facebook.com/TRCofFlorence"
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Karaoke Night 8–10pm Wed Oct 14)
+
+  - name: "Trivia Night at North Wood Social"
+    day: wednesday
+    time: "8:00 PM"
+    venue: "North Wood Social"
+    address: "1121 N Wood Ave, Florence"
+    description: "Team trivia (often themed) at the North Wood Avenue gastropub. Bring a crew; dinner and drinks until 10."
+    icons: [drinks, food, free]
+    free: true
+    url: "https://www.facebook.com/northwoodsocial"
+    favorite: true
+    # VERIFIED: Yelp (page updated May 2026: #1 for trivia in Florence, "Wednesday trivia", Wed hours 4–10pm) and North Wood Social FB "Vampire Trivia, Wednesday 8 PM" flyer, checked 2026-10-15
+
+  - name: "Live Music at Champy's"
+    day: [wednesday, friday]
+    time: "7:00 PM – 9:00 PM"
+    venue: "Champy's Shoals"
+    address: "120 2nd St, Muscle Shoals"
+    description: "Blues and string bands on the patio at the Muscle Shoals fried-chicken joint, from touring harp players to local pickers."
+    icons: [music, food, drinks, free]
+    free: true
+    url: "https://www.facebook.com/ChampysShoals"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Wed Oct 14 Mark Hummel + Blue Survivors 7–9pm, Fri Oct 16 Back Alley String Band 7–9pm); FB "Brews, Blues, and Bird" 2026-10-15
+
+  # ── THURSDAY ────────────────────────────────────────────────────────────
+
+  - name: "Karaoke at Rattlesnake Saloon"
+    day: thursday
+    time: "6:00 PM"
+    venue: "Rattlesnake Saloon"
+    address: "1292 Mt Mills Rd, Tuscumbia"
+    description: "Sing under the rock overhang at the Shoals' famous cave saloon on Seven Springs Lodge land. Burgers and cold beer; open Thursday–Saturday through November."
+    icons: [music, drinks, food, outdoors, free]
+    free: true
+    url: "https://www.rattlesnakesaloon.net"
+    end_date: "2026-11-28"
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Karaoke w/ Cole 6pm Thu Oct 15); season Feb–Nov per UNA Roots of American Music Trail guide
+
+  # ── THURSDAY – SUNDAY ───────────────────────────────────────────────────
+
+  - name: "Live Music at The Rising Crust"
+    day: [thursday, sunday]
+    time: "7:00 PM – 10:00 PM"
+    venue: "The Rising Crust"
+    address: "Florence"
+    description: "Local bands four nights a week over pizza and craft cocktails: rock, blues and Shoals soul (Tu Blu Cats, The Midnighters, Tim Cannon, Trey Nichols)."
+    icons: [music, food, drinks, free]
+    free: true
+    url: "https://www.facebook.com/TRCofFlorence"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Thu Oct 15 7–10pm, Fri Oct 16 8–11pm, Sat Oct 17 8–11pm, Sun Oct 18 7–10pm)
+
+  - name: "Live Music at The Rising Crust"
+    day: [friday, saturday]
+    time: "8:00 PM – 11:00 PM"
+    venue: "The Rising Crust"
+    address: "Florence"
+    description: "Local bands four nights a week over pizza and craft cocktails: rock, blues and Shoals soul (Tu Blu Cats, The Midnighters, Tim Cannon, Trey Nichols)."
+    icons: [music, food, drinks, free]
+    free: true
+    url: "https://www.facebook.com/TRCofFlorence"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Thu Oct 15 7–10pm, Fri Oct 16 8–11pm, Sat Oct 17 8–11pm, Sun Oct 18 7–10pm)
+
+  # ── FRIDAY ──────────────────────────────────────────────────────────────
+
+  - name: "Live Music at FloBama"
+    day: friday
+    time: "6:30 PM – close"
+    venue: "FloBama Music Hall"
+    address: "311 N Court St, Florence"
+    description: "A live band on the Court Street music-hall stage early, then late-night karaoke from 10 until close."
+    icons: [music, drinks, food]
+    free: false
+    url: "https://www.facebook.com/flobamadowntown"
+    favorite: true
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Fri Oct 16 The KGB 6:30–9:30pm + Late-Night Karaoke 10pm–close)
+
+  # ── FRIDAY – SATURDAY ───────────────────────────────────────────────────
+
+  - name: "Live Music at Rattlesnake Saloon"
+    day: [friday, saturday]
+    time: "6:00 PM – 10:00 PM"
+    venue: "Rattlesnake Saloon"
+    address: "1292 Mt Mills Rd, Tuscumbia"
+    description: "Country and Muscle Shoals rock on the outdoor stage of a saloon built into a cave. Get there early on Saturdays; it fills up. Season ends in November."
+    icons: [music, drinks, food, outdoors]
+    free: false
+    url: "https://www.rattlesnakesaloon.net"
+    favorite: true
+    end_date: "2026-11-28"
+    # VERIFIED: Visit Florence live-music page 2026-10-15 (Sat Oct 17 Backdraft 6pm); UNA Roots of American Music Trail guide (live music Thu–Sat 6:30–10pm, Feb–Nov), checked 2026-10-15
+
+events:
+
+  # ── October 2026 ────────────────────────────────────────────────────────
+
+  - date: "2026-10-24"
+    name: "40th Alabama Renaissance Faire"
+    time: "All day"
+    venue: "Wilson Park"
+    address: "217 E Tuscaloosa St, Florence"
+    description: "Florence's 40th annual Renaissance Faire fills Wilson Park with knights, jesters, artisans, music and food. Free admission."
+    icons: [family, arts, music, outdoors, free]
+    free: true
+    url: "https://www.visitflorenceal.com/events/40th-alabama-renaissance-faire/"
+    big: true
+    # VERIFIED: Visit Florence event page 2026-10-15 (Oct 24 – 25 2026, Admission: FREE, Wilson Park)
+
+  - date: "2026-10-25"
+    name: "40th Alabama Renaissance Faire"
+    time: "All day"
+    venue: "Wilson Park"
+    address: "217 E Tuscaloosa St, Florence"
+    description: "Day two of the 40th annual Renaissance Faire in Wilson Park: artisans, performers, music and food. Free admission."
+    icons: [family, arts, music, outdoors, free]
+    free: true
+    url: "https://www.visitflorenceal.com/events/40th-alabama-renaissance-faire/"
+    big: true
+    # VERIFIED: Visit Florence event page 2026-10-15 (Oct 24 – 25 2026)
+
+  - date: "2026-10-26"
+    name: "Fraggle Rock: Back to the Rock LIVE"
+    time: "6:00 PM"
+    venue: "Norton Auditorium"
+    address: "500 N Pine St, Florence"
+    description: "The Jim Henson Company's touring Fraggle Rock stage show at UNA's Norton Auditorium."
+    icons: [family, arts, music]
+    free: false
+    url: "https://www.visitflorenceal.com/events/fraggle-rock-back-to-the-rock-live/"
+    big: true
+    # VERIFIED: Visit Florence event page 2026-10-15 (Oct 26 at 6:00, tickets on shoalsscholardollars.com)
+
+  # ── November 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-11-05"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Opening night of C.P. Taylor's wartime family comedy-drama at Sheffield's historic Ritz Theatre."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-06"
+    name: "First Fridays Florence"
+    time: "5:30 PM – 8:30 PM"
+    venue: "Court Street, Downtown Florence"
+    address: "N Court St, Florence"
+    description: "The season's last First Friday: artists, crafters, food trucks and street musicians fill a closed-off Court Street."
+    icons: [arts, music, shopping, food, family, free]
+    free: true
+    url: "https://www.facebook.com/FirstFridaysFlorence"
+    big: true
+    # VERIFIED: alabama.travel "First Fridays Florence" 2026 listing (May 1 – Nov 6 2026, 5:30–8:30pm), checked 2026-10-15
+
+  - date: "2026-11-06"
+    name: "Muscle Shoals Songwriters Festival"
+    time: "All day"
+    venue: "Venues across the Shoals"
+    address: "Renaissance Shoals Resort, 10 Hightower Pl, Florence"
+    description: "Night one of the 7th annual festival: 50+ hit songwriters telling the stories behind their songs in 25+ shows at Shoals bars, restaurants and studios."
+    icons: [music, drinks]
+    free: false
+    url: "https://muscleshoalssongfest.com/"
+    big: true
+    # VERIFIED: muscleshoalssongfest.com and Visit Florence event page 2026-10-15 (Nov 6 – 8 2026; Renaissance Shoals presenting hotel)
+
+  - date: "2026-11-07"
+    name: "Muscle Shoals Songwriters Festival"
+    time: "All day"
+    venue: "Venues across the Shoals"
+    address: "Renaissance Shoals Resort, 10 Hightower Pl, Florence"
+    description: "Festival Saturday: morning songwriter workshop at UNA's Mane Room, then writers' rounds all over the Shoals into the night."
+    icons: [music, drinks]
+    free: false
+    url: "https://muscleshoalssongfest.com/"
+    big: true
+    # VERIFIED: muscleshoalssongfest.com 2026-10-15 (Nov 6 – 8 2026)
+
+  - date: "2026-11-08"
+    name: "Muscle Shoals Songwriters Festival"
+    time: "All day"
+    venue: "Venues across the Shoals"
+    address: "Renaissance Shoals Resort, 10 Hightower Pl, Florence"
+    description: "Closing day of the songwriters festival's 25+ shows across the Shoals."
+    icons: [music, drinks]
+    free: false
+    url: "https://muscleshoalssongfest.com/"
+    big: true
+    # VERIFIED: muscleshoalssongfest.com 2026-10-15 (Nov 6 – 8 2026)
+
+  - date: "2026-11-06"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "C.P. Taylor's wartime family comedy-drama on the Ritz Theatre stage in Sheffield."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-07"
+    name: "And A Nightingale Sang…"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "C.P. Taylor's wartime family comedy-drama on the Ritz Theatre stage in Sheffield."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-08"
+    name: "And A Nightingale Sang…"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Closing matinee of C.P. Taylor's wartime family comedy-drama at the Ritz Theatre."
+    icons: [arts]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/and-a-nightingale-sang-2/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 5 – 7 at 7pm, Nov 8 at 2pm)
+
+  - date: "2026-11-13"
+    name: "Shrek KIDS!"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Young performers bring the swamp-to-castle musical to the Ritz Theatre in Sheffield."
+    icons: [arts, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/shrek-kids/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 13 at 7pm, Nov 14 at 2pm)
+
+  - date: "2026-11-14"
+    name: "Shrek KIDS!"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Matinee of the kids' Shrek musical at the Ritz Theatre in Sheffield."
+    icons: [arts, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/shrek-kids/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 13 at 7pm, Nov 14 at 2pm)
+
+  - date: "2026-11-19"
+    name: "A Birthday Evening with Penn & Oldham"
+    time: "7:00 PM – 9:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Muscle Shoals songwriting legends Dan Penn and Spooner Oldham play their classics at the Ritz Theatre."
+    icons: [music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-birthday-evening-with-penn-oldham/"
+    big: true
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Nov 19 7 – 9pm)
+
+  - date: "2026-11-26"
+    name: "Trax4Max 5K Turkey Trot & 1 Mile Fun Run"
+    time: "Morning"
+    venue: "First Baptist Church of Florence"
+    address: "209 N Walnut St, Florence"
+    description: "Thanksgiving-morning 5K and fun run through downtown Florence, benefiting Trax4Max."
+    icons: [family, outdoors, community]
+    free: false
+    url: "https://www.visitflorenceal.com/events/trax4max-5k-turkey-trot-1-mile-fun-run/"
+    # VERIFIED: Visit Florence event page 2026-10-15 (Nov 26 2026, First Baptist Church of Florence)
+
+  # ── December 2026 ───────────────────────────────────────────────────────
+
+  - date: "2026-12-11"
+    name: "A Taste of the Nutcracker"
+    time: "7:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A condensed Nutcracker ballet with live music at the Ritz Theatre in Sheffield."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  - date: "2026-12-12"
+    name: "A Taste of the Nutcracker"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A condensed Nutcracker ballet with live music at the Ritz Theatre. Also at 7 PM."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  - date: "2026-12-13"
+    name: "A Taste of the Nutcracker"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "Closing matinee of the condensed Nutcracker ballet with live music at the Ritz Theatre."
+    icons: [arts, family, music]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/a-taste-of-the-nutcracker/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Dec 11 7pm, Dec 12 2pm and 7pm, Dec 13 2pm)
+
+  # ── January 2027 ────────────────────────────────────────────────────────
+
+  - date: "2027-01-09"
+    name: "Taylorville: A Live Tribute to Taylor Swift"
+    time: "2:00 PM"
+    venue: "The Ritz Theatre"
+    address: "111 Third St, Sheffield"
+    description: "A Taylor Swift tribute band at the Ritz Theatre in Sheffield. Also at 7 PM."
+    icons: [music, family]
+    free: false
+    url: "https://tennesseevalleyarts.org/events/taylorville/"
+    # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Jan 9 2027 at 2pm and 7pm)

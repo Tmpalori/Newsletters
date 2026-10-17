@@ -272,6 +272,24 @@ def test_exclude_and_place():
         town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "timeout": 999}])
 
 
+def test_rename():
+    evs = [{"name": "University of Nebraska - Kearney Women's Soccer vs Fort Hays State"},
+           {"name": "Tri-City Storm Men's Ice Hockey vs Chicago Steel"}]
+    rules = [[r"^University of Nebraska - Kearney ", "UNK "], [r" Men's Ice Hockey", ""]]
+    town_feeds.renamed(evs, rules)
+    assert [e["name"] for e in evs] == ["UNK Women's Soccer vs Fort Hays State", "Tri-City Storm vs Chicago Steel"]
+    assert town_feeds.renamed(evs, None) == evs
+    evs[0]["venue"] = "Kearney, NE, Ron & Carol Cope Stadium"
+    town_feeds.renamed(evs, [[r"^Kearney, NE, ", ""]], "venue")
+    assert evs[0]["venue"] == "Ron & Carol Cope Stadium"
+    assert town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": rules}])
+    for bad in ("x", [["("], ["a"]], [["(", "b"]], [[1, "b"]]):
+        with pytest.raises(ValueError, match="rename"):
+            town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": bad}])
+        with pytest.raises(ValueError, match="rename_venue"):
+            town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename_venue": bad}])
+
+
 def test_growthzone_reads_each_events_calendar_file():
     month = '<a href="https://c.example/events/details/fall-fest-1?calendarMonth=2026-10-01">x</a>' * 2
     ics = "BEGIN:VEVENT\nSUMMARY:Fall Fest\nDTSTART:20261017T140000Z\nLOCATION:Mobile Plaza\\, 18 Mobile St\nEND:VEVENT\n"
@@ -288,3 +306,46 @@ def test_growthzone_reads_each_events_calendar_file():
 
 def test_page_builder_shortcodes_are_stripped():
     assert town_feeds.clean("[et_pb_section][et_pb_text]Patchwork quilts[/et_pb_text][/et_pb_section]") == "Patchwork quilts"
+
+
+def test_lineup_reads_each_act_on_its_day_at_its_venue():
+    page = """<main><h2>Live Music This Week</h2>
+      <h3>Friday, October 16</h3>
+      <p><strong>Swampers</strong></p><p>- Elle Claytor: 5-7pm</p>
+      <p><strong>Champy's</strong></p><p>- Back Alley String Band 7-9pm</p>
+      <p><strong>FloBama</strong></p><p>- Late-Night Karaoke: 10pm-close</p>
+      <h3>Saturday, October 17</h3>
+      <p><strong>Lava Room</strong></p><p>- Kevin Padron : 8pm</p>
+      <h3>Monday, November 30</h3>
+      <p><strong>Swampers</strong></p><p>- Too Late: 7:30-10pm</p>
+      <footer>- Not an act: 7pm</footer></main>"""
+    from zoneinfo import ZoneInfo
+    evs = town_feeds.parse_lineup(page, ZoneInfo("America/Chicago"), date(2026, 10, 14), date(2026, 10, 28))
+    assert [(e["date"], e["time"], e["name"], e["venue"]) for e in evs] == [
+        ("2026-10-16", "5:00 PM – 7:00 PM", "Elle Claytor", "Swampers"),
+        ("2026-10-16", "7:00 PM – 9:00 PM", "Back Alley String Band", "Champy's"),
+        ("2026-10-16", "10:00 PM", "Late-Night Karaoke", "FloBama"),
+        ("2026-10-17", "8:00 PM", "Kevin Padron", "Lava Room"),
+    ]
+    assert town_feeds.check_feeds([{"name": "music", "type": "lineup", "url": "https://x.example/music/"}])
+
+
+@pytest.mark.parametrize("start,end,expected", [
+    ("8", "11", ((20, 0), (23, 0))),          # an unmarked set is at night
+    ("9", "close", ((21, 0), None)),
+    ("7:30", "10pm", ((19, 30), (22, 0))),
+    ("11", "1pm", ((11, 0), (13, 0))),        # borrowing pm would run backwards
+    ("12", "2pm", ((12, 0), (14, 0))),
+    ("11am", "1pm", ((11, 0), (13, 0))),
+    ("10pm", "close", ((22, 0), None)),
+    ("12am", "", ((0, 0), None)),
+])
+def test_lineup_set_times(start, end, expected):
+    assert town_feeds._set_times(start, end) == expected
+
+
+def test_rename_replacements_are_checked_too():
+    with pytest.raises(ValueError, match="replacement"):
+        town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": [["(a)", "\\2"]]}])
+    with pytest.raises(ValueError, match="replacement"):
+        town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename_venue": [["a", "\\g<x>"]]}])
