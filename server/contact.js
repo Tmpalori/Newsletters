@@ -17,6 +17,7 @@ import { normalizeEmail } from './newsletter.js';
 import { honeypotTripped } from './honeypot.js';
 import { newId, nowIso } from './db.js';
 import { passiveGuard } from './formGuard.js';
+import { impossibleEmailError } from './emailTypos.js';
 
 export const CONTACT_TOPICS = [
   ['advertising', 'Advertising or sponsorship'],
@@ -111,6 +112,7 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
       if (!values.name) errors.name = 'Please add your name.';
       const email = normalizeEmail(values.email);
       if (!email) errors.email = 'Please add a valid email so we can reply.';
+      else if (impossibleEmailError(email)) errors.email = impossibleEmailError(email);
       if (values.message.length < 5) errors.message = 'Please add a short message.';
       if (Object.keys(errors).length) return fail(errors);
 

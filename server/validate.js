@@ -8,6 +8,7 @@
  */
 
 import { normalizeEmail } from './newsletter.js';
+import { impossibleEmailError } from './emailTypos.js';
 import { honeypotHit } from './honeypot.js';
 
 const MAX_NAME = 200;
@@ -151,6 +152,10 @@ export function validateSubmission(input, opts = {}) {
     // Resend refused every "you're live" email to it. Not on an admin edit,
     // so a row saved before this can still have its event details fixed.
     errors.submitter_email = 'Email looks invalid.';
+  } else if (!adminEdit && impossibleEmailError(submitter_email)) {
+    // "...@gmail.comm" passes both checks, then every email to it bounces
+    // (server/emailTypos.js). Say what to fix.
+    errors.submitter_email = impossibleEmailError(submitter_email);
   }
 
   const submitter_phone = clean(input.submitter_phone, MAX_PHONE);

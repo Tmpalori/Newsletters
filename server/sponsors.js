@@ -52,6 +52,7 @@ import { ipKey } from './rateLimit.js';
 import { burst } from './burst.js';
 import express from 'express';
 import { passiveGuard } from './formGuard.js';
+import { impossibleEmailError } from './emailTypos.js';
 import {
   AD_PACKAGES, escHtml, safeUrl, localDateStr, currentWeek, addDays, formatDay, layout,
   renderEventItem, sponsorHtml, dayClass, sortEvents, SAMPLE_LOGO, reachPitchHtml
@@ -727,6 +728,7 @@ export function validateOrder(kind, input, { now, orders, venues }) {
   const errors = {};
   const email = normalizeEmail(input.email);
   if (!email) errors.email = 'Enter a valid email for your receipt.';
+  else if (impossibleEmailError(email)) errors.email = impossibleEmailError(email);
   const business = clean(input.business, 80);
   if (!business) errors.business = 'Business name is required.';
   const order = { kind, email, business };

@@ -1056,6 +1056,7 @@ ${body}
 ${footerHtml()}
 ${pixel ? '<script src="/pixel.js" defer></script>\n' : ''}<script src="/track.js" defer></script>
 <script src="/turnstile.js" defer></script>
+<script src="/emailcheck.js" defer></script>
 <script src="/scrollfade.js" defer></script>
 </body>
 </html>`;

@@ -26,6 +26,7 @@ import { validateSubmission, validateEventEdit, checkBotSignals } from './valida
 import { reportHoneypot } from './honeypot.js';
 import { verifyTurnstile, turnstileHostnames } from './turnstile.js';
 import { createFormGuard } from './formGuard.js';
+import { EMAIL_CHECK_JS } from './emailTypos.js';
 import { createRateLimiter, ipKey, railwayRealIp } from './rateLimit.js';
 import { createAuth, MIN_SECRET } from './auth.js';
 import { createGithub } from './github.js';
@@ -1565,6 +1566,11 @@ export async function createApp(opts = {}) {
   // Meta Pixel for ads (server/metaPixel.js). Short cache so setting or
   // changing META_PIXEL_ID takes effect within minutes of a redeploy.
   const metaPixelScript = metaPixelJs(pixelId(opts.metaPixelId ?? process.env.META_PIXEL_ID));
+  // The "Did you mean ...@gmail.com?" note on every email field.
+  app.get('/emailcheck.js', (req, res) => {
+    res.type('application/javascript').set('Cache-Control', 'public, max-age=300').send(EMAIL_CHECK_JS);
+  });
+
   app.get('/pixel.js', (req, res) => {
     res.type('application/javascript').set('Cache-Control', 'public, max-age=300').send(metaPixelScript);
   });

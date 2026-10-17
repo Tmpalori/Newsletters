@@ -24,6 +24,7 @@
  */
 
 import { burst } from './burst.js';
+import { suggestEmail } from './emailTypos.js';
 import { town, VICTORIA, otherTownDomains } from './town.js';
 import crypto from 'node:crypto';
 import express from 'express';
@@ -177,6 +178,38 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
   const complaints = burst(3, 24 * 3600 * 1000);
   const badSignatures = burst(3, 3600 * 1000);
 
+  // A bounced email to someone who sent us an event or bought a placement
+  // (Oct 2026: a Star 402 organizer typed "...@gmail.comm" and never got
+  // "we got it" or "you're live"). The owner hears whose it was, with what
+  // they probably meant, to fix the address in the admin or reach them
+  // another way. A newsletter-only address just leaves the list, as before.
+  async function tellOwnerOfBounce(to, d) {
+    if (!slack) return;
+    try {
+      const lc = new Set(to.map(x => x.toLowerCase()));
+      const mine = e => lc.has(String(e || '').trim().toLowerCase());
+      const subs = typeof store.list === 'function' ? (await store.list({})).filter(r => r && mine(r.submitter_email)) : [];
+      const orders = typeof store.listSponsorOrders === 'function' ? (await store.listSponsorOrders()).filter(o => o && mine(o.email)) : [];
+      if (!subs.length && !orders.length) return;
+      const lines = [
+        ...subs.slice(0, 3).map(r => {
+          const p = r.payload || {};
+          return `Event “${p.name || 'untitled'}” (${[p.date, p.venue].filter(Boolean).join(', ')}), sent by ${r.submitter_name || 'someone'}` +
+            (p.submitter_phone ? `, phone ${p.submitter_phone}` : '');
+        }),
+        ...orders.slice(0, 3).map(o => `Paid order from ${o.business || 'a business'} (${o.kind || o.package || 'order'}, ${o.status || 'status unknown'})`)
+      ];
+      const guess = to.map(x => suggestEmail(x)).find(Boolean);
+      slack.alert(`bounce:${to[0]}`, `Email to ${to.join(', ')} bounced`,
+        `${lines.join('\n')}\n` +
+        (guess ? `Probably a typo for ${guess.email}. ` : '') +
+        `They didn't get “${String(d.subject || 'our email')}”. Fix the address in the admin, or reach them another way.`,
+        siteUrl ? `${siteUrl}/admin.html` : null);
+    } catch (err) {
+      console.warn('[inbound] bounce lookup failed:', err.message);
+    }
+  }
+
   async function handleDeliveryEvent(event) {
     const d = event.data || {};
     if (!isForTown([d.from].filter(Boolean), town, others)) return 'other-town';
@@ -194,6 +227,7 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
         console.log(`[inbound] marked ${gone.length} subscriber(s) bounced (repeated soft bounces)`);
         return 'bounced';
       }
+      await tellOwnerOfBounce(to, d);
       if (typeof store.markSubscribersBounced !== 'function') return 'ignored';
       const n = await store.markSubscribersBounced(to);
       if (n) console.log(`[inbound] marked ${n} subscriber(s) bounced (hard bounce)`);

@@ -68,3 +68,10 @@ a, button, [role="button"], [role="link"], input, textarea, select {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
 }
+
+/* "Did you mean ...@gmail.com?" under an email field (/emailcheck.js). */
+.email-hint { margin: 0.35rem 0 0; font-size: 0.9rem; font-weight: 600; color: inherit; }
+.email-hint__fix {
+  font: inherit; color: var(--color-primary); background: none; border: 0; padding: 0;
+  text-decoration: underline; cursor: pointer;
+}
