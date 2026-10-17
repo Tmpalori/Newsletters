@@ -3090,7 +3090,7 @@ def _merge_pair(old, new):
         merged["big"] = True
     if not merged.get("town") and other.get("town"):
         merged["town"] = other["town"]
-    for flag in ("curated", "favorite", "recurring"):
+    for flag in ("curated", "favorite", "recurring", "_library"):
         if base.get(flag) or other.get(flag):
             merged[flag] = True
     merged["_sources"] = sorted(set((old.get("_sources") or [old.get("_source")]) +
@@ -3301,6 +3301,8 @@ def merge_events(all_events, days_ahead=7, venues=None):
             new_entry["_source"] = ev["_source"]
         if ev.get("_venue_guess"):
             new_entry["_venue_guess"] = True
+        if ev.get("_library"):
+            new_entry["_library"] = True    # a library feed: cap_library_events trims it
         if hand(ev):
             new_entry.update(_local_extras(ev))
         if ev.get("recurring") is True:
@@ -3421,6 +3423,8 @@ def cap_library_events(events, per_day=2, per_week=8):
     other_events = [e for e in events if not _is_library_event(e) or hand_added(e)]
 
     if not library_events:
+        for e in events:
+            e.pop("_library", None)
         return events
 
     # Step 1: Collapse recurring kid programs to one-per-week each (per program name).
@@ -3477,7 +3481,10 @@ def cap_library_events(events, per_day=2, per_week=8):
           f"({len(kid_programs) - len(deduped_kid)} duplicate kid programs collapsed, "
           f"{len(dropped)} over cap)")
 
-    return sorted(other_events + kept, key=lambda e: (e["date"], e.get("time", "ZZ")))
+    result = sorted(other_events + kept, key=lambda e: (e["date"], e.get("time", "ZZ")))
+    for e in result:
+        e.pop("_library", None)     # cap-only; never reaches candidates.json
+    return result
 
 
 # ─── LOAD EXTRAS (new_and_notable + sponsor) ─────────────────────────────────

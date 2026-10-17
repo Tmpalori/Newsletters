@@ -171,5 +171,21 @@ class TestMergeFuzzyDedupe(unittest.TestCase):
         self.assertEqual(len(out), 2)
 
 
+    def test_a_town_library_feed_is_still_capped_after_the_merge(self):
+        # Oct 2026: merge_events dropped the feed's _library flag, so only
+        # Victoria's library (matched by URL and venue) was capped and Virginia
+        # Beach's library feed put ~10 programs a day on the site.
+        names = ["Baby Paint", "Teen Anime Chat", "Lego Builders", "Zine Making", "Mahjong", "Film Club"]
+        events = [{"date": "2026-05-04", "name": n, "time": f"{i}:00 AM",
+                   "venue": "Bayside Area Library", "address": "", "description": "a", "icons": [],
+                   "free": True, "url": f"https://vbpl.librarymarket.com/event/{i}", "_library": True}
+                  for i, n in enumerate(names, 1)]
+        events.append({"date": "2026-05-04", "name": "Baby Paint", "time": "1:00 AM", "venue": "Bayside Area Library",
+                       "address": "", "description": "a", "icons": [], "free": True, "url": "", "_source": "allevents"})
+        out = ce.cap_library_events(ce.merge_events(events))
+        self.assertEqual(len(out), 2)
+        self.assertFalse(any("_library" in e for e in out))   # never reaches candidates.json
+
+
 if __name__ == "__main__":
     unittest.main()
