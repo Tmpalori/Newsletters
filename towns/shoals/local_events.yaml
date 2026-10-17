@@ -195,6 +195,33 @@ recurring:
     end_date: "2026-11-28"
     # VERIFIED: Visit Florence live-music page 2026-10-15 (Sat Oct 17 Backdraft 6pm); UNA Roots of American Music Trail guide (live music Thu–Sat 6:30–10pm, Feb–Nov), checked 2026-10-15
 
+  - name: "The Real Pumpkin Patch at McGee Farm"
+    day: [saturday, sunday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: "Sat 10:00 AM – 6:00 PM, Sun 1:00 PM – 5:00 PM"
+    venue: "McGee Farm"
+    address: "8211 County Road 7, Florence"
+    description: "Pick your own pumpkins and fall mums on a family farm north of Florence. Also open weekdays 3 to 6 PM."
+    icons: [family, outdoors]
+    free: false
+    url: "https://mcgeefarm.com/"
+    # VERIFIED: mcgeefarm.com 2026-10-17 ("2026 season ... (9/26-10/31) Saturdays 10am-6pm, Sundays 1-5pm and Weekdays 3-6pm")
+
+  - name: "Walker Ranch Fall Festival"
+    day: [friday, saturday, sunday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: "Fri 3–7 PM, Sat 12–7 PM, Sun 2–7 PM"
+    venue: "Walker Ranch"
+    address: "16402 County Road 2, Florence"
+    description: "Corn maze, hayrides, petting zoo, inflatables, and pumpkin, sunflower and cotton fields. $15; 24 months and under free."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.theshoalsnow.com/events/walker-ranch-fall-festival-october-2026-3"
+    big: true
+    # VERIFIED: The Shoals Now event pages 2026-10-17 (weekends Oct 16-18, 23-25, 30-31; Fri 3-7, Sat 12-7, Sun 2-7; $15 GA)
+
 events:
 
   # ── October 2026 ────────────────────────────────────────────────────────
@@ -421,3 +448,49 @@ events:
     free: false
     url: "https://tennesseevalleyarts.org/events/taylorville/"
     # VERIFIED: tennesseevalleyarts.org event page 2026-10-15 (Jan 9 2027 at 2pm and 7pm)
+
+  - date: "2026-10-31"
+    name: "Howl-O-Ween Dash 5K & 1-Mile Fun Run"
+    time: "8:30 AM – 11:00 AM"
+    venue: "McFarland Park"
+    address: "650 McFarland Park Rd, Florence"
+    description: "Family- and pet-friendly Halloween morning 5K and fun run benefiting the Lauderdale and Colbert County animal shelters."
+    icons: [outdoors, family, community]
+    free: false
+    url: "https://www.visitflorenceal.com/events/howl-o-ween-dash-5k-1-mile-fun-run/"
+    # VERIFIED: visitflorenceal.com event page 2026-10-17 (Oct 31, 8:30-11:00 AM, McFarland Park)
+
+  - date: "2026-10-31"
+    name: "Día de los Muertos Educational Celebration"
+    time: "1:00 PM – 4:00 PM"
+    venue: "Southall House at Kennedy-Douglass Art Center"
+    address: "209 E Tuscaloosa St, Florence"
+    description: "Free drop-in family program: papel picado and paper flowers, ofrenda decorating, mini ofrenda workshop, Latine art and hot chocolate."
+    icons: [family, arts, free]
+    free: true
+    url: "https://www.theshoalsnow.com/events/da-de-los-muertos-educational-celebration"
+    # VERIFIED: The Shoals Now event page 2026-10-17 (Sat Oct 31 2026, 1-4 PM, free, Florence Arts & Museums)
+
+  - date: "2026-12-10"
+    name: "Florence Christmas Parade"
+    time: "7:00 PM"
+    venue: "Historic Downtown Florence"
+    address: "Court St to Tennessee St and Seminary St, ending at Wilson Park"
+    description: "The Shoals' big downtown Christmas parade, presented by Bank Independent. 2026 theme: A Storybook Christmas."
+    icons: [family, community, free]
+    free: true
+    url: "https://www.downtownflorencealliance.com/christmas-parade"
+    big: true
+    # VERIFIED: downtownflorencealliance.com/christmas-parade 2026-10-17 ("Thursday, December 10th @ 7pm"; route)
+
+  - date: "2026-12-12"
+    name: "It's A Dickens Christmas Y'all"
+    time: "10:00 AM – 4:00 PM"
+    venue: "Downtown Tuscumbia"
+    address: ""
+    description: "16th Dickens festival: falling snow, Santa, Dickens characters, Clydesdale carriage rides, petting zoo, cookie decorating and live street music."
+    icons: [family, community, shopping]
+    free: false
+    url: "https://www.theshoalsnow.com/events/16th-annual-its-a-dickens-christmas-yall"
+    big: true
+    # VERIFIED: The Shoals Now event page 2026-10-17 (Saturday, December 12, 2026, 10 AM-4 PM, downtown Tuscumbia)

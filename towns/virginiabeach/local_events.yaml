@@ -143,6 +143,48 @@ recurring:
     end_date: "2026-10-24"
     # VERIFIED: CBDA events page 2026-10-15 ("each Saturday night at sunset in September and October", Sept 12 - Oct 24, 2026, 7:00 PM)
 
+  - name: "Harvest Fair at Hunt Club Farm"
+    day: [saturday, sunday]
+    start_date: "2026-10-17"
+    end_date: "2026-11-01"
+    time: "10:00 AM – 6:00 PM"
+    venue: "Hunt Club Farm"
+    address: "2388 London Bridge Rd"
+    description: "Giant pumpkin patch, petting farm, treewalk adventure and unlimited farm-tour hayrides. $18; ages 2 and under free. Pony rides 11 AM to 5 PM."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.huntclubfarm.com/harvest-fair"
+    big: true
+    # VERIFIED: huntclubfarm.com/harvest-fair 2026-10-17 ("September 26-November 1, 2026"; 10AM-6PM; $18 incl. hayrides). Open daily; weekends listed here
+
+  - name: "Haunted Hunt Club Farm"
+    day: [friday, saturday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: ""
+    venue: "Hunt Club Farm"
+    address: "2388 London Bridge Rd"
+    description: "Four haunts in one night: Haunted Hayride, Death Alley, Forbidden Fields and Village of the Dead. $40 unlimited wristband."
+    icons: [outdoors]
+    free: false
+    url: "https://www.hauntedhuntclubfarm.com/dates-prices"
+    big: true
+    # VERIFIED: huntclubfarm.com 2026-10-17 ("Haunted Hunt Club September 25 – October 31") + hauntedhuntclubfarm.com/dates-prices ($40 GA). Fri/Sat listed here
+
+  - name: "Holiday Trail of Lights"
+    day: [friday, saturday]
+    start_date: "2026-11-20"
+    end_date: "2027-01-02"
+    time: "5:00 PM – 9:00 PM"
+    venue: "Virginia Aquarium & Marine Science Center"
+    address: "717 General Booth Blvd"
+    description: "The city's holiday light show, moved off the Boardwalk after 31 years: a new walk-through trail. Timed tickets in advance; adults from $19."
+    icons: [family, outdoors]
+    free: false
+    url: "https://beacheventsvb.com/event/holiday-trail-of-lights/"
+    big: true
+    # VERIFIED: beacheventsvb.com event page 2026-10-17 (Nov 20 2026 - Jan 3 2027; entry 5, 6, 7:30 PM; from $19/$12) + WTKR on the move. Runs nightly; Fri/Sat listed here
+
 events:
 
   # ── Monthly series ──────────────────────────────────────────────────────
@@ -889,3 +931,81 @@ events:
     icons: [arts, family]
     url: "https://virginiamoca.org/event/looking-to-learn-art-storytime-9/2027-01-31/"
     # VERIFIED: virginiamoca.org event page 2026-10-16
+
+  - date: "2026-11-21"
+    name: "Santa's Seaside Cinema"
+    time: "12:00 PM – 4:00 PM"
+    venue: "31st Street Park"
+    address: "31st St & Atlantic Ave"
+    description: "Free oceanfront holiday afternoon: Santa visits, live entertainment, cocoa bar, face painting and a holiday movie at 1:30 PM."
+    icons: [family, free, community]
+    free: true
+    url: "https://beacheventsvb.com/event/santas-seaside-cinema-event-one-2026/"
+    # VERIFIED: beacheventsvb.com 2026-10-17 (Nov 21, 12-4 PM, movie 1:30 PM, "FREE and open to the public")
+
+  - date: "2026-11-21"
+    name: "Fear No Ice"
+    time: "6:00 PM – 8:00 PM"
+    venue: "31st Street Park"
+    address: "31st St & Atlantic Ave"
+    description: "Live ice-sculpting show: artists carve giant sculptures with chainsaws and chisels. Two 30-minute shows at 6 and 7 PM. Free."
+    icons: [arts, family, free]
+    free: true
+    url: "https://beacheventsvb.com/event/fear-no-ice-2026/"
+    # VERIFIED: beacheventsvb.com 2026-10-17 (Sat Nov 21 6-8 PM; two shows 6 & 7 PM; free)
+
+  - date: "2026-11-26"
+    name: "Tidewater Striders Turkey Trot"
+    time: "8:15 AM – 10:45 AM"
+    venue: "Mt Trashmore YMCA"
+    address: "4441 South Blvd"
+    description: "Thanksgiving morning one-mile run at 8:15, certified 10K at 9:00 and a free toddler trot. Proceeds fund club scholarships."
+    icons: [outdoors, community, family]
+    free: false
+    url: "https://runsignup.com/Race/VA/VirginiaBeach/40thAnnualTurkeyTrot10KMile"
+    # VERIFIED: RunSignup race page 2026-10-17 (Nov 26 2026; mile 8:15 AM $20, 10K 9:00 AM $45, toddler trot free)
+
+  - date: "2026-11-28"
+    name: "Santa's Seaside Cinema"
+    time: "12:00 PM – 4:00 PM"
+    venue: "31st Street Park"
+    address: "31st St & Atlantic Ave"
+    description: "Free oceanfront holiday afternoon: Santa visits, live entertainment, cocoa bar, face painting and a holiday movie at 1:30 PM."
+    icons: [family, free, community]
+    free: true
+    url: "https://beacheventsvb.com/event/santas-seaside-cinema-event-two-2026/"
+    # VERIFIED: beacheventsvb.com 2026-10-17 (Nov 28, 12-4 PM)
+
+  - date: "2026-12-12"
+    name: "Santa's Seaside Cinema"
+    time: "12:00 PM – 4:00 PM"
+    venue: "31st Street Park"
+    address: "31st St & Atlantic Ave"
+    description: "Free oceanfront holiday afternoon: Santa visits, live entertainment, cocoa bar, face painting and a holiday movie at 1:30 PM."
+    icons: [family, free, community]
+    free: true
+    url: "https://beacheventsvb.com/event/santas-seaside-cinema-event-three-2026/"
+    # VERIFIED: beacheventsvb.com 2026-10-17 (Dec 12, 12-4 PM)
+
+  - date: "2026-12-19"
+    name: "Santa's Seaside Cinema"
+    time: "12:00 PM – 4:00 PM"
+    venue: "31st Street Park"
+    address: "31st St & Atlantic Ave"
+    description: "Free oceanfront holiday afternoon: Santa visits, live entertainment, cocoa bar, face painting and a holiday movie at 1:30 PM."
+    icons: [family, free, community]
+    free: true
+    url: "https://beacheventsvb.com/event/santas-seaside-cinema-event-four-2026/"
+    # VERIFIED: beacheventsvb.com 2026-10-17 (Dec 19, 12-4 PM)
+
+  - date: "2026-12-31"
+    name: "Last Night on the Town"
+    time: "7:00 PM – 12:30 AM"
+    venue: "Town Center of Virginia Beach"
+    address: "222 Central Park Ave"
+    description: "Virginia Beach's biggest New Year's Eve party, headlined by Big Boi with Rocky 7 and DJ A1. Free general admission; paid VIP available."
+    icons: [music, community, free]
+    free: true
+    url: "https://beacheventsvb.com/event/last-night-on-the-town-2026/"
+    big: true
+    # VERIFIED: beacheventsvb.com event page 2026-10-17 (Thu Dec 31 7 PM - 12:30 AM, free, Big Boi headlines)

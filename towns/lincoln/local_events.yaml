@@ -204,6 +204,49 @@ recurring:
     favorite: true
     # VERIFIED: lincolnzoo.org/events/zoo-lights.html 2026-10-15 (nightly Nov 20 - Dec 30 2026, 5:30-9:30 pm; closed Thanksgiving, Dec 24-25). Saturdays listed here; opening night is a one-time entry
 
+  - name: "Roca Berry Farm Fall Festival"
+    day: [saturday, sunday]
+    start_date: "2026-10-17"
+    end_date: "2026-11-01"
+    time: ""
+    venue: "Roca Berry Farm"
+    address: "16531 S 38th St, Roca"
+    description: "Southeast Nebraska's biggest pumpkin patch: 70+ attractions including pumpkin picking, hayrides, corn maze, train and carnival rides. Buy online to save."
+    icons: [family, outdoors, food]
+    free: false
+    url: "https://www.rocaberryfarm.com/pages/fall-festival-hours-and-pricing"
+    town: "Roca"
+    big: true
+    # VERIFIED: rocaberryfarm.com 2026-10-17 ("open now and everyday until Nov 1st"; weekend admission from $21.95 online). Address from visitnebraska.com. Open daily; weekends listed here
+
+  - name: "Roca Scary Farm"
+    day: [friday, saturday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: ""
+    venue: "Roca Berry Farm"
+    address: "16531 S 38th St, Roca"
+    description: "Three nighttime haunts (Haunted Hayride, Haunted Manor, Psycho Path) plus DJ, fireworks and carnival rides. Last entry 9:30 PM. ID required 16+."
+    icons: [outdoors, drinks]
+    free: false
+    url: "https://www.rocaberryfarm.com/pages/roca-scary-farm-hours-and-pricing"
+    town: "Roca"
+    # VERIFIED: rocaberryfarm.com Scary Farm hours page 2026-10-17 (Fri & Sat last entry 9:30 PM, select October Sundays last entry 8:30 PM; October gate $35.95, online $30.95)
+
+  - name: "Boo at the Zoo"
+    day: [friday, saturday, sunday, monday, tuesday]
+    start_date: "2026-10-23"
+    end_date: "2026-10-27"
+    time: "5:30 PM – 8:00 PM"
+    venue: "Lincoln Children's Zoo"
+    address: "1222 S 27th St"
+    description: "Lincoln's largest trick-or-treat event: candy booths through the zoo. Sunday Oct 25 is daytime only (12:30-3 PM). Advance tickets only; free shuttles."
+    icons: [family]
+    free: false
+    url: "https://www.lincolnzoo.org/events/boo-at-the-zoo.html"
+    big: true
+    # VERIFIED: lincolnzoo.org Boo at the Zoo page 2026-10-17 (evenings Oct 23-27 5:30-8 PM; Sun Oct 25 daytime only 12:30-3 PM; no gate sales)
+
 
 # ─── ONE-TIME EVENTS ─────────────────────────────────────────────────────────
 # Dated events in order.
@@ -811,3 +854,71 @@ events:
     free: false
     url: "https://huskers.com/sports/womens-basketball/schedule"
     # VERIFIED: huskers.com women's basketball schedule + pinnaclebankarena.com 2026-10-15
+
+  - date: "2026-11-15"
+    name: "Lincoln Veterans Parade"
+    time: "2:00 PM"
+    venue: "K Street"
+    address: ""
+    description: "Annual parade honoring veterans and military families, with an opening ceremony at the State Capitol."
+    icons: [community, free]
+    free: true
+    url: "https://lincolnveteransparade.org/"
+    big: true
+    # VERIFIED: lincolnveteransparade.org 2026-10-17 ("Nov 15th, 2026 - 2 PM"). 2026 route not posted (2025: K St from S 21st to S 14th)
+
+  - date: "2026-11-26"
+    name: "YMCA of Lincoln Turkey Trot"
+    time: "7:45 AM – 9:15 AM"
+    venue: "Railyard"
+    address: "350 Canopy St"
+    description: "Thanksgiving morning run downtown: free Tot Trot 7:45, 1-mile fun run/walk 8:00, 5K 8:30. No race-day registration."
+    icons: [outdoors, family, community]
+    free: false
+    url: "https://runsignup.com/Race/NE/Lincoln/LincolnYMCATurkeyTrot"
+    # VERIFIED: RunSignup race page 2026-10-17 (Nov 26 2026; Tot Trot 7:45, mile 8:00 $22, 5K 8:30 $37)
+
+  - date: "2026-12-03"
+    name: "A Magical Cirque Christmas"
+    time: "7:30 PM"
+    venue: "Lied Center for Performing Arts"
+    address: "301 N 12th St"
+    description: "Acrobats and stunt performers set to holiday music. A family-friendly holiday show."
+    icons: [family, arts]
+    free: false
+    url: "https://www.liedcenter.org/event/magical-cirque-christmas"
+    # VERIFIED: liedcenter.org event page 2026-10-17 (Thursday, December 3, 2026, 7:30 PM)
+
+  - date: "2026-12-04"
+    name: "The Swingles: Together for the Holidays"
+    time: "7:30 PM"
+    venue: "Lied Center for Performing Arts"
+    address: "301 N 12th St"
+    description: "Five-time Grammy-winning British a cappella group sings classic carols and holiday favorites."
+    icons: [music, arts]
+    free: false
+    url: "https://www.liedcenter.org/event/swingles-together-holidays"
+    # VERIFIED: liedcenter.org event page 2026-10-17 (Friday, December 4, 2026, 7:30 PM)
+
+  - date: "2026-12-12"
+    name: "The Nutcracker: Lincoln Midwest Ballet Company"
+    time: "2:00 PM & 7:00 PM"
+    venue: "Lied Center for Performing Arts"
+    address: "301 N 12th St"
+    description: "Lincoln's hometown Nutcracker: nearly 200 local young dancers with a live orchestra."
+    icons: [arts, family]
+    free: false
+    url: "https://www.lincolnmidwestballet.org/"
+    big: true
+    # VERIFIED: lincolnmidwestballet.org 2026-10-17 (Sat Dec 12, 2pm and 7pm; Sun Dec 13, 2pm)
+
+  - date: "2026-12-13"
+    name: "The Nutcracker: Lincoln Midwest Ballet Company"
+    time: "2:00 PM"
+    venue: "Lied Center for Performing Arts"
+    address: "301 N 12th St"
+    description: "Final performance of Lincoln's hometown Nutcracker: nearly 200 local young dancers with a live orchestra."
+    icons: [arts, family]
+    free: false
+    url: "https://www.lincolnmidwestballet.org/"
+    # VERIFIED: lincolnmidwestballet.org 2026-10-17 (Sunday, December 13, 2pm)
