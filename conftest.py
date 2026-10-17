@@ -12,13 +12,13 @@ import sys
 import pytest
 
 _COLLECTOR_GLOBALS = ("_VENUE_DIR", "_APIFY_LIMIT_TRIPPED", "_OPENAI_DEAD",
-                      "_WINDOW_START", "_WINDOW_END", "_SOURCE_NOTES")
+                      "_WINDOW_START", "_WINDOW_END", "_SOURCE_NOTES", "_QUIET_PAGES")
 
 
 @pytest.fixture(autouse=True)
 def _restore_collector_globals():
     ce = sys.modules.get("collect_events")
-    saved = {k: copy.copy(getattr(ce, k)) for k in _COLLECTOR_GLOBALS if hasattr(ce, k)} if ce else {}
+    saved = {k: copy.deepcopy(getattr(ce, k)) for k in _COLLECTOR_GLOBALS if hasattr(ce, k)} if ce else {}
     yield
     for k, v in saved.items():
         setattr(ce, k, v)

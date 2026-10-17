@@ -132,8 +132,14 @@ describe('POST /api/hq/reply', () => {
   const contact = async () => {
     await fetch(base + '/contact', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ topic: 'general', name: 'Pat Lee', email: 'pat@acme.example', business: 'Acme', message: 'Hi there' }).toString() });
-    await settle();
-    return (await store.listInboxEvents(0)).find(e => /Website message/.test(e.title));
+    // The inbox event is written after the response; wait for it (up to 2s)
+    // rather than a fixed 50ms, which a busy CI runner can miss.
+    for (let i = 0; i < 40; i++) {
+      const evt = (await store.listInboxEvents(0)).find(e => /Website message/.test(e.title));
+      if (evt) return evt;
+      await settle();
+    }
+    return undefined;
   };
 
   it('sends an approved reply as news@ to whoever wrote in, once', async () => {

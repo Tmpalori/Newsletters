@@ -1651,3 +1651,8 @@ details.more.card[open] > summary { margin-bottom: 0.6rem; }
 #tab-picker .filter input, #tab-picker .filter select { width: 100%; min-width: 0; max-width: 100%; }
 #tab-picker .filter-actions { display: flex; gap: 0.4rem; white-space: nowrap; }
 @media (max-width: 760px) { #tab-picker .filters { grid-template-columns: 1fr 1fr; } }
+
+/* Sources: Apify spend near the limit, and quiet Facebook pages. */
+.sources-summary__item.is-warn .sources-summary__value { color: #B42318; font-weight: 800; }
+.sources-quiet { margin: 12px 0 0; font-size: 0.9rem; line-height: 1.5; }
+.sources-quiet a { font-weight: 700; }

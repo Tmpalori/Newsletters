@@ -322,6 +322,7 @@ def test_fb_posts_invalid_env_disables_cap(monkeypatch):
     for bad in ("not-a-number", "", "0", "-2"):
         captured_urls = []
         monkeypatch.setenv("FB_POSTS_MAX_VENUES", bad)
+        ce._QUIET_PAGES.clear()   # each pass is its own run; empty pages would turn quiet
 
         def fake_post(url, **kwargs):
             resp = MagicMock()
