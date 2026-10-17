@@ -162,6 +162,7 @@ f.addEventListener('submit',function(e){e.preventDefault();var b=f.querySelector
 <script src="/pixel.js" defer></script>
 <script src="/track.js" defer></script>
 <script src="/turnstile.js" defer></script>
+<script src="/emailcheck.js" defer></script>
 <script src="/scrollfade.js" defer></script>
 </body>
 </html>

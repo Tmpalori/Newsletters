@@ -51,6 +51,7 @@
  */
 
 import { town } from './town.js';
+import { impossibleEmailError } from './emailTypos.js';
 import { hqPaths, viaHq } from './hqAdmin.js';
 import crypto from 'node:crypto';
 import { emailKey } from './db.js';
@@ -1214,6 +1215,13 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (!email) {
       console.warn('[newsletter] signup rejected: invalid email');
       return res.status(400).json({ ok: false, message: 'Enter a valid email address.' });
+    }
+    // An ending no address can have (...@gmail.comm): the confirmation
+    // would bounce, so say what to fix (server/emailTypos.js).
+    const typo = impossibleEmailError(email);
+    if (typo) {
+      console.warn('[newsletter] signup rejected: impossible email ending');
+      return res.status(400).json({ ok: false, message: typo });
     }
     // The bot check. A token that fails is a 400. No token at all usually
     // means the check never loaded (the Facebook/Instagram in-app browser,
