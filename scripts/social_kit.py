@@ -291,20 +291,19 @@ def sponsor_lines(sponsor, start, platform):
 def thanks_lines(partners, today):
     """The monthly Facebook thank-you to the town's category partners
     (server/partners.js), promised on /advertise as "a monthly Facebook
-    thank-you with your link": in the kits built on the 1st of the month, so
-    the month's first post carries it. Each link goes through the site's
-    click-counted /go/p/<id>?src=social (the partner's monthly report counts
-    it). Facebook only: no town posts to Instagram yet, and nothing is
-    promised there. Never a price."""
+    thank-you naming your business": in the kits built on the 1st of the
+    month, so the month's first post carries it. One line naming them and
+    one link to the town's /partners page (a link per partner cluttered
+    the post); each partner's own link there is click-counted for its
+    report. Facebook only: no town posts to Instagram yet. Never a price."""
     if not partners or not today or today.day != 1:
         return []
-    lines = [f"🙏 Thank you to our local partners for keeping {TOWN['site_name']} free:"]
-    for p in partners:
-        if not isinstance(p, dict) or not p.get("name") or not p.get("id"):
-            continue
-        label = f" ({p['label']})" if p.get("label") else ""
-        lines.append(f"• {p['name']}{label}: {SITE}/go/p/{p['id']}?src=social")
-    return lines + [""] if len(lines) > 1 else []
+    names = [p["name"] for p in partners if isinstance(p, dict) and p.get("name") and p.get("id")]
+    if not names:
+        return []
+    listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return [f"🙏 Thanks to our local partners for keeping {TOWN['site_name']} free: {listed}. "
+            f"Meet them 👉 {SITE}/partners", ""]
 
 
 def captions(groups, start, end, kind, handles=None, sponsor=None, partners=None, today=None):
