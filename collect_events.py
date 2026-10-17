@@ -2082,7 +2082,7 @@ For each event you receive, return:
   - icons: 1–3 strings from this exact set: food, music, family, drinks, arts, shopping, outdoors, community, free. Order by relevance (most representative first). Use "free" only when the event is genuinely free to attend. Only use an icon the name or description actually supports: never add music unless it mentions music, a band, a DJ, a concert, karaoke or an open mic. When the input says little, use fewer icons rather than guessing.
   - free: boolean, true if the event is free to attend.
   - appeal: integer 1–5. How many people in <<CITY>> would want to hear about this, and how special it is. 5: a big one-time draw for the whole town (festival, parade, big concert, fair, holiday lighting, rodeo). 4: a notable one-time event with broad appeal (touring act, community celebration, big fundraiser, family carnival). 3: an ordinary good outing (live music at a bar, trivia, a market, a kids' event). 2: routine or narrow (weekly bingo, a club or group meeting, a class or workshop for a few people, a store's kids craft). 1: very niche or barely an event (a support group, an orientation, a promo or deal).
-  - keep: boolean. false when this is NOT a real event someone can attend at a set time and place, for example a job or internship posting, "now booking" field trips or parties, a menu or daily special with nothing happening, a "National ___ Day" post, a giveaway, a closure or holiday-hours notice, or registration for something that isn't on this date. When unsure, keep: true.
+  - keep: boolean. false when this is NOT a real event someone can attend at a set time and place, for example a job or internship posting, "now booking" field trips or parties, a menu or daily special with nothing happening, a "National ___ Day" post, a giveaway, a closure or holiday-hours notice, registration for something that isn't on this date, an ad for a strip club or male revue, a store's or bank's sale or customer-appreciation promo, a real-estate open house, something only for a company's or school's own staff, members or students, a rehearsal, or a professional training or certification course. When unsure, keep: true.
 
 Icon guidance:
   - food: meals, food trucks, tastings, farmers markets, BBQ, restaurants
@@ -2579,7 +2579,8 @@ def _street_key(addr):
     return " ".join(words[:2])
 
 
-_NAME_STOP = {"the", "a", "an", "at", "in", "of", "and", "with", "for", "on", "annual", "presents"}
+_NAME_STOP = {"the", "a", "an", "at", "in", "of", "and", "with", "for", "on", "annual", "presents",
+              "w", "ft", "feat", "featuring"}   # "w/ Them Dirty Roses", "ft. Lightwatch"
 _MONTHS = r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*"
 
 
@@ -2616,7 +2617,9 @@ def _same_place(a, b):
         # A street-only listing has no venue name; its address still tells.
         ka, kb = _street_key(a.get("address")), _street_key(b.get("address"))
         return not (ka and kb) or ka == kb
-    if va in vb or vb in va:
+    # "RogueX" and "Rogue X" are one place.
+    ca, cb = va.replace(" ", ""), vb.replace(" ", "")
+    if ca in cb or cb in ca:
         return True
     ka, kb = _street_key(a.get("address") or a.get("venue")), _street_key(b.get("address") or b.get("venue"))
     return bool(ka) and ka == kb
@@ -2713,13 +2716,22 @@ def is_same_event(a, b):
     sa, sb = " ".join(ta), " ".join(tb)
     if sa == sb or SequenceMatcher(None, sa, sb).ratio() >= 0.85:
         # A vague festival venue ("Downtown Victoria") still matches below.
-        return _near_place(a, b) or _guessed_place_same_start(a, b) or _same_festival(a, b)
+        return (_near_place(a, b) or _guessed_place_same_start(a, b) or _same_festival(a, b)
+                or (sa == sb and _specific_same_name(a, b, ta)))
     # One name contains the other ("6th Realm Night Market" vs "6th Realm
     # Night Market Street spots"): only a match at the same place, so
     # "Tejas Fest" doesn't swallow "Chihuahua Races at Tejas Fest".
     small, big = (set(ta), set(tb)) if len(ta) <= len(tb) else (set(tb), set(ta))
     if len(small) >= 2 and small <= big and _same_place(a, b):
         return True
+    # Four or more words all in the other name, at the same start minute, is
+    # one event even when the places are worded apart ("Shoals After Dark ft.
+    # Lightwatch" at "Mobile Street Plaza" and "Shoals After Dark w/ Them
+    # Dirty Roses, Lightwatch and Bluewire" at 118 E Mobile St, both 8 PM).
+    if len(small) >= 4 and small <= big:
+        sa_min = _start_minutes(a.get("time"))
+        if sa_min is not None and sa_min == _start_minutes(b.get("time")):
+            return True
     # Same name once the venue, weekday and city are taken out ("Brunch" vs
     # "Sunday Brunch at J Welch Farms"), both naming the same place.
     va, vb = (a.get("venue") or "").strip(), (b.get("venue") or "").strip()
@@ -2767,7 +2779,72 @@ def is_same_event(a, b):
     # "Victoria Film Society presents 'Friday the 13th'", 7 PM at Moonshine).
     if _same_slot(a, b):
         return True
+    # A stand-in "Live Music at Swampers" (a weekly entry in
+    # local_events.yaml) and the act a post names there that night
+    # ("Malcolm Singleton" at Swampers Bar & Grille) are one listing; the
+    # act's name wins (_pick_name).
+    if _music_placeholder(a) != _music_placeholder(b):
+        act = b if _music_placeholder(a) else a
+        if _named_act(act) and (a.get("venue") or "").strip() and (b.get("venue") or "").strip() and _same_place(a, b):
+            sa_min, sb_min = _start_minutes(a.get("time")), _start_minutes(b.get("time"))
+            if sa_min is None or sb_min is None or abs(sa_min - sb_min) <= 90:
+                return True
+    # Same street address, and the shorter name's distinctive words are
+    # (nearly) all in the longer one ("40th Alabama Renaissance Faire" and
+    # "Alabama Renaissance Faire (Florence, AL) Free Admission", both at 217
+    # E Tuscaloosa St, Shoals Oct 2026). Not a doubleheader ("Husker Women's
+    # Basketball vs. San Jose State" and "Husker Men's Basketball vs. Le
+    # Moyne" at the arena) and not two different start times.
+    ka, kb = _street_key(a.get("address")), _street_key(b.get("address"))
+    if ka and ka == kb and re.match(r"\d+ \S", ka):
+        def distinct(tokens):
+            return {w for w in tokens if len(w) >= 4 and not _qualifier_token(w)
+                    and w not in _GENERIC_CORE_TOKENS and w not in _CITY_TOKENS}
+        # Words of the venue's name don't count: "Pheasant Fields Farm
+        # Harvest Festival" and "Fright After Dark at Pheasant Fields Farm"
+        # are two events at one farm.
+        da, db = distinct(ra), distinct(rb)
+        small = min(da, db, key=len)
+        sa_min, sb_min = _start_minutes(a.get("time")), _start_minutes(b.get("time"))
+        if (len(small) >= 2 and len(da & db) >= 0.75 * len(small)
+                and (sa_min is None or sb_min is None or sa_min == sb_min)):
+            return True
     return False
+
+
+_PLACEHOLDER_MUSIC_TOKENS = {"live", "music", "band", "bands", "acoustic"}
+_NOT_AN_ACT_RE = re.compile(r"\b(open mic|karaoke|trivia|bingo|jam|dj night|music bingo|line danc)", re.IGNORECASE)
+
+
+def _music_placeholder(e):
+    """"Live Music at Swampers", "Friday Live Music": says there's a band,
+    not which one."""
+    toks = set(_name_tokens(e.get("name")))
+    core = toks - set(_name_tokens(e.get("venue"))) - _WEEKDAY_TOKENS - _NIGHT_TOKENS - _CITY_TOKENS
+    return bool(toks & {"music", "band", "bands"}) and core <= _PLACEHOLDER_MUSIC_TOKENS
+
+
+def _named_act(e):
+    """A music listing that names who's playing."""
+    name = e.get("name") or ""
+    if "music" not in (e.get("icons") or []) or _NOT_AN_ACT_RE.search(name):
+        return False
+    core = set(_name_tokens(name)) - set(_name_tokens(e.get("venue"))) - _WEEKDAY_TOKENS - _NIGHT_TOKENS
+    return bool(core) and not core <= _GENERIC_CORE_TOKENS | _PLACEHOLDER_MUSIC_TOKENS
+
+
+def _specific_same_name(a, b, tokens):
+    """A long, specific name listed twice the same day is one event even
+    when the sources disagree on the place ("Jack Karnes Memorial Golf
+    Tournament" at the course and at the organizer's page). Not two street
+    addresses that disagree, and not a library feed: one program can run at
+    several branches the same day."""
+    if len(tokens) < 4 or set(tokens) <= _GENERIC_CORE_TOKENS | _WEEKDAY_TOKENS | _NIGHT_TOKENS:
+        return False
+    if a.get("_library") or b.get("_library"):
+        return False
+    ka, kb = _street_key(a.get("address")), _street_key(b.get("address"))
+    return not (ka and kb and ka != kb)
 
 
 # Words that only say how often or when ("Midweek Market", "Weekly
@@ -2944,7 +3021,7 @@ SOURCE_RANK = {
 # where the event happens, so a real venue from another source wins.
 # Exact organizer words only: "Public Library / Community Programs" is a
 # place, so a bare "program" match is wrong.
-_NON_PLACE_CATEGORY = re.compile(r"aggregator|promoter|\bfestival\b|\bmedia\b|events hub|online", re.IGNORECASE)
+_NON_PLACE_CATEGORY = re.compile(r"aggregator|promoter|several sites|\bfestival\b|\bmedia\b|events hub|online", re.IGNORECASE)
 _NON_PLACE_NAMES = set()
 
 
@@ -2982,6 +3059,9 @@ def _pick_name(a, b):
         return a
     if not na:
         return b
+    # The act beats a stand-in "Live Music at Swampers".
+    if _music_placeholder(a) != _music_placeholder(b):
+        return b if _music_placeholder(a) else a
     # A name that's cut off loses to the whole one.
     for x, y in ((a, b), (b, a)):
         if _cut_short(x.get("name"), y.get("name")) or (
@@ -3059,6 +3139,11 @@ def _merge_pair(old, new):
                                       or (other.get("_venue_guess") and _same_place(merged, other)))
     name_from = _pick_name(merged, other)
     merged["name"], merged["_name_from"] = name_from.get("name"), _name_source(name_from)
+    # The stand-in's generic time and blurb give way to the act's.
+    if _music_placeholder(base) and not _music_placeholder(other):
+        for k in ("time", "description", "url"):
+            if other.get(k):
+                merged[k] = other[k]
     if _same_festival(old, new):
         _tidy_festival(merged, other)
     merged["icons"] = list(dict.fromkeys((base.get("icons") or []) + (other.get("icons") or [])))[:4]
@@ -3138,6 +3223,16 @@ _CHURCH_HOSTED_RE = re.compile(
     r"|assembly of god|our lady|synagogue|mosque)\b",
     re.IGNORECASE)
 # Members/students only: club meetings, orientations, recruiting visits.
+# Listings that aren't a public outing (Oct 2026 audit of the new towns):
+# male-revue ads, a store's or bank's "customer appreciation" day, a house
+# for sale, staff-only outings, rehearsals and certification courses.
+_NOT_PUBLIC_RE = re.compile(
+    r"\b(male (?:strippers?|revue)|strippers?|strip clubs?|exotic dancers?"
+    r"|customer appreciation"
+    r"|for (?:faculty|staff|employees)|faculty (?:&|and) staff|(?:staff|employees?) only"
+    r"|certification (?:training|course|class|exam|prep)|in-person training)\b"
+    r"|\bopen house\b\W*\d+\s+\w"
+    r"|(?<!dress )(?<!open )\brehearsals?\b", re.IGNORECASE)
 _MEMBERS_ONLY_RE = re.compile(
     r"\b(board meeting|members? meeting|chapter meeting|(?:monthly|regular|general) meeting|meeting of the"
     r"|orientation|transfer (?:day|tuesdays?|event)|admissions|registration deadline|advising"
@@ -3185,6 +3280,8 @@ def non_event_reason(ev):
         return "church event"
     if _MEMBERS_ONLY_RE.search(name):
         return "members or students only"
+    if _NOT_PUBLIC_RE.search(name):
+        return "promo or not public"
     # "National Drink Beer Day" with no time is a social post, not a party.
     if _NATIONAL_DAY_RE.search(name) and not (ev.get("time") or "").strip():
         return "awareness day"
