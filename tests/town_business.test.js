@@ -32,7 +32,7 @@ describe('Victoria', () => {
   it('keeps today’s numbers', () => {
     useTown(VICTORIA);
     expect(AD_PACKAGES.map(p => [p.key, p.amount, p.price])).toEqual([
-      ['weekly', 14900, '$149 / week'], ['featured', 2900, '$29 Mon–Thu · $39 Fri–Sun']]);
+      ['weekly', 14900, '$149 / week'], ['featured', 2900, '$29 Mon–Thu · $39 Fri–Sun'], ['category', 9900, '$99 / month']]);
     expect(AD_PACKAGES[1].limit).toBe('Only 3 a day Mon–Thu and 4 a day Fri–Sun, so book early.');
     expect({ ...VICS_PICK }).toEqual({ weekdayAmount: 2900, weekendAmount: 3900, weekdayCap: 3, weekendCap: 4 });
     expect([{ ...DAY_MAX }, { ...PICKS }, { ...PICKS_MIN }]).toEqual([{ weekday: 15, weekend: 20 }, { weekday: 2, weekend: 3 }, { weekday: 1, weekend: 2 }]);
@@ -45,7 +45,7 @@ describe('another town', () => {
   it('charges and shows its own prices', () => {
     useTown(townConfig({}, { town: BAY }));
     expect(AD_PACKAGES.map(p => [p.key, p.amount, p.price])).toEqual([
-      ['weekly', 20000, '$200 / week'], ['featured', 2950, '$29.50 Mon–Thu · $59 Fri–Sun']]);
+      ['weekly', 20000, '$200 / week'], ['featured', 2950, '$29.50 Mon–Thu · $59 Fri–Sun'], ['category', 9900, '$99 / month']]);
     expect(AD_PACKAGES[1].limit).toBe('Only 2 a day Mon–Thu and 3 a day Fri–Sun, so book early.');
     expect(pickPackage('2026-10-07').amount).toBe(2950);   // Wednesday
     expect(pickPackage('2026-10-10')).toMatchObject({ key: 'featured_weekend', amount: 5900 });

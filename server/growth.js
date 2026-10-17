@@ -33,7 +33,9 @@ export const REVENUE_GOAL_CENTS = 1000000;
 const ISSUE_WINDOW_DAYS = 7;
 // Orders whose money stays with us (sponsors.js statuses). Not 'disputed':
 // Stripe holds that money until the dispute closes (won restores the order).
-const KEPT = new Set(['paid', 'active', 'hidden', 'cancelled']);
+// pending_approval, past_due and canceled: a category partner's paid months
+// (a rejected one is refunded, so it isn't here).
+const KEPT = new Set(['paid', 'active', 'hidden', 'cancelled', 'pending_approval', 'past_due', 'canceled']);
 
 const weight = r => (Number(r.n) > 0 ? Number(r.n) : 1);
 // A bad timestamp counts as no date rather than breaking the report.
@@ -183,7 +185,8 @@ export function categoryStats(rows, events, { start }) {
 }
 
 // This month's sponsor money (Central month): orders paid this month, plus
-// monthly partners still active from an earlier month (they renew).
+// monthly partners (venue and category) still active from an earlier month
+// (they renew).
 export function monthRevenue(orders, today) {
   const month = today.slice(0, 7);
   let cents = 0, count = 0, recurring = 0;
@@ -194,7 +197,8 @@ export function monthRevenue(orders, today) {
     // A partial refund (charge.refunded with some money kept) counts only
     // what was kept. A partner's later months count the plan price.
     if (paid && paid.slice(0, 7) === month) { cents += Math.max(0, (Number(o.amount) || 0) - (Number(o.refunded_cents) || 0)); count++; }
-    else if (o.kind === 'partner' && o.status === 'active' && paid < month) { recurring += Number(o.amount) || 0; count++; }
+    // Category partners (server/partners.js) renew like the old venue partners.
+    else if ((o.kind === 'partner' || o.kind === 'category') && o.status === 'active' && paid < month) { recurring += Number(o.amount) || 0; count++; }
   }
   return { month, cents: cents + recurring, orders: count, recurring_cents: recurring };
 }

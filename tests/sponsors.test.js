@@ -517,7 +517,7 @@ describe('Vic’s Pick: price by day, daily limits, preview', () => {
     expect(html).toContain('$29 Mon–Thu · $39 Fri–Sun');
     expect(html).toContain('Only 3 a day Mon–Thu and 4 a day Fri–Sun');
     expect(html).not.toContain('Where it shows:'); // the checklist and the "Where your ad goes" diagram say it
-    expect((html.match(/ad-package__preview/g) || []).length).toBe(2);
+    expect((html.match(/ad-package__preview/g) || []).length).toBe(3);
     expect(html).toContain('Book your sponsor week →');
     expect(html).toContain('Give my event the Vic’s Pick badge →');
     expect(html).toContain('See a live preview before you pay');
@@ -1114,8 +1114,8 @@ describe('selling it on /advertise', () => {
     const html = await (await fetch(baseUrl + '/advertise')).text();
     expect(html).toContain('class="ad-stats"');
     expect(html).not.toContain('newsletters a week');   // a small number on a sales page undersells
-    expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(2);
-    expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(2);
+    expect(html.match(/<p class="ad-preview-label">On the site<\/p>/g)).toHaveLength(3);
+    expect(html.match(/<p class="ad-preview-label">In the newsletter<\/p>/g)).toHaveLength(3);
     expect(html).toContain('THIS WEEK\'S SPONSOR');
     expect(html.match(/src="\/sample-logo.svg"/g)).toHaveLength(3); // the example logo: the diagram, the site and the email
     expect(html).toContain('★ VIC’S PICK');
@@ -1175,7 +1175,7 @@ describe('weekly sponsor on Facebook (and Instagram once a town posts there)', (
   it('/advertise sells it as a checklist of perks', async () => {
     await startApp();
     const html = await (await fetch(baseUrl + '/advertise')).text();
-    expect(html.match(/<p class="ad-checklist-title">What you get<\/p>/g)).toHaveLength(2);
+    expect(html.match(/<p class="ad-checklist-title">What you get<\/p>/g)).toHaveLength(3);
     for (const perk of ['Top of the newsletter', 'Every page of thevic361.com', 'Shout-out on Facebook',
       'Your results report', 'Featured first on Facebook', 'Starred in the newsletter']) {
       expect(html).toContain(`<strong>${perk}</strong>`);

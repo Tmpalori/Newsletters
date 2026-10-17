@@ -15,6 +15,8 @@
 import crypto from 'node:crypto';
 import { dailyGrowth, sumDays, issueReport, monthRevenue, goals } from './growth.js';
 import { localDateStr, addDays, currentWeek } from './seo.js';
+import { partnerSummary } from './partners.js';
+import { HOLD_MS } from './sponsors.js';
 
 const CACHE_MS = 60 * 1000;
 // A summary with failed parts (database down, say) is kept only briefly:
@@ -156,6 +158,10 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {})
     },
     sponsors: bad('revenue') ? null : sponsorCounts(orders, today),
+    // Category partners (server/partners.js): live, waiting for the owner's
+    // OK, the open categories and what the live ones bill a month (amounts
+    // are fine here: HQ shows them to the owner only).
+    partners: bad('revenue') ? null : partnerSummary(orders, o => o.status === 'pending' && now.getTime() - Date.parse(o.created_at) < HOLD_MS),
     submissions_waiting: s.status.pending_submissions ?? null,
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,

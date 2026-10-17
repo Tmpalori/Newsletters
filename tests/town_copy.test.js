@@ -132,7 +132,7 @@ describe('a whole second-town site', () => {
     const pages = events.map(e => e.page).filter(Boolean).slice(0, 4);
     const venues = await (await fetch(base + '/venues')).text();
     const venue = venues.match(/href="(\/venues\/[a-z0-9-]+)"/)[1];
-    const paths = ['/about', '/privacy', '/terms', '/advertising-terms', '/accessibility', '/advertise', '/advertise/checkout?package=weekly', '/advertise/checkout?package=featured',
+    const paths = ['/about', '/privacy', '/terms', '/advertising-terms', '/accessibility', '/advertise', '/advertise/checkout?package=weekly', '/advertise/checkout?package=featured', '/advertise/checkout?package=category', '/partners',
       '/subscribe', '/referral-rules', '/contact', '/venues', venue, '/no-such-page', '/llms.txt', '/sitemap.xml',
       ...pages, ...pages.map(p => p + '.ics'), ...HUB_PAGES.map(p => p.path), ...townSeasons().map(s => s.path)];
     for (const p of paths) {

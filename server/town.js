@@ -61,7 +61,28 @@ export const VICTORIA = Object.freeze({
     drawingAmount: 25,                          // monthly referral drawing, dollars
     rewardCards: [{ n: 5, amount: 10 }, { n: 10, amount: 25 }],   // referral gift cards, dollars
     showSubscribersFrom: 100,                   // say "N+ subscribers" only from here
-    showReadersFrom: 500                        // say "N readers this week" only from here
+    showReadersFrom: 500,                       // say "N readers this week" only from here
+    // Category partners (server/partners.js): one local business per
+    // category, monthly. The price is shown only on /advertise and its
+    // checkout; everything else names the category, never the money.
+    partnerAmount: 9900,
+    // id (stored on orders and in Stripe metadata: never rename one that
+    // has sold), label (may hold "&": always escaped when rendered), emoji, `owner` (the invite bar's "Own a …?") and the
+    // category pages it appears on (server/seo.js HUB_PAGES paths; a path a
+    // town doesn't have is skipped). A category with no page still shows in
+    // the newsletter and on /partners.
+    partnerCategories: Object.freeze([
+      Object.freeze({ id: 'food', label: 'Food & drink', emoji: '🍽️', owner: 'a restaurant or bar', pages: Object.freeze(['/food-and-drink', '/date-night']) }),
+      Object.freeze({ id: 'realestate', label: 'Real estate', emoji: '🏠', owner: 'a real estate business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'dental', label: 'Dental', emoji: '🦷', owner: 'a dental practice', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'home', label: 'Home services', emoji: '🔨', owner: 'a home services business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'pets', label: 'Pets', emoji: '🐾', owner: 'a pet business', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'auto', label: 'Auto', emoji: '🚗', owner: 'an auto shop', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'fitness', label: 'Fitness', emoji: '💪', owner: 'a gym or studio', pages: Object.freeze(['/outdoor-events']) }),
+      Object.freeze({ id: 'family', label: 'Family & kids', emoji: '👨‍👩‍👧', owner: 'a business for families', pages: Object.freeze(['/kids-and-family', '/this-weekend-with-kids']) }),
+      Object.freeze({ id: 'insurance', label: 'Insurance & finance', emoji: '🛡️', owner: 'an insurance or finance office', pages: Object.freeze([]) }),
+      Object.freeze({ id: 'legal', label: 'Legal', emoji: '⚖️', owner: 'a law office', pages: Object.freeze([]) })
+    ])
   }),
   // Job start times that differ from server/scheduler.js JOBS (Central-style
   // "HH:MM" in the town's timezone). Victoria runs the defaults.
@@ -165,6 +186,15 @@ function check(t) {
   if (![b.pickCap, b.dayMax, b.picks, b.picksMin].every(v => pair(v, count))) throw new Error(`TOWN=${t.id}: business caps need weekday and weekend counts`);
   if (!Number.isInteger(b.drawingAmount) || !Array.isArray(b.rewardCards) || !Number.isInteger(b.showSubscribersFrom) || !Number.isInteger(b.showReadersFrom)) {
     throw new Error(`TOWN=${t.id}: business needs drawingAmount, rewardCards, showSubscribersFrom and showReadersFrom`);
+  }
+  if (!cents(b.partnerAmount)) throw new Error(`TOWN=${t.id}: business.partnerAmount must be whole cents, at least 100`);
+  const cats = b.partnerCategories;
+  if (!Array.isArray(cats) || !cats.length || cats.length > 20 ||
+      new Set(cats.map(c => c && c.id)).size !== cats.length ||
+      !cats.every(c => c && /^[a-z0-9]{2,20}$/.test(String(c.id)) && /^[^<>"]+$/.test(String(c.label || '')) &&
+        /^[^<>"]+$/.test(String(c.owner || '')) && typeof c.emoji === 'string' && c.emoji.length <= 16 && !/[<>&"]/.test(c.emoji) &&
+        Array.isArray(c.pages) && c.pages.every(pg => /^\/[a-z0-9-]+$/.test(String(pg))))) {
+    throw new Error(`TOWN=${t.id}: business.partnerCategories needs 1 to 20 categories, each with a unique id, label, emoji, owner and pages`);
   }
   if (t.instagram && !/^[A-Za-z0-9._]{1,30}$/.test(t.instagram)) throw new Error(`TOWN=${t.id}: instagram must be a handle (letters, digits, . or _)`);
   checkPalette(t);

@@ -1,0 +1,134 @@
+200 text/html; charset=utf-8
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js); same property as docs/index.html -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-52YHD3X3C2"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());(function(){var k=new URLSearchParams();new URLSearchParams(location.search).forEach(function(v,n){if(/^(utm_[a-z]+|gclid)$/.test(n))k.append(n,v);});var q=k.toString();gtag('config','G-52YHD3X3C2',{page_location:location.origin+location.pathname+(q?'?'+q:'')});})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our local partners | The Vic 361</title>
+<meta name="description" content="The local businesses that partner with The Vic 361 in Victoria, TX, one per category.">
+<link rel="canonical" href="https://www.thevic361.com/partners">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Our local partners | The Vic 361">
+<meta property="og:description" content="The local businesses that partner with The Vic 361 in Victoria, TX, one per category.">
+<meta property="og:url" content="https://www.thevic361.com/partners">
+<meta property="og:site_name" content="The Vic 361">
+<meta property="og:image" content="https://www.thevic361.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.thevic361.com/og-image.png">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fonts load without blocking first paint; text shows in the fallback face until they arrive. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:ital,wght@0,400..900;1,400..900&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:ital,wght@0,400..900;1,400..900&display=swap"></noscript>
+<link rel="stylesheet" href="/base.css?v=HASH">
+<link rel="stylesheet" href="/style.css?v=HASH">
+<script>(function(){var d=document.documentElement,K='vic361-theme';try{var t=localStorage.getItem(K);if(t==='dark'||t==='light')d.setAttribute('data-theme',t);}catch(e){}function cur(){return d.getAttribute('data-theme')||(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}function label(){var l='Switch to '+(cur()==='dark'?'light':'dark')+' mode';document.querySelectorAll('[data-theme-toggle]').forEach(function(b){b.setAttribute('aria-label',l);});}document.addEventListener('click',function(e){var b=e.target&&e.target.closest&&e.target.closest('[data-theme-toggle]');if(!b)return;var n=cur()==='dark'?'light':'dark';d.setAttribute('data-theme',n);try{localStorage.setItem(K,n);}catch(e2){}label();});document.addEventListener('DOMContentLoaded',label);})();</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"The Vic 361","item":"https://www.thevic361.com/"},{"@type":"ListItem","position":2,"name":"Our local partners","item":"https://www.thevic361.com/partners"}]}</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a class="logo-group" href="/">
+        <img src="/logo.png" width="48" height="48" alt="The Vic 361 logo" class="site-logo site-logo--light" />
+        <img src="/logo-dark.png" width="48" height="48" alt="" aria-hidden="true" class="site-logo site-logo--dark" />
+        <div>
+          <div class="site-title">The Vic <span>361</span></div>
+          <div class="tagline">Events &amp; Things To Do in <span class="tagline-accent">Victoria, TX</span></div>
+        </div>
+      </a>
+      <div class="header-actions">
+        <a href="/submit" class="btn btn--outline desktop-submit">Submit an Event</a>
+        <a href="/submit" class="btn btn--outline mobile-submit" aria-label="Submit an event">+ Event</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Toggle dark mode">
+          <svg class="theme-icon theme-icon--moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon theme-icon--sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+        <a href="/subscribe" class="btn btn--primary">Subscribe</a>
+      </div>
+    </div>
+  </header>
+<nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner"><a href="/halloween-events">Halloween</a><a href="/today">Today</a><a href="/this-weekend">This Weekend</a><a href="/free-things-to-do">Free</a><a href="/kids-and-family">Kids &amp; Family</a><a href="/live-music">Live Music</a><a href="/food-and-drink">Food &amp; Drink</a><a class="browse-biz" href="/advertise">Feature your business</a></div></nav>
+<main class="main-content" id="main">
+  <div class="container container--narrow">
+
+    <h1 class="page-title">Our local partners</h1>
+    <p class="page-lead">We're looking for our first local partners: one business per category that we'd happily send our readers to.</p>
+    <section class="ad-package ad-package--row partner-join"><div class="ad-package__info">
+      <div class="ad-package__head"><h2>Founding partner</h2><p class="ad-limit">One business per category. Cancel anytime.</p></div>
+      <div class="ad-checklist-wrap"><p class="ad-checklist-title">What you get</p><ul class="ad-checklist" role="list"><li><span class="ad-check" aria-hidden="true">✓</span><span><strong>Every issue</strong> <span class="ad-check-rest">Monday and Thursday</span></span></li><li><span class="ad-check" aria-hidden="true">✓</span><span><strong>Your category&#39;s pages</strong> <span class="ad-check-rest">on the site</span></span></li><li><span class="ad-check" aria-hidden="true">✓</span><span><strong>No competitors</strong> <span class="ad-check-rest">your category is yours</span></span></li><li><span class="ad-check" aria-hidden="true">✓</span><span><strong>A monthly results report</strong> <span class="ad-check-rest">views and clicks</span></span></li></ul></div>
+      <p class="ad-checklist-title partner-open-title">All 10 categories are open</p><div class="partner-slots"><div class="partner-slot"><span>🍽️ Food &amp; drink</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🏠 Real estate</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🦷 Dental</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🔨 Home services</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🐾 Pets</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🚗 Auto</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>💪 Fitness</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>👨‍👩‍👧 Family &amp; kids</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>🛡️ Insurance &amp; finance</span><span class="partner-open">Open</span></div><div class="partner-slot"><span>⚖️ Legal</span><span class="partner-open">Open</span></div></div>
+      <div class="ad-cta"><a class="btn ad-buy" href="/advertise#partner">See partner details →</a><span class="ad-cta-note">Pricing and sign-up are on our Advertise page</span></div>
+    </div></section>
+  </div>
+</main>
+<footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid footer-grid--4">
+        <div class="footer-section">
+          <h2>Stay in the loop</h2>
+          <p>Get Victoria's best events in your inbox every Monday and Thursday.</p>
+          <a href="/subscribe" class="btn btn--primary">Subscribe free</a>
+        </div>
+        <div class="footer-section">
+          <h2>Browse</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/">This week</a></li>
+            <li><a href="/today">Today</a></li>
+            <li><a href="/this-weekend">This Weekend</a></li>
+            <li><a href="/free-things-to-do">Free</a></li>
+            <li><a href="/kids-and-family">Kids &amp; Family</a></li>
+            <li><a href="/live-music">Live Music</a></li>
+            <li><a href="/food-and-drink">Food &amp; Drink</a></li>
+            <li><a href="/tonight">Tonight</a></li>
+            <li><a href="/date-night">Date Night</a></li>
+            <li><a href="/next-week">Next Week</a></li>
+            <li><a href="/this-weekend-with-kids">Weekend with Kids</a></li>
+            <li><a href="/free-this-weekend">Free This Weekend</a></li>
+            <li><a href="/nightlife">Nightlife</a></li>
+            <li><a href="/arts-and-culture">Arts &amp; Culture</a></li>
+            <li><a href="/outdoor-events">Outdoors</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h2>About</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/about">About The Vic 361</a></li>
+            <li><a href="/submit">Submit an event</a></li>
+            <li><a href="/venues">Venues</a></li>
+            <li><a href="/advertise">Advertise</a></li>
+            <li><a href="/partners">Our partners</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h2>Policies</h2>
+          <ul class="footer-links" role="list">
+            <li><a href="/terms">Terms</a></li>
+            <li><a href="/advertising-terms">Advertising terms</a></li>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/accessibility">Accessibility</a></li>
+            <li><a href="/referral-rules">Referral rules</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom"><span>&copy; 2026 The Vic 361 · Victoria, TX</span><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Toggle dark mode">
+          <svg class="theme-icon theme-icon--moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="theme-icon theme-icon--sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button></div>
+    </div>
+  </footer>
+<script src="/pixel.js" defer></script>
+<script src="/track.js" defer></script>
+<script src="/turnstile.js" defer></script>
+<script src="/scrollfade.js" defer></script>
+</body>
+</html>

@@ -46,6 +46,7 @@ import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
 import { stripeConfig, createStripe, createSponsors, samplePreviews, renderLogoTooLargePage, sameEvent, eventWeekStats, LEAD_IN_DAYS } from './sponsors.js';
+import { partnerState, partnerBoxHtml, renderPartnersPage, categoryOf } from './partners.js';
 import { slackConfig, createSlack, slackEscape } from './slack.js';
 import { createInbound, inboundConfig } from './inbound.js';
 import { registerContact } from './contact.js';
@@ -419,7 +420,10 @@ export async function createApp(opts = {}) {
     getVenues: () => venues,
     // The public events before placements, to show in the Sponsors tab when
     // a paid Vic's Pick isn't on the site.
-    getPayload: () => loadPublicPayload()
+    getPayload: () => loadPublicPayload(),
+    // Signs category partners' manage links (server/partners.js). A secret
+    // that doesn't change with deploys, so links in old emails keep working.
+    manageSecret: opts.partnerManageSecret ?? process.env.PARTNER_LINK_SECRET ?? process.env.ADMIN_SESSION_SECRET ?? stripeCfg.webhookSecret ?? ''
   });
   sponsors.registerWebhook(app);
   // Replies to news@thevic361.com, received by Resend, posted to Slack
@@ -1193,7 +1197,8 @@ export async function createApp(opts = {}) {
       //   1. body.extras (caller explicitly provided them)
       //   2. last published payload from the store
       //   3. bundled docs/events.json on disk
-      const PROTECTED_KEYS = new Set(['last_updated', 'events']);
+      // partners is put on at read time (sponsors.js applyPlacements).
+      const PROTECTED_KEYS = new Set(['last_updated', 'events', 'partners']);
       const extras = {};
       const explicit = (body.extras && typeof body.extras === 'object' && !Array.isArray(body.extras))
         ? body.extras : null;
@@ -2016,7 +2021,9 @@ export async function createApp(opts = {}) {
       const archived = withoutHidden(await listArchived(), payload);
       const now = nowFn();
       res.locals.seasons = activeSeasons(payload.events, archived, now);
-      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, archived, venues });
+      // partners: live category partners and open categories (null in a
+      // paused town: nothing about partners shows).
+      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues });
     } catch (err) {
       next(err);
     }
@@ -2043,9 +2050,17 @@ export async function createApp(opts = {}) {
     app.get(page.path, pageHandler(async (req, res, payload, ctx) => {
       // Day pages (today, this weekend, next week) are day lists; the
       // category pages (free, kids, music...) are guides and keep everything.
-      sendHtml(res, renderHubPage(page, page.range === 'upcoming' ? payload.events : shown(payload.events), ctx));
+      sendHtml(res, renderHubPage(page, page.range === 'upcoming' ? payload.events : shown(payload.events),
+        { ...ctx, partnerBox: partnerBoxHtml(page.path, ctx.partners, siteUrl) }));
     }));
   }
+
+  // Our local partners (server/partners.js): no prices here; a paused town
+  // has no such page.
+  app.get('/partners', pageHandler(async (req, res, payload, ctx, next) => {
+    if (!ctx.partners) return sendHtml(res, renderNotFoundPage({ siteUrl, kind: 'page' }), 404);
+    sendHtml(res, renderPartnersPage({ siteUrl, state: ctx.partners }));
+  }));
 
   // { ev } for a page to show; { moved: page } for a renamed or re-dated
   // event (301 there); { gone: true } (410) for an event deliberately taken
@@ -2174,7 +2189,8 @@ export async function createApp(opts = {}) {
     let subscribers = 0;
     try { subscribers = typeof store.countSubscribers === 'function' ? (await store.countSubscribers()).active || 0 : 0; } catch (_) { /* numbers are a bonus */ }
     sendHtml(res, renderAdvertisePage({ ...ctx, checkout: stripeCfg.enabled, previews: samplePreviews(),
-      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers, (reachNow() || {}).readers || 0) }));
+      emailPreviews: sampleEmailPreviews(''), stats: advertiseStats(payload.events, ctx.now, subscribers, (reachNow() || {}).readers || 0),
+      partnerOpen: ctx.partners ? ctx.partners.open.map(id => (categoryOf(id) || { label: id }).label) : null }));
   }));
 
   // Contact form → Slack; replaces publishing an email address.
@@ -2312,6 +2328,7 @@ export async function createApp(opts = {}) {
     res.set('Cache-Control', 'public, max-age=300');
     const extraPaths = [
       '/venues', '/subscribe', '/privacy', '/terms', '/advertising-terms', '/accessibility', '/referral-rules',
+      ...(ctx.partners ? ['/partners'] : []),
       ...activeSeasons(payload.events, ctx.archived, ctx.now).map(s => s.path),
       ...venuesWithEvents(venues, payload.events, ctx.archived, ctx.now).map(v => v.path)
     ];
@@ -3028,7 +3045,7 @@ export async function createApp(opts = {}) {
 
   await archiveReady;
   await refreshReach();
-  return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi };
+  return { app, store, storeBundle, slack: rawSlack, alerts: slack, scheduler, submissionReview, healthCheck, newsletter: newsletterApi, sponsors };
 }
 
 // Start the server when invoked directly. Importing this module (e.g. from

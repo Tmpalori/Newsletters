@@ -438,3 +438,28 @@ def test_slides_tag_paid_picks_sponsored():
 def test_free_paid_pick_line_ends_with_ad():
     ev = {"name": "Wags", "time": "4 PM", "venue": "Park", "free": True, "featured": True}
     assert sk._line(ev) == "⭐ 4 PM Wags @ Park (free) #ad"
+
+
+def test_partners_get_a_facebook_thank_you_on_the_first_of_the_month():
+    partners = [{"id": "ord-3", "name": "Mesquite Smokehouse", "label": "Food & drink", "line": "Brisket."},
+                {"id": "ord-4", "name": "Smile Dental", "label": "Dental"}]
+    first, second = date(2026, 11, 1), date(2026, 11, 2)
+    lines = sk.thanks_lines(partners, first)
+    assert lines[0] == "🙏 Thank you to our local partners for keeping The Vic 361 free:"
+    assert lines[1] == "• Mesquite Smokehouse (Food & drink): https://www.thevic361.com/go/p/ord-3?src=social"
+    assert sk.thanks_lines(partners, second) == []
+    assert sk.thanks_lines([], first) == []
+    plain = {"date": "2026-11-01", "name": "Plain", "time": "9 AM"}
+    caps = sk.captions(sk.select_events([plain], first, first), first, first, "today", partners=partners, today=first)
+    assert caps["facebook"].startswith("#ad ")                   # a paid thank-you
+    assert "Mesquite Smokehouse (Food & drink)" in caps["facebook"]
+    assert "Mesquite" not in caps["instagram"] and not caps["instagram"].startswith("#ad ")
+    assert "$" not in caps["facebook"]
+    caps = sk.captions(sk.select_events([plain], second, second), second, second, "today", partners=partners, today=second)
+    assert "Mesquite" not in caps["facebook"] and not caps["facebook"].startswith("#ad ")
+
+
+def test_live_partners_read_from_events_json():
+    assert sk.live_partners({"partners": {"active": [{"id": "a", "name": "A"}], "open": ["food"]}}) == [{"id": "a", "name": "A"}]
+    assert sk.live_partners({"events": []}) == []
+    assert sk.live_partners({"partners": "nope"}) == []
