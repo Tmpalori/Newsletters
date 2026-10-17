@@ -153,6 +153,9 @@ describe('admin Submissions tab — DOM', () => {
     }
     // End time is prefilled from the payload.
     expect(html).toContain('value="10:00 PM"');
+    // The submitter's email (row-level) is editable too, prefilled.
+    expect(html).toContain('Submitter email');
+    expect(html).toMatch(/<input[^>]*type="email"[^>]*data-edit="submitter_email"[^>]*value="j@x.com"/);
     // The date is a date picker, so a day that doesn't exist can't be typed.
     expect(html).toMatch(/<input[^>]*type="date"[^>]*data-edit="date"/);
     submissions._state.editing.clear();

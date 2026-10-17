@@ -170,7 +170,10 @@
     { key: 'description', label: 'Description',          type: 'textarea', rows: 3, placeholder: 'Description' },
     { key: 'submitter_first_name', label: 'Submitter first name', type: 'input', placeholder: 'First name' },
     { key: 'submitter_last_name',  label: 'Submitter last name',  type: 'input', placeholder: 'Last name' },
-    { key: 'submitter_phone',      label: 'Submitter phone',      type: 'input', placeholder: 'Phone number' }
+    { key: 'submitter_phone',      label: 'Submitter phone',      type: 'input', placeholder: 'Phone number' },
+    // Row-level, not in the payload (the save merges it back in). Where
+    // every email to them goes, so a typo here (gmail.comm) is fixable.
+    { key: 'submitter_email',      label: 'Submitter email',      type: 'input', inputType: 'email', placeholder: 'name@example.com' }
   ];
 
   function renderEditField(f, p, draft) {
@@ -224,7 +227,7 @@
       ? '<div class="submission-edit">' +
           '<p class="submission-edit__title">Editing submission · ' +
             escapeHtml(p.name || '(untitled)') + '</p>' +
-          EDIT_FIELDS.map(f => renderEditField(f, p, state.drafts[row.id])).join('') +
+          EDIT_FIELDS.map(f => renderEditField(f, Object.assign({}, p, { submitter_email: row.submitter_email || '' }), state.drafts[row.id])).join('') +
           '<div class="submission-card__actions">' +
             '<button data-act="save" class="btn btn--primary">Save edits</button>' +
             '<button data-act="cancel-edit" class="btn btn--outline">Cancel</button>' +
