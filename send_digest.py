@@ -10,7 +10,10 @@ Usage:
   python send_digest.py --dry-run                # print email, don't send
   python send_digest.py --candidates /path.json  # custom candidates file
 
-Requires:
+Requires either:
+  RESEND_API_KEY — sends through Resend as news@<town domain> (the site's
+                   own key; NEWSLETTER_FROM overrides the sender)
+or:
   SMTP_EMAIL    — sender email address (e.g. Gmail)
   SMTP_PASSWORD — app password (NOT your regular Gmail password)
   SMTP_HOST     — smtp.gmail.com (default)
@@ -189,8 +192,30 @@ def build_email_body(events, by_date):
     return subject, "\n".join(text_lines), "\n".join(html_parts)
 
 
-def send_email(subject, text_body, html_body, to_addr, dry_run=False):
-    """Send the digest email via SMTP."""
+RESEND_URL = "https://api.resend.com/emails"
+
+
+def _send_resend(subject, text_body, html_body, to_addr, api_key, session=None):
+    """Send through Resend, as the town's news@ address (verified there for
+    the newsletter)."""
+    import requests
+    sender = os.environ.get("NEWSLETTER_FROM", "").strip() or f"{DEFAULT_FROM_NAME} <news@{TOWN['domain']}>"
+    try:
+        r = (session or requests).post(RESEND_URL, timeout=30, headers={"Authorization": f"Bearer {api_key}"},
+                                       json={"from": sender, "to": [to_addr], "subject": subject,
+                                             "text": text_body, "html": html_body})
+    except Exception as e:
+        print(f"  Email error: {type(e).__name__}")
+        return False
+    if r.status_code >= 300:
+        print(f"  Email error: Resend HTTP {r.status_code}")
+        return False
+    print(f"  Email sent to {to_addr}")
+    return True
+
+
+def send_email(subject, text_body, html_body, to_addr, dry_run=False, session=None):
+    """Send the digest email via SMTP, or Resend when only its key is set."""
     from_email = os.environ.get("SMTP_EMAIL", DEFAULT_FROM)
     password = os.environ.get("SMTP_PASSWORD", "")
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -204,8 +229,12 @@ def send_email(subject, text_body, html_body, to_addr, dry_run=False):
         print(text_body)
         return True
 
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if resend_key and not password:
+        return _send_resend(subject, text_body, html_body, to_addr, resend_key, session)
+
     if not from_email or not password:
-        print("ERROR: Set SMTP_EMAIL and SMTP_PASSWORD environment variables.")
+        print("ERROR: Set RESEND_API_KEY, or SMTP_EMAIL and SMTP_PASSWORD.")
         print("For Gmail, use an App Password: https://myaccount.google.com/apppasswords")
         print("\nFalling back to dry-run mode:\n")
         print(text_body)
