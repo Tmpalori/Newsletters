@@ -119,6 +119,17 @@ describe('the town signs in with a pass', () => {
     expect((await post(pass)).status).toBe(401);
   });
 
+  it('lands on the admin page HQ asked for, and only on one of the admin\'s own', async () => {
+    await start();
+    const go = async tab => (await (await fetch(base + '/api/admin/sso', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ pass: fresh(), ...(tab === undefined ? {} : { tab }) }).toString() })).text());
+    expect(await go('sponsors')).toContain("location.replace('/admin.html#tab=sponsors')");
+    expect(await go('submissions')).toContain("location.replace('/admin.html#tab=submissions')");
+    for (const bad of ['', 'nope', "home');alert(1)//", 'SPONSORS', '../x']) {
+      expect(await go(bad), bad).toContain("location.replace('/admin.html')");
+    }
+  });
+
   it('refuses a missing, wrong-town or forged pass', async () => {
     await start();
     expect((await post(undefined)).status).toBe(401);
