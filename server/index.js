@@ -539,6 +539,8 @@ export async function createApp(opts = {}) {
   // Its own budget, counting refusals only: opening the admin from HQ a
   // dozen times a day must not lock the owner out of either sign-in.
   const ssoFailures = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+  // Pages the sign-in may land on: docs/admin.js PANELS, nothing else.
+  const SSO_TABS = new Set(['home', 'attention', 'inbox', 'growth', 'traffic', 'picker', 'submissions', 'preview', 'newsletter', 'sources', 'sponsors', 'settings']);
   app.post('/api/admin/sso', express.urlencoded({ extended: false, limit: '4kb' }), async (req, res) => {
     if (!ssoOn) return res.status(404).json({ ok: false, error: 'not-found' });
     const who = clientKey(req);
@@ -570,8 +572,11 @@ export async function createApp(opts = {}) {
     // The token is base64url and a dot; JSON.stringify plus escaping "<"
     // keeps it a string literal whatever it holds.
     const literal = JSON.stringify(token).replace(/</g, '\\u003c');
+    // The admin page HQ's button was for (admin.js openTabFromHash): one of
+    // the admin's own page names, else Overview.
+    const tab = SSO_TABS.has((req.body || {}).tab) ? `#tab=${req.body.tab}` : '';
     res.type('html').send(`<!doctype html><meta charset="utf-8"><title>Signing in…</title><p>Signing in…</p>` +
-      `<script nonce="${nonce}">try{localStorage.setItem('vic361_admin_session',${literal})}catch(e){}location.replace('/admin.html')</script>`);
+      `<script nonce="${nonce}">try{localStorage.setItem('vic361_admin_session',${literal})}catch(e){}location.replace('/admin.html${tab}')</script>`);
   });
 
   // ─── Admin: who am I ──────────────────────────────────────────────────

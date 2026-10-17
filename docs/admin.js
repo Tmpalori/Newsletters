@@ -309,6 +309,18 @@
     if (gate) gate.hidden = true;
     if (app) app.hidden = false;
     openReplyFromHash();
+    openTabFromHash();
+  }
+
+  // ─── OPEN A TAB FROM THE LINK ───
+  // HQ (tristen-hq) opens the admin on the page you were working on:
+  // admin.html#tab=sponsors (and the HQ sign-in lands there). Only page
+  // names in PANELS; the hash is cleared once used, so a reload stays put.
+  function openTabFromHash() {
+    const m = /^#tab=([a-z]+)$/.exec(window.location.hash || '');
+    if (!m || !state.session && !state.pat) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (PANELS.includes(m[1])) activateTab(m[1]);
   }
 
   // ─── REPLY AS NEWS@ ───
@@ -3311,6 +3323,7 @@
       });
       window.addEventListener('hashchange', openReplyFromHash);
     }
+    window.addEventListener('hashchange', openTabFromHash);
     const inboxMore = document.getElementById('inbox-more');
     if (inboxMore) inboxMore.addEventListener('click', () => loadInbox({ older: true }));
     const authForm = document.getElementById('auth-form');
