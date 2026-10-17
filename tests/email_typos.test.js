@@ -243,3 +243,42 @@ describe('a bounced email to an organizer or buyer reaches the owner', () => {
     expect(alerts.filter(a => a.key.startsWith('bounce:'))).toEqual([]);
   });
 });
+
+describe('the owner can fix a submitter\'s email in the admin', () => {
+  // Before this, the row-level address (where every email to them goes)
+  // couldn't be changed at all, so a "...@gmail.comm" stayed broken.
+  const H = { 'Content-Type': 'application/json', Authorization: 'Bearer admin-token-0123456789abcdef0123456789' };
+  const save = (id, payload) => fetch(baseUrl + '/api/admin/submissions/' + id, { method: 'POST', headers: H, body: JSON.stringify({ payload }) });
+  async function seed() {
+    await startApp({ adminToken: 'admin-token-0123456789abcdef0123456789' });
+    await store.insert({ id: 's1', created_at: NOW.toISOString(), updated_at: NOW.toISOString(), status: 'approved', source: 'submission',
+      submitter_name: 'Pat Doe', submitter_email: 'pat@gmail.comm', payload: { ...EVENT }, admin_notes: '', review_history: [] });
+  }
+  const { submitter_email: _e, submitter_name: _n, ...PAYLOAD } = EVENT;
+
+  it('a corrected address replaces the bad one, and the history says so', async () => {
+    await seed();
+    const r = await save('s1', { ...PAYLOAD, submitter_email: 'Pat@Gmail.com' });
+    expect(r.status).toBe(200);
+    const row = await store.get('s1');
+    expect(row.submitter_email).toBe('pat@gmail.com');
+    expect(row.review_history.at(-1)).toMatchObject({ action: 'edit', email_changed: true });
+  });
+
+  it('refuses another impossible ending, with the fix', async () => {
+    await seed();
+    const r = await save('s1', { ...PAYLOAD, submitter_email: 'pat@gmail.con' });
+    expect(r.status).toBe(400);
+    expect((await r.json()).errors.submitter_email).toBe("That email can't receive mail. Did you mean pat@gmail.com?");
+    expect((await store.get('s1')).submitter_email).toBe('pat@gmail.comm');
+  });
+
+  it('an edit that leaves the address alone (or blank) keeps it, even an old bad one', async () => {
+    await seed();
+    expect((await save('s1', { ...PAYLOAD, name: 'Fall Fest 2026', submitter_email: 'pat@gmail.comm' })).status).toBe(200);
+    expect((await save('s1', { ...PAYLOAD, name: 'Fall Fest 2026' })).status).toBe(200);
+    const row = await store.get('s1');
+    expect(row.submitter_email).toBe('pat@gmail.comm');
+    expect(row.payload.name).toBe('Fall Fest 2026');
+  });
+});

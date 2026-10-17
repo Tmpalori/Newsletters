@@ -26,7 +26,7 @@ import { validateSubmission, validateEventEdit, checkBotSignals } from './valida
 import { reportHoneypot } from './honeypot.js';
 import { verifyTurnstile, turnstileHostnames } from './turnstile.js';
 import { createFormGuard } from './formGuard.js';
-import { EMAIL_CHECK_JS } from './emailTypos.js';
+import { EMAIL_CHECK_JS, impossibleEmailError } from './emailTypos.js';
 import { createRateLimiter, ipKey, railwayRealIp } from './rateLimit.js';
 import { createAuth, MIN_SECRET } from './auth.js';
 import { createGithub } from './github.js';
@@ -848,6 +848,18 @@ export async function createApp(opts = {}) {
       const v = validateSubmission(body.payload, { adminEdit: true });
       if (!v.ok) return { code: 400, json: { ok: false, errors: v.errors } };
       patch.payload = normalizePayload(v.data.payload);
+      // A changed address replaces the row's, where every email to the
+      // submitter goes ("you're live", reminders). Before this the admin
+      // couldn't fix one at all: a Star 402 organizer's "...@gmail.comm"
+      // bounced with no way to correct it. Blank keeps the old address; a
+      // new one gets the public form's checks, typo endings included.
+      const newEmail = String(v.data.submitter_email || '').trim();
+      if (newEmail && newEmail.toLowerCase() !== String(row.submitter_email || '').toLowerCase()) {
+        const email = normalizeEmail(newEmail);
+        const err = !email ? 'Email looks invalid.' : impossibleEmailError(email);
+        if (err) return { code: 400, json: { ok: false, errors: { submitter_email: err } } };
+        patch.submitter_email = email;
+      }
     }
     if (typeof body.admin_notes === 'string') {
       patch.admin_notes = body.admin_notes.slice(0, 2000);
@@ -858,6 +870,7 @@ export async function createApp(opts = {}) {
     history.push({
       at: nowIso(),
       action: patch.status ? ('status:' + patch.status) : 'edit',
+      ...(patch.submitter_email ? { email_changed: true } : {}),
       note: typeof body.note === 'string' ? body.note.slice(0, 500) : '',
       ...(via ? { via } : {}),
       // The key it had before this edit, so a later un-approve can still
