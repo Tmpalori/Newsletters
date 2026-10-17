@@ -144,3 +144,27 @@ def test_main_exits_nonzero_when_the_send_fails(tmp_path, monkeypatch):
         with pytest.raises(SystemExit) as e:
             sd.main()
         assert e.value.code == code
+
+
+class FakeResend:
+    def __init__(self, status=200):
+        self.status, self.calls = status, []
+
+    def post(self, url, **kw):
+        self.calls.append((url, kw))
+        return type("R", (), {"status_code": self.status})()
+
+
+def test_send_email_uses_resend_when_only_its_key_is_set(monkeypatch):
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    monkeypatch.delenv("NEWSLETTER_FROM", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    monkeypatch.setattr(sd.smtplib, "SMTP", lambda *a, **k: pytest.fail("must not connect"))
+    fake = FakeResend()
+    assert sd.send_email("Subject", "plain", "<p>html</p>", "to@example.com", session=fake) is True
+    url, kw = fake.calls[0]
+    assert url == "https://api.resend.com/emails"
+    assert kw["headers"] == {"Authorization": "Bearer re_test"}
+    assert kw["json"] == {"from": "The Vic 361 <news@thevic361.com>", "to": ["to@example.com"],
+                          "subject": "Subject", "text": "plain", "html": "<p>html</p>"}
+    assert sd.send_email("s", "t", "h", "to@example.com", session=FakeResend(422)) is False

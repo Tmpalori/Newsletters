@@ -17,7 +17,7 @@ Jobs:
   meta-ads           scripts/meta_ads.py report --scheduled (the daily ads
                      report; nothing when the town has no ads settings)
   digest             send_digest.py (Sunday night's email of what's
-                     collected; nothing without SMTP_EMAIL / SMTP_PASSWORD)
+                     collected; nothing without RESEND_API_KEY or SMTP settings)
 
 Environment (on Railway, the secrets are references to the web service's
 own variables, so nothing is copied):
@@ -32,7 +32,7 @@ own variables, so nothing is copied):
                       META_ADS_TOKEN it uses META_PAGE_TOKEN
   ADS_SPEND_SECRET    optional; else SUBMISSION_REVIEW_SECRET (the site's
                       fallback): the ads report sends the daily spend
-  SMTP_EMAIL, SMTP_PASSWORD, DIGEST_TO (default the owner's) the digest
+  RESEND_API_KEY or SMTP_EMAIL + SMTP_PASSWORD, DIGEST_TO (default the owner's) the digest
   plus what the scripts read: OPENAI_API_KEY, APIFY_TOKEN, GEMINI_API_KEY,
   EVENT_CHECK_SECRET, SUBMISSION_REVIEW_SECRET, the Slack webhooks...
 
@@ -451,10 +451,12 @@ DIGEST_TO = "tristen.m.palori@gmail.com"
 def job_digest(site, run=run_script, env=None, session=None):
     """Sunday night's digest of what's collected (send_digest.py), from
     the site's live list, mailed to the owner. Without SMTP settings on the
-    jobs service it does nothing (done, with why)."""
+    jobs service (or RESEND_API_KEY, the site's own) it does nothing (done,
+    with why)."""
     env = dict(env if env is not None else os.environ)
-    if not env.get("SMTP_EMAIL", "").strip() or not env.get("SMTP_PASSWORD", "").strip():
-        return "done", {"skipped": "SMTP_EMAIL / SMTP_PASSWORD aren't set on the jobs service"}
+    smtp = env.get("SMTP_EMAIL", "").strip() and env.get("SMTP_PASSWORD", "").strip()
+    if not smtp and not env.get("RESEND_API_KEY", "").strip():
+        return "done", {"skipped": "RESEND_API_KEY (or SMTP_EMAIL / SMTP_PASSWORD) isn't set on the jobs service"}
     env.setdefault("SMTP_HOST", "smtp.gmail.com")
     env.setdefault("SMTP_PORT", "587")
     session = session or requests.Session()

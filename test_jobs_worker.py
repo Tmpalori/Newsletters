@@ -474,6 +474,9 @@ def test_digest_mails_the_live_list_and_is_quiet_without_smtp(victoria):
     status, _ = w.job_digest(FakeSite(), run=lambda a, t, e=None: (1, ["SMTP auth failed"]),
                              env={"SMTP_EMAIL": "a@b.c", "SMTP_PASSWORD": "p"}, session=sess)
     assert status == "failed"
+    # The site's Resend key is enough on its own.
+    status, _ = w.job_digest(FakeSite(), run=run, env={"RESEND_API_KEY": "re_x"}, session=sess)
+    assert status == "done" and len(calls) == 2
 
 
 def test_builds_and_hands_over_the_kit_without_posting_when_autopost_is_off(medford):
