@@ -16,6 +16,7 @@ import { replyLink } from './inbound.js';
 import { normalizeEmail } from './newsletter.js';
 import { honeypotTripped } from './honeypot.js';
 import { newId, nowIso } from './db.js';
+import { passiveGuard } from './formGuard.js';
 
 export const CONTACT_TOPICS = [
   ['advertising', 'Advertising or sponsorship'],
@@ -55,7 +56,7 @@ export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = fa
   });
 }
 
-export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true }) {
+export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, formGuard = passiveGuard(verifyHuman) }) {
   // Admin Home lists recent messages, so a lead never lives only in Slack.
   if (requireAdmin) {
     const gate = adminOrHq || requireAdmin;
@@ -95,9 +96,17 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
       };
       // Honeypot: pretend it worked so bots move on.
       if (honeypotTripped(b, 'contact', { slack })) return sendHtml(res, renderContactPage({ siteUrl, sent: true }), 200, 'no-store');
-      const fail = (errors, status = 400) => sendHtml(res, renderContactPage({ siteUrl, values, errors }), status, 'no-store');
+      // Every turn-away counts toward "someone is stuck" (server/formGuard.js).
+      const fail = (errors, status = 400) => {
+        formGuard.rejected('contact', req, Object.values(errors));
+        return sendHtml(res, renderContactPage({ siteUrl, values, errors }), status, 'no-store');
+      };
       if (!limiter.check(req.ip || req.socket.remoteAddress).ok) return fail({ _form: 'Too many messages from here. Try again in an hour.' }, 429);
-      if (!(await verifyHuman(req))) return fail({ _form: "We couldn't confirm you're not a bot. Please try again." });
+      // This is the fallback the other forms point to, so a bot check that
+      // didn't pass never stops it: the message goes through, labeled.
+      const human = await formGuard.botCheck('contact', req, b['cf-turnstile-response'] || b.turnstile_token);
+      if (!human.ok && human.error === 'hostname-mismatch') return fail({ _form: "We couldn't confirm you're not a bot. Please reload the page and try again." });
+      const unverified = !human.ok;
       const errors = {};
       if (!values.name) errors.name = 'Please add your name.';
       const email = normalizeEmail(values.email);
@@ -109,7 +118,7 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
       // Every message goes to the inbox channel, where replies to our
       // emails land too, so all conversations are in one place.
       const delivered = await slack.notify({
-        title: `✉️ Website message: ${topic}`,
+        title: `✉️ Website message: ${topic}${unverified ? ' (bot check didn’t pass)' : ''}`,
         fields: [['From', values.name], ['Email', email], ['Business', values.business]],
         text: values.message,
         link: replyLink(siteUrl, { to: email, subject: `Your message to ${town.siteName}` }), linkLabel: 'Reply as news@',
@@ -131,6 +140,7 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
         // Railway keeps logs; better there than lost.
         console.log('[contact] message (Slack and database unavailable):', JSON.stringify({ ...values, email }));
       }
+      formGuard.ok('contact', req);
       sendHtml(res, renderContactPage({ siteUrl, sent: true }), 200, 'no-store');
     } catch (err) { next(err); }
   });

@@ -167,10 +167,20 @@ describe('homepage survives odd event names', () => {
 });
 
 describe('spam check (Turnstile) on public forms', () => {
+  // good-token passes, other-site was solved on someone else's site, the
+  // rest fail.
   const siteverify = async (url, init) => ({
-    json: async () => ({ success: String(init.body).includes('response=good-token') })
+    json: async () => {
+      const body = String(init.body);
+      if (body.includes('response=other-site')) return { success: true, hostname: 'evil.example' };
+      return { success: body.includes('response=good-token') };
+    }
   });
+  let alerts;
+  let notes;
   async function boot() {
+    alerts = [];
+    notes = [];
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-ts-'));
     const eventsFile = path.join(tmpDir, 'events.json');
     await fs.writeFile(eventsFile, JSON.stringify({ events: EVENTS }));
@@ -178,7 +188,8 @@ describe('spam check (Turnstile) on public forms', () => {
     const { app } = await createApp({
       storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, now: () => NOW,
       siteUrl: 'https://www.thevic361.com', turnstileSecret: 'ts-secret', turnstileSiteKey: 'ts-site',
-      fetch: siteverify, slack: { enabled: false, notify: async () => false, alert: async () => false },
+      fetch: siteverify,
+      slack: { enabled: true, notify: async (m) => { notes.push(m); return true; }, alert: async (key, title) => { alerts.push({ key, title }); return true; } },
       stripeSecretKey: 'sk_test', stripeWebhookSecret: 'whsec', resendApiKey: '',
       stripe: { createCheckoutSession: async () => ({ id: 'cs_1', url: 'https://checkout.stripe.com/x' }) }
     });
@@ -190,21 +201,42 @@ describe('spam check (Turnstile) on public forms', () => {
   const postForm = (p, fields) => fetch(baseUrl + p, { method: 'POST', redirect: 'manual',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() });
 
-  it('contact, newsletter and checkout reject a missing or bad token and accept a good one', async () => {
+  // Oct 12: a visitor whose check didn't pass was turned away three times
+  // and gave up. Now nobody is stuck on it, and the owner is told.
+  it('contact, newsletter and checkout let a visitor through when the check fails, labeled and alerted', async () => {
     const store = await boot();
     const contact = { topic: 'other', name: 'Ann', email: 'ann@example.com', message: 'Hi there' };
-    expect((await postForm('/contact', contact)).status).toBe(400);
+    expect(await (await postForm('/contact', contact)).text()).toContain('Message sent');
+    expect(notes.some(n => /Website message/.test(n.title) && /bot check didn’t pass/.test(n.title))).toBe(true);
+    expect(alerts.some(a => a.key === 'form-bot:contact')).toBe(true);
+    notes.length = 0;
     expect(await (await postForm('/contact', { ...contact, 'cf-turnstile-response': 'good-token' })).text()).toContain('Message sent');
+    expect(notes.some(n => /Website message/.test(n.title) && !/bot check/.test(n.title))).toBe(true);
 
-    const sub = (t) => fetch(baseUrl + '/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'b@example.com', turnstile_token: t }) });
-    expect((await sub('bad')).status).toBe(400);
-    expect((await sub('good-token')).status).toBe(200);
+    // A token that fails gets the confirmation email instead of a refusal:
+    // not on the list until they tap Confirm.
+    const sub = (t, email) => fetch(baseUrl + '/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, turnstile_token: t }) });
+    const bad = await sub('bad', 'c@example.com');
+    expect(bad.status).toBe(200);
+    expect((await store.countSubscribers()).active).toBe(0);
+    expect((await sub('good-token', 'b@example.com')).status).toBe(200);
     expect((await store.countSubscribers()).active).toBe(1);
 
     const order = { package: 'weekly', week: '2026-10-19', business: 'Acme', text: 'x', url: 'acme.example', email: 'a@acme.example', agree: '1' };
-    expect((await postForm('/advertise/checkout', order)).status).toBe(400);
-    expect((await postForm('/advertise/checkout', { ...order, 'cf-turnstile-response': 'good-token' })).status).toBe(303);
+    const paid = await postForm('/advertise/checkout', order);
+    expect(paid.status).toBe(303);
+    expect(paid.headers.get('location')).toBe('https://checkout.stripe.com/x');
+    expect(alerts.some(a => a.key === 'form-bot:checkout')).toBe(true);
+  });
+
+  it('a token solved on another site is still refused, without an alert', async () => {
+    await boot();
+    const contact = { topic: 'other', name: 'Ann', email: 'ann@example.com', message: 'Hi there', 'cf-turnstile-response': 'other-site' };
+    const r = await postForm('/contact', contact);
+    expect(r.status).toBe(400);
+    expect(await r.text()).toContain('reload the page');
+    expect(alerts.some(a => a.key.startsWith('form-bot'))).toBe(false);
   });
 
   it('pages load the spam-check script and mark the forms', async () => {

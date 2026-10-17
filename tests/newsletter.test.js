@@ -436,8 +436,10 @@ describe('rejected signups are logged with their reason', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       expect((await post('/api/subscribe', { email: 'bad' })).status).toBe(400);
+      // Not refused (a token can expire while they type): it gets the
+      // confirmation email instead, and the reason is still logged.
       expect((await post('/api/subscribe', { email: 'fan@example.com', turnstile_token: 't' },
-        { 'User-Agent': 'Mozilla/5.0 (iPhone) [FBAN/FBIOS;FBAV/581.0]' })).status).toBe(400);
+        { 'User-Agent': 'Mozilla/5.0 (iPhone) [FBAN/FBIOS;FBAV/581.0]' })).status).toBe(200);
       const lines = warn.mock.calls.map(c => c.join(' '));
       expect(lines).toContain('[newsletter] signup rejected: invalid email');
       expect(lines).toContain('[turnstile] rejected: /api/subscribe verification-failed timeout-or-duplicate in-app: facebook');
@@ -543,12 +545,15 @@ describe('signups where the bot check never loaded', () => {
     } finally { warn.mockRestore(); }
   });
 
-  it('a token that fails is still refused; a good one signs up straight away', async () => {
+  it('a token that fails gets the confirmation email, not a dead end; a good one signs up straight away', async () => {
     await startApp({ turnstileSecret: 'fake-secret', fetch: fail });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      expect((await post('/api/subscribe', { email: 'bot@example.com', turnstile_token: 'x' })).status).toBe(400);
-      expect((await store.countSubscribers()).pending || 0).toBe(0);
+      const r = await post('/api/subscribe', { email: 'expired@example.com', turnstile_token: 'x' });
+      expect(r.status).toBe(200);
+      expect((await r.json()).message).toBe('Almost there! Check your inbox and tap Confirm to start getting it.');
+      // Not on the list until they tap Confirm, so a bot gains nothing.
+      expect((await store.countSubscribers()).active || 0).toBe(0);
     } finally { warn.mockRestore(); }
     if (server) await new Promise(r => server.close(r));
     await startApp({ turnstileSecret: 'fake-secret', fetch: pass });

@@ -222,35 +222,70 @@ describe('POST /api/submissions — bot signals', () => {
 });
 
 describe('POST /api/submissions — turnstile gating', () => {
-  it('rejects when secret is configured but token is missing', async () => {
-    await startApp({ turnstileSecret: 'fake-secret' });
-    const r = await fetchJson('POST', '/api/submissions', validBody());
-    expect(r.status).toBe(400);
-    expect(r.json.error).toBe('turnstile-failed');
+  // Oct 12: a visitor on a VPN got "couldn't verify you aren't a bot" three
+  // times and gave up. A check that doesn't pass no longer turns the event
+  // away: it's queued, labeled for the owner, and Slack hears about it.
+  function recorder() {
+    const alerts = [];
+    const notes = [];
+    return { alerts, notes, slack: { enabled: true, notify: async (m) => { notes.push(m); return true; }, alert: async (key, title, detail) => { alerts.push({ key, title, detail }); return true; } } };
+  }
+
+  it('takes a submission with no token, labeled, and alerts the owner', async () => {
+    const rec = recorder();
+    await startApp({ turnstileSecret: 'fake-secret', slack: rec.slack });
+    const r = await fetchJson('POST', '/api/submissions', validBody(), {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0'
+    });
+    expect(r.status).toBe(201);
+    expect(r.json.queued).toBe(true);
+    const row = await appBundle.store.get(r.json.id);
+    expect(row.status).toBe('pending');
+    expect(row.review_history[0]).toMatchObject({ action: 'submitted', bot_check: 'failed' });
+    expect(row.admin_notes).toMatch(/Bot check didn't pass \(missing-token\)/);
+    expect(rec.notes.some(n => /bot check didn’t pass/.test(n.title))).toBe(true);
+    const a = rec.alerts.find(x => x.key === 'form-bot:submit');
+    expect(a.detail).toContain('Edge on Windows');
     await stopApp();
   });
 
-  it('accepts when secret is configured and Cloudflare returns success', async () => {
+  it('accepts when secret is configured and Cloudflare returns success, with no label or alert', async () => {
+    const rec = recorder();
     const fakeFetch = async (url) => ({
       ok: true, json: async () => ({ success: true })
     });
-    await startApp({ turnstileSecret: 'fake-secret', fetch: fakeFetch });
+    await startApp({ turnstileSecret: 'fake-secret', fetch: fakeFetch, slack: rec.slack });
     const r = await fetchJson('POST', '/api/submissions',
       validBody({ turnstile_token: 'cf-test-token' }));
     expect(r.status).toBe(201);
     expect(r.json.ok).toBe(true);
+    const row = await appBundle.store.get(r.json.id);
+    expect(row.review_history[0].bot_check).toBeUndefined();
+    expect(rec.alerts).toEqual([]);
     await stopApp();
   });
 
-  it('rejects when Cloudflare returns failure', async () => {
-    const fakeFetch = async (url) => ({
-      ok: true, json: async () => ({ success: false, 'error-codes': ['invalid-input-response'] })
-    });
-    await startApp({ turnstileSecret: 'fake-secret', fetch: fakeFetch });
-    const r = await fetchJson('POST', '/api/submissions',
-      validBody({ turnstile_token: 'bad' }));
+  it('takes it when Cloudflare says the token failed (expired while typing) or is unreachable', async () => {
+    const failing = async () => ({ ok: true, json: async () => ({ success: false, 'error-codes': ['timeout-or-duplicate'] }) });
+    await startApp({ turnstileSecret: 'fake-secret', fetch: failing, slack: recorder().slack });
+    let r = await fetchJson('POST', '/api/submissions', validBody({ turnstile_token: 'old' }));
+    expect(r.status).toBe(201);
+    await stopApp();
+    const down = async () => { throw new Error('ETIMEDOUT'); };
+    await startApp({ turnstileSecret: 'fake-secret', fetch: down, slack: recorder().slack });
+    r = await fetchJson('POST', '/api/submissions', validBody({ turnstile_token: 'any', name: 'Another Event' }));
+    expect(r.status).toBe(201);
+    await stopApp();
+  });
+
+  it('refuses a token solved on another site (never one of our visitors)', async () => {
+    const otherSite = async () => ({ ok: true, json: async () => ({ success: true, hostname: 'evil.example' }) });
+    const rec = recorder();
+    await startApp({ turnstileSecret: 'fake-secret', fetch: otherSite, slack: rec.slack });
+    const r = await fetchJson('POST', '/api/submissions', validBody({ turnstile_token: 'replayed' }));
     expect(r.status).toBe(400);
     expect(r.json.error).toBe('turnstile-failed');
+    expect(rec.alerts.some(a => a.key === 'form-bot:submit')).toBe(false);
     await stopApp();
   });
 
@@ -258,6 +293,8 @@ describe('POST /api/submissions — turnstile gating', () => {
     await startApp({ turnstileSecret: null });
     const r = await fetchJson('POST', '/api/submissions', validBody());
     expect(r.status).toBe(201);
+    const row = await appBundle.store.get(r.json.id);
+    expect(row.review_history[0].bot_check).toBeUndefined();
     await stopApp();
   });
 });

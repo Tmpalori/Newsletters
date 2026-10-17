@@ -302,3 +302,112 @@ describe('a link can prefill the event (a reply to someone who emailed it in)', 
   });
 });
 
+
+describe('submitting never dead-ends (Oct 12: three tries, then gave up)', () => {
+  let api, calls;
+
+  function fillValid() {
+    api.populateTimeSelects();
+    const set = (name, v) => { document.querySelector(`#submit-form [name="${name}"]`).value = v; };
+    set('name', 'Fall Fest'); set('date', '2026-10-24'); set('time', '7:00 PM'); set('venue', 'Main Plaza');
+    set('address', '101 Main St'); set('description', 'Music and food.');
+    set('submitter_first_name', 'Jane'); set('submitter_last_name', 'Doe');
+    set('submitter_email', 'jane@example.com'); set('submitter_phone', '(361) 555-0100');
+    document.querySelector('input[name="free"][value="true"]').checked = true;
+  }
+  // Records every request; `answer` decides /api/submissions' reply.
+  function stubFetch(answer) {
+    calls = [];
+    window.fetch = async (url, init = {}) => {
+      calls.push({ url, body: init.body ? JSON.parse(init.body) : null });
+      if (url === '/api/submissions') return answer();
+      return { ok: false, json: async () => null };
+    };
+  }
+  const submitted = () => calls.filter(c => c.url === '/api/submissions');
+  const reports = () => calls.filter(c => c.url === '/api/form-problem').map(c => c.body);
+  const created = () => ({ ok: true, status: 201, json: async () => ({ ok: true, queued: true, id: 'x1' }) });
+  const submit = () => api.handleSubmit({ preventDefault() {} });
+
+  beforeEach(() => { api = bootDom(); delete window.turnstile; });
+
+  it('waits for a bot check still in progress, then sends its token', async () => {
+    let widget;
+    window.turnstile = { render: (el, o) => { widget = o; return 'w1'; } };
+    api.injectTurnstile('site-key');
+    expect(api.turnstileState()).toBe('loading');
+    fillValid();
+    stubFetch(created);
+    const done = submit();
+    await new Promise(r => setTimeout(r, 20));
+    expect(submitted()).toEqual([]);
+    expect(document.getElementById('submit-btn').textContent).toMatch(/Checking/);
+    widget.callback('cf-token');
+    await done;
+    expect(submitted()[0].body.turnstile_token).toBe('cf-token');
+    expect(document.getElementById('thanks-card').hidden).toBe(false);
+  });
+
+  it('sends anyway when the check never finishes (the server takes it, labeled)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      window.turnstile = { render: () => 'w1' };
+      api.injectTurnstile('site-key');
+      fillValid();
+      stubFetch(created);
+      const done = submit();
+      await vi.advanceTimersByTimeAsync(10000);
+      await done;
+    } finally { vi.useRealTimers(); }
+    expect(submitted()).toHaveLength(1);
+    expect(submitted()[0].body.turnstile_token).toBeNull();
+    expect(document.getElementById('thanks-card').hidden).toBe(false);
+  });
+
+  it('does not wait when the check failed to load (an ad blocker, a strict browser)', async () => {
+    window.turnstile = { render: () => { throw new Error('blocked'); } };
+    api.injectTurnstile('site-key');
+    expect(api.turnstileState()).toBe('failed');
+    fillValid();
+    stubFetch(created);
+    await submit();
+    expect(submitted()).toHaveLength(1);
+    expect(document.getElementById('thanks-card').hidden).toBe(false);
+  });
+
+  it('a network failure is reported, gives the button back, and offers the contact form', async () => {
+    fillValid();
+    stubFetch(() => { throw new TypeError('Failed to fetch'); });
+    await submit();
+    expect(reports()).toEqual([{ form: 'submit', stage: 'network', detail: 'Failed to fetch' }]);
+    const btn = document.getElementById('submit-btn');
+    expect(btn.disabled).toBe(false);
+    const fe = document.getElementById('form-error');
+    expect(fe.hidden).toBe(false);
+    expect(fe.querySelector('a').getAttribute('href')).toBe('/contact?topic=event');
+  });
+
+  it('an answer it cannot use (a 500, a proxy page) is reported as a server problem', async () => {
+    fillValid();
+    stubFetch(() => ({ ok: false, status: 502, json: async () => { throw new Error('not json'); } }));
+    await submit();
+    expect(reports()).toEqual([{ form: 'submit', stage: 'server', detail: 'HTTP 502' }]);
+    expect(document.getElementById('form-error').querySelector('a')).not.toBeNull();
+  });
+
+  it('field errors from the server are shown, not reported (the server counts those)', async () => {
+    fillValid();
+    stubFetch(() => ({ ok: false, status: 400, json: async () => ({ ok: false, errors: { url: 'Link must be a valid website (e.g. example.com).' } }) }));
+    await submit();
+    expect(reports()).toEqual([]);
+    expect(document.querySelector('[data-error-for="url"]').textContent).toContain('valid website');
+  });
+
+  it('an error in the page itself is reported and never leaves the button stuck', async () => {
+    fillValid();
+    stubFetch(() => ({ get ok() { throw new Error('boom'); }, status: 200, json: async () => ({}) }));
+    await submit();
+    expect(reports()).toEqual([{ form: 'submit', stage: 'script', detail: 'boom' }]);
+    expect(document.getElementById('submit-btn').disabled).toBe(false);
+  });
+});
