@@ -3026,6 +3026,29 @@
       const r = (payload.raw_count == null) ? null : String(payload.raw_count);
       mergedEl.textContent = r ? (m + ' (from ' + r + ' raw)') : m;
     }
+    // Apify: the account's month (every town) and this collect's runs.
+    const apifyItem = document.getElementById('sources-apify-item');
+    const apifyEl = document.getElementById('sources-apify');
+    const a = payload.apify;
+    if (apifyItem && apifyEl) {
+      apifyItem.hidden = !a;
+      if (a) {
+        const usd = v => '$' + Number(v).toFixed(2);
+        const share = a.limit_usd ? Math.round(100 * a.month_usd / a.limit_usd) : null;
+        apifyEl.textContent = usd(a.month_usd) + (a.limit_usd ? ' of ' + usd(a.limit_usd) + ' (' + share + '%)' : '') +
+          (a.cycle_end ? ', resets ' + a.cycle_end : '') + (a.run_usd != null ? ' · last collect ' + usd(a.run_usd) : '');
+        apifyItem.classList.toggle('is-warn', share != null && share >= 80);
+      }
+    }
+    const quietEl = document.getElementById('sources-quiet');
+    const quiet = Array.isArray(payload.quiet_pages) ? payload.quiet_pages : [];
+    if (quietEl) {
+      quietEl.hidden = !quiet.length;
+      quietEl.innerHTML = quiet.length
+        ? 'Facebook pages with no posts lately (skipped, tried again every 4th collect; check their links in venues.json): ' +
+          quiet.map(q => '<a href="' + escapeHtml(q.url) + '" target="_blank" rel="noopener">' + escapeHtml(q.name || q.url) + '</a>').join(', ')
+        : '';
+    }
     const triggerBtn = document.getElementById('sources-trigger');
     const triggerHelp = document.getElementById('sources-trigger-help');
     const actionsLink = document.getElementById('sources-actions-link');

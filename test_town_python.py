@@ -145,8 +145,8 @@ def test_web_sources_victoria_runs_all_in_order():
     assert [(n, e) for n, _, e in ce.enabled_web_sources(town_mod.VICTORIA)] == [
         ("city_calendar", True), ("chamber", True), ("library", True), ("moonshine", False),
         ("vtx_artwalk", False), ("jwelch", False), ("theatre_victoria", False), ("generals", False),
-        ("allevents", True), ("gemini_search", False), ("apify_facebook", False), ("apify_eventbrite", False),
-        ("apify_facebook_posts", False), ("apify_instagram_posts", False)]
+        ("allevents", True), ("gemini_search", True), ("apify_facebook", True), ("apify_eventbrite", True),
+        ("apify_facebook_posts", True), ("apify_instagram_posts", True)]
     assert all(callable(getattr(ce, fn)) for _, fn, _ in ce.WEB_SOURCES)
 
 

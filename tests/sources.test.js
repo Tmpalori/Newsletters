@@ -71,6 +71,23 @@ describe('the collect schedule', () => {
 });
 
 describe('buildSourcesPayload', () => {
+  it('passes on the Apify spend and quiet pages as numbers and Facebook links only', () => {
+    const payload = buildSourcesPayload({ now: new Date(), githubConfigured: false, actionsUrl: '', mtime: null, metadata: {
+      sources: [],
+      apify: { month_usd: 41.24, limit_usd: 50, cycle_end: '2026-10-31', run_usd: '1.81 <script>' },
+      quiet_pages: {
+        'https://www.facebook.com/hideawayvtx': { name: 'The Hideaway Bar', misses: 3, skips: 1, since: '2026-10-11' },
+        'https://www.facebook.com/onemiss': { name: 'One miss', misses: 1 },
+        'javascript:alert(1)': { name: 'Bad', misses: 5 }
+      }
+    } });
+    expect(payload.apify).toEqual({ month_usd: 41.24, limit_usd: 50, run_usd: null, cycle_end: '2026-10-31' });
+    expect(payload.quiet_pages).toEqual([{ url: 'https://www.facebook.com/hideawayvtx', name: 'The Hideaway Bar', misses: 3, since: '2026-10-11' }]);
+    const none = buildSourcesPayload({ metadata: null, mtime: null, now: new Date(), githubConfigured: false, actionsUrl: '' });
+    expect(none.apify).toBeNull();
+    expect(none.quiet_pages).toEqual([]);
+  });
+
   it('renders placeholder rows for every known source when metadata is missing', () => {
     const payload = buildSourcesPayload({
       metadata: null,
