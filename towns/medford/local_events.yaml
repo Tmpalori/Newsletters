@@ -273,6 +273,45 @@ recurring:
     url: "https://rv-times.com/2026/10/12/things-to-do-in-the-rogue-valley-oct-12-26/"
     # VERIFIED: RV Times roundup 2026-10-15 (every Sunday, both editions)
 
+  - name: "Bigham Farms Pumpkin Patch"
+    day: [saturday, sunday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: "10:00 AM – 5:00 PM"
+    venue: "Bigham Farms"
+    address: "9445 Pumice Ln, Central Point"
+    description: "Weekend pumpkin patch with u-pick pumpkins, hayrides and a corn maze."
+    icons: [family, outdoors]
+    free: false
+    url: "https://www.travelmedford.org/events"
+    # VERIFIED: Travel Medford calendar 2026-10-17 (weekends Oct 17-31, 10 AM-5 PM, 9445 Pumice Ln); hayride/maze per KOBI 2025
+
+  - name: "The Nightmare Chamber: Final Season"
+    day: [friday, saturday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-31"
+    time: "7:00 PM"
+    venue: "The Nightmare Chamber"
+    address: "10 E 3rd St"
+    description: "Medford's original high-scare haunted house closes for good after 16 seasons. Not for ages 10 and under. $12 advance, $15 at the door."
+    icons: [arts]
+    free: false
+    url: "http://nightmarechamber.com/"
+    # VERIFIED: nightmarechamber.com 2026-10-17 (Oct 16-18, 23-25, 28-31; 7-10/11 PM) + RV Times 2026-10-12 (final year, prices). Fri/Sat listed here
+
+  - name: "Jacksonville Haunted History Tours"
+    day: [friday, saturday]
+    start_date: "2026-10-17"
+    end_date: "2026-10-24"
+    time: "6:00 PM"
+    venue: "Jacksonville Visitor Information Center"
+    address: "185 N Oregon St, Jacksonville"
+    description: "Docent-led one-mile walks through real hauntings of historic Jacksonville. Tours leave 6:00 to 6:45 PM. $10; reserve online by 4 PM."
+    icons: [community, outdoors]
+    free: false
+    url: "https://historicjacksonville.org/haunted-history-tours"
+    # VERIFIED: RV Times roundup 2026-10-12 (Fri and Sat Oct 16-24; 6-6:45 PM starts; $10) + jacksonvilleoregon.org event (Oct 17, 6 PM)
+
 events:
 
   # ── Monthly series ──────────────────────────────────────────────────────
@@ -1006,3 +1045,69 @@ events:
     free: false
     url: "https://www.travelmedford.org/events"
     # VERIFIED: Travel Medford calendar 2026-10-15 (Dec 18 Holly; Dec 19–20 SOU)
+
+  - date: "2026-10-17"
+    name: "Trunk or Treat in Downtown Eagle Point"
+    time: "4:00 PM – 6:00 PM"
+    venue: "Downtown Eagle Point"
+    address: ""
+    description: "Community fall evening with trunk or treat, live music, food trucks, games and activities."
+    icons: [family, community]
+    free: false
+    url: "https://www.cityofeaglepoint.org/"
+    # VERIFIED: City of Eagle Point news post (Sept 16, 2026) 2026-10-17 ("trunk or treat on October 17th from 4-6pm in downtown Eagle Point")
+
+  - date: "2026-11-15"
+    name: "Nutcracker! Magical Christmas Ballet"
+    time: "3:00 PM & 7:00 PM"
+    venue: "Craterian Theater at The Collier Center"
+    address: "23 S Central Ave"
+    description: "Touring international cast performs the holiday classic with giant puppets, acrobatics and dazzling costumes. Tickets $33 to $52."
+    icons: [arts, family]
+    free: false
+    url: "https://craterian.org/event/nutcracker-magical-christmas-ballet-2/"
+    # VERIFIED: craterian.org event page 2026-10-17 (Sunday, November 15, 3:00pm and 7:00pm; $33-$52)
+
+  - date: "2026-11-26"
+    name: "Southern Oregon Runners Turkey Trot"
+    time: "7:00 AM – 11:00 AM"
+    venue: ""
+    address: "300 W Valley View Rd, Talent"
+    description: "Thanksgiving morning run with a Kid's Turkey Dash, 2-mile walk/run, 5K and 8-mile."
+    icons: [outdoors, community, family]
+    free: false
+    url: "https://www.sorunners.org/"
+    # VERIFIED: sorunners.org race calendar 2026-10-17 ("Nov 26, 2026, 7:00 AM – 11:00 AM | 300 W Valley View Rd, Talent")
+
+  - date: "2026-11-30"
+    name: "Home Free: Coming Home for the Holidays"
+    time: "7:00 PM"
+    venue: "Craterian Theater at The Collier Center"
+    address: "23 S Central Ave"
+    description: "Country a cappella group Home Free brings its holiday tour to Medford."
+    icons: [music]
+    free: false
+    url: "https://craterian.org/event/home-free-coming-home-for-the-holidays/"
+    # VERIFIED: craterian.org event page 2026-10-17 (Monday, November 30, 7:00PM)
+
+  - date: "2026-12-05"
+    name: "Home for the Holidays: Songs for the Season"
+    time: "3:00 PM"
+    venue: "Craterian Theater at The Collier Center"
+    address: "23 S Central Ave"
+    description: "Rogue Valley Chorale Association's fourth annual holiday concert with all four ensembles. Adults $30, youth $15."
+    icons: [music, community]
+    free: false
+    url: "https://craterian.org/event/home-for-the-holidays-songs-for-the-season/"
+    # VERIFIED: craterian.org event page 2026-10-17 (Sat Dec 5 and Sun Dec 6, 3:00pm; $30/$15)
+
+  - date: "2026-12-06"
+    name: "Home for the Holidays: Songs for the Season"
+    time: "3:00 PM"
+    venue: "Craterian Theater at The Collier Center"
+    address: "23 S Central Ave"
+    description: "Rogue Valley Chorale Association's fourth annual holiday concert with all four ensembles. Adults $30, youth $15."
+    icons: [music, community]
+    free: false
+    url: "https://craterian.org/event/home-for-the-holidays-songs-for-the-season/"
+    # VERIFIED: craterian.org event page 2026-10-17 (Sunday, December 6, 3:00pm)
