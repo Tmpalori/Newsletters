@@ -303,7 +303,7 @@ def thanks_lines(partners, today):
         return []
     listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
     return [f"🙏 Thanks to our local partners for keeping {TOWN['site_name']} free: {listed}. "
-            f"Meet them 👉 {SITE}/partners", ""]
+            f"Meet them 👉 {SITE}/partners {AD_TAG}", ""]
 
 
 def captions(groups, start, end, kind, handles=None, sponsor=None, partners=None, today=None):
@@ -319,10 +319,11 @@ def captions(groups, start, end, kind, handles=None, sponsor=None, partners=None
         bool(sponsor_lines(sponsor, start, "facebook"))
     if paid:
         head = f"{AD_TAG} {head}"
-    # The partners' thank-you is paid content too, on Facebook (the only
-    # caption that carries it).
+    # The partners' thank-you is paid content too (Facebook only); it is
+    # labeled on its own line (thanks_lines ends it with #ad), like a paid
+    # pick's line, so the post doesn't open with #ad for it.
     thanks = thanks_lines(partners, today)
-    fb_head = f"{AD_TAG} {head}" if thanks and not paid else head
+    fb_head = head
     tags = venue_tags(groups, handles or {})
     # Same call to action as the ad, the slides and the site: the newsletter.
     see_all = "👉 Full list: " if not total else "👉 Details: " if total == 1 else f"👉 See all {total}: "
