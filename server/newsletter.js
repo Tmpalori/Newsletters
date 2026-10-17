@@ -409,7 +409,7 @@ function houseAdText(siteUrl) {
 
 // ─── Our local partners (server/partners.js) ───────────────────────────
 // After the "See the full list" button in both issues: the live category
-// partners as two-column cards, each button through /go/p/<id> (counted for
+// partners as a one-column list, each name linking through /go/p/<id> (counted for
 // the partner's report). No prices here, ever. With no partner yet, a
 // dashed "Founding partners wanted" invite with the open categories.
 const PILL_LABEL = `display:inline-block;font-family:${DISPLAY};font-size:11px;font-weight:bold;letter-spacing:.5px;background:${C.sun};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:1px 10px;`;
@@ -440,16 +440,16 @@ export function partnersEmailHtml(state, siteUrl) {
 <a href="${escHtml(join)}" style="display:inline-block;font-family:${DISPLAY};font-size:14px;font-weight:bold;color:#fff;background:${C.accent};border:2px solid ${C.ink};border-radius:999px;padding:7px 16px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">Claim your category →</a>
 </td></tr></table>`;
   }
-  const rows = [];
-  for (let i = 0; i < state.active.length; i += 2) {
-    rows.push(`<tr>${state.active.slice(i, i + 2).map(p => `<td width="50%" valign="top" style="padding:6px;">${partnerCardEmail(p, partnerHref(siteUrl, p.id, 'newsletter'))}</td>`).join('')}${state.active.length - i === 1 ? '<td width="50%" style="padding:6px;"></td>' : ''}</tr>`);
-  }
+  // One column, one row per partner (category, name as the link, its
+  // line): two-column cards wrapped badly on phones and grew long.
+  const rows = state.active.map(p => `<tr><td style="padding:9px 0;border-top:1px dashed #C9C2E6;font-size:14px;line-height:1.35;color:${C.ink};">
+<span style="font-family:${DISPLAY};font-size:12px;font-weight:bold;letter-spacing:.4px;color:${C.muted};text-transform:uppercase;">${p.emoji ? `${escHtml(p.emoji)} ` : ''}${escHtml(p.label || '')}</span><br>
+<a href="${escHtml(partnerHref(siteUrl, p.id, 'newsletter'))}" style="font-family:${DISPLAY};font-size:16px;font-weight:bold;color:${C.accent};text-decoration:none;">${escHtml(p.name)} →</a>${p.line ? `<br>${escHtml(p.line)}` : ''}</td></tr>`);
   return `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:14px 10px 10px;">
-<div style="padding:0 6px;"><span style="${PILL_LABEL}">OUR LOCAL PARTNERS</span>
-<div style="font-size:13px;color:${C.muted};margin:6px 0 4px;">The local businesses that keep ${escHtml(town.siteName)} free. One per category.</div></div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>
-${state.open.length ? `<div style="padding:4px 6px 0;font-size:12px;color:${C.muted};">Own a business? <a href="${escHtml(join)}" style="color:${C.accent};font-weight:bold;">Become a partner</a> · ${openLine(state.open.length)}</div>` : ''}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px 8px;">
+<span style="${PILL_LABEL}">OUR LOCAL PARTNERS</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">${rows.join('')}</table>
+${state.open.length ? `<div style="padding:8px 0 4px;font-size:12px;color:${C.muted};border-top:1px dashed #C9C2E6;">Own a business? <a href="${escHtml(join)}" style="color:${C.accent};font-weight:bold;">Become a partner</a> · ${openLine(state.open.length)}</div>` : ''}
 </td></tr></table>`;
 }
 

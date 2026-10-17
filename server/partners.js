@@ -5,7 +5,8 @@
  * owner approves every new partner before it shows anywhere. While active,
  * a partner is shown:
  *   - in every newsletter issue ("Our local partners", server/newsletter.js)
- *   - on its category's pages (a partner box near the top; partnerBoxHtml)
+ *   - on its category's pages (a partner box at the bottom, after the
+ *     week's sponsor; partnerBoxHtml)
  *   - on /partners (renderPartnersPage)
  *   - in a monthly Facebook thank-you (scripts/social_kit.py, from
  *     /events.json's `partners`)
@@ -112,7 +113,7 @@ export function partnerPoints(here = 'Our partners page') {
     ['Every issue', 'in Our local partners, Monday and Thursday'],
     ["Your category's pages", 'a partner box on matching event pages'],
     [here, "listed as the town's pick for your category"],
-    ['A monthly Facebook thank-you', 'with your link'],
+    ['A monthly Facebook thank-you', 'naming your business'],
     ['No competitors', "your category is yours while you're a partner"],
     ['A monthly results report', 'views and clicks']
   ];

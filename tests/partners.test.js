@@ -431,7 +431,7 @@ describe('approval', () => {
     const food = await page('/food-and-drink');
     expect(food).toContain('Our food &amp; drink partner');
     expect(food).toContain(`data-ad="${id}"`);
-    expect(food.indexOf('partner-box')).toBeLessThan(food.indexOf('day-section'));
+    expect(food.lastIndexOf('day-section')).toBeLessThan(food.indexOf('partner-box'));   // at the bottom: the week's sponsor keeps the top
     expect(await page('/date-night')).toContain('Mesquite Smokehouse');
     expect(await page('/kids-and-family')).toContain('Own a business for families?');
     expect(await page('/live-music')).not.toContain('partner-');

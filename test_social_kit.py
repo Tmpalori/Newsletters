@@ -445,14 +445,15 @@ def test_partners_get_a_facebook_thank_you_on_the_first_of_the_month():
                 {"id": "ord-4", "name": "Smile Dental", "label": "Dental"}]
     first, second = date(2026, 11, 1), date(2026, 11, 2)
     lines = sk.thanks_lines(partners, first)
-    assert lines[0] == "🙏 Thank you to our local partners for keeping The Vic 361 free:"
-    assert lines[1] == "• Mesquite Smokehouse (Food & drink): https://www.thevic361.com/go/p/ord-3?src=social"
+    assert lines == ["🙏 Thanks to our local partners for keeping The Vic 361 free: Mesquite Smokehouse and Smile Dental. "
+                     "Meet them 👉 https://www.thevic361.com/partners", ""]
+    assert sk.thanks_lines(partners[:1], first)[0].startswith("🙏 Thanks to our local partners for keeping The Vic 361 free: Mesquite Smokehouse. ")
     assert sk.thanks_lines(partners, second) == []
     assert sk.thanks_lines([], first) == []
     plain = {"date": "2026-11-01", "name": "Plain", "time": "9 AM"}
     caps = sk.captions(sk.select_events([plain], first, first), first, first, "today", partners=partners, today=first)
     assert caps["facebook"].startswith("#ad ")                   # a paid thank-you
-    assert "Mesquite Smokehouse (Food & drink)" in caps["facebook"]
+    assert "Mesquite Smokehouse" in caps["facebook"] and "/partners" in caps["facebook"]
     assert "Mesquite" not in caps["instagram"] and not caps["instagram"].startswith("#ad ")
     assert "$" not in caps["facebook"]
     caps = sk.captions(sk.select_events([plain], second, second), second, second, "today", partners=partners, today=second)

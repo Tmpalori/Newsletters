@@ -1132,7 +1132,8 @@ function including(list) {
 }
 
 // partnerBox: the category partner box or invite for this page
-// (server/partners.js partnerBoxHtml), shown before the first day.
+// (server/partners.js partnerBoxHtml), shown at the bottom, after the
+// week's sponsor (the sponsor keeps the top spot).
 export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox = '' }) {
   const today = localDateStr(now);
   const [start, end] = dateRange(page.range, today);
@@ -1143,11 +1144,11 @@ export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox 
     <h1 class="page-title">${escHtml(page.h1)}</h1>
     <p class="page-lead">${escHtml(lead)}</p>
     ${page.weekLink ? `<p class="week-nav"><a href="${escHtml(page.weekLink.href)}">${escHtml(page.weekLink.label)}</a></p>` : ''}
-    ${list.length ? `<p class="share-row"><button type="button" class="share-btn share-btn--list" data-share-url="${escHtml(siteUrl + page.path)}" data-share-text="${escHtml(page.h1)}" data-track="share_list">Share this list</button></p>` : ''}${partnerBox ? `\n    ${partnerBox}` : ''}
+    ${list.length ? `<p class="share-row"><button type="button" class="share-btn share-btn--list" data-share-url="${escHtml(siteUrl + page.path)}" data-share-text="${escHtml(page.h1)}" data-track="share_list">Share this list</button></p>` : ''}
     ${list.length
       ? renderGrouped(list, today)
       : `<div class="empty-state">Check <a href="/">this week's full list</a>, or <a href="/submit">submit an event</a>.</div>`}
-    ${sponsorHtml(sponsor)}
+    ${sponsorHtml(sponsor)}${partnerBox ? `\n    ${partnerBox}` : ''}
     ${ctaHtml()}`;
   const ld = [
     breadcrumbLd(siteUrl, [{ name: town.siteName, path: '/' }, { name: page.nav, path: page.path }]),
