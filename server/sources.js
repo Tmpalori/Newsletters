@@ -77,8 +77,6 @@ export async function readMetadataFile(metadataPath) {
   }
 }
 
-// Builds the response payload the /api/admin/sources route returns. Pure
-// function over its inputs so it's easy to test.
 // The collector's Apify spend (collect_events.py apify_spend): numbers only,
 // so a malformed file can't put text in the admin.
 function apifySpend(a) {
@@ -101,6 +99,8 @@ function quietPages(q) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Builds the response payload the /api/admin/sources route returns. Pure
+// function over its inputs so it's easy to test.
 // githubConfigured: whether Pull Now works (it queues a collect for the
 // town's jobs worker; the name is from when it dispatched a GitHub workflow).
 export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, actionsUrl }) {

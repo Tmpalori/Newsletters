@@ -4203,7 +4203,7 @@ def _load_venue_list():
 # monthly limit (one account for every town), and what the actor runs
 # started during this collect cost. Recorded in collection_metadata.json
 # ("apify") for the admin's Sources tab and HQ; at APIFY_ALERT_SHARE of the
-# limit it's a warning, which the workflow's "collect done" Slack message
+# limit it's a warning, which the "collect done" Slack message
 # carries. Read-only calls; any failure just leaves the numbers out.
 APIFY_ALERT_SHARE = 0.8
 
