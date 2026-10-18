@@ -561,6 +561,7 @@ export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = t
 }
 
 const num = n => (Number(n) || 0).toLocaleString('en-US');
+const timesN = n => `${num(n)} ${Number(n) === 1 ? 'time' : 'times'}`;
 // "3×", "2.5×": rounded down to the half, so it never overstates.
 const times = r => `${Math.floor(r * 2) / 2}×`;
 const andList = xs => xs.join(' plus ');
@@ -573,10 +574,10 @@ function reachRows(stats, { day, shownLabel = null }) {
   const rows = [], parts = [];
   let total = 0;
   if (shownLabel && stats.shown) {
-    rows.push([shownLabel, plural(Number(stats.shown), 'time', 'times')]);
+    rows.push([shownLabel, timesN(stats.shown)]);
     total += Number(stats.shown); parts.push('times shown on the site');
   } else if (stats.list_views) {
-    rows.push([`On ${day}’s list on ${town.domain}, which was viewed`, plural(Number(stats.list_views), 'time', 'times')]);
+    rows.push([`On ${day}’s list on ${town.domain}, which was viewed`, timesN(stats.list_views)]);
     total += Number(stats.list_views); parts.push('list views on the site');
   }
   const issues = stats.newsletter_issues || [];
@@ -609,7 +610,7 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
     ...(stats.newsletter_starred ? { newsletter_issues: stats.newsletter_issues > 1 ? ['Monday', 'Thursday'] : ['Monday'], newsletter_recipients: recipients } : {}) },
   { shownLabel: `Shown in our event lists as a ${town.pickName}` });
   const rows = [
-    [`Shown in our event lists as a ${town.pickName}`, plural(shown, 'time', 'times')],
+    [`Shown in our event lists as a ${town.pickName}`, timesN(shown)],
     ...(stats.newsletter_starred ? [[stats.newsletter_issues > 1 ? 'Starred in both newsletters (Monday and Thursday), copies sent' : 'Starred in the newsletter, sent to',
       stats.newsletter_issues > 1 ? num(recipients) : `${num(recipients)} subscribers`]] : []),
     ...reach.rows.filter(([k]) => /posts$/.test(k)),

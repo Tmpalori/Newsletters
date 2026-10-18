@@ -230,3 +230,12 @@ describe('event reach numbers', () => {
     expect(mail.text).toContain('That’s about 3.5× the page views of a typical event that day.');
   });
 });
+
+describe('big numbers', () => {
+  it('get their commas', () => {
+    const mail = renderSubmissionRecap({ name: 'X', date: '2026-10-24' }, { page_views: 1200, list_views: 1640, newsletter_issues: ['Monday'], newsletter_recipients: 3150 },
+      { siteUrl: 'https://www.thevic361.com' });
+    expect(mail.text).toContain('which was viewed: 1,640 times');
+    expect(mail.text).toContain('- Views of its event page: 1,200');
+  });
+});
