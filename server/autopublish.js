@@ -30,7 +30,7 @@
 
 import { eventKeyOf, applyEventEdits, withPublishedLock, parseEventKey } from './db.js';
 import { localDateStr, addDays } from './seo.js';
-import { sameEvent } from './sponsors.js';
+import { sameEvent, nameKey } from './sponsors.js';
 import { town } from './town.js';
 
 // ─── One listing, reworded ───────────────────────────────────────────────
@@ -398,6 +398,16 @@ export function createAutoPublish({ store, candidatesFile, readJsonFile, nowFn, 
       freshUpcoming.filter(scraped).length >= ours.filter(scraped).length * REPLACE_MIN_RATIO;
     const stillFound = ev => [...freshUpcoming, ...approved].some(f => eventKeyOf(f) === eventKeyOf(ev) || sameEvent(f, ev) ||
       sameSlot(f, ev, sourcesOf(f), liveSources(ev)));
+    // A fresh event with the same name (four words or more) on the same
+    // day. Not two libraries: one program runs at several branches a day.
+    const library = e => /\blibrary\b/i.test(e.venue || '');
+    const supersededBy = ev => {
+      const n = nameKey(ev.name);
+      if (n.split(' ').length < 4) return false;
+      const removed = new Set(state.rejected || []);
+      return freshUpcoming.some(f => f.date === ev.date && eventKeyOf(f) !== eventKeyOf(ev) && nameKey(f.name) === n &&
+        !(library(f) && library(ev)) && !removed.has(eventKeyOf(f)));
+    };
     // What each key's source was (keys from before rule 6 have none: they
     // still need two misses) and how many runs in a row it's been missing.
     // A miss counts once per collector run (`from`), so a forced re-run or
@@ -426,6 +436,12 @@ export function createAutoPublish({ store, candidatesFile, readJsonFile, nowFn, 
         continue;
       }
       if (edited.has(k)) continue;
+      // The collector now lists it once, under the same long name, at the
+      // place another source gave ("Jack Karnes Memorial Golf Tournament" at
+      // the course; this copy said the organizer's page). This copy comes
+      // down now, whatever its source: a post's copy would otherwise stay
+      // up to the event's date.
+      if (healthy && supersededBy(ev)) { retired.push(ev); continue; }
       const srcs = Array.isArray(priorSources[k]) ? priorSources[k] : [];
       if (srcs.some(s => NEVER_RETIRE_SOURCES.has(s))) continue;
       const n = Number(priorMissing[k]) || 0;
