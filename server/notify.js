@@ -66,7 +66,7 @@ export function pickWhere(dateStr, at) {
     weekendCovers(dateStr, at) && `Thursday’s weekend newsletter (${long(week[3])})`
   ].filter(Boolean);
   return issues.length
-    ? `starred in ${issues.join(' and ')} and featured first in our social posts`
+    ? `starred in ${issues.join(' and ')}${issues.length > 1 ? ',' : ''} and featured first in our social posts`
     : 'featured first in our social posts (its newsletter goes out before we could add it)';
 }
 
@@ -361,7 +361,7 @@ export function renderSponsorTooLate(order, { siteUrl, address }) {
     ? `the sponsor week of ${formatDay(order.week_start, { month: 'long', day: 'numeric' })}`
     : `${(order.event && order.event.name) || 'your event'} as a ${town.pickName} on ${order.event && order.event.date ? formatDay(order.event.date, { weekday: 'long', month: 'long', day: 'numeric' }) : 'its day'}`;
   const lines = [
-    `Thanks, ${business}. Your bank payment for ${what} only cleared after that date had passed, so we couldn't run it.`,
+    `Thanks, ${endSentence(business)} Your bank payment for ${what} only cleared after that date had passed, so we couldn't run it.`,
     'We’re refunding you in full. You’ll see it from Stripe within a few business days; nothing else is needed from you.',
     'Want to book another date instead? Reply to this email and we’ll set it up.'
   ];
@@ -392,7 +392,7 @@ export function renderSponsorPaymentFailed(order, { siteUrl, address }) {
   const unit = order.kind === 'weekly' ? 'week' : 'day';
   const again = `${siteUrl}/advertise/checkout?package=${order.kind === 'weekly' ? 'weekly' : 'featured'}`;
   const lines = [
-    `Hi ${business}. Your bank payment for ${orderWhat(order)} didn’t go through, so nothing was charged and you’re not booked.`,
+    `Hi ${endSentence(business)} Your bank payment for ${orderWhat(order)} didn’t go through, so nothing was charged and you’re not booked.`,
     `We’ve released the ${unit} we were holding for you, so someone else can book it now. If you still want it, book again (a card settles at once).`
   ];
   return {
@@ -415,7 +415,7 @@ export function renderSponsorConflict(order, { siteUrl, address }) {
   const unit = order.kind === 'weekly' ? 'week' : order.kind === 'category' ? 'category' : 'day';
   if (order.kind === 'category') {
     const lines = [
-      `Thanks, ${business}. Your payment for ${orderWhat(order)} went through, but someone else claimed that category moments before you, so it isn’t running. Sorry about that.`,
+      `Thanks, ${endSentence(business)} Your payment for ${orderWhat(order)} went through, but someone else claimed that category moments before you, so it isn’t running. Sorry about that.`,
       'We’ll cancel your subscription and refund your payment in full (Stripe shows it within a few business days). If another category fits your business, just reply and we’ll set it up.',
       'We’ll be in touch within 1 business day either way.'
     ];
@@ -427,7 +427,7 @@ export function renderSponsorConflict(order, { siteUrl, address }) {
     };
   }
   const lines = [
-    `Thanks, ${business}. Your payment for ${orderWhat(order)} went through, but that ${unit} was booked by someone else moments before you, so it isn’t running. Sorry about that.`,
+    `Thanks, ${endSentence(business)} Your payment for ${orderWhat(order)} went through, but that ${unit} was booked by someone else moments before you, so it isn’t running. Sorry about that.`,
     `Your payment will be refunded in full (Stripe shows it within a few business days), unless you’d rather move to another open ${unit}: just reply to this email and we’ll set it up.`,
     'We’ll be in touch within 1 business day either way.'
   ];
@@ -447,7 +447,9 @@ export function renderSponsorConflict(order, { siteUrl, address }) {
 // (email_opens) but left out here: Apple Mail's image preloading inflates
 // them, so a sponsor's newsletter line only says how many it was sent to.
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const plural = (n, one, many) => `${num(n)} ${Number(n) === 1 ? one : many}`;
+// "Victoria Coffee Co." ends its own sentence: no second period.
+const endSentence = s => (/[.!?]$/.test(String(s)) ? String(s) : `${s}.`);
 const people = n => plural(n, 'person', 'people');
 
 // A two-column table that stays readable on a phone (label left, number right).
@@ -479,12 +481,12 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
   const views = Number(stats.views) || 0;
   const rows = [
     ...(views ? [[`Your block was seen on ${town.domain}`, plural(views, 'time', 'times')]] : []),
-    [`Clicked your button on ${town.domain}`, people(stats.site_people)],
-    ['Clicked your button in our emails', people(stats.email_people)],
+    ...(stats.site_people ? [[`Clicked your button on ${town.domain}`, people(stats.site_people)]] : []),
+    ...(stats.email_people ? [['Clicked your button in our emails', people(stats.email_people)]] : []),
     ...(stats.social_people ? [[`Clicked your link in our ${town.instagram ? 'Facebook and Instagram' : 'Facebook'} posts`, people(stats.social_people)]] : []),
     ...(stats.newsletter_recipients ? [[stats.newsletter_issues > 1 ? 'Newsletter copies with your block (Monday and Thursday issues)' : 'Newsletter copies with your block',
-      String(stats.newsletter_recipients)]] : []),
-    ...(stats.site_visitors ? [[`Visits to ${town.domain} that week`, String(stats.site_visitors)]] : [])
+      num(stats.newsletter_recipients)]] : []),
+    ...(stats.site_visitors ? [[`Visits to ${town.domain} that week`, num(stats.site_visitors)]] : [])
   ];
   const bodyHtml =
     p(`Thanks for sponsoring ${town.siteName}, ${escHtml(business)}! Here’s how your week (${escHtml(range)}) went.`) +
@@ -527,9 +529,9 @@ export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = t
     ['Views of its event page', num(stats.page_views)],
     ...(stats.newsletter_visits ? [['Visits from our newsletter', num(stats.newsletter_visits)]] : []),
     ...(stats.social_visits ? [['Visits from our social posts', num(stats.social_visits)]] : []),
-    ...(ev.url ? [['Clicked through to your link', people(stats.link_people || 0)]] : []),
-    ['Added it to their calendar', num(stats.calendar_adds)],
-    ['Shared it', num(stats.shares)],
+    ...(ev.url && stats.link_people ? [['Clicked through to your link', people(stats.link_people)]] : []),
+    ...(stats.calendar_adds ? [['Added it to their calendar', num(stats.calendar_adds)]] : []),
+    ...(stats.shares ? [['Shared it', num(stats.shares)]] : []),
     ...(stats.share_visits ? [['Visits from a shared link', num(stats.share_visits)]] : [])
   ];
   const lead = `Thanks for sharing ${name} with ${town.city}. Here’s how it did on ${town.siteName} in the week leading up to it:`;
@@ -617,10 +619,10 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
     ['Views of its event page', num(stats.page_views)],
     ...(stats.newsletter_visits ? [['Visits from our newsletter', num(stats.newsletter_visits)]] : []),
     ...(stats.social_visits ? [['Visits from our social posts', num(stats.social_visits)]] : []),
-    ['Clicked through to your link', people(stats.link_people || 0)],
-    ['Added it to their calendar', num(stats.calendar_adds)],
-    ['Shared it', num(stats.shares)],
-    ['Opened it from a shared link', people(stats.share_people || 0)]
+    ...(stats.link_people ? [['Clicked through to your link', people(stats.link_people)]] : []),
+    ...(stats.calendar_adds ? [['Added it to their calendar', num(stats.calendar_adds)]] : []),
+    ...(stats.shares ? [['Shared it', num(stats.shares)]] : []),
+    ...(stats.share_people ? [['Opened it from a shared link', people(stats.share_people)]] : [])
   ];
   // Against the other events on its day (sponsors.js pickStatsFor): only
   // when it's clearly ahead.
@@ -676,18 +678,18 @@ export function renderPartnerReceived(order, { siteUrl, address, manageUrl = '' 
     'Each month after your renewal, we email you a results report: how often your card was seen and how many people clicked.'
   ];
   const bodyHtml =
-    p(`Thanks, ${escHtml(business)}! Your payment went through and <strong>${escHtml(cat)}</strong> is yours on ${escHtml(town.siteName)} while we review your listing.`) +
+    p(`Thanks, ${escHtml(business)}! Your payment went through and the <strong>${escHtml(cat.toLowerCase())}</strong> spot is yours on ${escHtml(town.siteName)} while we review your listing.`) +
     `<h2 style="font-size:18px;margin:20px 0 4px;">What happens next</h2>` + steps(next.map(escHtml)) +
     p('Here’s your card as it will run:') + partnerCard(order, '') +
     p('Want to change your line or link? Reply to this email. Stripe emails your receipt separately.', `color:${C.muted};font-size:14px;`) +
     manageHtml(manageUrl);
   return {
     subject: 'You’re in: we’ll review your listing shortly',
-    html: emailShell({ title: 'You’re in!', preheader: `We'll review your ${cat} listing shortly.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    html: emailShell({ title: 'You’re in!', preheader: `We'll review your ${cat.toLowerCase()} listing shortly.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
-      `Thanks, ${business}! Your payment went through and ${cat} is yours on ${town.siteName} while we review your listing.`, '',
+      `Thanks, ${business}! Your payment went through and the ${cat.toLowerCase()} spot is yours on ${town.siteName} while we review your listing.`, '',
       'What happens next:', ...next.map((x, i) => `${i + 1}. ${x}`), '',
-      `Your card: ${publicPartner(order).name}: ${publicPartner(order).line}`, '',
+      `Your card: ${[publicPartner(order).name, publicPartner(order).line].filter(Boolean).join(': ')}`, '',
       'Want to change your line or link? Reply to this email. Stripe emails your receipt separately.',
       ...manageText(manageUrl), contactText(siteUrl)
     ].join('\n')
@@ -720,6 +722,8 @@ export function renderPartnerLive(order, { siteUrl, address, manageUrl = '' }) {
 }
 
 // The owner said no: the subscription is cancelled and the payment refunded.
+// No "update your card or cancel" line here or in the ended email: there's
+// nothing left to manage.
 // `refunded` false: the refund is being made by hand (Stripe refused ours).
 export function renderPartnerRejected(order, { siteUrl, address, manageUrl = '', reason = '', refunded = true }) {
   const business = order.business || 'there';
@@ -729,19 +733,18 @@ export function renderPartnerRejected(order, { siteUrl, address, manageUrl = '',
     : 'We’ve cancelled your subscription and are refunding your payment in full. It usually shows on your statement within 5 to 10 business days.';
   const why = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, 300);
   const bodyHtml =
-    p(`Thanks for wanting to partner with ${escHtml(town.siteName)}, ${escHtml(business)}. We’re not able to take your ${escHtml(cat.toLowerCase())} listing right now.`) +
+    p(`Thanks for wanting to partner with ${escHtml(town.siteName)}, ${escHtml(endSentence(business))} We’re not able to take your ${escHtml(cat.toLowerCase())} listing right now.`) +
     (why ? p(escHtml(why)) : '') +
     p(escHtml(money)) +
-    p('Questions, or want to try again with a different listing? Just reply to this email.') +
-    manageHtml(manageUrl);
+    p('Questions, or want to try again with a different listing? Just reply to this email.');
   return {
     subject: `About your ${town.shortName} partner listing`,
     html: emailShell({ title: 'About your listing', preheader: 'Your payment is being refunded in full.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
-      `Thanks for wanting to partner with ${town.siteName}, ${business}. We're not able to take your ${cat.toLowerCase()} listing right now.`, '',
+      `Thanks for wanting to partner with ${town.siteName}, ${endSentence(business)} We're not able to take your ${cat.toLowerCase()} listing right now.`, '',
       ...(why ? [why, ''] : []), money, '',
       'Questions, or want to try again with a different listing? Just reply to this email.',
-      ...manageText(manageUrl), contactText(siteUrl)
+      contactText(siteUrl)
     ].join('\n')
   };
 }
@@ -753,15 +756,14 @@ export function renderPartnerCanceled(order, { siteUrl, address, manageUrl = '' 
   const bodyHtml =
     p(`Your ${escHtml(cat.toLowerCase())} partnership with ${escHtml(town.siteName)} has ended, ${escHtml(business)}, and you won’t be charged again.`) +
     p('Thanks for supporting local events. If you’d like to come back, your category may still be open:') +
-    `<p style="margin:14px 0;">${btn(`${siteUrl}/advertise#partner`, 'See partner details')}</p>` +
-    manageHtml(manageUrl);
+    `<p style="margin:14px 0;">${btn(`${siteUrl}/advertise#partner`, 'See partner details')}</p>`;
   return {
     subject: `Your ${town.shortName} partnership has ended`,
     html: emailShell({ title: 'Your partnership has ended', preheader: 'You won’t be charged again.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Your ${cat.toLowerCase()} partnership with ${town.siteName} has ended, ${business}, and you won't be charged again.`, '',
       `Thanks for supporting local events. If you'd like to come back, your category may still be open: ${siteUrl}/advertise#partner`, '',
-      ...manageText(manageUrl), contactText(siteUrl)
+      contactText(siteUrl)
     ].join('\n')
   };
 }
@@ -777,10 +779,10 @@ export function renderPartnerReport(order, stats, { siteUrl, address, manageUrl 
   const total = Number(stats.click_people) || 0;
   const rows = [
     [`Your card was seen on ${town.domain}`, plural(views, 'time', 'times')],
-    ['Clicked your button in our newsletter', people(stats.newsletter_people || 0)],
-    [`Clicked your button on ${town.domain}`, people(stats.site_people || 0)],
+    ...(stats.newsletter_people ? [['Clicked your button in our newsletter', people(stats.newsletter_people)]] : []),
+    ...(stats.site_people ? [[`Clicked your button on ${town.domain}`, people(stats.site_people)]] : []),
     ...(stats.social_people ? [['Clicked your link in our Facebook post', people(stats.social_people)]] : []),
-    ...(stats.newsletter_recipients ? [[`Newsletter copies with your card (${plural(stats.newsletter_issues, 'issue', 'issues')})`, String(stats.newsletter_recipients)]] : [])
+    ...(stats.newsletter_recipients ? [[`Newsletter copies with your card (${plural(stats.newsletter_issues, 'issue', 'issues')})`, num(stats.newsletter_recipients)]] : [])
   ];
   const bodyHtml =
     p(`Thanks for being our ${escHtml(cat.toLowerCase())} partner, ${escHtml(business)}! Here’s how your month (${escHtml(range)}) went.`) +
