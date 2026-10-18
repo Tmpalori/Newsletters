@@ -547,12 +547,20 @@ export function renderIcs(ev, { siteUrl, now }) {
   }
   lines.push(
     `SUMMARY:${icsEscape(ev.name)}`,
-    `LOCATION:${icsEscape([whereText(ev), `${townOf(ev)}, ${town.state}`].filter(Boolean).join(', '))}`,
-    `DESCRIPTION:${icsEscape([ev.description, `${siteUrl}${ev.page}`].filter(Boolean).join('\n\n'))}`,
+    `LOCATION:${icsEscape(calendarLocation(ev))}`,
+    `DESCRIPTION:${icsEscape([ev.details || ev.description, `${siteUrl}${ev.page}`].filter(Boolean).join('\n\n'))}`,
     `URL:${siteUrl}${ev.page}`,
     'END:VEVENT', 'END:VCALENDAR'
   );
   return lines.map(foldLine).join('\r\n') + '\r\n';
+}
+
+// The place with its town and state, once: whereText already ends in
+// "City, ST" when the event has a street address.
+function calendarLocation(ev) {
+  const where = whereText(ev);
+  if (/, [A-Z]{2}$/.test(where)) return where;
+  return [where, `${townOf(ev)}, ${town.state}`].filter(Boolean).join(', ');
 }
 
 export function googleCalendarUrl(ev, siteUrl) {
@@ -565,8 +573,8 @@ export function googleCalendarUrl(ev, siteUrl) {
   }
   const params = new URLSearchParams({
     action: 'TEMPLATE', text: ev.name, dates, ctz: town.timezone,
-    location: [whereText(ev), `${townOf(ev)}, ${town.state}`].filter(Boolean).join(', '),
-    details: `${ev.description ? ev.description + '\n\n' : ''}${siteUrl}${ev.page}`
+    location: calendarLocation(ev),
+    details: `${ev.details || ev.description ? String(ev.details || ev.description).slice(0, 1500) + '\n\n' : ''}${siteUrl}${ev.page}`
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }

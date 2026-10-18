@@ -223,6 +223,10 @@ export function applyCleanup(payload, cleaned) {
   const v = validateSubmission(next, { adminEdit: true });
   if (!v.ok) return { error: Object.values(v.errors)[0] || 'invalid' };
   const out = normalizePayload(v.data.payload);
+  // The newsletter gets the short rewrite; the event page keeps all the
+  // submitter wrote (their own words, already checked by the review).
+  const original = String(payload.details || payload.description || '').trim();
+  if (changes.includes('description') && original.length > out.description.length + 20) out.details = original;
   if (JSON.stringify(out.icons) !== JSON.stringify(payload.icons || [])) changes.push('icons');
   return { payload: out, changes };
 }

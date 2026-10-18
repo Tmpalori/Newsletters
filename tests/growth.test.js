@@ -99,7 +99,7 @@ describe('event text', () => {
     expect(html).not.toContain('&amp;amp;');
     expect(html).toContain('Texas A&amp;M Night');
     const row = html.match(/<span class="event-venue">([^<]*)<\/span>/g).find(s => s.includes('Ben Jordan'));
-    expect(row).toBe('<span class="event-venue">1907 N Ben Jordan St</span>');
+    expect(row).toBe('<span class="event-venue">1907 N Ben Jordan St, Victoria, TX</span>');
   });
 });
 

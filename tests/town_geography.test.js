@@ -50,7 +50,7 @@ describe('another town', () => {
     expect(ld.location.address).toMatchObject({ addressLocality: 'Tulsa', addressRegion: 'OK', addressCountry: 'US' });
     expect(eventJsonLd({ ...ev, venue: '' }, SITE).location.name).toBe('Tulsa, OK');
     const page = renderEventPage(ev, [ev], { siteUrl: SITE, now: NOW });
-    expect(page).toContain('in Tulsa, OK.');
+    expect(page).toContain('at Hall, 10 Main St, Tulsa, OK.');
     expect(page).not.toMatch(/, TX\b/);
     expect(renderIcs(ev, { siteUrl: SITE, now: NOW })).toMatch(/LOCATION:.*Tulsa\\, OK/);
     expect(new URL(googleCalendarUrl(ev, SITE)).searchParams.get('location')).toBe('Hall, 10 Main St, Tulsa, OK');

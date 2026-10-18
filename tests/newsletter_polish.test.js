@@ -161,9 +161,9 @@ describe('the same as the site', () => {
     ];
     const issue = renderWeekly(withPages(evs), weekly);
     expect(issue.html).toContain('Nearby · Cuero');
-    expect(issue.html).toContain('· Fairgrounds · 1 Main St');
-    expect(issue.html).toContain('· 200 Oak St');
-    expect(issue.text).toContain('Turkeyfest @ Fairgrounds · 1 Main St (Cuero)');
+    expect(issue.html).toContain('· Fairgrounds · 1 Main St, Cuero, TX');
+    expect(issue.html).toContain('· 200 Oak St, Victoria, TX');
+    expect(issue.text).toContain('Turkeyfest @ Fairgrounds · 1 Main St, Cuero, TX (Cuero)');
   });
 
   it('the weekly "+N more" opens that day on the homepage', () => {

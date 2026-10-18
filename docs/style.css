@@ -941,6 +941,7 @@ a.logo-group { color: inherit; text-decoration: none; }
 .event-facts dt { font-weight: 600; }
 .event-facts dd { margin: 0; }
 .event-about { margin-bottom: var(--space-6); }
+.event-about:has(+ .event-about) { margin-bottom: var(--space-3); }
 .page-cta {
   margin-top: var(--space-10);
   padding-top: var(--space-6);

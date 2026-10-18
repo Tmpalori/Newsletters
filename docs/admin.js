@@ -1449,6 +1449,7 @@
     form.elements['venue'].value = ev.venue || '';
     form.elements['address'].value = ev.address || '';
     form.elements['description'].value = ev.description || '';
+    if (form.elements['details']) form.elements['details'].value = ev.details || '';
     form.elements['url'].value = ev.url || '';
     syncEditUrlOpenLink();
     form.elements['free'].checked = Boolean(ev.free);
@@ -1501,6 +1502,7 @@
       venue: (form.elements['venue'].value || '').trim(),
       address: (form.elements['address'].value || '').trim(),
       description: (form.elements['description'].value || '').trim(),
+      details: form.elements['details'] ? (form.elements['details'].value || '').trim() : '',
       url: (form.elements['url'].value || '').trim(),
       icons,
       free: Boolean(form.elements['free'].checked),
