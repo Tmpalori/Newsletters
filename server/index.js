@@ -3121,7 +3121,7 @@ const isMain = (() => {
 })();
 
 export function shutdown(server, { exit = code => process.exit(code), graceMs = 8000, log = console.log } = {}) {
-  log('[thevic361] SIGTERM: finishing requests, then exiting');
+  log(`[${town.domain}] SIGTERM: finishing requests, then exiting`);
   const timer = setTimeout(() => exit(0), graceMs);
   if (timer.unref) timer.unref();
   server.close(() => { clearTimeout(timer); exit(0); });
@@ -3137,14 +3137,14 @@ if (isMain) {
   const alerts = () => live || bootSlack;
   // A crash takes the site down until Railway restarts it; say so first.
   process.on('uncaughtException', err => {
-    console.error('[thevic361] uncaught:', err);
+    console.error(`[${town.domain}] uncaught:`, err);
     // A hung database or Slack mustn't keep a crashed process alive.
     Promise.race([alerts().alert('crash', 'Server crashed and is restarting', err && err.stack ? err.stack.slice(0, 1500) : String(err)),
       new Promise(r => { setTimeout(r, 9000).unref(); })])
       .finally(() => process.exit(1));
   });
   process.on('unhandledRejection', err => {
-    console.error('[thevic361] unhandled rejection:', err);
+    console.error(`[${town.domain}] unhandled rejection:`, err);
     alerts().alert(`rejection:${err && err.message}`, 'Unhandled error in the server', (err && err.message) || String(err));
   });
   createApp().then(({ app, storeBundle, alerts: appAlerts }) => {
@@ -3152,14 +3152,14 @@ if (isMain) {
     // No "deployed" ping: every merge redeploys, so it was noise. A failed
     // boot or a crash still alerts (below and above).
     const server = app.listen(port, () => {
-      console.log(`[thevic361] listening on :${port} (storage=${storeBundle.kind})`);
+      console.log(`[${town.domain}] listening on :${port} (storage=${storeBundle.kind})`);
     });
     // Railway stops the old copy with SIGTERM on every deploy. Finish the
     // requests in flight and exit 0, so npm doesn't log the stop as an
     // error ("npm error signal SIGTERM"). Cut off after 8s either way.
     process.once('SIGTERM', () => shutdown(server));
   }).catch(err => {
-    console.error('[thevic361] failed to start:', err);
+    console.error(`[${town.domain}] failed to start:`, err);
     bootSlack.alert('boot', 'Server failed to start', (err && err.message) || String(err))
       .finally(() => process.exit(1));
   });
