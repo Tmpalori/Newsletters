@@ -1642,8 +1642,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   // A signup's typo fixed (October 2026: "melaniereeves60@gmail.comm" on
   // The Star 402 signed up, and every email to it bounced). Also through HQ,
   // where the owner's assistant does it with his OK, so it's held to a
-  // typo: the old address must be on the list and dead (bounced, or still
-  // waiting to confirm), and the new one must be the same name before the @
+  // typo: the old address must be on the list and dead (bounced, still
+  // waiting to confirm, or an ending no mail can reach), and the new one must be the same name before the @
   // on a different domain, an address mail can reach. The new one joins as
   // active (they asked to subscribe; only the typo stopped the confirm);
   // the old one is taken off so it isn't mailed again.
@@ -1662,14 +1662,18 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       if (!fromUser || fromUser !== toUser || fromDomain === toDomain) {
         return no(400, 'not-a-typo', 'Only a typo after the @ can be fixed here (same name before the @, a different domain). Anything else is a new subscriber: use Import.');
       }
-      const dead = [...await store.listSubscribers({ status: 'bounced' }), ...await store.listSubscribers({ status: 'pending' })];
-      const old = dead.find(x => String(x.email || '').toLowerCase() === from);
-      if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced or waiting to confirm.`);
+      // Dead: bounced, never confirmed, or an ending no mail can reach. The
+      // last can still read active: Resend may refuse it before sending, so
+      // no bounce ever comes back (melaniereeves60@gmail.comm did).
+      const old = (await store.listSubscribers()).find(x => String(x.email || '').toLowerCase() === from &&
+        (x.status === 'bounced' || x.status === 'pending' || (x.status === 'active' && impossibleEmailError(from))));
+      if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced, waiting to confirm, or an address that can't receive mail.`);
       const result = await store.importSubscribers([to], 'typo-fix');
       if (result.skipped_unsubscribed || result.skipped_bounced) {
         return no(409, 'to-blocked', `${to} unsubscribed or bounced before, so it can't be added back here.`);
       }
       if (old.status === 'pending') await store.unsubscribeByEmail([old.email]);
+      if (old.status === 'active') await store.markSubscribersBounced([old.email]);
       const by = viaHq(req) ? 'through HQ' : 'in the admin';
       console.log(`[newsletter] subscriber typo fixed ${by}`);
       if (slack) slack.notify({ channel: 'activity', title: `✉️ Subscriber typo fixed ${by}`, fields: [['Was', from], ['Now', to]] });
