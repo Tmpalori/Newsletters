@@ -204,7 +204,7 @@ describe('promises and the schedule', () => {
     expect(weekendCovers('2026-10-08', tue)).toBe(false); // a Thursday event isn't in the weekend issue
     expect(weekendCovers('2026-10-10', new Date('2026-10-07T15:00:00Z'))).toBe(false); // Wednesday: no day to review
     expect(pickWhere('2026-10-10', tue)).toBe('starred in Thursday’s weekend newsletter (October 8) and featured first in our social posts');
-    expect(pickWhere('2026-10-17', tue)).toBe('starred in the Monday newsletter for the week of October 12 and Thursday’s weekend newsletter (October 15) and featured first in our social posts');
+    expect(pickWhere('2026-10-17', tue)).toBe('starred in the Monday newsletter for the week of October 12 and Thursday’s weekend newsletter (October 15), and featured first in our social posts');
   });
 
   it('the scheduler sends it Thursdays from 7:00 AM Central', () => {
@@ -299,7 +299,7 @@ describe('multi-agent review fixes', () => {
     const one = sponsorStats(order, [], { recipients: 950, issues: 1 });
     expect(renderSponsorReport(order, one, { siteUrl: 'https://x' }).text).toContain('Newsletter copies with your block: 950');
     const two = sponsorStats(order, [], { recipients: 1950, issues: 2 });
-    expect(renderSponsorReport(order, two, { siteUrl: 'https://x' }).text).toContain('Newsletter copies with your block (Monday and Thursday issues): 1950');
+    expect(renderSponsorReport(order, two, { siteUrl: 'https://x' }).text).toContain('Newsletter copies with your block (Monday and Thursday issues): 1,950');
   });
 
   it('with NEWSLETTER_WEEKEND=0 nothing promises the Thursday issue', async () => {

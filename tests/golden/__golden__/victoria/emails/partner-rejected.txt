@@ -7,7 +7,6 @@ We already list a similar business.
 We’ve cancelled your subscription and refunded your payment in full. It usually shows on your statement within 5 to 10 business days.
 
 Questions, or want to try again with a different listing? Just reply to this email.
-Update your card or cancel anytime: https://www.thevic361.com/partners/manage?o=ord-3&t=TOKEN
 Questions or something not right? Reply to this email or reach us at https://www.thevic361.com/contact
 
 ----- HTML -----
@@ -20,8 +19,6 @@ Questions or something not right? Reply to this email or reach us at https://www
 [data-ogsb].b-ffc93c,[data-ogsb] .b-ffc93c{background-color:#ffc93c !important;background-image:linear-gradient(#ffc93c,#ffc93c) !important}
 [data-ogsb].b-2b2370,[data-ogsb] .b-2b2370{background-color:#2b2370 !important;background-image:linear-gradient(#2b2370,#2b2370) !important}
 [data-ogsc].t-1f1a3d,[data-ogsc] .t-1f1a3d{color:#1f1a3d !important}
-[data-ogsc].t-554e7a,[data-ogsc] .t-554e7a{color:#554e7a !important}
-[data-ogsc].t-4b3fd1,[data-ogsc] .t-4b3fd1{color:#4b3fd1 !important}
 [data-ogsc].t-d6cfff,[data-ogsc] .t-d6cfff{color:#d6cfff !important}
 [data-ogsc].t-ffc93c,[data-ogsc] .t-ffc93c{color:#ffc93c !important}</style></head>
 <body class="b-fff4d6" bgcolor="#FFF4D6" style="margin:0;padding:0;background-color:#FFF4D6;background-image:linear-gradient(#FFF4D6,#FFF4D6);">
@@ -32,6 +29,6 @@ Questions or something not right? Reply to this email or reach us at https://www
 <div><span style="font-size:22px;font-weight:bold;">The Vic</span> <span class="b-ffc93c" style="display:inline-block;font-size:18px;font-weight:bold;background-color:#FFC93C;background-image:linear-gradient(#FFC93C,#FFC93C);border:3px solid #1F1A3D;border-radius:8px;padding:0 6px;">361</span></div>
 <div style="font-size:30px;font-weight:bold;line-height:1.15;margin:10px 0 12px;">About your listing</div></td></tr>
 <tr><td class="b-ddf2ff" bgcolor="#DDF2FF" style="background-color:#DDF2FF;background-image:linear-gradient(#DDF2FF,#DDF2FF);padding:0;line-height:0;border-bottom:3px solid #1F1A3D;"><img src="https://www.thevic361.com/email/skyline.png" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>
-<tr><td class="t-1f1a3d" style="padding:8px 22px 26px;font-family:'Nunito','Helvetica Neue',Arial,sans-serif;color:#1F1A3D;font-size:15px;line-height:1.5;"><p style="margin:14px 0;font-size:15px;line-height:1.5;">Thanks for wanting to partner with The Vic 361, Mesquite Smokehouse. We’re not able to take your food &amp; drink listing right now.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">We already list a similar business.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">We’ve cancelled your subscription and refunded your payment in full. It usually shows on your statement within 5 to 10 business days.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">Questions, or want to try again with a different listing? Just reply to this email.</p><p class="t-554e7a" style="margin:14px 0;font-size:15px;line-height:1.5;color:#554E7A;font-size:14px;">Update your card or cancel anytime: <a href="https://www.thevic361.com/partners/manage?o=ord-3&amp;t=TOKEN" class="t-4b3fd1" style="color:#4B3FD1;font-weight:bold;">manage your partnership</a>.</p></td></tr>
+<tr><td class="t-1f1a3d" style="padding:8px 22px 26px;font-family:'Nunito','Helvetica Neue',Arial,sans-serif;color:#1F1A3D;font-size:15px;line-height:1.5;"><p style="margin:14px 0;font-size:15px;line-height:1.5;">Thanks for wanting to partner with The Vic 361, Mesquite Smokehouse. We’re not able to take your food &amp; drink listing right now.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">We already list a similar business.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">We’ve cancelled your subscription and refunded your payment in full. It usually shows on your statement within 5 to 10 business days.</p><p style="margin:14px 0;font-size:15px;line-height:1.5;">Questions, or want to try again with a different listing? Just reply to this email.</p></td></tr>
 <tr><td class="b-2b2370 t-d6cfff" bgcolor="#2B2370" style="background-color:#2B2370;background-image:linear-gradient(#2B2370,#2B2370);padding:18px 24px;border-top:3px solid #1F1A3D;font-family:'Nunito','Helvetica Neue',Arial,sans-serif;color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">Questions or something not right? Just reply to this email, or reach us at <a href="https://www.thevic361.com/contact" class="t-ffc93c" style="color:#FFC93C;">thevic361.com/contact</a>.<br>The Vic 361 · PO Box 1, Victoria, TX 77901</td></tr>
 </table></td></tr></table></body></html>

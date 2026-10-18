@@ -239,3 +239,24 @@ describe('big numbers', () => {
     expect(mail.text).toContain('- Views of its event page: 1,200');
   });
 });
+
+describe('report polish', () => {
+  it('leaves zero rows out, keeps page views', async () => {
+    const { renderSponsorReport } = await import('../server/notify.js');
+    const recap = renderSubmissionRecap({ name: 'X', url: 'https://x.example.com' }, { page_views: 12 }, { siteUrl: 'https://www.thevic361.com' });
+    expect(recap.text).toContain('- Views of its event page: 12');
+    expect(recap.text).not.toMatch(/: 0( |$)/m);
+    const pick = renderPickReport({ event: { name: 'X' } }, { shown: 30, page_views: 0 }, { siteUrl: 'https://www.thevic361.com' });
+    expect(pick.text).toContain('- Views of its event page: 0');
+    expect(pick.text).not.toContain('Clicked through');
+    const sponsor = renderSponsorReport({ business: 'Acme' }, { week_start: '2026-10-05', week_end: '2026-10-11', views: 2400, site_people: 3, email_people: 0 }, { siteUrl: 'https://x' });
+    expect(sponsor.text).toContain('seen on thevic361.com: 2,400 times');
+    expect(sponsor.text).not.toContain('in our emails');
+  });
+
+  it('a business name ending in a period gets no second one', async () => {
+    const { renderSponsorPaymentFailed } = await import('../server/notify.js');
+    const mail = renderSponsorPaymentFailed({ kind: 'weekly', business: 'Victoria Coffee Co.', week_start: '2026-10-26' }, { siteUrl: 'https://x' });
+    expect(mail.text).toContain('Hi Victoria Coffee Co. Your bank payment');
+  });
+});

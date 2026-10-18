@@ -165,7 +165,7 @@ describe('categories and state', () => {
     expect(full.html).not.toContain('Become a partner');
   });
 
-  it('partner emails name the category, carry the manage link and never a price', () => {
+  it('partner emails name the category, carry the manage link while there’s one, and never a price', () => {
     useTown(VICTORIA);
     const order = { id: 'o-1', kind: 'category', category: 'food', business: 'Mesquite', email: 'm@x.com', amount: 9900,
       partner: { name: 'Mesquite', line: 'Brisket.', cta: 'Menu', url: 'https://m.example' } };
@@ -184,9 +184,10 @@ describe('categories and state', () => {
     expect(mails[2].text).toContain('We already list a similar business.');
     expect(mails[2].text).toContain('refunded your payment in full');
     expect(mails[4].text).toContain('9 people clicked through');
-    for (const m of mails) {
-      expect(m.text).toContain(manage);
-      expect(m.html).toContain(manage.replace(/&/g, '&amp;'));
+    // A rejected or ended partnership has nothing left to manage.
+    for (const [i, m] of mails.entries()) {
+      expect(m.text.includes(manage)).toBe(i !== 2 && i !== 3);
+      expect(m.html.includes(manage.replace(/&/g, '&amp;'))).toBe(i !== 2 && i !== 3);
       expect(m.subject + m.text + m.html).not.toMatch(/\$\d/);
       expect(m.subject + m.text).not.toMatch(/—/);
     }
