@@ -4,10 +4,11 @@
 Runs as the jobs worker's event-check job after each collect (once
 auto-publish has updated the site) and on Monday morning before the
 newsletter. Reads the live /events.json, so it checks what people actually
-see, hand edits included, and posts one Slack message: what to look at, or
-that everything looks fine. What a rule is sure about (church events,
-non-events, exact duplicates, a cut-off name with the whole listing at the
-same place that day) it hides on its own through the site's
+see, hand edits included, and posts one short Slack line to the activity
+channel (how many of each kind to look at, or that everything looks fine);
+the full list goes to the owner inbox (HQ) as an fyi item. What a rule is
+sure about (church events, non-events, exact duplicates, a cut-off name with
+the whole listing at the same place that day) it hides on its own through the site's
 /api/event-check/hide (server/eventcheck.js; never deletes, restore on admin
 Home); judgment calls, and everything the AI finds, only get reported.
 
@@ -30,6 +31,8 @@ import os
 import re
 import sys
 import time
+from collections import Counter
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +48,8 @@ import slack_notify  # noqa: E402
 SITE = site_url()
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 AI_KINDS = {"duplicate", "wrong_date", "not_an_event", "out_of_area", "religious", "odd_time", "other"}
-MAX_LINES = 12  # per Slack message; the rest follow in more messages
+# The inbox keeps 4,000 characters of an item's text (server/inbox.js).
+MAX_HQ_TEXT = 3800
 RELIGIOUS_REASONS = {"religious event", "church event", "worship service"}  # collect_events.non_event_reason
 # Rule findings certain enough to hide without asking. Wrong days and odd
 # times stay flags: the fix is an edit, not a removal. AI findings are never
@@ -232,6 +236,12 @@ def combine(rule, ai):
     return out
 
 
+# The Slack summary's counts: (one, more than one).
+COUNT_LABEL = {"duplicate": ("possible duplicate", "possible duplicates"), "wrong_date": ("wrong day?", "wrong days?"),
+               "not_an_event": ("maybe not an event", "maybe not events"),
+               "out_of_area": (f"outside {TOWN['city']}?", f"outside {TOWN['city']}?"),
+               "religious": ("church event", "church events"), "odd_time": ("odd time", "odd times"),
+               "cut_off": ("cut-off name", "cut-off names"), "other": ("other", "other")}
 LABEL = {"duplicate": "possible duplicate", "wrong_date": "wrong day?", "not_an_event": "not an event?",
          "out_of_area": f"outside {TOWN['city']}?", "religious": "religious / church event", "odd_time": "odd time",
          "cut_off": "name cut off", "other": "check"}
@@ -421,10 +431,17 @@ def notify_sales(events, flagged):
     lines = [f"💳 Event check: {len({f[0] for f in flagged})} paid {TOWN['pick_name_plain']}(s) matched a hide rule. "
              "Not hidden; check with the buyer:"]
     lines += [f"• {describe(events[i])}: *{LABEL.get(kind, kind)}*, {esc(why)}" for i, kind, why in flagged]
+    with _webhook(url):
+        slack_notify.main(["\n".join(lines), "--link", f"{SITE}/admin.html"])
+
+
+@contextmanager
+def _webhook(url):
+    """slack_notify posts to SLACK_WEBHOOK_URL; point it at url for one post."""
     old = os.environ.get("SLACK_WEBHOOK_URL")
     os.environ["SLACK_WEBHOOK_URL"] = url
     try:
-        slack_notify.main(["\n".join(lines), "--link", f"{SITE}/admin.html"])
+        yield
     finally:
         if old is None:
             os.environ.pop("SLACK_WEBHOOK_URL", None)
@@ -572,29 +589,49 @@ def main(argv=None):
     findings = sorted(f for f in findings if not (f[0] in restored and f[1] in AUTO_HIDE))
     head, lines = report(events, findings, ai is not None, args.days, hidden, problem)
 
-    messages = slack_messages(head, lines)
     # Every finding in the log (the worker's Railway log keeps all of it).
     print("\n".join([head] + lines))
     if not args.dry_run:
-        for text in messages:
-            slack_notify.main([text, "--link", f"{SITE}/admin.html"])
+        post_report(head, lines, findings, hidden)
         notify_sales(events, paid_findings(events, findings))
     return 0
 
 
-def slack_messages(head, lines):
-    """The report as Slack messages of MAX_LINES findings each, so a long
-    check is split rather than cut (Railway has no run summary to hold the
-    rest)."""
-    chunks = [lines[i:i + MAX_LINES] for i in range(0, len(lines), MAX_LINES)] or [[]]
-    if len(chunks) == 1:
-        return ["\n".join([head] + chunks[0])]
-    out = []
-    for n, chunk in enumerate(chunks, 1):
-        title = head if n == 1 else f"Event check, continued ({n} of {len(chunks)})"
-        more = [f"…and {len(lines) - n * MAX_LINES} more in the next message."] if n < len(chunks) else []
-        out.append("\n".join([title] + chunk + more))
-    return out
+def summary(head, findings, hidden=()):
+    """The Slack line: the headline and how many of each kind to look at.
+    Each finding one by one was a wall of text in Slack (Shoals: 3 messages
+    for 30 findings, Oct 18 2026); the list itself goes to HQ."""
+    look = Counter(kind for i, kind, _ in findings if i not in hidden)
+    if not look:
+        return head
+    counts = [f"{n} {COUNT_LABEL.get(k, (k, k))[n != 1]}" for k, n in look.most_common()]
+    return f"{head}\nTo look at: {', '.join(counts)}."
+
+
+def hq_text(lines):
+    """The full list for the owner inbox: Slack's <url|name> links as plain
+    names, cut to what the inbox keeps (the rest stays in the Railway log)."""
+    plain = [re.sub(r"<[^>|]*\|([^>]*)>", r"\1", line) for line in lines]
+    out, size = [], 0
+    for n, line in enumerate(plain):
+        if size + len(line) + 1 > MAX_HQ_TEXT:
+            out.append(f"…and {len(plain) - n} more lines in the event check's Railway log.")
+            break
+        out.append(line)
+        size += len(line) + 1
+    return "\n".join(out)
+
+
+def post_report(head, lines, findings, hidden=()):
+    """The full list to HQ as an fyi item, then one short line to Slack's
+    activity channel. Not the default webhook: on the jobs services that
+    one reaches the sales channel, and a report isn't a sale or an alert."""
+    link = f"{SITE}/admin.html"
+    in_hq = bool(lines) and slack_notify.report_to_site(f"{head}\n{hq_text(lines)}", link, True, fyi=True)
+    text = summary(head, findings, hidden) + (" Full list in HQ." if in_hq else "")
+    url = (os.environ.get("SLACK_ACTIVITY_WEBHOOK_URL") or os.environ.get("SLACK_WEBHOOK_URL") or "").strip()
+    with _webhook(url):
+        slack_notify.post_to_slack(text, link)
 
 
 if __name__ == "__main__":

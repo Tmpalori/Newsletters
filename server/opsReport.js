@@ -4,7 +4,10 @@
  * which the owner inbox (server/inbox.js), and so HQ and the owner's
  * assistant, never saw. slack_notify.py now also sends each alert here:
  *
- *   POST /api/ops/report   X-Ops-Secret   { title, text?, link?, slack_delivered? }
+ *   POST /api/ops/report   X-Ops-Secret   { title, text?, link?, slack_delivered?, fyi? }
+ *
+ * fyi: a report, not an alert (the event check's full list; its short line
+ * already went to Slack): saved as an fyi activity item, never posted.
  *
  * The alert is saved to the inbox as an alerts-channel item (urgent; a ✅
  * recovery is fyi). When the workflow couldn't post it to Slack itself
@@ -17,6 +20,7 @@ import crypto from 'node:crypto';
 
 const MAX_TITLE = 200;
 const MAX_TEXT = 2000;
+const MAX_FYI_TEXT = 4000; // the inbox keeps 4,000 (server/inbox.js)
 
 function secretOk(given, want) {
   const g = Buffer.from(String(given || ''));
@@ -51,12 +55,16 @@ export function registerOpsReport(app, { secret, slack, json, limiter = null, si
     const body = req.body || {};
     const title = cleanTitle(body.title);
     if (!title) return res.status(400).json({ ok: false, error: 'title-required' });
-    const text = String(body.text || '').slice(0, MAX_TEXT);
+    const fyi = body.fyi === true;
+    const text = String(body.text || '').slice(0, fyi ? MAX_FYI_TEXT : MAX_TEXT);
     const link = safeLink(body.link, siteUrl);
     // The workflow already prefixed its emoji (🚨, ⚠️, ⏰, ✅).
     const bare = title.replace(/^🚨\s*/u, '');
     try {
-      if (body.slack_delivered === true) {
+      if (fyi) {
+        // classify() reads an activity title like "🔎 Event check: ..." as fyi.
+        await slack.record('activity', { title, text, link });
+      } else if (body.slack_delivered === true) {
         await slack.record('alerts', { title: /^\p{Extended_Pictographic}/u.test(title) ? title : `🚨 ${title}`, text, link });
       } else if (title.startsWith('✅') || title.startsWith('⚠️')) {
         // A recovery or a warning: posted and saved as it is.

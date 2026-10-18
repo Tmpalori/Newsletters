@@ -440,13 +440,37 @@ def test_wait_ends_once_collected_at_shows_these_candidates_are_live(tmp_path):
     assert sw.wait_for_publish(path, lambda: old, sleep=lambda s: None, tries=2, today="2026-10-06") is False
 
 
-def test_a_long_check_is_split_across_slack_messages_not_cut():
-    # Railway has no run summary: findings past the first 12 used to be lost.
-    lines = [f"• finding {n}" for n in range(30)]
-    msgs = sw.slack_messages("🔎 Event check: 30 to look at", lines)
-    assert len(msgs) == 3
-    assert msgs[0].startswith("🔎 Event check: 30 to look at") and "18 more in the next message" in msgs[0]
-    assert msgs[2].startswith("Event check, continued (3 of 3)") and "more in the next" not in msgs[2]
-    assert all(f"• finding {n}" in "\n".join(msgs) for n in range(30))
-    assert "run summary" not in "\n".join(msgs)
-    assert sw.slack_messages("🔎 Event check: nothing looks off.", []) == ["🔎 Event check: nothing looks off."]
+def test_slack_gets_one_short_line_with_counts():
+    # Each finding one by one was a wall of text (Shoals: 3 messages for 30).
+    findings = [(0, "duplicate", "x"), (1, "duplicate", "x"), (2, "odd_time", "x"), (3, "religious", "x"), (4, "not_an_event", "x")]
+    text = sw.summary("🔎 Event check: hid 1, 4 to look at", findings, hidden={4})
+    assert text == ("🔎 Event check: hid 1, 4 to look at\n"
+                    "To look at: 2 possible duplicates, 1 odd time, 1 church event.")
+    assert sw.summary("🔎 Event check: nothing looks off.", []) == "🔎 Event check: nothing looks off."
+
+
+def test_the_full_list_goes_to_hq_as_plain_text_cut_to_fit():
+    lines = ["*To look at:*"] + [f"• Sat Oct 24 · <https://x/events/{n}|Live Music ¦ {n}> (Swampers): *possible duplicate*, same"
+                                 for n in range(80)]
+    text = sw.hq_text(lines)
+    assert "<https://" not in text and "Live Music ¦ 0 (Swampers)" in text
+    assert len(text) <= sw.MAX_HQ_TEXT + 80 and text.endswith("more lines in the event check's Railway log.")
+    assert sw.hq_text(lines[:2]) == "*To look at:*\n• Sat Oct 24 · Live Music ¦ 0 (Swampers): *possible duplicate*, same"
+
+
+def test_report_goes_to_the_activity_channel_not_the_default(monkeypatch):
+    # The jobs services' default webhook reaches the sales channel.
+    monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/sales")
+    monkeypatch.setenv("SLACK_ACTIVITY_WEBHOOK_URL", "https://hooks.slack.com/activity")
+    posted, sent = [], []
+    monkeypatch.setattr(sw.slack_notify, "post_to_slack", lambda text, link: posted.append((os.environ["SLACK_WEBHOOK_URL"], text)))
+    monkeypatch.setattr(sw.slack_notify, "report_to_site", lambda text, link, delivered, fyi=False: sent.append((text, delivered, fyi)) or True)
+    sw.post_report("🔎 Event check: 1 to look at", ["*To look at:*", "• Mon · Bingo: *odd time*, 3 AM"], [(0, "odd_time", "3 AM")])
+    assert posted == [("https://hooks.slack.com/activity", "🔎 Event check: 1 to look at\nTo look at: 1 odd time. Full list in HQ.")]
+    assert sent == [("🔎 Event check: 1 to look at\n*To look at:*\n• Mon · Bingo: *odd time*, 3 AM", True, True)]
+    assert os.environ["SLACK_WEBHOOK_URL"] == "https://hooks.slack.com/sales"
+    # Nothing found: one line, nothing for HQ; no activity webhook: the default.
+    monkeypatch.delenv("SLACK_ACTIVITY_WEBHOOK_URL")
+    posted.clear(), sent.clear()
+    sw.post_report("🔎 Event check: nothing looks off.", [], [])
+    assert posted == [("https://hooks.slack.com/sales", "🔎 Event check: nothing looks off.")] and sent == []

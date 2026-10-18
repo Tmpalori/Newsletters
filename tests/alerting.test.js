@@ -99,6 +99,17 @@ describe('POST /api/ops/report (GitHub workflow alerts into the inbox)', () => {
     expect((await store.listInboxEvents(0)).map(e => [e.severity, e.kind])).toEqual([['fyi', 'recovered'], ['today', 'warning']]);
   });
 
+  it("a report (the event check's list) is saved as fyi activity, never posted", async () => {
+    await start();
+    const text = '*To look at:*\n' + '• Sat Oct 24 · Live Music: possible duplicate\n'.repeat(60);
+    await report({ title: '[Shoals] 🔎 Event check: 30 to look at (253 events in the next 14 days)', text, slack_delivered: true, fyi: true });
+    await settle();
+    const ev = await store.listInboxEvents(0);
+    expect(ev.map(e => [e.channel, e.severity, e.title])).toEqual([['activity', 'fyi', '🔎 Event check: 30 to look at (253 events in the next 14 days)']]);
+    expect(ev[0].payload.text.length).toBeGreaterThan(2000);
+    expect(posts).toEqual([]);
+  });
+
   it('keeps only links to GitHub or the site, and strips Slack markup', () => {
     expect(safeLink('https://github.com/x/y/actions/runs/1', 'https://www.thevic361.com')).toBe('https://github.com/x/y/actions/runs/1');
     expect(safeLink('https://www.thevic361.com/admin.html', 'https://www.thevic361.com')).toBe('https://www.thevic361.com/admin.html');
