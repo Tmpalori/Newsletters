@@ -189,6 +189,18 @@ def summarize(row):
     return spend, ", ".join(parts)
 
 
+def numbers(row):
+    """An insights row's plain numbers, for HQ's combined morning message."""
+    spend = float(row.get("spend") or 0)
+    return {"spend": round(spend, 2), "clicks": int(float(row.get("inline_link_clicks") or 0)),
+            "leads": action(row, "lead") or action(row, "offsite_conversion.fb_pixel_lead")}
+
+
+def plain(line):
+    """A report line without its leading emoji and Slack bold, for HQ."""
+    return re.sub(r"^\W+\s*", "", line).replace("*", "").strip()
+
+
 def mine(name):
     return not CAMPAIGN_PREFIX or str(name or "").startswith(CAMPAIGN_PREFIX)
 
@@ -420,8 +432,15 @@ def real_cost(site):
     return "✅ Real, from the site: " + " · ".join(bits)
 
 
-def cmd_report(api, account, out):
-    spend7, week = summarize(insights(api, account["id"], "last_7d"))
+def cmd_report(api, account, out, data=None):
+    """The daily report's text (None when there's nothing to say). `data`,
+    when given, is filled with the same report as plain numbers and lines
+    ({"status", "yesterday", "last_7_days", "today", "site", "problems"}),
+    which the site keeps for HQ's one morning message for every town."""
+    data = {} if data is None else data
+    week_row = insights(api, account["id"], "last_7d")
+    spend7, week = summarize(week_row)
+    data["last_7_days"] = numbers(week_row)
     # Every report sends the days (quiet weeks too: Meta revises recent
     # days, and a pause should show as $0 on the site).
     site = push_spend(api, account)
@@ -435,30 +454,41 @@ def cmd_report(api, account, out):
                            "check Ads Manager → Account overview")
     # Rides along when there's a report; never a reason to send one.
     notes = over_budget(campaigns, adsets)
+    data["problems"] = [plain(x) for x in problems + notes]
+    if site:
+        data["site"] = {k: site[k] for k in ("yesterday", "last_7_days") if isinstance(site.get(k), dict)}
     if spend7 <= 0:
         on = running_ads(campaigns, adsets, ads)
         if not problems and not on:
+            data["status"] = "off"
             out.append("No ad spend in the last 7 days and no ads on; no report.")
             return None
         # "last_7d" ends yesterday, so an ad that started today shows $0
         # there while it's already spending: report today instead.
-        spend_today, today = summarize(insights(api, account["id"], "today"))
+        today_row = insights(api, account["id"], "today")
+        spend_today, today = summarize(today_row)
         if spend_today > 0:
+            data.update(status="started", today=numbers(today_row))
             text = "\n".join([f"📈 Meta ads: today so far {today}"] + problems + notes)
             out.append(text)
             return text
         # An ad made in the last 2 days may not have delivered yet; that's
         # not a stalled campaign.
         if not problems and on and all(_age_days(a.get("created_time")) < 2 for a in on):
+            data["status"] = "started"
             out.append("Ads just started; no spend reported yet, no report.")
             return None
         # Zero spend with ads on, or a rejected ad / held account, is a
         # stalled campaign, not a quiet week: say so.
         head = "📉 Meta ads: $0 spent in the last 7 days" + (f" with {len(on)} ad{'s' if len(on) != 1 else ''} on" if on else "")
+        data["status"] = "stalled"
+        data["problems"] = [plain(head)] + data["problems"]
         text = "\n".join([head] + problems + notes)
         out.append(text)
         return text
-    _, yday = summarize(insights(api, account["id"], "yesterday"))
+    yday_row = insights(api, account["id"], "yesterday")
+    _, yday = summarize(yday_row)
+    data.update(status="running", yesterday=numbers(yday_row))
     real = real_cost(site)
     text = "\n".join([f"📈 Meta ads: yesterday {yday}", f"Last 7 days: {week}"] + ([real] if real else []) + problems + notes)
     out.append(text)
@@ -508,13 +538,14 @@ def main(argv=None, session=None):
         if args.command == "status":
             cmd_status(api, account, out)
         elif args.command == "report":
-            text = cmd_report(api, account, out)
+            data = {}
+            text = cmd_report(api, account, out, data)
             # A refused webhook (slack_notify returns 2) fails the run below,
             # so GitHub emails the owner instead of the report vanishing.
             link = f"https://adsmanager.facebook.com/adsmanager/manage/campaigns?act={account['id'][4:]}"
             if args.result:
                 with open(args.result, "w") as f:
-                    json.dump({"report": text, "link": link if text else None}, f)
+                    json.dump({"report": text, "link": link if text else None, "data": data}, f)
             elif text:
                 slack_rc = slack_notify.main([text, "--link", link])
         elif args.command in ("pause", "resume"):

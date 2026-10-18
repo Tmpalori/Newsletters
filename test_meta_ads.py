@@ -389,9 +389,15 @@ def test_the_workers_run_writes_the_report_for_the_site_instead_of_slack(tmp_pat
     got = json.loads(out.read_text())
     assert sent == []
     assert got["report"].startswith("📈 Meta ads: yesterday") and got["link"].startswith("https://adsmanager.facebook.com/")
+    # The same report as plain numbers, for HQ's one morning message.
+    assert got["data"]["status"] == "running"
+    assert got["data"]["yesterday"] == {"spend": 12.34, "clicks": 40, "leads": 0}
+    assert got["data"]["last_7_days"] == {"spend": 12.34, "clicks": 40, "leads": 0}
+    assert got["data"]["problems"] == []
     # A quiet week: no report, nothing for the site to post.
     assert ma.main(["report", "--scheduled", "--result", str(out)], session=FakeMeta(spend="0")) == 0
-    assert json.loads(out.read_text()) == {"report": None, "link": None}
+    quiet = json.loads(out.read_text())
+    assert (quiet["report"], quiet["link"], quiet["data"]["status"]) == (None, None, "off")
 
 
 class SharedAccount(FakeMeta):
@@ -488,3 +494,19 @@ def test_every_town_names_its_own_campaigns_in_the_shared_account():
     # No prefix starts another's, so no campaign is counted by two towns.
     prefixes = [town_mod.VICTORIA["meta"]["campaign_prefix"], *want.values()]
     assert not any(a != b and b.startswith(a) for a in prefixes for b in prefixes)
+
+
+def test_a_stalled_campaign_and_a_rejected_ad_are_plain_lines_for_hq(tmp_path):
+    out = tmp_path / "r.json"
+
+    class Stalled(FakeMeta):
+        def request(self, method, url, **k):
+            if url.endswith("/ads"):
+                return Resp({"data": [{"id": "5", "name": "Video", "adset_id": "999", "effective_status": "DISAPPROVED",
+                                       "created_time": "2026-01-01T00:00:00+0000"}]})
+            return super().request(method, url, **k)
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=Stalled(spend="0")) == 0
+    data = json.loads(out.read_text())["data"]
+    assert data["status"] == "stalled"
+    assert data["problems"][0].startswith("Meta ads: $0 spent in the last 7 days")
+    assert "Ad Video is disapproved: check it in Ads Manager" in data["problems"]

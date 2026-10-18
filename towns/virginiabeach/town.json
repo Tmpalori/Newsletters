@@ -182,5 +182,8 @@
   "limits": {
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15
+  },
+  "schedule": {
+    "meta-ads": "09:37"
   }
 }

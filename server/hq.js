@@ -64,7 +64,7 @@ export function metaTotals(rows, from, until) {
 // and is named in `failed` (only present when something failed), so HQ
 // shows "database down" rather than a green row of zeros (0 subscribers,
 // $0) that would also drop the town out of the network totals.
-export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null, getNewsletterRuns = null, getAdCampaigns = null, dormant = false }) {
+export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEvents, getOrders, setup, health, getJobs = null, getNewsletterRuns = null, getAdCampaigns = null, getAdsReport = null, dormant = false }) {
   const now = nowFn();
   const today = localDateStr(now);
   const failed = [];
@@ -104,6 +104,9 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   // since a slot that ran isn't always an issue that went out.
   const runsOut = getNewsletterRuns ? await safe(getNewsletterRuns, null, 'newsletter_runs') : null;
   const campaigns = getAdCampaigns ? await safe(getAdCampaigns, null, 'ads') : null;
+  // The last daily ads report (scripts/meta_ads.py, kept by server/jobs.js),
+  // as numbers, for HQ's one morning message across every town.
+  const adsReport = getAdsReport ? await safe(getAdsReport, null) : null;
   // A configured database that doesn't answer its ping fails the store's
   // reads too (and setupReport swallows those): say so.
   if (h && h.database === false && h.database_configured && !failed.includes('database')) failed.push('database');
@@ -155,7 +158,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       // and 30 full days, and the town's campaigns as of the last ads report.
       meta_7_days: metaTotals(spend, addDays(today, -7), today),
       meta_30_days: metaTotals(spend, addDays(today, -30), today),
-      ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {})
+      ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {}),
+      ...(adsReport ? { report: adsReport } : {})
     },
     sponsors: bad('revenue') ? null : sponsorCounts(orders, today),
     // Category partners (server/partners.js): live, waiting for the owner's
@@ -217,7 +221,66 @@ export function hypeBlocks({ count, groups, allTotal = null }, escape) {
   return { title, blocks };
 }
 
-export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, subscribers = null, hype = null, clientKey = req => req.ip }) {
+// Slack blocks for HQ's one morning ads message (POST /api/hq/morning),
+// at Tristen's ask (Oct 2026): every town in one message, short bullets,
+// instead of one dense message per town. HQ sends each town's report as
+// numbers (server/jobs.js keeps it; tristen-hq src/morning.js gathers it);
+// the layout and escaping are here, like the subscriber ping's.
+//   towns: [{ name, status: running|started|stalled|off|missing,
+//     yesterday, last_7_days, today: { spend, clicks, leads },
+//     site: { yesterday, last_7_days: { joined, cost_per_sub } }, problems }]
+export function morningBlocks({ day = '', towns = [] }, escape) {
+  const money = v => `$${(Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const num = v => (Number(v) || 0).toLocaleString('en-US');
+  const subs = n => `${num(n)} new subscriber${Number(n) === 1 ? '' : 's'}`;
+  const each = (spend, n) => (Number(n) > 0 ? ` (${money(Number(spend) / Number(n))} each)` : '');
+  const obj = v => (v && typeof v === 'object' ? v : {});
+  const name = t => escape(String(t.name || '').slice(0, 80));
+  // One line for a period: spend, then the site's own new subscribers when
+  // it sent them, else Meta's signups (its "Lead").
+  const period = (label, meta, site) => {
+    const m = obj(meta);
+    const joined = obj(site).joined;
+    const people = Number.isFinite(Number(joined)) && joined !== null
+      ? `${subs(joined)}${each(m.spend, joined)}`
+      : `${num(m.leads)} signup${Number(m.leads) === 1 ? '' : 's'} on Meta${each(m.spend, m.leads)}`;
+    return `• ${label}: ${money(m.spend)} · ${people}`;
+  };
+  const list = (Array.isArray(towns) ? towns : []).filter(t => t && typeof t.name === 'string').slice(0, 20);
+  const running = list.filter(t => t.status === 'running');
+  const title = `📊 Ads this morning${day ? ` · ${String(day).slice(0, 40)}` : ''}`;
+  const blocks = [{ type: 'header', text: { type: 'plain_text', text: title } }];
+  if (running.length > 1) {
+    const sum = (part, key) => running.reduce((a, t) => a + (Number(obj(t[part])[key]) || 0), 0);
+    const joinedSum = part => (running.every(t => Number.isFinite(Number(obj(obj(t.site)[part]).joined)))
+      ? running.reduce((a, t) => a + Number(obj(obj(t.site)[part]).joined), 0) : null);
+    const line = (label, part) => {
+      const spend = sum(part, 'spend'); const j = joinedSum(part);
+      return `*${label}:* ${money(spend)}${j === null ? '' : ` · ${subs(j)}${each(spend, j)}`}`;
+    };
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `${line('All towns yesterday', 'yesterday')}\n${line('Last 7 days', 'last_7_days')}` } });
+    blocks.push({ type: 'divider' });
+  }
+  for (const t of list) {
+    const lines = [];
+    const problems = (Array.isArray(t.problems) ? t.problems : []).slice(0, 5).map(p => `• ⚠️ ${escape(String(p).slice(0, 200))}`);
+    if (t.status === 'running') {
+      lines.push(period('Yesterday', t.yesterday, obj(t.site).yesterday), period('Last 7 days', t.last_7_days, obj(t.site).last_7_days));
+    } else if (t.status === 'started') {
+      lines.push(obj(t.today).spend ? `• Ads started today: ${money(obj(t.today).spend)} so far` : '• Ads just started; no spend yet');
+    } else if (t.status !== 'stalled' || !problems.length) {
+      continue;   // off or missing: one line at the end
+    }
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: [`*${name(t)}*`, ...lines, ...problems].join('\n').slice(0, 2900) } });
+  }
+  const names = st => list.filter(t => t.status === st).map(name);
+  const tail = [names('off').length ? `No ads running: ${names('off').join(', ')}` : '',
+    names('missing').length ? `No report today: ${names('missing').join(', ')}` : ''].filter(Boolean);
+  if (tail.length) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: tail.join(' · ') }] });
+  return { title, blocks: blocks.slice(0, 48) };
+}
+
+export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, subscribers = null, hype = null, morning = null, clientKey = req => req.ip }) {
   const allowed = (req, res) => {
     if (!limiter.check(`hq:${clientKey(req)}`).ok) { res.status(429).json({ ok: false, error: 'rate-limited' }); return false; }
     if (!keyOk(req.get('authorization'), key)) { res.status(401).json({ ok: false, error: 'unauthorized' }); return false; }
@@ -258,6 +321,21 @@ export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), b
     } catch (err) {
       console.error('[hq] hype failed:', err.message);
       res.status(500).json({ ok: false, error: 'hype-failed' });
+    }
+  });
+  // HQ's one morning ads message for every town, posted to this town's
+  // activity channel: { day, towns } (see morningBlocks).
+  if (morning) app.post('/api/hq/morning', async (req, res, next) => {
+    if (!key) return next();
+    if (!allowed(req, res)) return;
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    if (!Array.isArray(b.towns) || !b.towns.length) return res.status(400).json({ ok: false, error: 'bad-message' });
+    try {
+      const posted = await morning({ day: typeof b.day === 'string' ? b.day : '', towns: b.towns });
+      res.status(posted ? 200 : 502).json({ ok: Boolean(posted) });
+    } catch (err) {
+      console.error('[hq] morning failed:', err.message);
+      res.status(500).json({ ok: false, error: 'morning-failed' });
     }
   });
   // The owner inbox (server/inbox.js): what pinged the owner since `since`

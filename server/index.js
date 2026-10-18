@@ -37,7 +37,7 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks } from './hq.js';
+import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks, morningBlocks } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, canRunOnWorker } from './jobs.js';
@@ -2885,6 +2885,9 @@ export async function createApp(opts = {}) {
     // Straight to the #hype webhook: no [town] tag (it's every town's news)
     // and not this town's owner inbox.
     hype: (msg) => { const { title, blocks } = hypeBlocks(msg, slackEscape); return slack.post(title, blocks, 'hype'); },
+    // HQ's one morning ads message for every town, to the activity channel
+    // (no [town] tag: it's every town's).
+    morning: (msg) => { const { title, blocks } = morningBlocks(msg, slackEscape); return slack.post(title, blocks, 'activity'); },
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),
@@ -2896,6 +2899,10 @@ export async function createApp(opts = {}) {
       getAdCampaigns: typeof store.getTownFile === 'function' ? async () => {
         const f = await store.getTownFile('ad_campaigns');
         return f ? { campaigns: (f.data && f.data.campaigns) || [], updated_at: f.updated_at } : null;
+      } : null,
+      getAdsReport: typeof store.getTownFile === 'function' ? async () => {
+        const f = await store.getTownFile('ads_report');
+        return f && f.data ? { ...(f.data.data || {}), link: f.data.link || null, updated_at: f.updated_at } : null;
       } : null,
       dormant: Boolean(town.dormant),
       // database: Postgres configured and answering a ping now (3 s), not
