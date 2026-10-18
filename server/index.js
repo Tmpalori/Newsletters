@@ -26,6 +26,7 @@ import { validateSubmission, validateEventEdit, checkBotSignals } from './valida
 import { reportHoneypot } from './honeypot.js';
 import { verifyTurnstile, turnstileHostnames } from './turnstile.js';
 import { createFormGuard } from './formGuard.js';
+import { createDropNotices } from './dropNotices.js';
 import { EMAIL_CHECK_JS, impossibleEmailError } from './emailTypos.js';
 import { createRateLimiter, ipKey, railwayRealIp } from './rateLimit.js';
 import { createAuth, MIN_SECRET } from './auth.js';
@@ -712,7 +713,9 @@ export async function createApp(opts = {}) {
       user_agent: String(req.headers['user-agent'] || '').slice(0, 256),
       payload: normalizePayload(v.data.payload),
       admin_notes: '',
-      review_history: [{ at: now, action: 'submitted', note: 'Public submission', ...(botNote ? { bot_check: 'failed' } : {}) }]
+      // placement_emails: sent after /submit said we'd email if it doesn't
+      // make its day's list (server/dropNotices.js); earlier ones weren't.
+      review_history: [{ at: now, action: 'submitted', note: 'Public submission', placement_emails: true, ...(botNote ? { bot_check: 'failed' } : {}) }]
     };
     if (botNote) row.admin_notes = botNote;
     await store.insert(row);
@@ -2579,6 +2582,8 @@ export async function createApp(opts = {}) {
   // ─── Scheduler (server/scheduler.js) ───
   // The server is the clock for the Monday newsletter and the daily
   // GitHub workflows, because GitHub's own cron runs hours late.
+  const dropNotices = createDropNotices({ store, getPublicPayload, mailer, slack, siteUrl, address: newsletter.address,
+    orders: () => sponsors.orders(), checkoutEnabled: stripeCfg.enabled });
   const scheduler = opts.scheduler || createScheduler({
     store, slack, siteUrl, nowFn: () => nowFn(),
     // Jobs on Railway: the town's worker jobs go to its jobs worker (every
@@ -2598,6 +2603,9 @@ export async function createApp(opts = {}) {
           : undefined,
       // Daily: personal-data retention (server/privacy.js).
       privacyPurge: now => purgePersonalData(store, now),
+      // Daily: approved submissions that didn't make their day's list hear
+      // so, two days out (server/dropNotices.js).
+      dropNotices: now => dropNotices.run(now),
       collected: () => hasCollected(),
       health: async now => {
         await retryAutoPublish();
