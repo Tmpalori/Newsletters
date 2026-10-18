@@ -39,7 +39,7 @@ import { pixelId, metaPixelJs } from './metaPixel.js';
 import { registerEventCheck, withoutHidden, visibleKeyed, stripKeys, keyedEvents } from './eventcheck.js';
 import { registerGrowth } from './growth.js';
 import { registerPrivacy, purgePersonalData } from './privacy.js';
-import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks, morningBlocks } from './hq.js';
+import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks, morningBlocks, hqAlertText } from './hq.js';
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, canRunOnWorker } from './jobs.js';
@@ -2904,6 +2904,10 @@ export async function createApp(opts = {}) {
     // HQ's one morning ads message for every town, to the activity channel
     // (no [town] tag: it's every town's).
     morning: (msg) => { const { title, blocks } = morningBlocks(msg, slackEscape); return slack.post(title, blocks, 'activity'); },
+    // HQ's own alerts (a town down, a town's Slack refusing, HQ's sync stuck)
+    // to the alerts channel: HQ has no webhook of its own. Not this town's
+    // inbox (HQ keeps its own item) and no [town] tag.
+    alert: (msg) => { const text = hqAlertText(msg, slackEscape); return slack.post(text, null, 'alerts'); },
     build: () => buildSummary({
       store, town, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
       commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7),

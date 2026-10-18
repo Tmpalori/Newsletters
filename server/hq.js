@@ -8,7 +8,8 @@
  * only: no names, emails or addresses. GET /api/hq/inbox (same key) is the
  * exception: the owner's own messages, for HQ to pass on (server/inbox.js);
  * so is GET /api/hq/subscribers (new signups' emails), and POST /api/hq/hype
- * posts HQ's combined subscriber ping to #hype. Rate limited and cached 60 s, so a
+ * posts HQ's combined subscriber ping to #hype. POST /api/hq/alert posts
+ * HQ's own alerts to #alerts (HQ tries each town until one takes it). Rate limited and cached 60 s, so a
  * busy HQ can't load the database.
  */
 
@@ -279,7 +280,17 @@ export function morningBlocks({ day = '', towns = [] }, escape) {
   return { title, blocks: blocks.slice(0, 48) };
 }
 
-export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, subscribers = null, hype = null, morning = null, clientKey = req => req.ip }) {
+// HQ's alert as one short Slack line (POST /api/hq/alert): "[HQ] title",
+// the fix's first line, and an Open HQ link (https only). Escaped: it's
+// HQ's text, but it can quote a town's error.
+export function hqAlertText({ title, text = '', link = '' }, escape) {
+  const lines = String(text || '').split('\n').filter(l => l.trim());
+  const first = lines.length ? `\n${escape(lines[0].slice(0, 200))}${lines.length > 1 || lines[0].length > 200 ? ' (more in HQ)' : ''}` : '';
+  const url = /^https:\/\/[^\s<>|]+$/.test(String(link)) ? `\n<${link}|Open HQ>` : '';
+  return `*[HQ]* ${escape(String(title).slice(0, 300))}${first}${url}`;
+}
+
+export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), build, inbox = null, latestInbox = null, subscribers = null, hype = null, morning = null, alert = null, clientKey = req => req.ip }) {
   const allowed = (req, res) => {
     if (!limiter.check(`hq:${clientKey(req)}`).ok) { res.status(429).json({ ok: false, error: 'rate-limited' }); return false; }
     if (!keyOk(req.get('authorization'), key)) { res.status(401).json({ ok: false, error: 'unauthorized' }); return false; }
@@ -335,6 +346,21 @@ export function registerHq(app, { key = '', limiter, nowFn = () => new Date(), b
     } catch (err) {
       console.error('[hq] morning failed:', err.message);
       res.status(500).json({ ok: false, error: 'morning-failed' });
+    }
+  });
+  // HQ's own alerts, posted to this town's alerts channel: { title, text?,
+  // link? }. 502 when Slack didn't take it, so HQ tries the next town.
+  if (alert) app.post('/api/hq/alert', async (req, res, next) => {
+    if (!key) return next();
+    if (!allowed(req, res)) return;
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    if (typeof b.title !== 'string' || !b.title.trim()) return res.status(400).json({ ok: false, error: 'bad-message' });
+    try {
+      const posted = await alert({ title: b.title, text: typeof b.text === 'string' ? b.text : '', link: typeof b.link === 'string' ? b.link : '' });
+      res.status(posted ? 200 : 502).json({ ok: Boolean(posted) });
+    } catch (err) {
+      console.error('[hq] alert failed:', err.message);
+      res.status(500).json({ ok: false, error: 'alert-failed' });
     }
   });
   // The owner inbox (server/inbox.js): what pinged the owner since `since`
