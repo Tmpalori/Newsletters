@@ -42,7 +42,7 @@ def test_fb_posts_stop_at_their_slice_when_instagram_is_next(monkeypatch):
     monkeypatch.setattr(ce, "_RUN_STARTED", time.time() - (ce.fb_posts_budget_min() + 1) * 60)
     monkeypatch.setattr(ce.requests, "post", lambda *a, **k: pytest.fail("scraped past FB's slice"))
     assert ce.fetch_apify_facebook_posts() == []
-    assert "leaving Instagram its 10" in ce._SOURCE_NOTES["apify_facebook_posts"]
+    assert f"leaving Instagram its {ce.IG_RESERVE_MIN}" in ce._SOURCE_NOTES["apify_facebook_posts"]
     assert ce._minutes_in() < ce.SCRAPE_BUDGET_MIN
 
 

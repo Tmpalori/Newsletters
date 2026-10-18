@@ -4968,9 +4968,9 @@ SCRAPE_BUDGET_MIN = 40
 # Facebook posts stop this many minutes before SCRAPE_BUDGET_MIN when the
 # Instagram pass runs after them, so Instagram gets its own time. Oct 11
 # 2026: FB posts took 24 of the 30 minutes and Instagram skipped all 20
-# accounts (0 events, from 26 on Oct 7); Oct 18, with its 10, it read all
-# 20 in 10 minutes (55 events).
-IG_RESERVE_MIN = 10
+# accounts (0 events, from 26 on Oct 7); Oct 18, with 10, it read all 20
+# in 9 minutes 46 seconds (55 events), too close: 15 leaves it room.
+IG_RESERVE_MIN = 15
 _RUN_STARTED = None
 
 
