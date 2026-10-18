@@ -473,7 +473,7 @@ describe('approval', () => {
     expect(await r.json()).toMatchObject({ ok: true, status: 'rejected', refunded: true });
     expect(stripeCalls).toEqual([['cancel', 'sub_cs_test_1'], ['invoice', 'in_cs_test_1'], ['refund', { payment_intent: 'pi_for_in_cs_test_1' }, `vic361-partner-refund-${id}`]]);
     expect(await orderOf(id)).toMatchObject({ status: 'rejected', reject_reason: 'We already list a similar business.', refund: { ok: true } });
-    const mail = sent.find(m => /About your The Vic 361 partner listing/.test(m.subject));
+    const mail = sent.find(m => /^About your Vic 361 partner listing$/.test(m.subject));
     expect(mail.text).toContain('We already list a similar business.');
     // Stripe then says the subscription ended: it stays rejected, no "ended" email.
     await webhook({ type: 'customer.subscription.deleted', data: { object: { id: 'sub_cs_test_1', status: 'canceled', metadata: { town: 'victoria' } } } });
