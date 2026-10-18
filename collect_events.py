@@ -4248,6 +4248,24 @@ def _apify_run_url(actor):
 def _apify_headers(token):
     return {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
 
+
+# A 502/503/504 is Apify's gateway, not the page: the same page answers on
+# the next try (ViBe Creative District, Virginia Beach, Oct 18 2026; Rogue X,
+# Medford, Oct 15). One retry after a short pause keeps that page's posts.
+# A timeout isn't retried: it already spent APIFY_RUN_TIMEOUT.
+APIFY_GATEWAY_STATUSES = (502, 503, 504)
+APIFY_RETRY_PAUSE_S = 5
+
+
+def _apify_posts_run(actor_run_url, payload, token):
+    resp = requests.post(actor_run_url, json=payload, timeout=APIFY_RUN_TIMEOUT,
+                         headers=_apify_headers(token))
+    if resp.status_code in APIFY_GATEWAY_STATUSES:
+        time.sleep(APIFY_RETRY_PAUSE_S)
+        resp = requests.post(actor_run_url, json=payload, timeout=APIFY_RUN_TIMEOUT,
+                             headers=_apify_headers(token))
+    return resp
+
 # Process-local tombstone: once we see a 403 hard-limit, all later Apify calls
 # in this run skip immediately. Reset on each main() invocation.
 _APIFY_LIMIT_TRIPPED = False
@@ -5318,12 +5336,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
         }
 
         try:
-            resp = requests.post(
-                actor_run_url,
-                json=payload,
-                timeout=APIFY_RUN_TIMEOUT,
-                headers=_apify_headers(token),
-            )
+            resp = _apify_posts_run(actor_run_url, payload, token)
         except Exception as e:
             venue_stats.append(f"{venue_name}: ERROR ({type(e).__name__})")
             _warn("FB posts actor exception", venue=venue_name, error=str(e)[:200])
@@ -5690,12 +5703,7 @@ def fetch_apify_instagram_posts(days_ahead=14):
         }
 
         try:
-            resp = requests.post(
-                actor_run_url,
-                json=payload,
-                timeout=APIFY_RUN_TIMEOUT,
-                headers=_apify_headers(token),
-            )
+            resp = _apify_posts_run(actor_run_url, payload, token)
         except Exception as e:
             n_request_errors += 1
             venue_stats.append(f"{venue_name}: ERROR ({type(e).__name__})")
