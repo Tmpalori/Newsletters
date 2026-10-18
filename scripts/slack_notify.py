@@ -49,12 +49,15 @@ def town_tag(env=None):
         return slug
 
 
-def report_to_site(text, link, slack_delivered, env=None):
+def report_to_site(text, link, slack_delivered, env=None, fyi=False):
     """Also tell the site, so the alert lands in the owner inbox (HQ and the
     owner's assistant read it; server/opsReport.js). Only steps that send an
     alert set OPS_REPORT_URL (the site) and OPS_REPORT_SECRET. When Slack
     didn't take the message, the site posts it there too. Best effort: the
-    site may be the thing that's down (HQ notices that on its own)."""
+    site may be the thing that's down (HQ notices that on its own).
+    fyi: a report, not an alert (the event check's list): saved to the
+    inbox as fyi, never posted to Slack by the site, and up to 4,000
+    characters. True when the site took it."""
     env = os.environ if env is None else env
     site = env.get("OPS_REPORT_URL", "").strip().rstrip("/")
     secret = env.get("OPS_REPORT_SECRET", "").strip()
@@ -63,7 +66,9 @@ def report_to_site(text, link, slack_delivered, env=None):
     first, _, rest = text.partition("\n")
     # OPS_ALREADY_IN_SLACK: the step showed it in Slack another way.
     delivered = bool(slack_delivered) or env.get("OPS_ALREADY_IN_SLACK") == "1"
-    body = {"title": first[:200], "text": rest[:2000], "link": link, "slack_delivered": delivered}
+    body = {"title": first[:200], "text": rest[:4000 if fyi else 2000], "link": link, "slack_delivered": delivered}
+    if fyi:
+        body["fyi"] = True
     req = urllib.request.Request(f"{site}/api/ops/report", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json", "X-Ops-Secret": secret})
     try:
