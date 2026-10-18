@@ -167,3 +167,16 @@ def test_a_page_turning_quiet_warns_once():
     assert [w for w in ce._WARNINGS if "Quiet Bar" in w] == [
         f"Facebook page Quiet Bar had no posts {ce.QUIET_AFTER} collects in a row; skipped from now on, "
         f"check its link in venues.json (page={url})"]
+
+
+def test_the_time_limits_stay_in_order_inside_the_workers_55_minutes():
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location("jobs_worker", pathlib.Path(__file__).parent / "scripts" / "jobs_worker.py")
+    worker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker)
+    stop = worker.TIMEOUTS["collect"] / 60
+    # Scraping, then the link check, then the optional steps, with time left
+    # to write and upload the outputs before the worker stops the collect.
+    assert ce.SCRAPE_BUDGET_MIN - ce.IG_RESERVE_MIN > 0
+    assert ce.SCRAPE_BUDGET_MIN < ce.LINK_CHECK_STOP_MIN < ce.COLLECT_DEADLINE_MIN
+    assert stop - ce.COLLECT_DEADLINE_MIN >= 8
