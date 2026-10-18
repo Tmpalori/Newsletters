@@ -309,6 +309,15 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect(await statusOf('melaniereeves60@gmail.comm')).toBe('bounced');
   });
 
+  it('fixes an impossible address that still reads active (no bounce ever came back)', async () => {
+    await seed();
+    await store.importSubscribers(['melanie@gmail.comm'], 'import');
+    expect(await statusOf('melanie@gmail.comm')).toBe('active');
+    expect((await fix({ from: 'melanie@gmail.comm', to: 'melanie@gmail.com' })).status).toBe(200);
+    expect(await statusOf('melanie@gmail.com')).toBe('active');
+    expect(await statusOf('melanie@gmail.comm')).toBe('bounced');
+  });
+
   it('takes an unconfirmed typo off the list so it is never mailed again', async () => {
     await seed();
     expect((await fix({ from: 'waiting@yahoo.con', to: 'waiting@yahoo.com' }, { hq: false })).status).toBe(200);
