@@ -185,6 +185,7 @@ def test_slack_notify_channel_picks_its_own_webhook():
     # On the town services SLACK_WEBHOOK_URL is the sales channel: an alert
     # or report names its channel and falls back to the default only when
     # that channel has no webhook.
+    import slack_notify
     env = {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/sales", "SLACK_ALERTS_WEBHOOK_URL": "https://hooks.slack.com/alerts"}
     assert slack_notify.webhook_for("alerts", env) == "https://hooks.slack.com/alerts"
     assert slack_notify.webhook_for("activity", env) == "https://hooks.slack.com/sales"
