@@ -153,7 +153,7 @@ export function renderSubmissionReceived(ev, { siteUrl, address }) {
     steps([
       'We review every submission, usually within the hour, and we’ll email you when it’s live; some need a closer look and take a day or two.',
       `If it's a fit, it goes on <a href="${siteUrl}" style="color:${C.accent};">${town.domain}</a> and can show up in our Monday and Thursday newsletters and our social posts.`,
-      'Free listings aren’t guaranteed a spot, and we may tidy up the wording.'
+      'Free listings aren’t guaranteed a spot on busy days; if yours doesn’t make its day’s list, we’ll let you know. We may also tidy up the wording.'
     ]) +
     p('Need to change a detail? Reply to this email with the fix.', `color:${C.muted};font-size:14px;`);
   return {
@@ -166,7 +166,7 @@ export function renderSubmissionReceived(ev, { siteUrl, address }) {
       'What happens next:',
       '1. We review every submission, usually within the hour, and we’ll email you when it’s live; some need a closer look and take a day or two.',
       `2. If it's a fit, it goes on ${siteUrl} and can show up in our Monday and Thursday newsletters and our social posts.`,
-      '3. Free listings aren’t guaranteed a spot, and we may tidy up the wording.', '',
+      '3. Free listings aren’t guaranteed a spot on busy days; if yours doesn’t make its day’s list, we’ll let you know. We may also tidy up the wording.', '',
       'Need to change a detail? Reply to this email with the fix.',
       contactText(siteUrl)
     ].join('\n')
@@ -211,6 +211,58 @@ export function renderSubmissionLive(ev, { siteUrl, address, pageUrl, pick = fal
       contactText(siteUrl)
     ].join('\n')
   };
+}
+
+// ─── Approved, but its day's list is full ───────────────────────────────
+
+// An approved free submission that didn't make its day's list (scoring.js
+// capDays: busier days show their best few), told once, two days out
+// (Tristen, Oct 2026). The /submit form says we'll email about exactly this
+// and how to guarantee a spot, so the paid offer is part of the update:
+// `offer` ({ price, url }) only while the day still has a paid spot; a
+// sold-out day gets the same note without it. The event keeps its page, so
+// the note links it.
+export function renderSubmissionDropped(ev, { siteUrl, address, pageUrl = '', dayCount = 0, dayMax = 0, offer = null, at = null }) {
+  const name = ev.name || 'your event';
+  const day = ev.date ? formatDay(ev.date, { weekday: 'long', month: 'short', day: 'numeric' }) : 'that day';
+  const weekday = ev.date ? formatDay(ev.date, { weekday: 'long' }) : 'its day';
+  const link = pageUrl || siteUrl;
+  const busy = dayCount > dayMax && dayMax > 0
+    ? `${day} is a busy day in ${town.city}: ${dayCount} events are happening and our day list shows ${dayMax}, so yours didn’t make the cut this time.`
+    : `${day} is a busy day in ${town.city}, and our day list only has room for so many, so yours didn’t make the cut this time.`;
+  const still = 'It’s still on the site with its own page, and in our guides, so people looking for it can find it.';
+  // Only the newsletter that will still go out before the event (pickWhere,
+  // as the "you're live" email words it): one or two days out, its issue
+  // has usually been sent already.
+  const where = pickWhere(ev.date, at);
+  const promo = where.startsWith('starred') ? where : 'featured first in our social posts';
+  const upgrade = offer
+    ? `Want it guaranteed? The ${town.pickName} upgrade (${offer.price} for ${ev.date && isWeekendDay(ev.date) ? 'Fri–Sun' : 'Mon–Thu'}) puts ${name} on ${weekday}’s list for sure, highlighted with the ${town.pickName} badge and ${promo}. Your event details are already filled in; it takes about a minute.`
+    : '';
+  const bodyHtml =
+    p(`Thanks again for sending us <strong>${escHtml(name)}</strong>. ${escHtml(busy)}`) +
+    p(escHtml(still)) +
+    `<div style="margin:16px 0;">${btn(link, 'See your event')}</div>` +
+    (offer ? p(escHtml(upgrade)) + `<div style="margin:16px 0;">${btn(offer.url, `Upgrade to ${town.pickName}`)}</div>` : '') +
+    p('No need to do anything otherwise. Questions? Just reply to this email.', `color:${C.muted};font-size:14px;`);
+  return {
+    subject: `${name} didn't make ${weekday}'s list on ${town.siteName}`,
+    html: emailShell({ title: `Your event didn’t make ${weekday}’s list`, preheader: `It’s still on ${town.domain} with its own page.`, bodyHtml, siteUrl,
+      footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      `Thanks again for sending us "${name}". ${busy}`, '',
+      still,
+      `See your event: ${link}`, '',
+      ...(offer ? [upgrade, `Upgrade to ${town.pickNamePlain}: ${offer.url}`, ''] : []),
+      'No need to do anything otherwise. Questions? Just reply to this email.',
+      contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
+function isWeekendDay(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00Z`).getUTCDay();
+  return d === 0 || d === 5 || d === 6;
 }
 
 // ─── Sponsorship paid ────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ import { layout, escHtml, AD_PACKAGES, CANCEL_NOTICE_DAYS } from './seo.js';
 // every sponsor order (terms_version) and sent to Stripe as metadata.
 export const ADVERTISING_TERMS_VERSION = '2026-10-17';
 export const TERMS_VERSION = '2026-10-10';
-export const PRIVACY_VERSION = '2026-10-10';
+export const PRIVACY_VERSION = '2026-10-18';
 export const ACCESSIBILITY_VERSION = '2026-10-10';
 export const REFERRAL_RULES_VERSION = '2026-10-10';
 
@@ -130,7 +130,7 @@ export function renderPrivacyPage({ siteUrl }) {
     ${section('who', 'Who we are', `<p>${operatorSentence()} In this policy "we" and "us" mean ${escHtml(operatorName())}. Questions or requests about your information: email ${emailLink('Privacy request')}.</p>`)}
     ${section('collect', 'What you give us', ul([
       '<strong>Newsletter:</strong> your email address, so we can send the newsletter (Mondays and Thursdays), and, if you joined through a friend\'s share link, which link it was. Every email has a one-click unsubscribe link. We don\'t sell or rent your address, and sponsors never get it.',
-      '<strong>Event submissions:</strong> the event details plus your name, email address and phone number, used to review the event, ask you about it if a detail needs checking, and email you when it\'s live. We also store the IP address and browser details (user agent) the submission came from, to stop spam and abuse of the form.',
+      '<strong>Event submissions:</strong> the event details plus your name, email address and phone number, used to review the event, ask you about it if a detail needs checking, email you when it\'s live, and tell you if it doesn\'t make its day\'s list on a busy day (with how to guarantee it a spot). We also store the IP address and browser details (user agent) the submission came from, to stop spam and abuse of the form.',
       '<strong>Contact messages:</strong> your name, email address and message, used to answer you.',
       '<strong>Sponsor purchases:</strong> payments are handled by Stripe; we never see your card number. We keep your name or business, email, the ad or event details and logo you send, the order, and which version of our <a href="/advertising-terms">advertising terms</a> you agreed to and when.'
     ]))}

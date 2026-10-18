@@ -62,13 +62,13 @@
 
     <h1 class="page-title">Privacy</h1>
     <p class="page-lead">The Vic 361 is a free events guide for Victoria, Texas. This page explains what we collect, why, how long we keep it, and the choices you have.</p>
-    <p class="legal-version">Last updated October 10, 2026 · Version 2026-10-10</p>
+    <p class="legal-version">Last updated October 18, 2026 · Version 2026-10-18</p>
     <h2 class="section-heading" id="who">Who we are</h2>
 <p>The Vic 361 runs thevic361.com and its newsletter. In this policy "we" and "us" mean The Vic 361. Questions or requests about your information: email <a href="mailto:news@thevic361.com?subject=Privacy%20request">news@thevic361.com</a>.</p>
     <h2 class="section-heading" id="collect">What you give us</h2>
 <ul>
       <li><strong>Newsletter:</strong> your email address, so we can send the newsletter (Mondays and Thursdays), and, if you joined through a friend's share link, which link it was. Every email has a one-click unsubscribe link. We don't sell or rent your address, and sponsors never get it.</li>
-      <li><strong>Event submissions:</strong> the event details plus your name, email address and phone number, used to review the event, ask you about it if a detail needs checking, and email you when it's live. We also store the IP address and browser details (user agent) the submission came from, to stop spam and abuse of the form.</li>
+      <li><strong>Event submissions:</strong> the event details plus your name, email address and phone number, used to review the event, ask you about it if a detail needs checking, email you when it's live, and tell you if it doesn't make its day's list on a busy day (with how to guarantee it a spot). We also store the IP address and browser details (user agent) the submission came from, to stop spam and abuse of the form.</li>
       <li><strong>Contact messages:</strong> your name, email address and message, used to answer you.</li>
       <li><strong>Sponsor purchases:</strong> payments are handled by Stripe; we never see your card number. We keep your name or business, email, the ad or event details and logo you send, the order, and which version of our <a href="/advertising-terms">advertising terms</a> you agreed to and when.</li>
     </ul>
