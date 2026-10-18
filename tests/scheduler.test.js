@@ -120,6 +120,14 @@ describe('createScheduler', () => {
     expect(await s.ran('newsletter', next)).toMatchObject({ ran: true, outcome: 'sent', detail: 'sent: 52 recipients' });
   });
 
+  it('logs what a sent issue did, with its recipient count', async () => {
+    const lines = [];
+    const log = { warn() {}, log: (m) => lines.push(m) };
+    const handlers = { newsletter: async () => ({ ok: true, detail: 'sent: 52 recipients' }) };
+    await createScheduler({ store: await freshStore(), handlers, log }).tick(new Date('2026-10-05T12:44:00Z'));
+    expect(lines).toEqual([expect.stringMatching(/^\[scheduler\] newsletter .+: sent: 52 recipients$/)]);
+  });
+
   it('retries a failed send with backoff and alerts after the last try', async () => {
     const store = await freshStore();
     const slack = fakeSlack();

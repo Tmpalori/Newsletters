@@ -265,6 +265,9 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
       String(out.message || out.error || 'unknown error'), `${siteUrl}/admin.html`);
     }
     if (status !== 'done') log.warn(`[scheduler] ${job.name} ${slot}: ${status}`, out.message || out.error || '');
+    // An issue's outcome ("sent: 52 recipients", "no-subscribers") also goes
+    // in the logs, so a send to nobody doesn't look like any other quiet run.
+    else if (job.name.startsWith('newsletter') && out.detail) log.log(`[scheduler] ${job.name} ${slot}: ${out.detail}`);
     return status;
   }
 

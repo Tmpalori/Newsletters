@@ -2505,7 +2505,7 @@ _OTHER_TOWN_RE = re.compile(
 
 
 def out_of_area_reason(ev):
-    """Return why an event looks like it's outside Victoria County, or None.
+    """Return why an event looks like it's outside the town's area, or None.
 
     Only the location fields are checked (venue + address), plus an explicit
     ", <Town>, TX" in the description, so an event *about* Houston held in
@@ -3461,7 +3461,7 @@ def merge_events(all_events, days_ahead=7, venues=None):
         # How many sources listed it: a popularity signal for the score.
         e["sources"] = 1 + len(e.get("_also_from") or [])
     final.sort(key=lambda e: (e["date"], e.get("time") or "ZZ"))
-    print(f"   [Quality] merged {merged_count} duplicates, dropped {len(dropped_area)} outside Victoria County, "
+    print(f"   [Quality] merged {merged_count} duplicates, dropped {len(dropped_area)} outside {TOWN['area_name']}, "
           f"{len(dropped_junk)} non-events")
     for d in (dropped_area + dropped_junk)[:20]:
         print(f"     – {d}")
@@ -4437,7 +4437,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
         # A capped search returns a different slice each run.
         _mark_partial("apify_eventbrite", f"hit the {payload['maxResults']}-result cap")
 
-    skipped = {"window": 0, "online_or_cancelled": 0, "not_victoria": 0, "no_data": 0}
+    skipped = {"window": 0, "online_or_cancelled": 0, "not_in_town": 0, "no_data": 0}
     for item in items:
         if not isinstance(item, dict) or item.get("error"):
             continue
@@ -4467,7 +4467,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
         region = (item.get("venueRegion") or item.get("venueState") or "").strip()
         loc_text = " ".join([venue, address, city, region, str(item.get("venueAddress") or "")]).lower()
         if TOWN["city"].lower() not in loc_text:
-            skipped["not_victoria"] += 1
+            skipped["not_in_town"] += 1
             continue
 
         description = (item.get("summary") or item.get("description") or "").strip()[:280]

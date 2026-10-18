@@ -12,6 +12,7 @@
   "stateName": "Nebraska",
   "timezone": "America/Chicago",
   "county": "Lancaster County",
+  "allEventsSlug": "lincoln",
   "areaCode": "402",
   "pickName": "Star Pick",
   "areaZips": [

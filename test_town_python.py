@@ -39,6 +39,11 @@ def test_another_town_from_file(tmp_path):
     assert t["nearby_examples"] == "Wharton, Palacios, Victoria, El Campo" and t["allevents_slug"] == "bay-city-tx"
 
 
+def test_lincoln_allevents_slug():
+    # allevents.in/lincoln-ne is a 404; Lincoln, Nebraska lives at /lincoln.
+    assert town_mod.town_config({"TOWN": "lincoln"})["allevents_slug"] == "lincoln"
+
+
 @pytest.mark.parametrize("patch,err", [
     ({"domain": None}, "missing domain"), ({"siteName": "Bay <b>"}, "site_name"), ({"timezone": "Mars/Base"}, "timezone"),
     ({"areaCode": "97"}, "area_code"), ({"domain": "not a domain"}, "domain"),
