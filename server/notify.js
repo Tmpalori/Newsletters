@@ -509,6 +509,45 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
   };
 }
 
+// A free submission's recap, the morning after its event (Tristen, Oct
+// 2026; server/eventRecaps.js): what its event page got in the week before
+// it, counted like the admin's Event stats (sponsors.js eventWeekStats).
+// The /submit form says we email about the event; the paid pick is one
+// soft line for next time, with no numbers we can't back up.
+export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true }) {
+  const name = ev.name || 'your event';
+  const rows = [
+    ['Views of its event page', String(stats.page_views || 0)],
+    ...(ev.url ? [['Clicked through to your link', people(stats.link_people || 0)]] : []),
+    ['Added it to their calendar', String(stats.calendar_adds || 0)],
+    ['Shared it', String(stats.shares || 0)],
+    ...(stats.share_visits ? [['Visits from a shared link', String(stats.share_visits)]] : [])
+  ];
+  const lead = `Thanks for sharing ${name} with ${town.city}. Here’s what it got on ${town.domain} in the week leading up to it:`;
+  const next = `Next time, the ${town.pickName} upgrade guarantees your event a spot on its day’s list, highlighted with the ${town.pickName} badge and featured first in our social posts.`;
+  const again = 'Have another event coming up? Send it in anytime, it’s free.';
+  const bodyHtml =
+    p(escHtml(lead)) +
+    statsTable(rows) +
+    p(escHtml(COUNTER_NOTE), `color:${C.muted};font-size:13px;`) +
+    p(`${escHtml(again)}`) +
+    `<div style="margin:16px 0;">${btn(`${siteUrl}/submit`, 'Submit an event')}</div>` +
+    (upgrade ? p(`${escHtml(next)} <a href="${siteUrl}/advertise" style="color:${C.accent};">See how it works</a>.`, 'font-size:14px;') : '');
+  return {
+    subject: `How ${name} did on ${town.siteName}`,
+    html: emailShell({ title: 'Here’s how your event did', preheader: `${stats.page_views || 0} views of its page on ${town.domain}.`, bodyHtml, siteUrl,
+      footerHtml: contactFooter(siteUrl, address) }),
+    text: [
+      lead, '',
+      ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
+      COUNTER_NOTE, '',
+      `${again} ${siteUrl}/submit`,
+      ...(upgrade ? ['', `${next} ${siteUrl}/advertise`] : []),
+      contactText(siteUrl)
+    ].join('\n')
+  };
+}
+
 export function renderPickReport(order, stats, { siteUrl, address }) {
   const business = order.business || 'there';
   const name = (order.event && order.event.name) || 'your event';

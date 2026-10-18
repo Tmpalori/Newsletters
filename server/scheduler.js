@@ -18,6 +18,7 @@
  *   privacy-purge      daily 3:17 AM drop old submitter IPs and contact messages (server/privacy.js)
  *   sponsor-reports    daily 9:00 AM sponsors.sendSponsorReports(now), if it exists
  *   drop-notices       daily 9:30 AM tell submitters whose event didn't make its day's list
+ *   event-recaps       daily 9:35 AM free submitters' "how your event did" (the day after)
  *   submission-review  every 15 min  queue the AI submission review
  *   health             hourly        retry a missed boot auto-publish, then check the
  *                                    database, upcoming events, collector freshness
@@ -88,6 +89,8 @@ export const JOBS = [
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },
   // Approved submissions that didn't make their day's list (server/dropNotices.js).
   { name: 'drop-notices', at: '09:30', until: '18:00' },
+  // Free submitters' "how your event did", the morning after (server/eventRecaps.js).
+  { name: 'event-recaps', at: '09:35', until: '18:00' },
   // Personal-data retention (server/privacy.js): old submitter IPs and
   // contact messages. Early morning, out of everyone's way.
   { name: 'privacy-purge', at: '03:17', until: '23:59' },
@@ -217,7 +220,7 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
   async function runJob(job, now, slot) {
     if (job.kind) return queue(job, slot);
     const fn = { newsletter: handlers.newsletter, 'newsletter-weekend': handlers.newsletterWeekend, 'sponsor-reports': handlers.sponsorReports,
-      'privacy-purge': handlers.privacyPurge, 'drop-notices': handlers.dropNotices, health: handlers.health }[job.name];
+      'privacy-purge': handlers.privacyPurge, 'drop-notices': handlers.dropNotices, 'event-recaps': handlers.eventRecaps, health: handlers.health }[job.name];
     try {
       const out = await fn(now);
       return out && typeof out === 'object' && 'ok' in out ? out : { ok: true };
@@ -236,6 +239,7 @@ export function createScheduler({ store, slack = null, nowFn = () => new Date(),
     if (job.name === 'sponsor-reports') return typeof handlers.sponsorReports === 'function';
     if (job.name === 'privacy-purge') return typeof handlers.privacyPurge === 'function';
     if (job.name === 'drop-notices') return typeof handlers.dropNotices === 'function';
+    if (job.name === 'event-recaps') return typeof handlers.eventRecaps === 'function';
     if (job.name === 'health') return typeof handlers.health === 'function';
     return false;
   }
