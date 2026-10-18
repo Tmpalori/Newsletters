@@ -15,6 +15,7 @@ const MAX_NAME = 200;
 const MAX_VENUE = 200;
 const MAX_ADDRESS = 300;
 const MAX_DESC = 2000;
+const MAX_DETAILS = 4000;
 const MAX_URL = 500;
 const MAX_TIME = 60;
 const MAX_EMAIL = 254;
@@ -234,6 +235,11 @@ export function validateEventEdit(input, { timeOptional = false } = {}) {
 
   const description = clean(input.description, MAX_DESC);
   if (!description) errors.description = 'Description is required.';
+  // The event page's full text (optional; blank shows the description).
+  // Line breaks are kept: a schedule or price list reads as lines.
+  const details = String(input.details == null ? '' : input.details)
+    .replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
+    .replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_DETAILS);
 
   const rawUrl = clean(input.url, MAX_URL);
   let url = '';
@@ -263,7 +269,7 @@ export function validateEventEdit(input, { timeOptional = false } = {}) {
   return {
     ok: true,
     data: {
-      name, date, time, end_time, venue, address, description, url,
+      name, date, time, end_time, venue, address, description, details, url,
       icons, free, featured
     }
   };

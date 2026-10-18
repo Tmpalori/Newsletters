@@ -197,6 +197,11 @@ def _event(day, name, start=None, end=None, venue="", address="", description=""
     }
     if free is not None:
         ev["free"] = free
+    # The whole write-up, for the event page's details (the collector's
+    # AI review cleans it); the list keeps the short cut above.
+    full = clean(description)
+    if len(full) > len(ev["description"]) + 20:
+        ev["_details_src"] = full[:3000]
     return ev
 
 

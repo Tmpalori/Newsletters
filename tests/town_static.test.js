@@ -97,7 +97,7 @@ describe('a second town’s homepage and submit form, served', () => {
 
   it('tells docs/app.js which town it is', async () => {
     const home = await (await fetch(base + '/')).text();
-    expect(home).toContain('<script>window.__TOWN__={"timezone":"America/Chicago","city":"Bay City","pickName":"Bay’s Best","utmSource":"thebay979"};</script>');
+    expect(home).toContain('<script>window.__TOWN__={"timezone":"America/Chicago","city":"Bay City","state":"TX","pickName":"Bay’s Best","utmSource":"thebay979"};</script>');
     expect(home.indexOf('window.__TOWN__')).toBeLessThan(home.search(/<script src="[^"]*app\.js/));
     expect(home.search(/<script src="[^"]*app\.js/)).toBeGreaterThan(0);
     expect(home).not.toContain('utm_source=thevic361');

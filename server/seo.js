@@ -471,16 +471,68 @@ function nearbyBadge(ev) {
   return ev.town ? `<span class="badge badge--nearby">Nearby · ${escHtml(townOf(ev))}</span> ` : '';
 }
 
+const STATES = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN',
+  mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
+  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR',
+  pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD',
+  tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA',
+  'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY'
+};
+const STATE_CODES = new Set(Object.values(STATES));
+const stateOf = s => {
+  const t = String(s || '').trim().replace(/\.$/, '');
+  return STATE_CODES.has(t.toUpperCase()) && t.length === 2 ? t.toUpperCase() : STATES[t.toLowerCase()] || '';
+};
+const COUNTRY = /^(united states( of america)?|usa?|u\.s\.a?\.?)$/i;
+// A comma part that's still the street: a number, a suite or a unit.
+const STREET_PART = /^(\d|#|(ste|suite|unit|apt|bldg|building|room|rm|floor|fl)\b)/i;
+
+// A street address as "street, City, ST": sources give "224 E Mobile St",
+// "16402 County Road 2, Florence, Alabama, 35633" or Facebook's
+// "224 E Mobile St, Florence, AL, United States, Alabama 35630". ZIP and
+// country go; a missing city is the event's town (the page lead already
+// says it's there). Only for something that starts like a street address;
+// "Riverside Park" passes through as is.
+export function fullAddress(addr, ev = {}) {
+  const raw = String(addr || '').trim();
+  if (!/^\d+[a-z]?\s+\S/i.test(raw)) return raw;
+  let state = '';
+  const parts = [];
+  for (let p of raw.split(',').map(x => x.trim()).filter(Boolean)) {
+    p = p.replace(/\s*\b\d{5}(-\d{4})?$/, '').trim();
+    if (!p || COUNTRY.test(p)) continue;
+    const st = stateOf(p);
+    if (st) { state = state || st; continue; }
+    // "Florence AL" in one part.
+    const m = parts.length && /^(.*\S)\s+([A-Za-z]{2})$/.exec(p);
+    if (m && stateOf(m[2])) { state = state || stateOf(m[2]); p = m[1]; }
+    if (parts.length && parts[parts.length - 1].toLowerCase() === p.toLowerCase()) continue;
+    parts.push(p);
+  }
+  if (!parts.length) return raw;
+  const hasCity = parts.length > 1 && !STREET_PART.test(parts[parts.length - 1]);
+  if (!hasCity) parts.push(townOf(ev));
+  parts.push(state || town.state);
+  return parts.join(', ');
+}
+
 // Venue line under an event name: "Venue · street address", without
 // repeating the address when the venue field already is one.
 export function placeText(ev, sep = ' · ') {
   let venue = (ev.venue || '').trim();
-  const addr = (ev.address || '').trim();
+  let addr = (ev.address || '').trim();
+  // A venue that is only a street address stands in for the address.
+  if (/^\d/.test(venue) && !addr) { addr = venue; venue = ''; }
   if (/^\d/.test(venue)) venue = venue.split(',')[0].trim();
-  if (!venue) return addr;
+  if (!venue) return fullAddress(addr, ev);
   const v = venue.toLowerCase(), a = addr.toLowerCase();
-  if (!addr || v.includes(a) || a.includes(v)) return venue;
-  return `${venue}${sep}${addr}`;
+  if (!addr || v.includes(a) || a.includes(v)) return /^\d/.test(venue) ? fullAddress(venue, ev) : venue;
+  return `${venue}${sep}${fullAddress(addr, ev)}`;
 }
 
 // The same place as prose ("Venue, 1 Main St"): the event page, its .ics
@@ -1158,6 +1210,18 @@ export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox 
   return layout({ siteUrl, path: page.path, title: `${page.title} | ${town.siteName}`, description: page.description, body, ld });
 }
 
+// The event page says everything the source did: `details` (the collector's
+// AI review keeps every fact, cleaned up) when there is one, else the short
+// description the lists and newsletter use. Blank lines start paragraphs;
+// single breaks (a schedule, a price list) stay line breaks.
+function aboutHtml(ev) {
+  const text = String(ev.details || '').trim() || String(ev.description || '').trim();
+  if (!text && !isPaidPick(ev)) return '';
+  const paras = text ? text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean) : [''];
+  return paras.map((p, i) => `<p class="event-about">${p.split('\n').map(escHtml).join('<br>')}` +
+    `${i === paras.length - 1 ? adTag(ev) : ''}</p>`).join('\n    ');
+}
+
 // image: the event's own link-preview card (server/ogImage.js), passed in
 // by the route; falls back to the site-wide image.
 export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = '', venuePath = null, image = null }) {
@@ -1168,8 +1232,10 @@ export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = ''
   const time = formatTime(ev.time);
   // "from 10:00 AM to 3:00 PM at The PumpHouse", not "at 10:00 AM – 3:00 PM at …".
   const timePart = !time ? '' : / – /.test(time) ? ` from ${time.replace(' – ', ' to ')}` : `, ${time},`;
+  // A street address already ends in "City, ST" (fullAddress).
+  const placed = /, [A-Z]{2}$/.test(where);
   const lead = `${ev.name} ${ev.date < today ? 'was' : 'is'} on ${when}${timePart}` +
-    `${where ? ` at ${where}` : ''} in ${townOf(ev)}, ${town.state}.` + (ev.free === true ? ' Free to attend.' : '');
+    `${where ? ` at ${where}` : ''}${placed ? '' : ` in ${townOf(ev)}, ${town.state}`}.` + (ev.free === true ? ' Free to attend.' : '');
   // With no source link there are no "event details" to point at.
   const cost = ev.free === true ? 'Free'
     : src ? 'See event details'
@@ -1185,7 +1251,7 @@ export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = ''
   const sameDay = sortEvents(sortEvents(events.filter(o => o.date === ev.date && o.page !== ev.page))
     .sort((a, b) => pickRank(a) - pickRank(b)).slice(0, 6));
   const description = (ev.description ? ev.description + ' ' : '') +
-    `${when}${where ? ` at ${where}` : ''}, ${townOf(ev)}, ${town.state}.`;
+    `${when}${where ? ` at ${where}` : ''}${placed ? '' : `, ${townOf(ev)}, ${town.state}`}.`;
   const body = `
     <p class="breadcrumbs"><a href="/">This week</a> › ${escHtml(ev.name)}</p>
     <h1 class="page-title">${escHtml(ev.name)}</h1>
@@ -1197,7 +1263,7 @@ export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = ''
       ${where ? `<dt>Where</dt><dd>${escHtml(where)}</dd>` : ''}
       <dt>Cost</dt><dd>${cost}</dd>
     </dl>
-    ${ev.description || isPaidPick(ev) ? `<p class="event-about">${escHtml(ev.description || '')}${adTag(ev)}</p>` : ''}
+    ${aboutHtml(ev)}
     ${src ? `<p class="page-actions"><a class="btn btn--primary" href="${escHtml(src)}" target="_blank" rel="noopener noreferrer">${linkLabel(src)}</a></p>` : ''}
     ${extras}
     ${venuePath ? `<p class="venue-more"><a href="${escHtml(venuePath)}">More events at ${escHtml(ev.venue)} →</a></p>` : ''}

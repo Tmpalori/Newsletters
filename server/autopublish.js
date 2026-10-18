@@ -181,7 +181,7 @@ function sourcesOf(ev) {
 // big/town/curated: tags set in local_events.yaml after an event went live.
 // appeal/recurring/favorite/sources: the collector's scoring hints
 // (server/scoring.js).
-const REFRESH_FIELDS = ['time', 'venue', 'address', 'url', 'description', 'icons', 'free', 'big', 'town', 'curated',
+const REFRESH_FIELDS = ['time', 'venue', 'address', 'url', 'description', 'details', 'icons', 'free', 'big', 'town', 'curated',
   'appeal', 'recurring', 'favorite', 'sources'];
 // Tags the collector writes only when set: a fresh copy without one means
 // it was taken off (a wrong town removed from the YAML), so it goes.
@@ -505,6 +505,10 @@ export function createAutoPublish({ store, candidatesFile, readJsonFile, nowFn, 
       for (const f of REFRESH_FIELDS) if (f in ev) next[f] = ev[f];
       for (const f of TAG_FIELDS) if (!(f in ev)) delete next[f];
       if (!ev.description) next.description = old.description;
+      // Details written for an older description would contradict a new
+      // one; a copy without details (a review cut short) keeps them only
+      // while the description is the same.
+      if (!ev.details && next.description !== old.description) delete next.details;
       if (cutOff(old.name, ev.name)) next.name = ev.name;
       const newKey = eventKeyOf(next);
       if (newKey !== oldKey && (hiddenKeys.has(oldKey) || events.some((e, j) => j !== i && eventKeyOf(e) === newKey))) {

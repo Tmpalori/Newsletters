@@ -586,6 +586,10 @@
             <textarea name="description" rows="4" maxlength="2000" required></textarea>
             <span class="event-edit-form__field-error" data-error-for="description"></span>
           </label>
+          <label class="event-edit-form__field event-edit-form__field--wide">
+            <span>Full details <small>(event page only; blank shows the description)</small></span>
+            <textarea name="details" rows="6" maxlength="4000"></textarea>
+          </label>
           <!-- Source URL field. Intentionally NOT wrapped in a <label> like
                the other fields: a parent <label> on macOS Safari/Chrome can
                swallow mousedown drags so the admin can't select/highlight

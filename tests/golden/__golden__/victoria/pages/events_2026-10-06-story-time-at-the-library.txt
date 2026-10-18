@@ -64,11 +64,11 @@
     <p class="breadcrumbs"><a href="/">This week</a> › Story Time at the Library</p>
     <h1 class="page-title">Story Time at the Library</h1>
     
-    <p class="page-lead">Story Time at the Library was on Tuesday, October 6, 2026, 10:30 AM, at Victoria Public Library, 302 N Main St in Victoria, TX. Free to attend.</p>
+    <p class="page-lead">Story Time at the Library was on Tuesday, October 6, 2026, 10:30 AM, at Victoria Public Library, 302 N Main St, Victoria, TX. Free to attend.</p>
     <p class="past-notice">This event has passed. <a href="/">See what's happening this week</a>.</p>
     <dl class="event-facts">
       <dt>When</dt><dd>Tuesday, October 6, 2026, 10:30 AM</dd>
-      <dt>Where</dt><dd>Victoria Public Library, 302 N Main St</dd>
+      <dt>Where</dt><dd>Victoria Public Library, 302 N Main St, Victoria, TX</dd>
       <dt>Cost</dt><dd>Free</dd>
     </dl>
     <p class="event-about">Picture books and songs for little ones.</p>

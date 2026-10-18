@@ -2096,6 +2096,7 @@ _AI_REVIEW_SYSTEM_PROMPT = """You are an editor for <<SITE>>, a weekly community
 
 For each event you receive, return:
   - description: ≤160 characters, max 2 short sentences. Neutral, friendly local-newsletter tone. NO emojis. Do NOT repeat the event name, venue name, address, date, or time (the site already shows those). If the input description has no useful info beyond what's already in the name/venue, write a brief 1-line description of what attendees can expect based on the event type.
+  - details: the full version for the event's own page. Keep EVERY fact the input gives about this event: schedule and times for each part, performers, prices and ticket tiers, what's included, age limits, what to bring, parking, registration, deadlines, who's hosting, contact info. Clean it up so every event page reads the same: plain sentences, or one short line per item for a schedule or price list (separate lines with a line break), no emojis, no hashtags, no ALL CAPS, no "link in bio" or "click below", no repeated lines. Never add a fact the input doesn't state, never drop one it does. Empty string when the input says no more than the description does.
   - icons: 1–3 strings from this exact set: food, music, family, drinks, arts, shopping, outdoors, community, free. Order by relevance (most representative first). Use "free" only when the event is genuinely free to attend. Only use an icon the name or description actually supports: never add music unless it mentions music, a band, a DJ, a concert, karaoke or an open mic. When the input says little, use fewer icons rather than guessing.
   - free: boolean, true if the event is free to attend.
   - appeal: integer 1–5. How many people in <<CITY>> would want to hear about this, and how special it is. 5: a big one-time draw for the whole town (festival, parade, big concert, fair, holiday lighting, rodeo). 4: a notable one-time event with broad appeal (touring act, community celebration, big fundraiser, family carnival). 3: an ordinary good outing (live music at a bar, trivia, a market, a kids' event). 2: routine or narrow (weekly bingo, a club or group meeting, a class or workshop for a few people, a store's kids craft). 1: very niche or barely an event (a support group, an orientation, a promo or deal).
@@ -2112,7 +2113,7 @@ Icon guidance:
   - community: meetings, fundraisers, civic, volunteer, library programs
   - free: zero cost to attend (also set free=true)
 
-Return ONLY a JSON array, one object per input event, each echoing that event's id: {"id": N, "description": "...", "icons": [...], "free": true|false, "appeal": 1-5, "keep": true|false}. No prose, no markdown fences."""
+Return ONLY a JSON array, one object per input event, each echoing that event's id: {"id": N, "description": "...", "details": "...", "icons": [...], "free": true|false, "appeal": 1-5, "keep": true|false}. No prose, no markdown fences."""
 _AI_REVIEW_SYSTEM_PROMPT = (_AI_REVIEW_SYSTEM_PROMPT.replace("<<SITE>>", TOWN["site_name"])
                             .replace("<<CITY_STATE>>", TOWN["city_state"]).replace("<<CITY>>", TOWN["city"]))
 
@@ -2157,7 +2158,7 @@ def _ai_review_batch(api_key, batch):
             "date": ev.get("date", ""),
             "time": ev.get("time", ""),
             "venue": ev.get("venue", ""),
-            "raw_description": ev.get("description", "")[:600],
+            "raw_description": (ev.get("_details_src") or ev.get("description") or "")[:DETAILS_SOURCE_CHARS],
             "current_icons": ev.get("icons", []),
         }
         for n, ev in enumerate(batch, start=1)
@@ -2178,8 +2179,9 @@ def _ai_review_batch(api_key, batch):
             ],
             # 8 events × ~60 output tokens is small, but reasoning tokens
             # count against this limit too. Too low returns an empty reply.
-            max_tokens=8000,
-            timeout=60,
+            # details add up to ~250 tokens an event.
+            max_tokens=12000,
+            timeout=90,
         )
     except Exception as e:
         print(f"  [AI Review] Batch request failed: {e}")
@@ -2289,6 +2291,15 @@ def ai_review(events, batch_size=8):
                 if len(cleaned) > 200:  # hard ceiling, AI was told 160
                     cleaned = cleaned[:197].rstrip() + "…"
                 ev["description"] = cleaned
+
+            # Details: the event page's full text. Never on a hand-entered
+            # event (its own description is already what a person wrote),
+            # and only when it says more than the short description.
+            details = ai.get("details")
+            if not hand and isinstance(details, str):
+                details = _clean_details(_strip_emojis(details).replace("\\n", "\n"))
+                if len(details) > len(ev.get("description") or "") + 20:
+                    ev["details"] = details
 
             # Icons: keep only valid values, dedupe, cap at 3.
             new_icons = ai.get("icons")
@@ -3114,7 +3125,13 @@ def _tidy_festival(merged, other):
             return 4
         words = set(_name_tokens(v))
         if words & set(core + ["".join(core)]):
-            return 1  # the festival's own name ("Tejas Fest (VIP)")
+            # The festival's own name ("Tejas Fest (VIP)"). A place the name
+            # starts with is still a place: "Walker Ranch" in "Walker Ranch
+            # Fall Festival" lost to the account that posted about it
+            # (L&C Beauty Studio, Shoals, Oct 2026).
+            if set(core) <= words or any(w.endswith("fest") or w == "festival" for w in words):
+                return 1
+            return 4
         if words <= _QUALIFIER_TOKENS - {"downtown"}:
             return 2  # a part of the grounds ("Main Stage")
         return 3      # the area ("Downtown Victoria")
@@ -3163,7 +3180,24 @@ def _merge_pair(old, new):
                 merged[k] = other[k]
     if _same_festival(old, new):
         _tidy_festival(merged, other)
+    # A hand-entered copy's place wins, like its price below: a person
+    # checked it, and a post's account or a search answer can name the
+    # wrong one.
+    hand_copy = base if _hand_entered(base) else other if _hand_entered(other) else None
+    if hand_copy is not None and hand_copy.get("venue"):
+        scraped = other if hand_copy is base else base
+        merged["venue"] = hand_copy["venue"]
+        # The other copy's address only fills a gap when it's the same place.
+        merged["address"] = hand_copy.get("address") or (
+            scraped.get("address") or "" if _same_place(hand_copy, scraped) else "")
     merged["icons"] = list(dict.fromkeys((base.get("icons") or []) + (other.get("icons") or [])))[:4]
+    # The fullest source text feeds the event page's details, whichever
+    # copy won: a calendar's one-liner shouldn't hide a Facebook page's
+    # schedule and prices.
+    texts = [e.get(k) or "" for e in (base, other) for k in ("_details_src", "description")]
+    longest = max(texts, key=len)
+    if len(longest) > len(merged.get("description") or "") + 20:
+        merged["_details_src"] = longest
     # A hand-entered copy's price wins: a scraped "free" copy must not turn
     # the owner's `free: false` into a Free listing.
     hand = base if _hand_entered(base) else other if _hand_entered(other) else None
@@ -3350,6 +3384,31 @@ def _clean_text(value):
 
 HAND_SOURCES = {"local_events", "google_sheet"}
 
+# The newsletter and lists show a short description; the event's own page
+# shows everything the source said (`details`, written by the AI review
+# from this text). Sources keep the full text here, up to this much.
+DETAILS_SOURCE_CHARS = 3000
+
+
+def _clean_details(value):
+    """Source text for `details`: entities decoded, spaces collapsed, but
+    line breaks kept (a schedule or price list reads as lines)."""
+    if value is None:
+        return ""
+    text = re.sub(r"(?i)<br\s*/?>|</(?:p|div|li|h\d)>", "\n", str(value))
+    text = html.unescape(re.sub(r"<[^>]+>", " ", text))
+    # A stripped emoji can leave "painting ." behind.
+    lines = [re.sub(r" +([.,!?;:])", r"\1", re.sub(r"[ \t\f\v\u00a0]+", " ", ln)).strip()
+             for ln in text.splitlines()]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()[:DETAILS_SOURCE_CHARS]
+
+
+def _details_src(full, short=""):
+    """{"_details_src": text} when a source's full text says more than its
+    short description, else {}. Spread into a scraped event."""
+    text = _clean_details(full)
+    return {"_details_src": text} if len(text) > len(_clean_text(short)) + 20 else {}
+
 
 def merge_events(all_events, days_ahead=7, venues=None):
     """Filter to the window and Victoria County, clean venues, dedupe, sort."""
@@ -3396,6 +3455,8 @@ def merge_events(all_events, days_ahead=7, venues=None):
         }
         if ev.get("_source"):
             new_entry["_source"] = ev["_source"]
+        if ev.get("_details_src"):
+            new_entry["_details_src"] = _clean_details(ev["_details_src"])
         if ev.get("_venue_guess"):
             new_entry["_venue_guess"] = True
         if ev.get("_library"):
@@ -4187,7 +4248,8 @@ def _parse_allevents_page(html_text, events, seen_urls):
             # The listing's own text, so the icons and the AI review go by
             # what the event is, not a guess from its name ("Spooky Starry
             # Night", a painting class, came out tagged music).
-            description = re.sub(r"\s+", " ", _html.unescape(str(ev.get("description") or ""))).strip()[:500]
+            full = str(ev.get("description") or "")
+            description = re.sub(r"\s+", " ", _html.unescape(full)).strip()[:500]
             free = guess_free(name, description, venue)
 
             events.append({
@@ -4200,6 +4262,7 @@ def _parse_allevents_page(html_text, events, seen_urls):
                 "icons": classify_icons(name, description, venue),
                 "free": free,
                 "url": ev_url,
+                **_details_src(full, description),
             })
             seen_urls.add(ev_url)
     return listed
@@ -4489,6 +4552,9 @@ def fetch_apify_eventbrite_events(days_ahead=14):
             continue
 
         description = (item.get("summary") or item.get("description") or "").strip()[:280]
+        # The summary is a teaser; the full write-up, when the actor has it,
+        # is for the event page.
+        full = max((str(item.get(k) or "") for k in ("description", "summary")), key=len)
         time_str = dt.strftime("%-I:%M %p") if (dt.hour or dt.minute) else ""
         free = item.get("isFree")
         events.append({
@@ -4501,6 +4567,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
             "icons": classify_icons(name, description, venue),
             "free": bool(free) if free is not None else guess_free(name, description, venue),
             "url": (item.get("url") or "").split("?")[0],
+            **_details_src(full, description),
         })
 
     print(f"  [Eventbrite] Extracted {len(events)} {TOWN['city']} events ({len(items)} raw, "
@@ -4558,6 +4625,46 @@ def _fb_location_is_victoria_tx(loc, venue, address, city):
     if country and country not in _US_COUNTRIES:
         return False
     return True
+
+
+_FB_DURATION_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m)\b", re.IGNORECASE)
+_FB_SENTENCE_END_RE = re.compile(r"[–—-]\s*(\d{1,2}(?::\d{2})?\s*[AP]\.?M\.?)\s*(?:[A-Z]{2,4})?\s*$", re.IGNORECASE)
+
+
+def _fb_end_time(item, start_dt):
+    """The end time ("5:00 PM") of a Facebook event, or "".
+
+    The search actors give no end field, only a duration ("2 hr") and the
+    sentence Facebook prints ("Sunday, October 18, 2026 at 3 PM – 5 PM CDT").
+    Dropping both left a 3–5 PM festival at "3:00 PM" (Shoals, Oct 2026).
+    Only a same-day end is used: "Sep 11 at 6 PM – Sep 12 at 11:59 PM" is a
+    multi-day run, and a bare time there would read as a few hours."""
+    end_iso = item.get("utcEndDate") or item.get("endDate") or ""
+    if end_iso and start_dt is not None:
+        try:
+            end = _to_central(datetime.fromisoformat(str(end_iso).replace("Z", "+00:00")))
+            if end.date() == start_dt.date() and end > start_dt:
+                return end.strftime("%-I:%M %p")
+        except Exception:
+            pass
+    sentence = str(item.get("dateTimeSentence") or "").strip()
+    # Two "at"s mean a date on each side: a multi-day run.
+    if sentence and sentence.lower().count(" at ") == 1:
+        m = _FB_SENTENCE_END_RE.search(sentence)
+        if m:
+            end = _start_minutes(m.group(1))
+            start = _start_minutes(start_dt.strftime("%I:%M %p")) if start_dt is not None else None
+            if end is not None and (start is None or end > start):
+                return f"{end // 60 % 12 or 12}:{end % 60:02d} {'PM' if end >= 720 else 'AM'}"
+    if start_dt is not None:
+        total = 0
+        for amount, unit in _FB_DURATION_RE.findall(str(item.get("duration") or "")):
+            total += float(amount) * (60 if unit.lower().startswith("h") else 1)
+        if total and "day" not in str(item.get("duration")).lower():
+            end = start_dt + timedelta(minutes=total)
+            if end.date() == start_dt.date():
+                return end.strftime("%-I:%M %p")
+    return ""
 
 
 def fetch_apify_facebook_events(days_ahead=14):
@@ -4689,6 +4796,10 @@ def fetch_apify_facebook_events(days_ahead=14):
         if not _fb_location_is_victoria_tx(loc, venue, address, city):
             skipped_off_locality += 1
             continue
+        # "224 E Mobile St" alone hides which town it's in, and a town like
+        # the Shoals has several; the site adds the state.
+        if address and city and city.split(",")[0].strip().lower() not in address.lower():
+            address = f"{address}, {city}"
 
         # Time string
         time_str = ""
@@ -4704,8 +4815,12 @@ def fetch_apify_facebook_events(days_ahead=14):
         # shows "12:00 AM" on the page, .ics and card.
         if _start_minutes(time_str) == 0:
             time_str = ""
+        end_str = _fb_end_time(item, dt) if time_str else ""
+        if end_str:
+            time_str = f"{time_str} – {end_str}"
 
-        description = (item.get("description") or "").strip()[:280]
+        full = (item.get("description") or "").strip()
+        description = full[:280]
         ev_url = item.get("url") or item.get("eventUrl") or ""
 
         events.append({
@@ -4718,6 +4833,7 @@ def fetch_apify_facebook_events(days_ahead=14):
             "icons": classify_icons(name, description, venue),
             "free": guess_free(name, description, venue),
             "url": ev_url,
+            **_details_src(full, description),
         })
 
     print(
@@ -5033,7 +5149,7 @@ Posts:
 {posts_blob}
 
 Return ONLY a JSON array of upcoming events mentioned in these posts. Each object:
-{{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"Where it happens if NOT at {venue_name} itself, else empty string","description":"One short sentence or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}}
+{{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"Where it happens if NOT at {venue_name} itself, else empty string","description":"One short sentence or empty string","details":"Everything the post or flyer says about this event, or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}}
 
 Rules:
 - "weekday" is the day of the week the post gives for the event (e.g. "Thursday"). Copy it from the post; don't work it out from a date.
@@ -5044,6 +5160,7 @@ Rules:
 - For relative dates ("this Friday", "tomorrow", "next Saturday"), resolve them against the post's own posted-on date — then check the resolved date is in the window.
 - "name" is the event's own name as the post gives it ("Plant and Sip", "Trivia Night", "Fall Market"). When a guest business or performer is the draw, add them: "Plant and Sip with Scenic Root". Never build a name from a cut-off or partial phrase, and never end a name with "a", "the", "and", "for" or "...".
 - "description" says only what the post says. Don't add performers, live music, food or other details the post doesn't mention.
+- "details" keeps every fact the post or flyer gives about THIS event (performers, schedule, prices and tickets, what's included, age limits, how to sign up, who's hosting), in plain sentences. Nothing about the post's other events, nothing the post doesn't say. Empty when the post says no more than "description".
 - A post ending in "[post continues]" was cut short; use only what you can read and don't guess the rest.
 - Skip posts that are pure promo, photo dumps, customer thank-yous, or undated announcements.
 - Skip events that already happened (post-date BEFORE today's date with no recurring signal).
@@ -5409,6 +5526,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
                     )
 
             description = (r.get("description") or "").strip()[:280]
+            details = _details_src(r.get("details"), description)
             time_str = (r.get("time") or "").strip()
             # Accounts like "Discover Victoria Texas" post about events held
             # elsewhere; the model names the real venue when it isn't theirs.
@@ -5430,6 +5548,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
                     "icons": classify_icons(name, description, venue_name),
                     "free": bool(r.get("free", False)) or guess_free(name, description, venue_name),
                     "url": source_url,
+                    **details,
                     **({"recurring": True} if r.get("recurring") is True else {}),
                 })
                 kept += 1
@@ -5774,6 +5893,7 @@ def fetch_apify_instagram_posts(days_ahead=14):
                     source_url = post["url"]
 
             description = (r.get("description") or "").strip()[:280]
+            details = _details_src(r.get("details"), description)
             time_str = (r.get("time") or "").strip()
             # Accounts like "Discover Victoria Texas" post about events held
             # elsewhere; the model names the real venue when it isn't theirs.
@@ -5795,6 +5915,7 @@ def fetch_apify_instagram_posts(days_ahead=14):
                     "icons": classify_icons(name, description, venue_name),
                     "free": bool(r.get("free", False)) or guess_free(name, description, venue_name),
                     "url": source_url,
+                    **details,
                     **({"recurring": True} if r.get("recurring") is True else {}),
                 })
                 kept += 1
@@ -6001,6 +6122,10 @@ def main():
     # Templates only for what the review didn't write (skipped, past the
     # deadline, a failed batch, no key).
     merged = fill_gaps(merged)
+    # The source text only feeds the review's `details`; up to 3 KB an
+    # event, it would otherwise bloat candidates.json for nothing.
+    for ev in merged:
+        ev.pop("_details_src", None)
 
     # 5. Load extras. Hand-written New & Notable items (extras.yaml) come
     # first, then what Gemini found this run.

@@ -36,7 +36,7 @@ function table(t) {
 
 // What docs/app.js needs to know about the town (it defaults to Victoria's).
 export function townScript(t = currentTown) {
-  const data = { timezone: t.timezone, city: t.city, pickName: t.pickName, utmSource: t.utmSource, ...(t.dormant ? { dormant: true } : {}) };
+  const data = { timezone: t.timezone, city: t.city, state: t.state, pickName: t.pickName, utmSource: t.utmSource, ...(t.dormant ? { dormant: true } : {}) };
   return `<script>window.__TOWN__=${JSON.stringify(data).replace(/</g, '\\u003c')};</script>`;
 }
 

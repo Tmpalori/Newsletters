@@ -64,11 +64,11 @@
     <p class="breadcrumbs"><a href="/">This week</a> › Monday Trivia</p>
     <h1 class="page-title">Monday Trivia</h1>
     
-    <p class="page-lead">Monday Trivia was on Monday, October 5, 2026, 7:00 PM, at Aero Crafters, 1502 E Airline Rd in Victoria, TX.</p>
+    <p class="page-lead">Monday Trivia was on Monday, October 5, 2026, 7:00 PM, at Aero Crafters, 1502 E Airline Rd, Victoria, TX.</p>
     <p class="past-notice">This event has passed. <a href="/">See what's happening this week</a>.</p>
     <dl class="event-facts">
       <dt>When</dt><dd>Monday, October 5, 2026, 7:00 PM</dd>
-      <dt>Where</dt><dd>Aero Crafters, 1502 E Airline Rd</dd>
+      <dt>Where</dt><dd>Aero Crafters, 1502 E Airline Rd, Victoria, TX</dd>
       <dt>Cost</dt><dd><a href="/venues/aero-crafters">Check with the venue</a></dd>
     </dl>
     <p class="event-about">Teams of up to six; prizes for the top three.</p>

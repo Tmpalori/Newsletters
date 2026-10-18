@@ -1,8 +1,49 @@
 /* app.js — The Vic 361 */
 // The town this page is for. Another town's server sets window.__TOWN__
 // (server/localize.js); without it, Victoria.
-var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickName: 'Vic’s Pick', utmSource: 'thevic361' },
+var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', state: 'TX', pickName: 'Vic’s Pick', utmSource: 'thevic361' },
   (typeof window !== 'undefined' && window.__TOWN__) || {});
+
+// "street, City, ST" for a street address, like fullAddress in
+// server/seo.js (keep the two in sync): ZIP and country dropped, a full
+// state name shortened, the event's town filled in when no city is given.
+var STATE_CODES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL',
+  indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
+  massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
+  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA',
+  'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
+  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY' };
+function stateCode(s) {
+  var t = String(s || '').trim().replace(/\.$/, '');
+  if (t.length === 2) {
+    for (var k in STATE_CODES) if (STATE_CODES[k] === t.toUpperCase()) return t.toUpperCase();
+    return '';
+  }
+  return STATE_CODES[t.toLowerCase()] || '';
+}
+function fullAddress(addr, ev) {
+  var raw = String(addr || '').trim();
+  if (!/^\d+[a-z]?\s+\S/i.test(raw)) return raw;
+  var state = '';
+  var parts = [];
+  raw.split(',').forEach(function (x) {
+    var p = x.trim().replace(/\s*\b\d{5}(-\d{4})?$/, '').trim();
+    if (!p || /^(united states( of america)?|usa?|u\.s\.a?\.?)$/i.test(p)) return;
+    var st = stateCode(p);
+    if (st) { state = state || st; return; }
+    var m = parts.length && /^(.*\S)\s+([A-Za-z]{2})$/.exec(p);
+    if (m && stateCode(m[2])) { state = state || stateCode(m[2]); p = m[1]; }
+    if (parts.length && parts[parts.length - 1].toLowerCase() === p.toLowerCase()) return;
+    parts.push(p);
+  });
+  if (!parts.length) return raw;
+  var hasCity = parts.length > 1 && !/^(\d|#|(ste|suite|unit|apt|bldg|building|room|rm|floor|fl)\b)/i.test(parts[parts.length - 1]);
+  if (!hasCity) parts.push(String((ev && ev.town) || '').trim() || TOWN.city);
+  parts.push(state || TOWN.state);
+  return parts.join(', ');
+}
 
 (function () {
   'use strict';
@@ -205,11 +246,12 @@ var TOWN = Object.assign({ timezone: 'America/Chicago', city: 'Victoria', pickNa
     var venuePart = '';
     var venue = (ev.venue || '').trim();
     var addr = (ev.address || '').trim();
+    if (/^\d/.test(venue) && !addr) { addr = venue; venue = ''; }
     if (/^\d/.test(venue)) venue = venue.split(',')[0].trim();
-    if (!venue) venuePart = addr;
+    if (!venue) venuePart = fullAddress(addr, ev);
     else if (!addr || venue.toLowerCase().indexOf(addr.toLowerCase()) !== -1 ||
-             addr.toLowerCase().indexOf(venue.toLowerCase()) !== -1) venuePart = venue;
-    else venuePart = venue + ' · ' + addr;
+             addr.toLowerCase().indexOf(venue.toLowerCase()) !== -1) venuePart = /^\d/.test(venue) ? fullAddress(venue, ev) : venue;
+    else venuePart = venue + ' · ' + fullAddress(addr, ev);
 
     // A paid pick ends its description with a small "#ad" (adTag in
     // server/seo.js); editors' picks carry only the pick badge.

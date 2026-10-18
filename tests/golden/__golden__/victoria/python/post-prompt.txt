@@ -4,7 +4,7 @@ Posts:
 [1] (posted Fri 2026-10-09 8:15 PM) Trivia tonight at 7!
 
 Return ONLY a JSON array of upcoming events mentioned in these posts. Each object:
-{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"Where it happens if NOT at Aero Crafters itself, else empty string","description":"One short sentence or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}
+{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"Where it happens if NOT at Aero Crafters itself, else empty string","description":"One short sentence or empty string","details":"Everything the post or flyer says about this event, or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}
 
 Rules:
 - "weekday" is the day of the week the post gives for the event (e.g. "Thursday"). Copy it from the post; don't work it out from a date.
@@ -15,6 +15,7 @@ Rules:
 - For relative dates ("this Friday", "tomorrow", "next Saturday"), resolve them against the post's own posted-on date — then check the resolved date is in the window.
 - "name" is the event's own name as the post gives it ("Plant and Sip", "Trivia Night", "Fall Market"). When a guest business or performer is the draw, add them: "Plant and Sip with Scenic Root". Never build a name from a cut-off or partial phrase, and never end a name with "a", "the", "and", "for" or "...".
 - "description" says only what the post says. Don't add performers, live music, food or other details the post doesn't mention.
+- "details" keeps every fact the post or flyer gives about THIS event (performers, schedule, prices and tickets, what's included, age limits, how to sign up, who's hosting), in plain sentences. Nothing about the post's other events, nothing the post doesn't say. Empty when the post says no more than "description".
 - A post ending in "[post continues]" was cut short; use only what you can read and don't guess the rest.
 - Skip posts that are pure promo, photo dumps, customer thank-yous, or undated announcements.
 - Skip events that already happened (post-date BEFORE today's date with no recurring signal).
