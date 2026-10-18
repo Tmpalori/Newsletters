@@ -13,7 +13,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { createJobs, upcomingCount, canRunOnWorker } from '../server/jobs.js';
+import { createJobs, upcomingCount, canRunOnWorker, collectWarnings } from '../server/jobs.js';
 import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
@@ -98,7 +98,7 @@ describe('jobs API', () => {
     const fin = await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done', result: { upcoming: 2, warnings: 'mona returned 0 events' } });
     expect(fin.status).toBe(200);
     expect(t.slack.notes.find(n => n.title === '🗓️ Collect done').text).toMatch(/^2 events/);
-    expect(t.slack.notes.find(n => n.title.startsWith('⚠️ Weekly collect:')).channel).toBe('alerts');
+    expect(t.slack.notes.find(n => n.title === '⚠️ Collect warnings').channel).toBe('alerts');
     const next = await (await t.call('POST', '/api/jobs/claim')).json();
     expect(next.job).toMatchObject({ kind: 'event-check', slot: `after-collect-${claim.job.id}` });
     expect((await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done' })).status).toBe(404);  // once
@@ -474,7 +474,7 @@ describe('the ads report and the digest on the worker', () => {
     expect(t.slack.alerts.map(a => a.title)).toEqual(['Meta ads report failed', 'Weekly digest email failed']);
   });
 
-  it('a digest skipped for missing SMTP settings is said in alerts, not a quiet "done"', async () => {
+  it('a digest skipped for missing SMTP settings is said in activity (a setting, not breakage), not a quiet "done"', async () => {
     const t = await start();
     const run = async result => {
       await t.store.enqueueJob('digest', `s${Math.random()}`, {}, NOW);
@@ -484,7 +484,20 @@ describe('the ads report and the digest on the worker', () => {
     await run({ events: 40 });
     expect(t.slack.notes).toEqual([]);
     await run({ skipped: "SMTP_EMAIL / SMTP_PASSWORD aren't set on the jobs service" });
-    expect(t.slack.notes).toEqual([expect.objectContaining({ title: '📭 Weekly digest email not sent', channel: 'alerts' })]);
+    expect(t.slack.notes).toEqual([expect.objectContaining({ title: '📭 Weekly digest email not sent', channel: 'activity' })]);
     expect(t.slack.notes[0].text).toContain('SMTP_EMAIL');
+  });
+});
+
+describe('collect warnings in Slack', () => {
+  it('a count, a short bullet each without the raw response, and the whole line for HQ', () => {
+    const line = '2 warnings: FB posts actor HTTP error (venue=ViBe Creative District status=502 body=<html>  <head><title>502 Bad Gateway</title>; [Apify FB Posts] scrape budget reached (skipped=4)';
+    expect(collectWarnings(line)).toEqual({
+      title: '⚠️ Collect: 2 warnings',
+      text: '• FB posts actor HTTP error (venue=ViBe Creative District status=502)\n• [Apify FB Posts] scrape budget reached (skipped=4)',
+      more: line
+    });
+    expect(collectWarnings('1 warning: x').title).toBe('⚠️ Collect: 1 warning');
+    expect(collectWarnings('mona returned 0 events')).toEqual({ title: '⚠️ Collect warnings', text: 'mona returned 0 events' });
   });
 });

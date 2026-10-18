@@ -125,6 +125,24 @@ describe('POST /api/ops/report (GitHub workflow alerts into the inbox)', () => {
   });
 });
 
+describe('short in Slack, the rest in HQ (more)', () => {
+  it('Slack gets the short text and a pointer; the inbox keeps both parts', async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-alerting-'));
+    const fileStore = new FileStore(path.join(tmpDir, 's.json'));
+    const seen = [];
+    const slack = withInbox({ notify: async m => { seen.push(m); return true; },
+      alert: async (key, title, text) => { seen.push({ title, text }); return true; } }, fileStore);
+    await slack.notify({ title: '📣 Venues to tag this week', text: '12 venues', more: 'the whole list', channel: 'activity' });
+    await slack.alert('job-x', 'Collect failed', 'exited 1', null, 'log line 1\nlog line 2');
+    await slack.notify({ title: '📝 New event submitted', text: 'short' });
+    expect(seen[0]).toMatchObject({ text: '12 venues', footer: 'More in HQ' });
+    expect(seen[1]).toEqual({ title: 'Collect failed', text: 'exited 1\nMore in HQ.' });
+    expect(seen[2].footer).toBeUndefined();
+    await new Promise(r => setTimeout(r, 50));
+    expect((await fileStore.listInboxEvents(0)).map(e => e.payload.text)).toEqual(['12 venues\n\nthe whole list', 'exited 1\n\nlog line 1\nlog line 2', 'short']);
+  });
+});
+
 describe('the inbox keeps pings it couldn\'t save', () => {
   it('saved once the store exists (an alert at boot, before the store)', async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-alerting-'));

@@ -564,7 +564,7 @@ def main(argv=None):
             link = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
                     f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{run}") if run else f"{SITE}/admin.html"
             slack_notify.main(["🚨 The new events didn't go live after the collect (no Railway deploy?); "
-                               "the site still shows the old list", "--link", link])
+                               "the site still shows the old list", "--link", link, "--channel", "alerts"])
         return 0
 
     # ?all=1: every public event, including ones past their day's limit

@@ -579,7 +579,7 @@ describe('paid picks and approvals that aren\'t live yet', () => {
     expect((await store.get('p1')).status).toBe('approved');
     await pending();
     expect(reminders()).toHaveLength(1);
-    expect(reminders()[0].text).toMatch(/publishing it failed/);
+    expect(reminders()[0].more).toMatch(/publishing it failed/);  // the why is for HQ
   });
 });
 

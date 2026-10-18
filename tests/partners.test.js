@@ -418,7 +418,7 @@ describe('after payment: waiting for the owner', () => {
     await store.saveSponsorOrder({ ...o2, category: 'food' });
     await paid(second);
     expect((await orderOf(second.params.client_reference_id)).status).toBe('conflict');
-    expect(slackPings.some(p => p.type === 'alert' && /paid for twice/.test(p.title))).toBe(true);
+    expect(slackPings.some(p => p.type === 'notify' && p.channel === 'sales' && /paid for twice/.test(p.title))).toBe(true);
   });
 });
 
@@ -492,7 +492,7 @@ describe('approval', () => {
     const { id } = await buyFood();
     expect(await (await act(id, { action: 'reject' })).json()).toMatchObject({ ok: true, refunded: false });
     expect((await orderOf(id)).refund).toMatchObject({ ok: false });
-    expect(slackPings.find(p => p.type === 'alert' && /Refund Mesquite Smokehouse by hand/.test(p.title))).toBeTruthy();
+    expect(slackPings.find(p => p.type === 'notify' && p.channel === 'sales' && /Refund Mesquite Smokehouse by hand/.test(p.title))).toBeTruthy();
     expect(sent.find(m => /partner listing/.test(m.subject)).text).toContain('are refunding your payment');
   });
 

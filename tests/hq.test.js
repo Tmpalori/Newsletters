@@ -236,9 +236,10 @@ describe('/api/hq/subscribers and /api/hq/hype (HQ\'s combined subscriber ping)'
     expect(channel).toBe('hype');
     expect(text).toBe('📬 10 new subscribers');
     expect(blocks[0]).toEqual({ type: 'header', text: { type: 'plain_text', text: '📬 10 new subscribers' } });
-    expect(blocks[1].text.text).toBe('*The Star 402* · 412 total\nmaria.k@gmail.com\njdoyle@yahoo.com');
-    expect(blocks[2].text.text).toBe('*The Vic 361* · 1,847 total\n&lt;@channel&gt;@x.example');
-    expect(blocks[4].elements[0].text).toBe('All newsletters: 3,148 subscribers');
+    // One bullet per newsletter; the emails stay in HQ, not Slack.
+    expect(blocks[1].text.text).toBe('• *The Star 402* +2 · 412 total\n• *The Vic 361* +1 · 1,847 total');
+    expect(JSON.stringify(blocks)).not.toMatch(/maria|@channel/);
+    expect(blocks[3].elements[0].text).toBe('All newsletters: 3,148 subscribers');
   });
 });
 

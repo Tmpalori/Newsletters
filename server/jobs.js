@@ -119,6 +119,21 @@ export function mergePosted(seed, own) {
  * seeds: { <file>: async () => data|null } a file's state from before the
  * town's jobs moved here (Victoria's docs/social/latest/posted.json).
  */
+// collect_events.py's warning_summary ("2 warnings: FB posts actor HTTP
+// error (venue=X status=502 body=<html>...); ...") as a short title, a
+// bullet per warning without the raw response, and the whole line for HQ.
+// The whole line used to be the title, cut off mid-HTML (Oct 18 2026).
+export function collectWarnings(summary) {
+  const m = /^(\d+) warnings?: (.*)$/s.exec(String(summary));
+  if (!m) return { title: '⚠️ Collect warnings', text: String(summary).slice(0, 200) };
+  const items = m[2].replace(/ \(\+\d+ more\)$/, '').split('; ').map(w => {
+    const cut = w.replace(/\s*body=.*$/s, '').replace(/[:,]\s*$/, '');
+    return `• ${cut.includes('(') && !cut.includes(')') ? `${cut})` : cut}`.slice(0, 120);
+  });
+  const n = Number(m[1]);
+  return { title: `⚠️ Collect: ${n} warning${n === 1 ? '' : 's'}`, text: items.slice(0, 3).join('\n'), more: String(summary) };
+}
+
 export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {} }) {
   const cfg = jobsConfig(env);
   // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
@@ -146,7 +161,12 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     // keeps to its streak, retries included, so a worker crash-looping
     // mid-review alerts once, not every run.
     if (slack && (urgent || after === 1 || n === after)) {
-      slack.alert(`job-${job.kind}-${job.id}`, title, text, `${siteUrl}/admin.html`);
+      // In Slack the error and the log's last line (usually what went
+      // wrong); the whole log tail goes to HQ only.
+      const [first, ...rest] = String(text).split('\n');
+      const last = rest.filter(l => l.trim()).pop();
+      slack.alert(`job-${job.kind}-${job.id}`, title, [first, last && last.slice(0, 200)].filter(Boolean).join('\n'),
+        `${siteUrl}/admin.html`, rest.join('\n'));
     }
   }
   function worked(job) {
@@ -198,7 +218,12 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       // Monday's list of this week's venues to send their link
       // (social_kit.py's outreach-slack.txt).
       if (slack && typeof r.outreach === 'string' && r.outreach.trim()) {
-        slack.notify({ title: '📣 Venues to tag this week', text: r.outreach.slice(0, 3000), link: `${siteUrl}/social/latest/outreach.txt`, channel: 'activity' });
+        // A count in Slack; the list (who to tag, their links) in HQ and at the link.
+        // social_kit.py's first line says how many ("📣 *12 venues on this week's list...").
+        const m = /(\d+) venues?/.exec(r.outreach);
+        const venues = m ? Number(m[1]) : 0;
+        slack.notify({ title: '📣 Venues to tag this week', text: venues ? `${venues} venue${venues === 1 ? '' : 's'} to send their event link.` : 'This week\'s list is ready.',
+          more: r.outreach.replace(/<[^>|]*\|([^>]*)>/g, '$1').slice(0, 3500), link: `${siteUrl}/social/latest/outreach.txt`, channel: 'activity' });
       }
       return;
     }
@@ -226,7 +251,8 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       // A digest skipped for missing settings finishes "done": say so each
       // Sunday, or the email just stops with nothing to show for it.
       if (slack && typeof r.skipped === 'string' && r.skipped.trim()) {
-        slack.notify({ title: '📭 Weekly digest email not sent', text: `${r.skipped.slice(0, 300)}. Set them on the jobs service in Railway to get it again.`, channel: 'alerts' });
+        // A setting left off, not breakage: activity.
+        slack.notify({ title: '📭 Weekly digest email not sent', text: `${r.skipped.slice(0, 300)}. Set them on the jobs service in Railway to get it again.`, channel: 'activity' });
       }
       return;
     }
@@ -243,7 +269,7 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       const n = Number.isFinite(r.upcoming) ? r.upcoming : '?';
       const warnings = typeof r.warnings === 'string' ? r.warnings : '';
       slack.notify({ title: '🗓️ Collect done', text: `${n} events in the next two weeks are live; edit or remove any in admin.`, link: `${siteUrl}/admin.html`, channel: 'activity' });
-      if (warnings) slack.notify({ title: `⚠️ Weekly collect: ${warnings}`, link: `${siteUrl}/admin.html`, channel: 'alerts' });
+      if (warnings) slack.notify({ ...collectWarnings(warnings), link: `${siteUrl}/admin.html`, channel: 'alerts' });
     }
     await enqueue('event-check', `after-collect-${job.id}`);
   }

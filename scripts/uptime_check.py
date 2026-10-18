@@ -133,7 +133,7 @@ def main(argv, fetch=fetch, sleep=time.sleep, now=None):
         json.dump(state, f)
     if message:
         print(message)
-        slack_notify.main([message, "--link", site])
+        slack_notify.main([message, "--link", site, "--channel", "alerts"])
         push(message, site)
     for p in found:
         print(f"::error::{p}")

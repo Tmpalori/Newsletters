@@ -2455,10 +2455,11 @@ export async function createApp(opts = {}) {
         { at, action: 'live-email-refused', note: 'Resend refused the "you’re live" email to the submitter’s address; not retried' }] });
     } catch (err) { console.warn('[submissions] live email refusal note failed:', err.message); }
     slack.notify({
-      channel: 'activity',
-      title: `✉️ “You’re live” email refused: ${row.payload && row.payload.name}`,
-      text: `${(row.payload && row.payload.name) || 'A submission'} is on the site${live.page ? ` (${siteUrl}${live.page})` : ''}, ` +
-        `but Resend refused the address ${row.submitter_email}, so the submitter wasn't told. Reach them another way if it matters.`,
+      channel: 'alerts',
+      title: `⚠️ “You’re live” email refused: ${row.payload && row.payload.name}`,
+      text: `The submitter wasn't told it's live. Reach them another way if it matters.`,
+      more: `${(row.payload && row.payload.name) || 'A submission'} is on the site${live.page ? ` (${siteUrl}${live.page})` : ''}, ` +
+        `but Resend refused the address ${row.submitter_email}.`,
       link: `${siteUrl}/admin.html`
     });
   }

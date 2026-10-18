@@ -1475,9 +1475,10 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       if (!mailer || !mailer.enabled) {
         // No email service: hand the numbers to the owner once instead.
         if (!order.report_slack_sent && slack) {
-          slack.alert(`sponsor-report:${order.id}`, `Send ${order.business} their click report (email is off)`,
-            `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nEmail it to ${order.email}. Set RESEND_API_KEY so these go out on their own.`,
-            `${siteUrl}/admin.html`);
+          // A to-do for the owner, not breakage: sales, numbers in HQ.
+          slack.notify({ channel: 'sales', title: `📋 Send ${order.business} their click report (email is off)`,
+            text: `Email it to ${order.email}.`, link: `${siteUrl}/admin.html`,
+            more: `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nSet RESEND_API_KEY so these go out on their own.` });
           await recordReport(order, { report: stats, report_slack_sent: nowIso() });
         }
         out.skipped++;
@@ -1544,8 +1545,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         ['Views on the site', stats.views], ['Clicked', stats.click_people]];
       if (!mailer || !mailer.enabled) {
         if (slack) {
-          slack.alert(`partner-report:${order.id}:${renewal}`, `Send ${order.business} their partner report (email is off)`,
-            `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nEmail it to ${order.email}. Set RESEND_API_KEY so these go out on their own.`, `${siteUrl}/admin.html`);
+          slack.notify({ channel: 'sales', title: `📋 Send ${order.business} their partner report (email is off)`,
+            text: `Email it to ${order.email}.`, link: `${siteUrl}/admin.html`,
+            more: `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nSet RESEND_API_KEY so these go out on their own.` });
         }
         await recordReport(order, { report: stats, report_through: renewal, report_slack_sent: nowIso() });
         out.skipped++;
@@ -1726,9 +1728,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         await recordReport(order, { report_skipped: nowIso() });
         out.skipped++;
         if (slack) {
-          slack.alert(`pick-report-skipped:${order.id}`, `No ${town.pickNamePlain} report for ${order.business}: it never went live`,
-            `${name} (${order.event.date}) was paid for but never matched a listed event, so there are no numbers to send. Check whether they need a refund.`,
-            `${siteUrl}/admin.html`);
+          slack.notify({ channel: 'sales', title: `📋 No ${town.pickNamePlain} report for ${order.business}: it never went live`,
+            text: 'Check whether they need a refund.', link: `${siteUrl}/admin.html`,
+            more: `${name} (${order.event.date}) was paid for but never matched a listed event, so there are no numbers to send.` });
         }
         continue;
       }
@@ -1739,9 +1741,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         ['Newsletter', stats.newsletter_starred ? `Starred, ${stats.newsletter_recipients} copies${stats.newsletter_issues > 1 ? ' (Mon + Thu)' : ''}` : 'Not in it']];
       if (!mailer || !mailer.enabled) {
         if (!order.report_slack_sent && slack) {
-          slack.alert(`pick-report:${order.id}`, `Send ${order.business} their ${town.pickNamePlain} report (email is off)`,
-            `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nEmail it to ${order.email}. Set RESEND_API_KEY so these go out on their own.`,
-            `${siteUrl}/admin.html`);
+          slack.notify({ channel: 'sales', title: `📋 Send ${order.business} their ${town.pickNamePlain} report (email is off)`,
+            text: `Email it to ${order.email}.`, link: `${siteUrl}/admin.html`,
+            more: `${summary.map(([k, v]) => `${k}: ${v}`).join('\n')}\nSet RESEND_API_KEY so these go out on their own.` });
           await recordReport(order, { report: stats, report_slack_sent: nowIso() });
         }
         out.skipped++;
@@ -1917,7 +1919,8 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
   async function doubleBooked(order, event, title, text, mail) {
     order.status = 'conflict';
     await save(order);
-    if (slack) slack.alert(`sponsor-conflict:${order.id}`, title, text, `${siteUrl}/admin.html`);
+    // A sales call (move or refund), so sales, not alerts.
+    if (slack) slack.notify({ channel: 'sales', title: `⚠️ ${title}`, text: 'Move it or refund it.', more: text, link: `${siteUrl}/admin.html` });
     if (mayEmail(event)) {
       mail.push(() => mailer.send(order.email, renderSponsorConflict(order, { siteUrl, address: mailAddress }), `${town.keyPrefix}-sponsor-conflict-${order.id}`));
     }
@@ -2134,9 +2137,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           await save(order);
           await dropLogo(order);
           if (slack) {
-            slack.alert(`sponsor-late:${order.id}`, `Refund ${order.business}: payment cleared after its date`,
-              `${order.business} (${order.email}) paid $${Math.round((order.amount || 0) / 100)} by bank for ${order.kind === 'weekly' ? `the week of ${order.week_start}` : `${order.event.name} (${order.event.date})`}, but it only cleared now. Nothing went live; they've been told they'll be refunded in full. Refund it in Stripe${order.payment_intent ? ` (${order.payment_intent})` : ''}.`,
-              'https://dashboard.stripe.com/payments');
+            slack.notify({ channel: 'sales', title: `⚠️ Refund ${order.business}: payment cleared after its date`,
+              text: 'Nothing went live. Refund it in Stripe.', link: 'https://dashboard.stripe.com/payments',
+              more: `${order.business} (${order.email}) paid $${Math.round((order.amount || 0) / 100)} by bank for ${order.kind === 'weekly' ? `the week of ${order.week_start}` : `${order.event.name} (${order.event.date})`}, but it only cleared now. Nothing went live; they've been told they'll be refunded in full. Refund it in Stripe${order.payment_intent ? ` (${order.payment_intent})` : ''}.` });
           }
           if (mayEmail(event)) {
             mail.push(() => mailer.send(order.email, renderSponsorTooLate(order, { siteUrl, address: mailAddress }), `${town.keyPrefix}-sponsor-late-${order.id}`));
@@ -2208,9 +2211,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
           const both = !weekendIssueOn() || Boolean(await newsletterSend(addDays(order.week_start, 3)));
           order.newsletter_missed_both = both;
           if (slack) {
-            slack.alert(`sponsor-newsletter-missed:${order.id}`, `${order.business} paid after their week's newsletter went out`,
-              `${order.business} (${order.email}) paid by bank for the week of ${order.week_start}; it cleared after that Monday's newsletter${both ? ' and Thursday\'s weekend issue were' : ' was'} sent, so their block wasn't in ${both ? 'either' : 'it'}${both ? '' : ' (it will be in Thursday\'s weekend issue)'}. It's live on the site now; offer them a make-good (e.g. a later issue) or a partial refund.`,
-              `${siteUrl}/admin.html`);
+            slack.notify({ channel: 'sales', title: `⚠️ ${order.business} paid after their week's newsletter went out`,
+              text: 'Live on the site now. Offer a make-good or a partial refund.', link: `${siteUrl}/admin.html`,
+              more: `${order.business} (${order.email}) paid by bank for the week of ${order.week_start}; it cleared after that Monday's newsletter${both ? ' and Thursday\'s weekend issue were' : ' was'} sent, so their block wasn't in ${both ? 'either' : 'it'}${both ? '' : ' (it will be in Thursday\'s weekend issue)'}. It's live on the site now; offer them a make-good (e.g. a later issue) or a partial refund.` });
           }
         }
         await save(order);
@@ -2557,9 +2560,9 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         slack.notify({ channel: 'sales', title: `✅ Partner rejected and refunded: ${done.business}`, fields: [['Category', cat ? cat.label : done.category], ['Contact', done.email]],
           text: 'Subscription cancelled and the payment refunded. The category is open again.' });
       } else {
-        slack.alert(`partner-refund:${done.id}`, `Refund ${done.business} by hand: the partner refund didn't go through`,
-          `Their subscription is cancelled, but Stripe refused the refund (${refund.error}). Refund their payment in Stripe. (The key needs Refunds and Invoices access for this to work on its own.)`,
-          'https://dashboard.stripe.com/payments');
+        slack.notify({ channel: 'sales', title: `⚠️ Refund ${done.business} by hand: the partner refund didn't go through`,
+          text: 'Subscription is cancelled. Refund their payment in Stripe.', link: 'https://dashboard.stripe.com/payments',
+          more: `Stripe refused the refund (${refund.error}). The key needs Refunds and Invoices access for this to work on its own.` });
       }
     }
     if (mailer && mailer.enabled) {

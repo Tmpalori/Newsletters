@@ -1187,10 +1187,12 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         if (typeof store.markSubscribersBounced === 'function') { await store.markSubscribersBounced(emails); marked = true; }
       } catch (err) { console.warn('[newsletter] marking refused addresses bounced failed:', err.message); }
       if (slack) {
+        // The addresses go to HQ; Slack gets what happens to them.
         slack.alert(`newsletter-refused-${key}`, `Newsletter: Resend refused ${emails.length} address(es)`,
-          `${refusedEmails.slice(0, 20).map(r => `${r.email}: ${r.reason}`).join('\n')}${emails.length > 20 ? `\n…and ${emails.length - 20} more` : ''}\n` +
-          (marked ? 'They are marked bounced and get no more issues; one who signs up again on the site gets a confirmation email first.' : 'They could not be marked bounced, so the next send will try them again.'),
-          `${siteUrl}/admin.html`);
+          marked ? 'Marked bounced; they get no more issues.' : 'Couldn\'t mark them bounced, so the next send will try them again.',
+          `${siteUrl}/admin.html`,
+          `${refusedEmails.slice(0, 50).map(r => `${r.email}: ${r.reason}`).join('\n')}${emails.length > 50 ? `\n…and ${emails.length - 50} more` : ''}\n` +
+          (marked ? 'One who signs up again on the site gets a confirmation email first.' : ''));
       }
     }
     if (slack) {

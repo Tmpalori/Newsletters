@@ -7,7 +7,11 @@ green run red. A refused webhook (archived channel, removed app: HTTP
 403/404/410 or no_service, channel_is_archived, ...) exits 2 instead, since
 every later alert would vanish too; the red run makes GitHub email the owner.
 
-    python3 scripts/slack_notify.py "🚨 Weekly collect failed" [--link URL]
+    python3 scripts/slack_notify.py "🚨 Weekly collect failed" [--link URL] [--channel alerts]
+
+--channel posts to that channel's SLACK_<CHANNEL>_WEBHOOK_URL when it's set,
+else SLACK_WEBHOOK_URL: on the town services the default is the sales
+channel, so an alert or report never rides it by accident.
 
 The text is sent as mrkdwn as given, so callers can include links; run
 anything that came from outside (event names, AI text) through escape().
@@ -86,15 +90,27 @@ def main(argv):
         i = args.index("--link")
         link = args[i + 1] if i + 1 < len(args) else None
         del args[i:i + 2]
+    channel = None
+    if "--channel" in args:
+        i = args.index("--channel")
+        channel = args[i + 1] if i + 1 < len(args) else None
+        del args[i:i + 2]
     raw = " ".join(args).strip() or "(no message)"
-    rc, delivered = post_to_slack(raw, link)
+    rc, delivered = post_to_slack(raw, link, channel)
     report_to_site(raw, link, delivered)
     return rc
 
 
-def post_to_slack(text, link):
+def webhook_for(channel=None, env=None):
+    """SLACK_<CHANNEL>_WEBHOOK_URL when set, else SLACK_WEBHOOK_URL."""
+    env = os.environ if env is None else env
+    own = env.get(f"SLACK_{channel.upper()}_WEBHOOK_URL", "").strip() if channel else ""
+    return own or env.get("SLACK_WEBHOOK_URL", "").strip()
+
+
+def post_to_slack(text, link, channel=None):
     """(exit code, whether Slack took it)."""
-    url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+    url = webhook_for(channel)
     if not url.startswith("https://hooks.slack.com/"):
         print("SLACK_WEBHOOK_URL not set; skipping Slack notification.")
         return 0, False
