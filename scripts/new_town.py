@@ -149,14 +149,14 @@ Victoria's).
   - Domain {settings['domain']} and DNS (www CNAME, apex redirected to www).
   - Resend: verify {settings['domain']} (SPF, DKIM, MX for replies); RESEND_API_KEY;
     NEWSLETTER_FROM="{settings['site_name']} <news@{settings['domain']}>";
-    NEWSLETTER_ADDRESS (a street address or PO box with ZIP: no issue goes out
-    without it); NEWSLETTER_REPLY_TO; NEWSLETTER_CRON_SECRET; a webhook to
+    NEWSLETTER_ADDRESS (a street address or PO box with ZIP in the town, never
+    Victoria's: no issue goes out without it); NEWSLETTER_REPLY_TO; NEWSLETTER_CRON_SECRET; a webhook to
     {site}/api/email/inbound with the events email.received, email.bounced,
     email.complained and email.delivered, and its RESEND_WEBHOOK_SECRET.
   - Legal pages (Railway): BUSINESS_LEGAL_NAME (the LLC's legal name),
     BUSINESS_CONTACT_EMAIL (an inbox you read: refunds, privacy requests,
     free drawing entries) and NEWSLETTER_ADDRESS (a PO box or registered
-    mailbox; every email needs it too).
+    mailbox in the town; every email needs it too).
   - Stripe: the one shared account (no new account). On it, a restricted
     key for the town as STRIPE_SECRET_KEY and a webhook endpoint at
     {site}/api/stripe/webhook with its STRIPE_WEBHOOK_SECRET, subscribed to

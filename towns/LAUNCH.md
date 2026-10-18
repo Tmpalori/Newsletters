@@ -63,8 +63,10 @@ site key and secret key.)
 
 ## 6. Mailing address (once)
 
-Every newsletter must show a postal address. A PO box or a registered
-mailbox works, and one can serve all towns. Send Claude the address.
+Every newsletter must show a postal address, and the legal pages print
+it too. Get one in the town itself (a PO box or a registered mailbox
+there) so the site doesn't read as run from somewhere else; never reuse
+another town's. Send Claude the address.
 
 Nothing on GitHub: every town, Victoria included, runs its jobs on its own
 Railway jobs service, so there is no GitHub Environment to make.

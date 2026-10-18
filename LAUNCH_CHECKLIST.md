@@ -68,8 +68,10 @@ issue and tick it off.
       signing secret. Agent sets `RESEND_WEBHOOK_SECRET`.
 - [ ] Agent, once the domain shows **Verified**: `RESEND_API_KEY` =
       `${{TheVic361.RESEND_API_KEY}}` (the shared full-access key; it can
-      read inbound mail) and `NEWSLETTER_ADDRESS` =
-      `${{TheVic361.NEWSLETTER_ADDRESS}}`. Set them after noon town time on
+      read inbound mail) and `NEWSLETTER_ADDRESS` = the town's own mailing
+      address (a mailbox in the town, from the owner; never Victoria's,
+      which would show on its legal pages and in every email as an
+      out-of-towner's). Set them after noon town time on
       a Monday or Thursday if the town already has subscribers, or a
       catch-up issue goes out.
 - [ ] Agent: empty POST to `/api/email/inbound` answers 400 (not 503).
@@ -156,8 +158,8 @@ issue and tick it off.
 ## 8. Launch checks (Agent)
 
 - [ ] `python3 scripts/launch_check.py --town <slug>`: every automatic check
-      passes (the privacy page shows the shared mailing address; expected
-      while every town uses Victoria's).
+      passes. A "Victoria, TX" on /privacy means the town still has
+      Victoria's mailing address: set its own `NEWSLETTER_ADDRESS`.
 - [ ] All five reviews clean: no Victoria text on the town's pages or
       emails (render every email with `TOWN=<slug>`), no URL spelling
       reaching `docs/` raw files, health ok, the worker taking jobs.
