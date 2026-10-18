@@ -841,7 +841,8 @@ class FileStore {
       data.newsletter_sends = data.newsletter_sends.filter(x => x.week_key !== rec.week_key);
       // Like PgStore: a record without picks keeps the ones already noted.
       const picks = Array.isArray(rec.picks) ? rec.picks : prev && prev.picks;
-      data.newsletter_sends.push({ ...rec, ...(picks ? { picks } : {}), sent_at: nowIso() });
+      const events = Array.isArray(rec.events) ? rec.events : prev && prev.events;
+      data.newsletter_sends.push({ ...rec, ...(picks ? { picks } : {}), ...(events ? { events } : {}), sent_at: nowIso() });
       await this._write(data);
     });
   }
@@ -1452,7 +1453,7 @@ class PgStore {
         // queued behind it (and a timed-out ALTER failed ready()). Ask once
         // which of the added columns exist and only ALTER for missing ones.
         const added = [['event_submissions', 'ai_review'], ['traffic', 'ad'],
-          ['newsletter_sends', 'failed_emails'], ['newsletter_sends', 'picks'], ['newsletter_sends', 'chunks'], ['subscribers', 'old_tokens'],
+          ['newsletter_sends', 'failed_emails'], ['newsletter_sends', 'picks'], ['newsletter_sends', 'events'], ['newsletter_sends', 'chunks'], ['subscribers', 'old_tokens'],
           ['subscribers', 'ref_code'], ['subscribers', 'referred_by'], ['subscribers', 'ref_tier'],
           ['subscribers', 'reminded_at'], ['subscribers', 'pending_since'], ['subscribers', 'weekend_optout']];
         const cols = await this.pool.query(
@@ -1593,6 +1594,8 @@ class PgStore {
         await addColumn('newsletter_sends', 'failed_emails', `ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS failed_emails JSONB NOT NULL DEFAULT '[]'::jsonb`);
         // Paid Vic's Pick order ids the issue starred, for their reports.
         await addColumn('newsletter_sends', 'picks', 'ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS picks JSONB');
+        // Event pages the issue showed, for the event reports (server/eventReach.js).
+        await addColumn('newsletter_sends', 'events', 'ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS events JSONB');
         // Each batch's idempotency key, members and outcome, saved when first
         // tried, so a retry resends a batch under its original key
         // (newsletter.js sendWeeklyNow).
@@ -2156,12 +2159,14 @@ class PgStore {
   async recordNewsletterSend(rec) {
     await this.ready();
     await this.pool.query(`
-      INSERT INTO newsletter_sends (week_key, subject, recipients, failed, failed_emails, picks, chunks, sent_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, NOW())
+      INSERT INTO newsletter_sends (week_key, subject, recipients, failed, failed_emails, picks, chunks, events, sent_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, NOW())
       ON CONFLICT (week_key) DO UPDATE SET subject = EXCLUDED.subject, recipients = EXCLUDED.recipients,
         failed = EXCLUDED.failed, failed_emails = EXCLUDED.failed_emails,
-        picks = COALESCE(EXCLUDED.picks, newsletter_sends.picks), chunks = EXCLUDED.chunks, sent_at = NOW()
+        picks = COALESCE(EXCLUDED.picks, newsletter_sends.picks), chunks = EXCLUDED.chunks,
+        events = COALESCE(EXCLUDED.events, newsletter_sends.events), sent_at = NOW()
     `, [rec.week_key, rec.subject, rec.recipients, rec.failed, toJsonb(rec.failed_emails || []),
-        Array.isArray(rec.picks) ? toJsonb(rec.picks) : null, toJsonb(Array.isArray(rec.chunks) ? rec.chunks : [])]);
+        Array.isArray(rec.picks) ? toJsonb(rec.picks) : null, toJsonb(Array.isArray(rec.chunks) ? rec.chunks : []),
+        Array.isArray(rec.events) ? toJsonb(rec.events) : null]);
   }
 
   async saveSponsorOrder(order) {

@@ -510,37 +510,49 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
 }
 
 // A free submission's recap, the morning after its event (Tristen, Oct
-// 2026; server/eventRecaps.js): what its event page got in the week before
-// it, counted like the admin's Event stats (sponsors.js eventWeekStats).
-// The /submit form says we email about the event; the paid pick is one
-// soft line for next time, with no numbers we can't back up.
-export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true }) {
+// 2026; server/eventRecaps.js): everywhere it was put in front of people
+// (server/eventReach.js: the day lists it made, the newsletter issues and
+// social posts that showed it) and what its page got in the week before,
+// counted like the admin's Event stats (sponsors.js eventWeekStats). Lines
+// for places it didn't appear are left out rather than shown as zero. The
+// /submit form says we email about the event; the paid pick is one line for
+// next time, with how picks did against other events (`pickLift`) when
+// there's enough to say so.
+export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true, pickLift = null }) {
   const name = ev.name || 'your event';
+  const day = ev.date ? formatDay(ev.date, { weekday: 'long' }) : 'its day';
+  const reach = reachRows(stats, { day });
   const rows = [
-    ['Views of its event page', String(stats.page_views || 0)],
+    ...reach.rows,
+    ['Views of its event page', num(stats.page_views)],
+    ...(stats.newsletter_visits ? [['Visits from our newsletter', num(stats.newsletter_visits)]] : []),
+    ...(stats.social_visits ? [['Visits from our social posts', num(stats.social_visits)]] : []),
     ...(ev.url ? [['Clicked through to your link', people(stats.link_people || 0)]] : []),
-    ['Added it to their calendar', String(stats.calendar_adds || 0)],
-    ['Shared it', String(stats.shares || 0)],
-    ...(stats.share_visits ? [['Visits from a shared link', String(stats.share_visits)]] : [])
+    ['Added it to their calendar', num(stats.calendar_adds)],
+    ['Shared it', num(stats.shares)],
+    ...(stats.share_visits ? [['Visits from a shared link', num(stats.share_visits)]] : [])
   ];
-  const lead = `Thanks for sharing ${name} with ${town.city}. Here’s what it got on ${town.domain} in the week leading up to it:`;
-  const next = `Next time, the ${town.pickName} upgrade guarantees your event a spot on its day’s list, highlighted with the ${town.pickName} badge and featured first in our social posts.`;
+  const lead = `Thanks for sharing ${name} with ${town.city}. Here’s how it did on ${town.siteName} in the week leading up to it:`;
+  const lift = pickLift ? `This past month, ${town.pickName}s got about ${times(pickLift)} the page views of other events. ` : '';
+  const next = `${lift}Next time, the ${town.pickName} upgrade guarantees your event a spot on its day’s list, highlighted with the ${town.pickName} badge and featured first in our social posts.`;
   const again = 'Have another event coming up? Send it in anytime, it’s free.';
   const bodyHtml =
     p(escHtml(lead)) +
+    (reach.headline ? p(`<strong style="font-size:24px;">${escHtml(num(reach.total))}</strong> ${escHtml(reach.headline)}`, 'font-size:17px;margin-bottom:0;') : '') +
     statsTable(rows) +
-    p(escHtml(COUNTER_NOTE), `color:${C.muted};font-size:13px;`) +
+    p(escHtml(`${reach.note}${COUNTER_NOTE}`), `color:${C.muted};font-size:13px;`) +
     p(`${escHtml(again)}`) +
     `<div style="margin:16px 0;">${btn(`${siteUrl}/submit`, 'Submit an event')}</div>` +
     (upgrade ? p(`${escHtml(next)} <a href="${siteUrl}/advertise" style="color:${C.accent};">See how it works</a>.`, 'font-size:14px;') : '');
   return {
     subject: `How ${name} did on ${town.siteName}`,
-    html: emailShell({ title: 'Here’s how your event did', preheader: `${stats.page_views || 0} views of its page on ${town.domain}.`, bodyHtml, siteUrl,
+    html: emailShell({ title: 'Here’s how your event did', preheader: reach.headline ? `${num(reach.total)} ${reach.headline}.` : `${num(stats.page_views)} views of its page on ${town.domain}.`, bodyHtml, siteUrl,
       footerHtml: contactFooter(siteUrl, address) }),
     text: [
       lead, '',
+      ...(reach.headline ? [`${num(reach.total)} ${reach.headline}`, ''] : []),
       ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
-      COUNTER_NOTE, '',
+      `${reach.note}${COUNTER_NOTE}`, '',
       `${again} ${siteUrl}/submit`,
       ...(upgrade ? ['', `${next} ${siteUrl}/advertise`] : []),
       contactText(siteUrl)
@@ -548,26 +560,78 @@ export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = t
   };
 }
 
+const num = n => (Number(n) || 0).toLocaleString('en-US');
+// "3×", "2.5×": rounded down to the half, so it never overstates.
+const times = r => `${Math.floor(r * 2) / 2}×`;
+const andList = xs => xs.join(' plus ');
+
+// The "where it went" rows and headline, from server/eventReach.js numbers
+// (only the places it was): list views (or `shown`, a pick's counted
+// impressions), newsletter copies, social posts. The headline adds up what
+// can be counted (views and copies sent) and says so in the note.
+function reachRows(stats, { day, shownLabel = null }) {
+  const rows = [], parts = [];
+  let total = 0;
+  if (shownLabel && stats.shown) {
+    rows.push([shownLabel, plural(Number(stats.shown), 'time', 'times')]);
+    total += Number(stats.shown); parts.push('times shown on the site');
+  } else if (stats.list_views) {
+    rows.push([`On ${day}’s list on ${town.domain}, which was viewed`, plural(Number(stats.list_views), 'time', 'times')]);
+    total += Number(stats.list_views); parts.push('list views on the site');
+  }
+  const issues = stats.newsletter_issues || [];
+  if (issues.length && stats.newsletter_recipients) {
+    const which = issues.length > 1 ? 'Monday and Thursday newsletters' : issues[0] === 'Thursday' ? 'Thursday weekend newsletter' : 'Monday newsletter';
+    rows.push([`In our ${which}, copies sent`, num(stats.newsletter_recipients)]);
+    total += Number(stats.newsletter_recipients); parts.push('newsletter copies sent');
+  }
+  if (stats.social_posts) {
+    const where = (stats.social_platforms || []).map(x => (x === 'instagram' ? 'Instagram' : 'Facebook')).sort().join(' and ') || 'social';
+    rows.push([`In our ${where} posts`, plural(Number(stats.social_posts), 'post', 'posts')]);
+  }
+  // One place alone would only repeat its own row.
+  const both = parts.length > 1;
+  return {
+    rows, total: both ? total : 0,
+    headline: both ? 'chances to be seen across our site and newsletter' : '',
+    note: both ? `That total is ${andList(parts)}. ` : ''
+  };
+}
+
 export function renderPickReport(order, stats, { siteUrl, address }) {
   const business = order.business || 'there';
   const name = (order.event && order.event.name) || 'your event';
   const shown = Number(stats.shown) || 0;
+  const recipients = Number(stats.newsletter_recipients) || 0;
+  // The newsletter line keeps its starred wording; reachRows adds the
+  // social posts and the headline total.
+  const reach = reachRows({ shown, social_posts: stats.social_posts, social_platforms: stats.social_platforms,
+    ...(stats.newsletter_starred ? { newsletter_issues: stats.newsletter_issues > 1 ? ['Monday', 'Thursday'] : ['Monday'], newsletter_recipients: recipients } : {}) },
+  { shownLabel: `Shown in our event lists as a ${town.pickName}` });
   const rows = [
     [`Shown in our event lists as a ${town.pickName}`, plural(shown, 'time', 'times')],
-    ['Views of its event page', String(stats.page_views || 0)],
-    ['Clicked through to your link', people(stats.link_people || 0)],
-    ['Added it to their calendar', String(stats.calendar_adds || 0)],
-    ['Shared it', String(stats.shares || 0)],
-    ['Opened it from a shared link', people(stats.share_people || 0)],
     ...(stats.newsletter_starred ? [[stats.newsletter_issues > 1 ? 'Starred in both newsletters (Monday and Thursday), copies sent' : 'Starred in the newsletter, sent to',
-      stats.newsletter_issues > 1 ? String(stats.newsletter_recipients) : `${stats.newsletter_recipients} subscribers`]] : [])
+      stats.newsletter_issues > 1 ? num(recipients) : `${num(recipients)} subscribers`]] : []),
+    ...reach.rows.filter(([k]) => /posts$/.test(k)),
+    ['Views of its event page', num(stats.page_views)],
+    ...(stats.newsletter_visits ? [['Visits from our newsletter', num(stats.newsletter_visits)]] : []),
+    ...(stats.social_visits ? [['Visits from our social posts', num(stats.social_visits)]] : []),
+    ['Clicked through to your link', people(stats.link_people || 0)],
+    ['Added it to their calendar', num(stats.calendar_adds)],
+    ['Shared it', num(stats.shares)],
+    ['Opened it from a shared link', people(stats.share_people || 0)]
   ];
+  // Against the other events on its day (sponsors.js pickStatsFor): only
+  // when it's clearly ahead.
+  const vs = stats.day_lift ? `That’s about ${times(stats.day_lift)} the page views of a typical event that day.` : '';
   const headline = `${name} was seen ${plural(shown, 'time', 'times')} as a ${town.pickName}.`;
   const bodyHtml =
     p(`Thanks for making <strong>${escHtml(name)}</strong> a ${town.pickName}, ${escHtml(business)}! Here’s how it did on ${town.siteName}.`) +
+    (reach.total ? p(`<strong style="font-size:24px;">${escHtml(num(reach.total))}</strong> ${escHtml(reach.headline)}`, 'font-size:17px;margin-bottom:0;') : '') +
     statsTable(rows) +
+    (vs ? p(`<strong>${escHtml(vs)}</strong>`) : '') +
     whereHtml(stats.where) +
-    p(escHtml(COUNTER_NOTE), `color:${C.muted};font-size:13px;`) +
+    p(escHtml(`${reach.note}${COUNTER_NOTE}`), `color:${C.muted};font-size:13px;`) +
     box(`<strong>Got another event coming up?</strong> Make it stand out on its day too.<br><br>${btn(`${siteUrl}/advertise/checkout?package=featured`, `Give it the ${town.pickName} badge`)}`);
   return {
     subject: `Your ${town.pickNamePlain} report: ${name}`,
@@ -575,9 +639,11 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
       footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Thanks for making "${name}" a ${town.pickNamePlain}, ${business}! Here's how it did on ${town.siteName}.`, '',
+      ...(reach.total ? [`${num(reach.total)} ${reach.headline}`, ''] : []),
       ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
+      ...(vs ? [vs, ''] : []),
       ...whereText(stats.where),
-      COUNTER_NOTE, '',
+      `${reach.note}${COUNTER_NOTE}`, '',
       `Got another event coming up? Give it the ${town.pickNamePlain} badge: ${siteUrl}/advertise/checkout?package=featured`,
       contactText(siteUrl)
     ].join('\n')

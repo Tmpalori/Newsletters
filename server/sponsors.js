@@ -62,6 +62,7 @@ import { normalizePayload, newId, nowIso, eventKeyOf } from './db.js';
 import { normalizeEmail } from './newsletter.js';
 import { honeypotTripped } from './honeypot.js';
 import { venueFor } from './guides.js';
+import { socialPosts, visitsFrom, liftOver } from './eventReach.js';
 import { renderSponsorConfirmed, renderSponsorReport, renderPickReport, renderSponsorTooLate, renderSponsorPaymentFailed, renderSponsorConflict, newsletterCovers, weekendCovers, weekendIssueOn, pickWhere,
   renderPartnerReceived, renderPartnerLive, renderPartnerRejected, renderPartnerCanceled, renderPartnerReport } from './notify.js';
 import { partnerCardEmail } from './newsletter.js';
@@ -1601,12 +1602,16 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     try { archived = typeof store.listArchivedEvents === 'function' ? await store.listArchivedEvents() : []; } catch { complete = false; }
     const hits = [...events, ...archived].filter(ev => ev && ev.page && pickMatches(order, ev, p));
     const dates = [order.event.date, ...hits.map(ev => ev.date)].filter(Boolean).sort();
+    const lastDate = dates[dates.length - 1];
+    // Every event on its (last) day, for "a typical event that day".
+    const seen = new Set();
+    const dayEvents = [...events, ...archived].filter(ev => ev && ev.page && ev.date === lastDate && !seen.has(ev.page) && seen.add(ev.page));
     return {
       found: hits.length > 0,
-      complete,
+      complete, dayEvents,
       pages: [...new Set(hits.map(ev => ev.page))],
       urls: [...new Set([order.event.url, ...hits.map(ev => ev.url)].filter(Boolean))],
-      lastDate: dates[dates.length - 1]
+      lastDate
     };
   }
 
@@ -1628,7 +1633,34 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
     const recipients = (inMon ? Number(mon.recipients) : 0) + (inThu ? Number(thu.recipients) : 0);
     const start = localDateStr(new Date(order.paid_at || order.created_at || Date.now()));
     if (!rows) rows = typeof store.listTraffic === 'function' ? await store.listTraffic(start) : [];
-    return { place, stats: pickStats(order, rows, { start, end: place.lastDate, pages: place.pages, urls: place.urls, recipients, starred, issues: (inMon ? 1 : 0) + (inThu ? 1 : 0) }) };
+    const stats = pickStats(order, rows, { start, end: place.lastDate, pages: place.pages, urls: place.urls, recipients, starred, issues: (inMon ? 1 : 0) + (inThu ? 1 : 0) });
+    return { place, stats: { ...stats, ...(await pickReach(place, rows)) } };
+  }
+
+  // The rest of where it went (server/eventReach.js): the social posts that
+  // showed it, visits from the newsletter and social, and how its page did
+  // against the other events that day.
+  async function pickReach(place, rows) {
+    if (!place.lastDate || !place.pages.length) return {};
+    let posted = null;
+    try { posted = typeof store.getTownFile === 'function' ? await store.getTownFile('social_posted') : null; } catch { /* no social line */ }
+    const social = { posts: 0, platforms: new Set() };
+    const from = { newsletter: 0, social: 0 };
+    for (const page of place.pages) {
+      const s = socialPosts(posted && posted.data, page, place.lastDate);
+      social.posts = Math.max(social.posts, s.posts);
+      s.platforms.forEach(x => social.platforms.add(x));
+      const v = visitsFrom(rows, page, place.lastDate);
+      from.newsletter += v.newsletter; from.social += v.social;
+    }
+    const day = eventWeekStats(rows, place.dayEvents || [], { start: place.lastDate, end: place.lastDate });
+    const mine = day.filter(d => place.pages.includes(d.page)).reduce((n, d) => n + d.page_views, 0);
+    const others = day.filter(d => !place.pages.includes(d.page) && !(place.dayEvents || []).some(e => e.page === d.page && e.featured)).map(d => d.page_views);
+    return {
+      social_posts: social.posts, social_platforms: [...social.platforms],
+      newsletter_visits: from.newsletter, social_visits: from.social,
+      day_lift: liftOver(mine, others)
+    };
   }
 
   // Live stats for the admin Sponsors tab's Report button: the same numbers
@@ -1703,6 +1735,7 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
       const summary = [['Buyer', order.business], ['Event', `${name} (${place.lastDate})`],
         ['Shown in lists', stats.shown], ['Event page views', stats.page_views], ['Clicked their link', stats.link_people],
         ['Added to calendar', stats.calendar_adds], ['Shares', stats.shares], ['Visits from shares', stats.share_visits],
+        ['Social posts', stats.social_posts || 0], ...(stats.day_lift ? [['Vs a typical event that day', `${Math.floor(stats.day_lift * 2) / 2}× the page views`]] : []),
         ['Newsletter', stats.newsletter_starred ? `Starred, ${stats.newsletter_recipients} copies${stats.newsletter_issues > 1 ? ' (Mon + Thu)' : ''}` : 'Not in it']];
       if (!mailer || !mailer.enabled) {
         if (!order.report_slack_sent && slack) {
