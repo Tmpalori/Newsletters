@@ -5429,9 +5429,9 @@ def fetch_apify_facebook_posts(days_ahead=14):
         if _minutes_in() > budget:
             left = len(high_conf) - i
             reserve = f", leaving Instagram its {IG_RESERVE_MIN}" if budget < SCRAPE_BUDGET_MIN else ""
-            _note_source("apify_facebook_posts", f"stopped at its {budget}-minute scrape budget{reserve}; "
+            _note_source("apify_facebook_posts", f"ran out of time: stopped at its {budget}-minute time limit{reserve}; "
                          f"skipped {left} of {len(high_conf)} pages")
-            _warn("[Apify FB Posts] scrape budget reached", skipped=left)
+            _warn("[Apify FB Posts] out of time (time limit, not money)", skipped=left)
             break
 
         venue_name = venue.get("name", "?")
@@ -5804,9 +5804,9 @@ def fetch_apify_instagram_posts(days_ahead=14):
             _note_source("apify_instagram_posts", f"OpenAI unusable; skipped {len(targets) - i} of {len(targets)} accounts")
             break
         if _minutes_in() > SCRAPE_BUDGET_MIN:
-            _note_source("apify_instagram_posts", f"stopped at the {SCRAPE_BUDGET_MIN}-minute scrape budget; "
+            _note_source("apify_instagram_posts", f"ran out of time: stopped at the {SCRAPE_BUDGET_MIN}-minute time limit; "
                          f"skipped {len(targets) - i} of {len(targets)} accounts")
-            _warn("[Apify IG Posts] scrape budget reached", skipped=len(targets) - i)
+            _warn("[Apify IG Posts] out of time (time limit, not money)", skipped=len(targets) - i)
             break
 
         venue_name = venue.get("name", "?")

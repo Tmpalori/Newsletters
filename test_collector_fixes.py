@@ -126,7 +126,7 @@ def test_post_loops_stop_at_the_scrape_budget(monkeypatch, fn, name):
     monkeypatch.setattr(ce, "_RUN_STARTED", __import__("time").time() - (ce.SCRAPE_BUDGET_MIN + 1) * 60)
     monkeypatch.setattr(ce.requests, "post", lambda *a, **k: pytest.fail("scraped past the budget"))
     assert getattr(ce, fn)() == []
-    assert "budget" in ce._SOURCE_NOTES.get(name, "")
+    assert "time limit" in ce._SOURCE_NOTES.get(name, "")
 
 
 # ─── Apify actor timeout ────────────────────────────────────────────────────
