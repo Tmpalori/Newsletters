@@ -27,6 +27,7 @@ import { reportHoneypot } from './honeypot.js';
 import { verifyTurnstile, turnstileHostnames } from './turnstile.js';
 import { createFormGuard } from './formGuard.js';
 import { createDropNotices } from './dropNotices.js';
+import { createEventRecaps } from './eventRecaps.js';
 import { EMAIL_CHECK_JS, impossibleEmailError } from './emailTypos.js';
 import { createRateLimiter, ipKey, railwayRealIp } from './rateLimit.js';
 import { createAuth, MIN_SECRET } from './auth.js';
@@ -2584,6 +2585,9 @@ export async function createApp(opts = {}) {
   // GitHub workflows, because GitHub's own cron runs hours late.
   const dropNotices = createDropNotices({ store, getPublicPayload, mailer, slack, siteUrl, address: newsletter.address,
     orders: () => sponsors.orders(), checkoutEnabled: stripeCfg.enabled });
+  const eventRecaps = createEventRecaps({ store, siteUrl, mailer, slack, address: newsletter.address,
+    getEvents: async () => [...(((await getPublicPayload()) || {}).events || []), ...(await listArchived().catch(() => []))],
+    orders: () => sponsors.orders(), checkoutEnabled: stripeCfg.enabled });
   const scheduler = opts.scheduler || createScheduler({
     store, slack, siteUrl, nowFn: () => nowFn(),
     // Jobs on Railway: the town's worker jobs go to its jobs worker (every
@@ -2606,6 +2610,9 @@ export async function createApp(opts = {}) {
       // Daily: approved submissions that didn't make their day's list hear
       // so, two days out (server/dropNotices.js).
       dropNotices: now => dropNotices.run(now),
+      // Daily: free submitters hear how their event did, the morning after
+      // (server/eventRecaps.js).
+      eventRecaps: now => eventRecaps.run(now),
       collected: () => hasCollected(),
       health: async now => {
         await retryAutoPublish();
