@@ -406,3 +406,57 @@ def test_events_scraper_403_hard_limit_trips_tombstone(monkeypatch):
         ce.fetch_apify_facebook_events(14)
 
     assert ce._APIFY_LIMIT_TRIPPED is True
+
+
+def test_posts_scraper_retries_a_gateway_error_once(monkeypatch):
+    """A 502 from Apify's gateway gets one retry; the page's posts still come in."""
+    monkeypatch.setenv("FB_POSTS_ENABLED", "1")
+    monkeypatch.setenv("APIFY_TOKEN", "fake")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake")
+    monkeypatch.setenv("FB_POSTS_MAX_VENUES", "1")
+    monkeypatch.setattr(ce, "APIFY_RETRY_PAUSE_S", 0)
+
+    target_date = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+    ai_payload = {"choices": [{"message": {"content": json.dumps([
+        {"date": target_date, "name": "First Friday Art Walk", "free": True},
+    ])}}]}
+    apify_calls = []
+
+    def fake_post(url, **kwargs):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        if "facebook-posts-scraper" in url:
+            apify_calls.append(url)
+            if len(apify_calls) == 1:
+                resp.status_code = 502
+                resp.text = "<html>502 Bad Gateway</html>"
+                return resp
+            resp.status_code = 200
+            resp.json.return_value = [{"text": "First Friday!", "url": "https://fb.com/p/1"}]
+            return resp
+        resp.status_code = 200
+        resp.json.return_value = ai_payload
+        return resp
+
+    with patch("collect_events.requests.post", side_effect=fake_post):
+        out = ce.fetch_apify_facebook_posts(14)
+    assert len(apify_calls) == 2
+    assert [e["name"] for e in out] == ["First Friday Art Walk"]
+
+
+def test_posts_scraper_does_not_retry_other_errors(monkeypatch):
+    """A 500 (or a second 502) is the page's answer for this run: one call each."""
+    monkeypatch.setenv("FB_POSTS_ENABLED", "1")
+    monkeypatch.setenv("APIFY_TOKEN", "fake")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake")
+    monkeypatch.setenv("FB_POSTS_MAX_VENUES", "1")
+    monkeypatch.setattr(ce, "APIFY_RETRY_PAUSE_S", 0)
+
+    for status, calls in ((500, 1), (502, 2)):
+        fake_resp = MagicMock()
+        fake_resp.status_code = status
+        fake_resp.text = "error"
+        with patch("collect_events.requests.post", return_value=fake_resp) as mock_post:
+            out = ce.fetch_apify_facebook_posts(14)
+        assert out == []
+        assert mock_post.call_count == calls
