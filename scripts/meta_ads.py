@@ -540,6 +540,12 @@ def main(argv=None, session=None):
         elif args.command == "report":
             data = {}
             text = cmd_report(api, account, out, data)
+            # Whether the token can read post reach (read_insights), for the
+            # event reports' social lines (server/eventReach.js). Read-only;
+            # it only goes to the job's log.
+            scopes = granted_scopes(api)
+            print("Post reach (read_insights): " + ("unknown, Meta won't list this token's permissions" if scopes is None
+                  else "granted" if "read_insights" in scopes else "missing"))
             # A refused webhook (slack_notify returns 2) fails the run below,
             # so GitHub emails the owner instead of the report vanishing.
             link = f"https://adsmanager.facebook.com/adsmanager/manage/campaigns?act={account['id'][4:]}"
