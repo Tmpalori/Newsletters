@@ -668,7 +668,7 @@ export function renderPartnerRejected(order, { siteUrl, address, manageUrl = '',
     p('Questions, or want to try again with a different listing? Just reply to this email.') +
     manageHtml(manageUrl);
   return {
-    subject: `About your ${town.siteName} partner listing`,
+    subject: `About your ${town.shortName} partner listing`,
     html: emailShell({ title: 'About your listing', preheader: 'Your payment is being refunded in full.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Thanks for wanting to partner with ${town.siteName}, ${business}. We're not able to take your ${cat.toLowerCase()} listing right now.`, '',
@@ -689,7 +689,7 @@ export function renderPartnerCanceled(order, { siteUrl, address, manageUrl = '' 
     `<p style="margin:14px 0;">${btn(`${siteUrl}/advertise#partner`, 'See partner details')}</p>` +
     manageHtml(manageUrl);
   return {
-    subject: `Your ${town.siteName} partnership has ended`,
+    subject: `Your ${town.shortName} partnership has ended`,
     html: emailShell({ title: 'Your partnership has ended', preheader: 'You won’t be charged again.', bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Your ${cat.toLowerCase()} partnership with ${town.siteName} has ended, ${business}, and you won't be charged again.`, '',
