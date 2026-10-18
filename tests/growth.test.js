@@ -205,7 +205,9 @@ describe('spam check (Turnstile) on public forms', () => {
   // and gave up. Now nobody is stuck on it, and the owner is told.
   it('contact, newsletter and checkout let a visitor through when the check fails, labeled and alerted', async () => {
     const store = await boot();
-    const contact = { topic: 'other', name: 'Ann', email: 'ann@example.com', message: 'Hi there' };
+    // A person's pace: the form was open 10 seconds (formGuard tooFast).
+    const human = { form_t: String(NOW.getTime() - 10_000) };
+    const contact = { topic: 'other', name: 'Ann', email: 'ann@example.com', message: 'Hi there', ...human };
     expect(await (await postForm('/contact', contact)).text()).toContain('Message sent');
     expect(notes.some(n => /Website message/.test(n.title) && /bot check didn’t pass/.test(n.title))).toBe(true);
     expect(alerts.some(a => a.key === 'form-bot:contact')).toBe(true);
@@ -223,7 +225,7 @@ describe('spam check (Turnstile) on public forms', () => {
     expect((await sub('good-token', 'b@example.com')).status).toBe(200);
     expect((await store.countSubscribers()).active).toBe(1);
 
-    const order = { package: 'weekly', week: '2026-10-19', business: 'Acme', text: 'x', url: 'acme.example', email: 'a@acme.example', agree: '1' };
+    const order = { package: 'weekly', week: '2026-10-19', business: 'Acme', text: 'x', url: 'acme.example', email: 'a@acme.example', agree: '1', ...human };
     const paid = await postForm('/advertise/checkout', order);
     expect(paid.status).toBe(303);
     expect(paid.headers.get('location')).toBe('https://checkout.stripe.com/x');

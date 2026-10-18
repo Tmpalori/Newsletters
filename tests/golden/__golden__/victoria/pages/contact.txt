@@ -64,6 +64,7 @@
     
     <form class="co-form" method="post" action="/contact" data-turnstile>
       <div class="hp-field" aria-hidden="true"><label>Leave this empty <input name="hp_field" tabindex="-1" autocomplete="off"></label></div>
+      <input type="hidden" name="form_t" value="1791392400000">
       <div class="co-field"><label for="c-topic">What is this about?</label><select id="c-topic" name="topic"><option value="advertising" selected>Advertising or sponsorship</option><option value="event">A question about an event</option><option value="fix">Fix or remove a listing</option><option value="other">Something else</option></select></div>
       <div class="co-field"><label for="c-name">Your name</label><input id="c-name" name="name" required maxlength="80" value=""></div>
       <div class="co-field"><label for="c-email">Your email</label><input id="c-email" name="email" type="email" required maxlength="254" value=""></div>
