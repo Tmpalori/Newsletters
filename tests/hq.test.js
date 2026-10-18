@@ -241,6 +241,23 @@ describe('/api/hq/subscribers and /api/hq/hype (HQ\'s combined subscriber ping)'
     expect(JSON.stringify(blocks)).not.toMatch(/maria|@channel/);
     expect(blocks[3].elements[0].text).toBe('All newsletters: 3,148 subscribers');
   });
+
+  it("posts HQ's own alert to #alerts: one short line, escaped, no town tag; 502 when Slack doesn't take it", async () => {
+    const posts = [];
+    let up = true;
+    await start({ hqApiKey: KEY, slack: { enabled: true, notify: async () => true, alert: async () => true,
+      post: async (text, blocks, channel) => { posts.push({ text, blocks, channel }); return up; } } });
+    const send = body => fetch(base + '/api/hq/alert', { method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    expect((await fetch(base + '/api/hq/alert', { method: 'POST' })).status).toBe(401);
+    expect((await send({ text: 'x' })).status).toBe(400);
+    const r = await send({ title: "Can't reach The Star 402: timed out", text: 'The site may be down <!channel>.\nCheck Railway.', link: 'https://hq.tristenpalori.com/' });
+    expect(r.status).toBe(200);
+    expect(posts).toEqual([{ channel: 'alerts', blocks: null,
+      text: "*[HQ]* Can't reach The Star 402: timed out\nThe site may be down &lt;!channel&gt;. (more in HQ)\n<https://hq.tristenpalori.com/|Open HQ>" }]);
+    up = false;
+    expect((await send({ title: 'x', link: 'javascript:alert(1)' })).status).toBe(502);
+    expect(posts[1].text).toBe('*[HQ]* x');
+  });
 });
 
 const PG = process.env.TEST_DATABASE_URL;
