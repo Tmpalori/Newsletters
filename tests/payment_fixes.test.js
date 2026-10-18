@@ -129,7 +129,7 @@ describe('M2: payment time is Stripe\'s, not when the webhook arrives', () => {
 
   it('a week paid inside its hold keeps the slot when its webhook arrives after a later buyer\'s', async () => {
     const store = await newStore();
-    const { sp, alerts, sent } = setup(store, { now: () => new Date('2026-10-07T16:00:00Z') });
+    const { sp, notes, sent } = setup(store, { now: () => new Date('2026-10-07T16:00:00Z') });
     // A: checkout at 15:00, paid 15:05; the database was down, so the event lands at 16:00.
     // B: booked at 15:40 (A's hold had lapsed in the database), paid and live.
     await store.saveSponsorOrder(order({ id: 'a', session_id: 'cs_a' }));
@@ -138,9 +138,10 @@ describe('M2: payment time is Stripe\'s, not when the webhook arrives', () => {
     await sp.processEvent(paidEvent(order({ id: 'a', session_id: 'cs_a' }), { created: sec('2026-10-07T15:05:00Z') }));
     expect((await byId(store, 'a')).status).toBe('paid');
     expect((await byId(store, 'b')).status).toBe('conflict');
-    const alert = alerts.find(x => x.key === 'sponsor-conflict:b');
-    expect(alert.text).toContain('order a');
-    expect(alert.text).toContain('order b');
+    // Sales (move or refund), short; the orders are for HQ.
+    const alert = notes.find(x => x.channel === 'sales' && /^⚠️/u.test(x.title));
+    expect(alert.more).toContain('order a');
+    expect(alert.more).toContain('order b');
     expect(sent.map(m => [m.to, m.key])).toContainEqual(['b@b.example', 'vic361-sponsor-conflict-b']);
     expect(sent.map(m => m.key)).toContain('vic361-sponsor-a');
   });

@@ -362,9 +362,10 @@ describe('Stripe best practices', () => {
     let clock = NOW;
     const sent = [];
     const alerts = [];
+    const sales = [];
     await startApp({ now: () => clock, resendApiKey: 're_test', newsletterAddress: '1 Main St',
       resend: { send: async (msg, key) => { sent.push({ ...msg, key }); return { id: 'e' }; }, batch: async () => ({ data: [] }) },
-      slack: { enabled: true, notify: async () => true, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
+      slack: { enabled: true, notify: async m => { sales.push(m); return true; }, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
     await form({ package: 'featured', event_name: 'Fall Festival', date: '2026-10-10', time: '10 AM', venue: 'De Leon Plaza',
       address: '101 N Main St', description: 'Food, music, rides.', business: 'Main Street', email: 'ms@example.com' });
     const s = sessions[0];
@@ -378,7 +379,8 @@ describe('Stripe best practices', () => {
     expect(sent.some(m => /booked/i.test(m.subject))).toBe(false);
     expect(sent).toHaveLength(1);
     expect(sent[0].text).toMatch(/refund/i);
-    expect(alerts.some(a => /refund/i.test(`${a.title} ${a.text}`))).toBe(true);
+    // A sales call: Slack sales, short, the details for HQ.
+    expect(sales.some(m => m.channel === 'sales' && /refund/i.test(`${m.title} ${m.text}`) && m.more)).toBe(true);
     const thanks = await (await fetch(`${baseUrl}/advertise/thanks?order=${order.id}`)).text();
     expect(thanks).toMatch(/refund/i);
     // A repeat of the webhook changes nothing.
@@ -849,7 +851,8 @@ describe('backing out of Stripe', () => {
 
   it('a payment after cancelling, once others filled the day, is a conflict, not a fourth pick', async () => {
     const alerts = [];
-    await startApp({ slack: { enabled: true, notify: async () => true, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
+    const sales = [];
+    await startApp({ slack: { enabled: true, notify: async m => { sales.push(m); return true; }, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
     await paidPick('p1'); await paidPick('p2');
     await pick();
     const s = sessions[0];
@@ -860,7 +863,7 @@ describe('backing out of Stripe', () => {
     const order = (await store.listSponsorOrders()).find(o => o.id === s.params.client_reference_id);
     expect(order.status).toBe('conflict');
     expect(order.submission_id).toBeFalsy();
-    expect(alerts.filter(a => a.key === `sponsor-conflict:${order.id}`)).toHaveLength(1);
+    expect(sales.filter(m => m.channel === 'sales' && /^⚠️/u.test(m.title) && m.more)).toHaveLength(1);
     const thanks = await (await fetch(`${baseUrl}/advertise/thanks?order=${order.id}`)).text();
     expect(thanks).toContain('Vic’s Pick spots filled up');
   });

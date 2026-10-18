@@ -239,8 +239,9 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
     if (typeof store.unsubscribeByEmail !== 'function') return 'ignored';
     const n = await store.unsubscribeByEmail(to);
     if (n && slack) {
-      slack.notify({ title: '🚫 Spam complaint: unsubscribed', fields: [['Email', to.join(', ')], ['Subject', String(d.subject || '')]],
-        text: 'They marked one of our emails as spam, so they get no more issues.' });
+      // Deliverability, so alerts; already handled, so ⚠️ (for today), not 🚨.
+      slack.notify({ channel: 'alerts', title: '⚠️ Spam complaint: unsubscribed', text: 'They get no more issues.',
+        more: `Email: ${to.join(', ')}\nSubject: ${String(d.subject || '')}\nThey marked one of our emails as spam.` });
       const many = complaints(nowFn());
       if (many) slack.alert('email-complaints', `${many} spam complaints in a day`,
         'Each one is unsubscribed. This many can get the Resend account paused: look at what went out and who it went to.');

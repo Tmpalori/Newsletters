@@ -179,3 +179,13 @@ def test_a_site_thats_down_never_fails_the_alert(monkeypatch, capsys):
     monkeypatch.setattr(slack_notify.urllib.request, "urlopen", boom)
     assert slack_notify.report_to_site("🚨 x", None, True, env=SITE_ENV) is False
     assert "Couldn't report to the site" in capsys.readouterr().out
+
+
+def test_slack_notify_channel_picks_its_own_webhook():
+    # On the town services SLACK_WEBHOOK_URL is the sales channel: an alert
+    # or report names its channel and falls back to the default only when
+    # that channel has no webhook.
+    env = {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/sales", "SLACK_ALERTS_WEBHOOK_URL": "https://hooks.slack.com/alerts"}
+    assert slack_notify.webhook_for("alerts", env) == "https://hooks.slack.com/alerts"
+    assert slack_notify.webhook_for("activity", env) == "https://hooks.slack.com/sales"
+    assert slack_notify.webhook_for(None, env) == "https://hooks.slack.com/sales"

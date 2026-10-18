@@ -302,7 +302,8 @@ describe('Vic’s Pick report', () => {
 
   it('stops catching up after 14 days, and without email tells Slack once', async () => {
     const alerts = [];
-    await startApp({ slack: { enabled: true, notify: async () => true, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
+    // The to-do goes to sales (a notify), keyed here by its title.
+    await startApp({ slack: { enabled: true, notify: async m => { if (m.channel === 'sales' && /report/.test(m.title)) alerts.push({ key: /Send .* their/.test(m.title) ? `pick-report:${AD}` : `pick-report-other:${m.title}`, text: m.text, more: m.more }); return true; }, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
     await store.saveSponsorOrder(pickOrder());
     await store.saveSponsorOrder(pickOrder({ id: 'old-pick-0001', event: { ...EVENTS[1], date: '2026-09-01' }, created_at: '2026-08-20T00:00:00Z', paid_at: null }));
     const run = () => fetch(baseUrl + '/api/submission-review/pending', { headers: { 'X-Cron-Secret': 'rs' } });
@@ -312,7 +313,7 @@ describe('Vic’s Pick report', () => {
     await run();
     await new Promise(r => setTimeout(r, 100));
     expect(alerts.filter(a => a.key.startsWith('pick-report')).map(a => a.key)).toEqual([`pick-report:${AD}`]);
-    expect(alerts[0].text).toContain('Event page views: 0');
+    expect(alerts[0].more).toContain('Event page views: 0');
     expect(alerts[0].text).toContain('fest@example.com');
   });
 });

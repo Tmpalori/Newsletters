@@ -553,7 +553,7 @@ def main(argv=None, session=None):
                 with open(args.result, "w") as f:
                     json.dump({"report": text, "link": link if text else None, "data": data}, f)
             elif text:
-                slack_rc = slack_notify.main([text, "--link", link])
+                slack_rc = slack_notify.main([text, "--link", link, "--channel", "activity"])
         elif args.command in ("pause", "resume"):
             if not args.target:
                 raise AdsError("Which campaign, ad set or ad? Pass its id.")

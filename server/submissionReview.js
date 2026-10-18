@@ -148,7 +148,10 @@ export async function remindPaidPicks({ store, slack, nowFn, siteUrl = '', rows:
   slack.notify({
     channel: 'sales',
     title: `⏰ ${due.length === 1 ? `A paid ${town.pickName} isn’t` : `${due.length} paid ${town.pickName}s aren’t`} on the site yet`,
-    text: due.map(r => {
+    // Name and date in Slack; the buyer and why in HQ.
+    text: due.slice(0, 3).map(r => `• ${r.payload.name} · ${r.payload.date === today ? 'TODAY' : r.payload.date}`).join('\n') +
+      (due.length > 3 ? `\n…and ${due.length - 3} more` : ''),
+    more: due.map(r => {
       const why = r.status === 'approved' ? ': approved, but publishing it failed (retrying)'
         : r.ai_review && r.ai_review.reason ? `: ${r.ai_review.reason}` : r.ai_review ? '' : ': not reviewed yet';
       return `• ${r.payload.name} · ${r.payload.date === today ? 'TODAY' : r.payload.date} (${r.submitter_name || r.submitter_email || 'buyer'})${why}`;
@@ -187,8 +190,10 @@ export async function retryLive({ store, publish, onApproved, nowFn, slack = nul
     await store.update(r.id, { ai_review: { ...r.ai_review, live_pending: null, live, live_at: live ? at : null } });
     out.push({ id: r.id, live });
     if (!live && slack) {
-      slack.notify({ channel: 'activity', title: `⚠️ Approved but not on the site: ${r.payload.name}`,
-        text: `${r.payload.name} · ${r.payload.date} published on retry but isn't listed (removed before, or matches an event already listed); check it.`,
+      // Something didn't work, so alerts (not lost in activity's routine).
+      slack.notify({ channel: 'alerts', title: `⚠️ Approved but not on the site: ${r.payload.name}`,
+        text: `${r.payload.date}. Check it in the Submissions tab.`,
+        more: `${r.payload.name} · ${r.payload.date} published on retry but isn't listed (removed before, or matches an event already listed).`,
         link: `${siteUrl}/admin.html` });
     }
   }
@@ -434,7 +439,10 @@ export function registerSubmissionReview(app, { store, secret, nowFn, autoApprov
           title: `🤖 Submission review: ${[live && `${live} live`, flagged && `${flagged} for you to look at`,
             notOn && `${notOn} approved but not live`,
             turned && `${turned} turned away`].filter(Boolean).join(', ')}`,
-          text: lines.join('\n') + (published && !published.ok ? `\n⚠️ Publishing failed: ${published.error || published.message}` : ''),
+          // Up to 3 in Slack (it runs every 15 minutes); all of them in HQ.
+          text: lines.slice(0, 3).join('\n') + (lines.length > 3 ? `\n…and ${lines.length - 3} more` : '') +
+            (published && !published.ok ? `\n⚠️ Publishing failed: ${published.error || published.message}` : ''),
+          more: lines.length > 3 ? lines.join('\n') : '',
           link: `${siteUrl}/admin.html`, footer: 'Reject one in the Submissions tab to take it off the site'
         });
       }

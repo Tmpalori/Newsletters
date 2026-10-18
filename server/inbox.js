@@ -72,11 +72,14 @@ export function withInbox(slack, store, { nowFn = () => Date.now() } = {}) {
     })().finally(() => { flushing = null; });
     return flushing;
   }
-  const save = (channel, { title, fields = [], text = '', link = null }) => {
+  // `more`: the long part (a full list, a log tail) kept for HQ only, so
+  // Slack stays a few short lines (Tristen, Oct 2026: no word bombs; he
+  // looks closer in HQ).
+  const save = (channel, { title, fields = [], text = '', more = '', link = null }) => {
     const { severity, kind } = classify({ channel, title });
     const payload = {
       fields: (fields || []).filter(([, v]) => v != null && v !== '').slice(0, 12).map(([k, v]) => [String(k), String(v).slice(0, 1000)]),
-      text: String(text || '').slice(0, 4000), link: link || null
+      text: [text, more].filter(Boolean).join('\n\n').slice(0, 4000), link: link || null
     };
     const ev = { channel, severity, kind, title: String(title).slice(0, 300), payload };
     const s = storeNow();
@@ -93,19 +96,19 @@ export function withInbox(slack, store, { nowFn = () => Date.now() } = {}) {
     ...slack,
     notify(msg = {}) {
       save(msg.channel || 'activity', msg);
-      return slack.notify(msg);
+      return slack.notify(msg.more ? { ...msg, footer: [msg.footer, 'More in HQ'].filter(Boolean).join(' · ') } : msg);
     },
     // Same window as Slack's own de-duplication, so a crash loop is one item.
     // Resolves once both the save and the Slack post are done, so a caller
     // about to exit (a crash) can wait for it.
-    alert(key, title, detail = '', link = null) {
+    alert(key, title, detail = '', link = null, more = '') {
       const now = nowFn(), last = lastAlert.get(key);
       let saved = Promise.resolve(false);
       if (last === undefined || now - last >= ALERT_WINDOW_MS) {
         lastAlert.set(key, now);
-        saved = save('alerts', { title: `🚨 ${title}`, text: detail, link });
+        saved = save('alerts', { title: `🚨 ${title}`, text: detail, more, link });
       }
-      const posted = slack.alert(key, title, detail, link);
+      const posted = slack.alert(key, title, more ? [detail, 'More in HQ.'].filter(Boolean).join('\n') : detail, link);
       return Promise.all([saved, posted]).then(([, r]) => r);
     },
     // Into the inbox only (something already posted to Slack elsewhere,

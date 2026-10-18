@@ -52,7 +52,7 @@ const paidEvent = (o, type = 'checkout.session.completed') => ev(type, o, { paym
 
 const recorder = () => {
   const alerts = [];
-  return { alerts, slack: { notify: () => {}, alert: (key, title, text) => alerts.push({ key, title, text }) } };
+  return { alerts, slack: { notify: m => alerts.push({ key: m.channel, ...m }), alert: (key, title, text) => alerts.push({ key, title, text }) } };
 };
 
 describe('webhooks are processed one at a time', () => {
@@ -166,7 +166,7 @@ describe('bank debits close to the date', () => {
     const saved = (await store.listSponsorOrders())[0];
     expect(saved.status).toBe('paid');
     expect(saved.newsletter_missed).toBeTruthy();
-    expect(alerts.some(a => a.key === 'sponsor-newsletter-missed:o1')).toBe(true);
+    expect(alerts.some(a => a.key === 'sales' && /paid after their week's newsletter/.test(a.title))).toBe(true);
     expect(sent[0].text).not.toMatch(/top of that Monday’s newsletter/);
     expect(sent[0].text).toMatch(/wasn’t in it/);
     // Thursday's weekend issue hasn't gone out: they're told it carries them.

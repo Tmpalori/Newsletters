@@ -204,16 +204,15 @@ export function jobsSummary(st) {
 }
 
 // Slack blocks for HQ's combined subscriber ping (POST /api/hq/hype): a
-// header, one section per newsletter (name, its total, the new emails), and
-// the total across all of them. Everything from HQ is escaped.
+// header, one bullet per newsletter (+new, its total), and the total across
+// all of them. The new emails stay in HQ's own inbox item (Tristen, Oct
+// 2026: short Slack, details in HQ). Everything from HQ is escaped.
 export function hypeBlocks({ count, groups, allTotal = null }, escape) {
   const n = v => (Number.isFinite(Number(v)) ? Number(v).toLocaleString('en-US') : '—');
   const title = `📬 ${count} new subscriber${count === 1 ? '' : 's'}`;
   const blocks = [{ type: 'header', text: { type: 'plain_text', text: title } }];
-  for (const g of groups) {
-    const emails = g.emails.slice(0, 50).map(e => escape(String(e).slice(0, 254)));
-    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*${escape(String(g.name).slice(0, 80))}* · ${n(g.total)} total\n${emails.join('\n')}`.slice(0, 2900) } });
-  }
+  const lines = groups.map(g => `• *${escape(String(g.name).slice(0, 80))}* +${g.emails.length} · ${n(g.total)} total`);
+  if (lines.length) blocks.push({ type: 'section', text: { type: 'mrkdwn', text: lines.join('\n').slice(0, 2900) } });
   if (allTotal != null) {
     blocks.push({ type: 'divider' });
     blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: `All newsletters: ${n(allTotal)} subscribers` }] });

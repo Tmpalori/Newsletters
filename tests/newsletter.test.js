@@ -1052,7 +1052,7 @@ describe('send failures', () => {
         return { data: msgs.filter((_, i) => i !== bad).map((_, i) => ({ id: `b${i}` })), errors: bad >= 0 ? [{ index: bad, message: 'Invalid `to` field' }] : [] };
       }
     };
-    await startApp({ resend, slack: { enabled: true, notify: async () => true, alert: async (key, title, text) => { alerts.push({ key, title, text }); } } });
+    await startApp({ resend, slack: { enabled: true, notify: async () => true, alert: async (key, title, text, link, more) => { alerts.push({ key, title, text, more }); } } });
     const h = await auth();
     await store.importSubscribers(['a@example.com', 'b@example.com', 'c@example.com'], 'import');
     const first = await (await post('/api/newsletter/cron', {}, { 'X-Cron-Secret': 'cron-secret' })).json();
@@ -1060,7 +1060,12 @@ describe('send failures', () => {
     // Kept on record: the subscriber row says bounced, and the owner is told who.
     expect((await store.listSubscribers({})).find(s => s.email === 'b@example.com').status).toBe('bounced');
     expect(alerts.filter(a => a.key === 'newsletter-refused-2026-10-05')).toHaveLength(1);
-    expect(alerts[0].text).toContain('b@example.com');
+    // Slack gets what happens to them; the addresses are for HQ (the inbox).
+    const refused = alerts.find(a => a.key === 'newsletter-refused-2026-10-05');
+    expect(refused.text).not.toContain('b@example.com');
+    expect(refused.text).toContain('More in HQ');
+    await new Promise(r => setTimeout(r, 50));
+    expect((await store.listInboxEvents(0)).find(e => /refused/.test(e.title)).payload.text).toContain('b@example.com');
     expect(alerts.some(a => a.key.startsWith('newsletter-failed'))).toBe(false);
     const st = await (await fetch(baseUrl + '/api/admin/newsletter', { headers: h })).json();
     expect(st).toMatchObject({ this_week_sent: true, this_week_failed: 0 });
