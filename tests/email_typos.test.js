@@ -282,3 +282,59 @@ describe('the owner can fix a submitter\'s email in the admin', () => {
     expect(row.payload.name).toBe('Fall Fest 2026');
   });
 });
+
+describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () => {
+  // Oct 2026: "melaniereeves60@gmail.comm" signed up on The Star 402 and
+  // every email to it bounced. Held to a typo so HQ's assistant can't use
+  // it to add strangers to the list.
+  const HQK = 'hq-reply-key-0123456789-0123456789-abc';
+  const ADMIN = 'admin-token-0123456789abcdef0123456789';
+  const fix = (body, { hq = true } = {}) => fetch(baseUrl + (hq ? '/api/hq/admin/newsletter/fix-subscriber' : '/api/admin/newsletter/fix-subscriber'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${hq ? HQK : ADMIN}` }, body: JSON.stringify(body) });
+  const statusOf = async (email) => ((await store.listSubscribers()).find(s => s.email === email) || {}).status;
+  async function seed() {
+    await startApp({ hqReplyKey: HQK, adminToken: ADMIN });
+    await store.importSubscribers(['melaniereeves60@gmail.comm'], 'import');
+    await store.markSubscribersBounced(['melaniereeves60@gmail.comm']);
+    await store.addSubscriber({ email: 'waiting@yahoo.con', source: 'footer' });   // never confirmed
+    await store.importSubscribers(['happy@gmail.com'], 'import');
+  }
+
+  it('adds the corrected address as active, through HQ', async () => {
+    await seed();
+    const r = await fix({ from: 'melaniereeves60@gmail.comm', to: 'MelanieReeves60@Gmail.com' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, from: 'melaniereeves60@gmail.comm', to: 'melaniereeves60@gmail.com', added: true });
+    expect(await statusOf('melaniereeves60@gmail.com')).toBe('active');
+    expect(await statusOf('melaniereeves60@gmail.comm')).toBe('bounced');
+  });
+
+  it('takes an unconfirmed typo off the list so it is never mailed again', async () => {
+    await seed();
+    expect((await fix({ from: 'waiting@yahoo.con', to: 'waiting@yahoo.com' }, { hq: false })).status).toBe(200);
+    expect(await statusOf('waiting@yahoo.com')).toBe('active');
+    expect(await statusOf('waiting@yahoo.con')).toBe('unsubscribed');
+  });
+
+  it('refuses anything that is not a typo after the @', async () => {
+    await seed();
+    // A different person.
+    expect((await (await fix({ from: 'melaniereeves60@gmail.comm', to: 'someone.else@gmail.com' })).json()).error).toBe('not-a-typo');
+    // An address that is fine and active.
+    expect((await fix({ from: 'happy@gmail.com', to: 'happy@yahoo.com' })).status).toBe(404);
+    // Not on the list at all.
+    expect((await fix({ from: 'nobody@gmail.comm', to: 'nobody@gmail.com' })).status).toBe(404);
+    // A "fix" to another impossible ending.
+    expect((await (await fix({ from: 'melaniereeves60@gmail.comm', to: 'melaniereeves60@gmail.con' })).json()).error).toBe('bad-to');
+    expect(await statusOf('someone.else@gmail.com')).toBeUndefined();
+    expect(await statusOf('happy@yahoo.com')).toBeUndefined();
+  });
+
+  it('needs the HQ key or an admin login', async () => {
+    await seed();
+    const r = await fetch(baseUrl + '/api/hq/admin/newsletter/fix-subscriber', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' },
+      body: JSON.stringify({ from: 'melaniereeves60@gmail.comm', to: 'melaniereeves60@gmail.com' }) });
+    expect(r.status).toBe(401);
+    expect(await statusOf('melaniereeves60@gmail.com')).toBeUndefined();
+  });
+});

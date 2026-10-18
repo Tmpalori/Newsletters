@@ -1639,6 +1639,46 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     res.json({ ok: true, ...result });
   });
 
+  // A signup's typo fixed (October 2026: "melaniereeves60@gmail.comm" on
+  // The Star 402 signed up, and every email to it bounced). Also through HQ,
+  // where the owner's assistant does it with his OK, so it's held to a
+  // typo: the old address must be on the list and dead (bounced, or still
+  // waiting to confirm), and the new one must be the same name before the @
+  // on a different domain, an address mail can reach. The new one joins as
+  // active (they asked to subscribe; only the typo stopped the confirm);
+  // the old one is taken off so it isn't mailed again.
+  app.post(paths('/api/admin/newsletter/fix-subscriber'), gate, async (req, res) => {
+    try {
+      if (!supported) return res.json({ ok: false, error: 'not-supported' });
+      const b = req.body || {};
+      const from = String(b.from || '').trim().toLowerCase().slice(0, 254);
+      const to = normalizeEmail(b.to);
+      const no = (status, error, message) => res.status(status).json({ ok: false, error, message });
+      if (!from || !to) return no(400, 'bad-request', 'Send from (the address on the list) and to (the corrected one).');
+      const typo = impossibleEmailError(to);
+      if (typo) return no(400, 'bad-to', typo);
+      const [fromUser, fromDomain] = [from.slice(0, from.lastIndexOf('@')), from.slice(from.lastIndexOf('@') + 1)];
+      const [toUser, toDomain] = [to.slice(0, to.lastIndexOf('@')), to.slice(to.lastIndexOf('@') + 1)];
+      if (!fromUser || fromUser !== toUser || fromDomain === toDomain) {
+        return no(400, 'not-a-typo', 'Only a typo after the @ can be fixed here (same name before the @, a different domain). Anything else is a new subscriber: use Import.');
+      }
+      const dead = [...await store.listSubscribers({ status: 'bounced' }), ...await store.listSubscribers({ status: 'pending' })];
+      const old = dead.find(x => String(x.email || '').toLowerCase() === from);
+      if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced or waiting to confirm.`);
+      const result = await store.importSubscribers([to], 'typo-fix');
+      if (result.skipped_unsubscribed || result.skipped_bounced) {
+        return no(409, 'to-blocked', `${to} unsubscribed or bounced before, so it can't be added back here.`);
+      }
+      if (old.status === 'pending') await store.unsubscribeByEmail([old.email]);
+      const by = viaHq(req) ? 'through HQ' : 'in the admin';
+      console.log(`[newsletter] subscriber typo fixed ${by}`);
+      if (slack) slack.notify({ channel: 'activity', title: `✉️ Subscriber typo fixed ${by}`, fields: [['Was', from], ['Now', to]] });
+      res.json({ ok: true, from, to, added: result.added > 0, already: result.already > 0 });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: 'failed', message: err.message });
+    }
+  });
+
   // The automatic Monday send, from the site scheduler or the cron
   // endpoint. `ok` means done for this week (sent, already sent, nothing to
   // send); `final` means retrying won't help (setup missing).
