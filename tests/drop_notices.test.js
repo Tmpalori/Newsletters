@@ -57,6 +57,18 @@ describe('dropped-event notices', () => {
     expect(t.notes[0].title).toBe("📭 Told Fall Fest's organizer it didn't make Saturday, Oct 24's list");
   });
 
+  it('promises only a newsletter that will still go out before the event', () => {
+    const offer = { price: '$39', url: 'https://www.thevic361.com/advertise/checkout?package=featured&from=x' };
+    // Thursday 9:30 AM for Saturday: Thursday's weekend issue already went out.
+    const sat = renderSubmissionDropped(EVENT, { siteUrl: 'https://www.thevic361.com', dayCount: 27, dayMax: 20, offer, at: NOW });
+    expect(sat.text).toContain('highlighted with the Vic’s Pick badge and featured first in our social posts.');
+    expect(sat.text).not.toContain('newsletter');
+    // Saturday for Monday: Monday's issue hasn't gone out yet.
+    const mon = renderSubmissionDropped({ ...EVENT, date: '2026-10-26' }, { siteUrl: 'https://www.thevic361.com', dayCount: 18, dayMax: 15, offer,
+      at: new Date('2026-10-24T14:30:00Z') });
+    expect(mon.text).toContain('starred in the Monday newsletter for the week of October 26');
+  });
+
   it('only once', async () => {
     const t = setup();
     await t.dn.run(NOW);

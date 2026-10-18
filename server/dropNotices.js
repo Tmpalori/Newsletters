@@ -55,7 +55,7 @@ export function createDropNotices({ store, getPublicPayload, mailer, slack = nul
       }
       const mail = renderSubmissionDropped({ ...row.payload, name: live.name || (row.payload || {}).name }, {
         siteUrl, address, pageUrl: live.page ? `${siteUrl}${live.page}` : '',
-        dayCount: perDay.get(live.date) || 0, dayMax: dayMax(live.date), offer
+        dayCount: perDay.get(live.date) || 0, dayMax: dayMax(live.date), offer, at: now
       });
       const result = await mailer.deliver(row.submitter_email, mail, `${town.keyPrefix}-submission-dropped-${row.id}`);
       // Email off: nothing went out, so nothing to record. A failure is

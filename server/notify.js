@@ -222,7 +222,7 @@ export function renderSubmissionLive(ev, { siteUrl, address, pageUrl, pick = fal
 // `offer` ({ price, url }) only while the day still has a paid spot; a
 // sold-out day gets the same note without it. The event keeps its page, so
 // the note links it.
-export function renderSubmissionDropped(ev, { siteUrl, address, pageUrl = '', dayCount = 0, dayMax = 0, offer = null }) {
+export function renderSubmissionDropped(ev, { siteUrl, address, pageUrl = '', dayCount = 0, dayMax = 0, offer = null, at = null }) {
   const name = ev.name || 'your event';
   const day = ev.date ? formatDay(ev.date, { weekday: 'long', month: 'short', day: 'numeric' }) : 'that day';
   const weekday = ev.date ? formatDay(ev.date, { weekday: 'long' }) : 'its day';
@@ -231,8 +231,13 @@ export function renderSubmissionDropped(ev, { siteUrl, address, pageUrl = '', da
     ? `${day} is a busy day in ${town.city}: ${dayCount} events are happening and our day list shows ${dayMax}, so yours didn’t make the cut this time.`
     : `${day} is a busy day in ${town.city}, and our day list only has room for so many, so yours didn’t make the cut this time.`;
   const still = 'It’s still on the site with its own page, and in our guides, so people looking for it can find it.';
+  // Only the newsletter that will still go out before the event (pickWhere,
+  // as the "you're live" email words it): one or two days out, its issue
+  // has usually been sent already.
+  const where = pickWhere(ev.date, at);
+  const promo = where.startsWith('starred') ? where : 'featured first in our social posts';
   const upgrade = offer
-    ? `Want it guaranteed? The ${town.pickName} upgrade (${offer.price} for ${ev.date && isWeekendDay(ev.date) ? 'Fri–Sun' : 'Mon–Thu'}) puts ${name} on ${weekday}’s list for sure, highlighted with the ${town.pickName} badge and starred in our newsletter and social posts. Your event details are already filled in; it takes about a minute.`
+    ? `Want it guaranteed? The ${town.pickName} upgrade (${offer.price} for ${ev.date && isWeekendDay(ev.date) ? 'Fri–Sun' : 'Mon–Thu'}) puts ${name} on ${weekday}’s list for sure, highlighted with the ${town.pickName} badge and ${promo}. Your event details are already filled in; it takes about a minute.`
     : '';
   const bodyHtml =
     p(`Thanks again for sending us <strong>${escHtml(name)}</strong>. ${escHtml(busy)}`) +
