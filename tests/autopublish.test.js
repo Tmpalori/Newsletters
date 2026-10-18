@@ -500,6 +500,20 @@ describe('auto-publish retires only reliable misses', () => {
     expect(await names()).toEqual(expect.arrayContaining(['Oktoberfest Party', 'Harvest Fair']));
   });
 
+  it("takes down a post's copy once the collector lists the event once, under the same long name", async () => {
+    // Oct 2026, Shoals: the golf tournament went live twice (the course, and
+    // the athletics page that posted it); the collector now merges them.
+    const course = { date: '2026-10-10', name: 'Jack Karnes Memorial Golf Tournament', time: '9:00 AM', venue: 'Cypress Lakes', _source: 'allevents' };
+    const post = { ...course, time: '', venue: 'North Alabama Athletics', _source: 'apify_facebook_posts' };
+    await start({ candidates: { last_updated: 'r1', events: [...filler, course, post], sources: { ...ok, apify_facebook_posts: 'ok' } } });
+    await runNow();
+    expect((await names()).filter(n => n === course.name)).toHaveLength(2);
+    await write('r2', [course], { ...ok, apify_facebook_posts: 'ok' });
+    expect((await runNow()).retired).toBe(1);
+    const evs = (await live()).events;
+    expect(evs.filter(e => e.name === course.name).map(e => e.venue)).toEqual(['Cypress Lakes']);
+  });
+
   it('takes down a Gemini-only event after two misses, like other sources', async () => {
     // Gemini's answer was its only evidence; once it stops finding it, it goes.
     const gem = { date: '2026-10-12', name: 'Weekly Karaoke', time: '8:00 PM', venue: 'Casa Jalisco', _source: 'gemini_search' };
