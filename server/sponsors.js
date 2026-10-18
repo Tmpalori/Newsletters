@@ -51,7 +51,7 @@ import crypto from 'node:crypto';
 import { ipKey } from './rateLimit.js';
 import { burst } from './burst.js';
 import express from 'express';
-import { passiveGuard } from './formGuard.js';
+import { passiveGuard, stampField, tooFast } from './formGuard.js';
 import { impossibleEmailError } from './emailTypos.js';
 import {
   AD_PACKAGES, escHtml, safeUrl, localDateStr, currentWeek, addDays, formatDay, layout,
@@ -1005,6 +1005,7 @@ export function renderCheckoutPage(pkg, { siteUrl, now, orders, venues, values =
     ${e._form ? `<p class="co-error co-error--form">${escHtml(e._form)}</p>` : ''}
     <form class="co-form" method="post" action="/advertise/checkout" data-turnstile>
       <input type="hidden" name="package" value="${escHtml(pkg.key)}">
+      ${stampField(now instanceof Date ? now.getTime() : Date.now())}
       <div class="hp-field" aria-hidden="true"><label>Leave this empty <input name="hp_field" tabindex="-1" autocomplete="off"></label></div>
       ${fields}
       <section class="co-preview" aria-labelledby="co-preview-h">
@@ -2791,7 +2792,10 @@ export function createSponsors({ store, siteUrl, nowFn, config, stripe, getVenue
         // A bot check that didn't pass doesn't stop a buyer: Stripe still
         // has to take their money, and the owner is alerted. Only a token
         // solved on another site (never one of our visitors) is refused.
-        const human = await formGuard.botCheck('checkout', req, body['cf-turnstile-response'] || body.turnstile_token);
+        const human = await formGuard.botCheck('checkout', req, body['cf-turnstile-response'] || body.turnstile_token, { fast: tooFast(body, nowFn().getTime()) });
+        // No bot check and faster than anyone fills this in: a bot, sent
+        // off like the honeypot, holding no week or pick.
+        if (human.bot) return res.redirect(303, '/advertise');
         if (!human.ok && human.error === 'hostname-mismatch') return fail({ _form: "We couldn't confirm you're not a bot. Please reload the page and try again." });
         const client = holdClient(ip, analyticsSecret);
 

@@ -2235,7 +2235,8 @@ export async function createApp(opts = {}) {
   }));
 
   // Contact form → Slack; replaces publishing an email address.
-  registerContact(app, { siteUrl, slack, store, requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, formGuard });
+  registerContact(app, { siteUrl, slack, store, requireAdmin, adminOrHq, createRateLimiter, sendHtml, verifyHuman, formGuard,
+    nowFn: () => (opts.now ? opts.now().getTime() : Date.now()) });
   // Personal data: delete one address on request, export subscribers (server/privacy.js).
   registerPrivacy(app, { store, requireAdmin, slack, nowFn: () => nowFn() });
   inbound.registerReply(app, { requireAdmin, resend: nlResend, from: newsletter.from, normalizeEmail });

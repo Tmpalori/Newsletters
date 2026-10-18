@@ -16,7 +16,7 @@ import { replyLink } from './inbound.js';
 import { normalizeEmail } from './newsletter.js';
 import { honeypotTripped } from './honeypot.js';
 import { newId, nowIso } from './db.js';
-import { passiveGuard } from './formGuard.js';
+import { passiveGuard, stampField, tooFast } from './formGuard.js';
 import { impossibleEmailError } from './emailTypos.js';
 
 export const CONTACT_TOPICS = [
@@ -28,7 +28,7 @@ export const CONTACT_TOPICS = [
 
 const clean = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
-export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = false }) {
+export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = false, nowMs = Date.now() }) {
   const v = values;
   const e = errors;
   const field = (name, label, input, err) => `<div class="co-field"><label for="c-${name}">${label}</label>${input}${err ? `<small class="co-error">${escHtml(err)}</small>` : ''}</div>`;
@@ -41,6 +41,7 @@ export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = fa
     ${e._form ? `<p class="co-error co-error--form">${escHtml(e._form)}</p>` : ''}
     <form class="co-form" method="post" action="/contact" data-turnstile>
       <div class="hp-field" aria-hidden="true"><label>Leave this empty <input name="hp_field" tabindex="-1" autocomplete="off"></label></div>
+      ${stampField(nowMs)}
       ${field('topic', 'What is this about?', `<select id="c-topic" name="topic">${CONTACT_TOPICS.map(([k, l]) => `<option value="${k}"${v.topic === k ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>`)}
       ${field('name', 'Your name', `<input id="c-name" name="name" required maxlength="80" value="${escHtml(v.name || '')}"${e.name ? ' aria-invalid="true"' : ''}>`, e.name)}
       ${field('email', 'Your email', `<input id="c-email" name="email" type="email" required maxlength="254" value="${escHtml(v.email || '')}"${e.email ? ' aria-invalid="true"' : ''}>`, e.email)}
@@ -57,7 +58,7 @@ export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = fa
   });
 }
 
-export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, formGuard = passiveGuard(verifyHuman) }) {
+export function registerContact(app, { siteUrl, slack, store = null, requireAdmin = null, adminOrHq = null, createRateLimiter, sendHtml, verifyHuman = async () => true, formGuard = passiveGuard(verifyHuman), nowFn = () => Date.now() }) {
   // Admin Home lists recent messages, so a lead never lives only in Slack.
   if (requireAdmin) {
     const gate = adminOrHq || requireAdmin;
@@ -85,7 +86,7 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
 
   app.get('/contact', (req, res) => {
     const topic = CONTACT_TOPICS.some(([k]) => k === req.query.topic) ? req.query.topic : 'advertising';
-    sendHtml(res, renderContactPage({ siteUrl, values: { topic } }));
+    sendHtml(res, renderContactPage({ siteUrl, values: { topic }, nowMs: nowFn() }));
   });
 
   app.post('/contact', async (req, res, next) => {
@@ -100,12 +101,16 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
       // Every turn-away counts toward "someone is stuck" (server/formGuard.js).
       const fail = (errors, status = 400) => {
         formGuard.rejected('contact', req, Object.values(errors));
-        return sendHtml(res, renderContactPage({ siteUrl, values, errors }), status, 'no-store');
+        return sendHtml(res, renderContactPage({ siteUrl, values, errors, nowMs: nowFn() }), status, 'no-store');
       };
       if (!limiter.check(req.ip || req.socket.remoteAddress).ok) return fail({ _form: 'Too many messages from here. Try again in an hour.' }, 429);
       // This is the fallback the other forms point to, so a bot check that
       // didn't pass never stops it: the message goes through, labeled.
-      const human = await formGuard.botCheck('contact', req, b['cf-turnstile-response'] || b.turnstile_token);
+      const human = await formGuard.botCheck('contact', req, b['cf-turnstile-response'] || b.turnstile_token, { fast: tooFast(b, nowFn()) });
+      // No bot check and faster than anyone types (Oct 18: four towns'
+      // contact forms in one morning, 1 to 2 seconds each): a bot. It's
+      // told "sent", like the honeypot, so it moves on; nothing is delivered.
+      if (human.bot) return sendHtml(res, renderContactPage({ siteUrl, sent: true }), 200, 'no-store');
       if (!human.ok && human.error === 'hostname-mismatch') return fail({ _form: "We couldn't confirm you're not a bot. Please reload the page and try again." });
       const unverified = !human.ok;
       const errors = {};

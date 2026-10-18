@@ -97,13 +97,13 @@ describe('someone stuck on a form is alerted', () => {
     for (let i = 0; i < 3; i++) expect((await postForm('/advertise/checkout', order)).status).toBe(400); // terms not agreed
     expect(alerts.find(a => a.key === 'form-stuck:checkout').title).toBe('Someone is stuck on the paid checkout (/advertise/checkout)');
     // ...and with the box ticked it goes to Stripe, missing token and all.
-    const ok = await postForm('/advertise/checkout', { ...order, 'cf-turnstile-response': '', agree: '1' });
+    const ok = await postForm('/advertise/checkout', { ...order, 'cf-turnstile-response': '', agree: '1', form_t: String(NOW.getTime() - 10_000) });
     expect(ok.status).toBe(303);
   });
 
   it('contact form: three turn-aways alert', async () => {
     await startApp();
-    for (let i = 0; i < 3; i++) await postForm('/contact', { topic: 'other', name: 'Ann', email: 'nope', message: 'Hi there' });
+    for (let i = 0; i < 3; i++) await postForm('/contact', { topic: 'other', name: 'Ann', email: 'nope', message: 'Hi there', form_t: String(NOW.getTime() - 10_000) });
     expect(alerts.find(a => a.key === 'form-stuck:contact').detail).toContain('valid email');
   });
 
@@ -184,6 +184,52 @@ describe('no public form dead-ends on the bot check', () => {
       for (const m of src.matchAll(/<form[^>]*data-turnstile[^>]*>/g)) {
         expect(known.some(k => m[0].includes(k)), `${f}: ${m[0]}`).toBe(true);
       }
+    }
+  });
+});
+
+describe('a bot that skips the check and fills a form in a blink is dropped quietly', () => {
+  // Oct 18: the contact forms of four towns, one morning, each filled in 0.9
+  // to 2 seconds with no bot check. Now they're told "sent" and nothing is
+  // delivered or alerted. A person (slower, or the check passed) is never.
+  const contact = (extra) => postForm('/contact', { topic: 'other', name: 'Bot', email: 'bot@example.com', message: 'Buy SEO now', ...extra });
+  const order = { package: 'weekly', week: '2026-10-19', business: 'Acme', text: 'x', url: 'acme.example', email: 'a@acme.example', agree: '1' };
+
+  it('contact: answered "sent", but nothing reaches Slack and nothing alerts', async () => {
+    await startApp();
+    for (const extra of [{ form_t: String(NOW.getTime() - 1500) }, {}]) {      // 1.5 seconds; no stamp at all
+      expect(await (await contact(extra)).text()).toContain('Message sent');
+    }
+    expect(notes.filter(n => /Website message/.test(n.title))).toEqual([]);
+    expect(alerts.filter(a => a.key.startsWith('form-'))).toEqual([]);
+  });
+
+  it('contact: the same speed with the check passed is a person, delivered', async () => {
+    await startApp();
+    expect(await (await contact({ form_t: String(NOW.getTime() - 1500), 'cf-turnstile-response': 'good' })).text()).toContain('Message sent');
+    expect(notes.some(n => /Website message/.test(n.title) && !/bot check/.test(n.title))).toBe(true);
+  });
+
+  it('contact: slower than 4 seconds without the check still goes through, labeled', async () => {
+    await startApp();
+    await contact({ form_t: String(NOW.getTime() - 6000) });
+    expect(notes.some(n => /Website message/.test(n.title) && /bot check didn’t pass/.test(n.title))).toBe(true);
+  });
+
+  it('checkout: sent back to /advertise, no Stripe session and no week held', async () => {
+    await startApp();
+    const r = await postForm('/advertise/checkout', { ...order, form_t: String(NOW.getTime() - 1000) });
+    expect(r.status).toBe(303);
+    expect(r.headers.get('location')).toBe('/advertise');
+    expect(alerts.filter(a => a.key.startsWith('form-'))).toEqual([]);
+    const human = await postForm('/advertise/checkout', { ...order, form_t: String(NOW.getTime() - 30_000) });
+    expect(human.headers.get('location')).toBe('https://checkout.stripe.com/x');
+  });
+
+  it('the pages carry the stamp', async () => {
+    await startApp();
+    for (const p of ['/contact', '/advertise/checkout?package=weekly']) {
+      expect(await (await fetch(baseUrl + p)).text(), p).toContain(`<input type="hidden" name="form_t" value="${NOW.getTime()}">`);
     }
   });
 });

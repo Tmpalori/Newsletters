@@ -33,6 +33,23 @@ export const FORMS = {
 // What the browser may report (POST /api/form-problem `stage`).
 export const CLIENT_STAGES = new Set(['network', 'server', 'script']);
 
+// A person takes longer than this to fill in a form; the bots that hit the
+// contact forms on Oct 18 (four towns, one morning) took 0.9 to 2 seconds.
+export const MIN_HUMAN_MS = 4000;
+
+// The page's own clock in a hidden field (form_t), so the server can tell
+// how long the form was open. Not signed: today's bots post what the page
+// gave them, and a forged one only gets a message labeled for the owner.
+export const stampField = (nowMs) => `<input type="hidden" name="form_t" value="${Math.floor(Number(nowMs) || 0)}">`;
+
+// Sent faster than a person could, or with no stamp at all (posted without
+// loading the page). Only ever applied after the bot check failed.
+export function tooFast(body, nowMs) {
+  const t = Number((body || {}).form_t);
+  if (!Number.isFinite(t) || t <= 0 || t > nowMs + 60_000) return true;
+  return nowMs - t < MIN_HUMAN_MS;
+}
+
 const STUCK_AFTER = 3;
 const STUCK_WINDOW_MS = 30 * 60 * 1000;
 const MAX_TRACKED = 2000;
@@ -67,7 +84,10 @@ export function createFormGuard({ slack, verifyTurnstile, turnstileOpts = () => 
   // The Turnstile result for this request ({ ok, error, disabled }). When it
   // fails the caller still lets the visitor through (except a token solved
   // on another site, which no real visitor of ours sends); this says so.
-  async function botCheck(form, req, token) {
+  // { fast: true } when the form came back faster than a person types (see
+  // tooFast): a check that also failed is then a bot, answered `bot: true`
+  // for the caller to drop quietly, with no alert.
+  async function botCheck(form, req, token, { fast = false } = {}) {
     let r;
     try {
       r = await verifyTurnstile(typeof token === 'string' ? token : '', { remoteip: req.ip, ...turnstileOpts() });
@@ -77,6 +97,10 @@ export function createFormGuard({ slack, verifyTurnstile, turnstileOpts = () => 
     if (!r.ok) {
       const ua = req.get ? req.get('user-agent') : '';
       const why = [r.error, ...(r.codes || [])].filter(Boolean).join(', ');
+      if (fast && r.error !== 'hostname-mismatch') {
+        console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua), '· dropped as a bot (too fast)');
+        return { ...r, bot: true };
+      }
       console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua));
       if (r.error !== 'hostname-mismatch') {
         slack.alert(`form-bot:${form}`, `Bot check didn't pass on the ${label(form)}`,
