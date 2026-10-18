@@ -2393,10 +2393,11 @@ def _is_social_event_url(url):
     return bool(_SOCIAL_EVENT_URL.search(url or ""))
 
 
-# The link check runs before any deadline check, right after the ~30-minute
-# scrape phase: past this it stops, so a hanging host can't push gap filling
-# and the AI review past COLLECT_DEADLINE_MIN.
-LINK_CHECK_STOP_MIN = 34
+# The link check runs before any deadline check, right after the scrape
+# phase (SCRAPE_BUDGET_MIN): past this it stops, so a hanging host can't
+# push gap filling and the AI review past COLLECT_DEADLINE_MIN. Four
+# minutes past the scrape budget, as when that was 30.
+LINK_CHECK_STOP_MIN = 44
 LINK_CHECK_HOST_TIMEOUTS = 2
 
 
@@ -4950,22 +4951,26 @@ FLYER_IMAGES_PER_ACCOUNT = 4
 FLYER_IMAGE_MAX_BYTES = 4_000_000
 # No GIF: the API rejects animated ones, which would lose the whole call.
 _FLYER_TYPES = ("image/jpeg", "image/png", "image/webp")
-# The collect step times out at 50 minutes and writes candidates.json only
-# at the end (the Oct 4 2026 run took 33). Extra work fits around that:
+# The jobs worker (scripts/jobs_worker.py) stops a collect at 55 minutes,
+# and candidates.json is written only at the end (Oct 18 2026: 37.5
+# minutes, 7.5 of them after scraping). Extra work fits around that:
 # flyers stop FLYER_TIME_BUDGET_MIN in (posts go back to text only, as
 # before flyers), and past COLLECT_DEADLINE_MIN the optional steps (gap
 # filling, the rest of the AI review) are skipped so the run still writes.
 FLYER_TIME_BUDGET_MIN = 20
-COLLECT_DEADLINE_MIN = 38
-# The FB/IG post loops stop starting new venues this far in (Oct 4 2026:
-# FB posts alone took 15.5 minutes). Hung OpenAI calls could otherwise run
-# scraping past the 50-minute step timeout before candidates.json is written.
-SCRAPE_BUDGET_MIN = 30
+COLLECT_DEADLINE_MIN = 46
+# The FB/IG post loops stop starting new venues this far in. Hung OpenAI
+# calls could otherwise run scraping past the worker's 55 minutes before
+# candidates.json is written. 30 while collects ran in a 50-minute GitHub
+# step; 40 on the worker (Oct 18 2026: at 30, FB posts skipped 22 of 42
+# pages to leave Instagram its 10).
+SCRAPE_BUDGET_MIN = 40
 # Facebook posts stop this many minutes before SCRAPE_BUDGET_MIN when the
 # Instagram pass runs after them, so Instagram gets its own time. Oct 11
 # 2026: FB posts took 24 of the 30 minutes and Instagram skipped all 20
-# accounts (0 events, from 26 on Oct 7).
-IG_RESERVE_MIN = 10
+# accounts (0 events, from 26 on Oct 7); Oct 18, with 10, it read all 20
+# in 9 minutes 46 seconds (55 events), too close: 15 leaves it room.
+IG_RESERVE_MIN = 15
 _RUN_STARTED = None
 
 

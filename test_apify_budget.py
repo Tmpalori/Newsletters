@@ -42,7 +42,7 @@ def test_fb_posts_stop_at_their_slice_when_instagram_is_next(monkeypatch):
     monkeypatch.setattr(ce, "_RUN_STARTED", time.time() - (ce.fb_posts_budget_min() + 1) * 60)
     monkeypatch.setattr(ce.requests, "post", lambda *a, **k: pytest.fail("scraped past FB's slice"))
     assert ce.fetch_apify_facebook_posts() == []
-    assert "leaving Instagram its 10" in ce._SOURCE_NOTES["apify_facebook_posts"]
+    assert f"leaving Instagram its {ce.IG_RESERVE_MIN}" in ce._SOURCE_NOTES["apify_facebook_posts"]
     assert ce._minutes_in() < ce.SCRAPE_BUDGET_MIN
 
 
@@ -167,3 +167,16 @@ def test_a_page_turning_quiet_warns_once():
     assert [w for w in ce._WARNINGS if "Quiet Bar" in w] == [
         f"Facebook page Quiet Bar had no posts {ce.QUIET_AFTER} collects in a row; skipped from now on, "
         f"check its link in venues.json (page={url})"]
+
+
+def test_the_time_limits_stay_in_order_inside_the_workers_55_minutes():
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location("jobs_worker", pathlib.Path(__file__).parent / "scripts" / "jobs_worker.py")
+    worker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker)
+    stop = worker.TIMEOUTS["collect"] / 60
+    # Scraping, then the link check, then the optional steps, with time left
+    # to write and upload the outputs before the worker stops the collect.
+    assert ce.SCRAPE_BUDGET_MIN - ce.IG_RESERVE_MIN > 0
+    assert ce.SCRAPE_BUDGET_MIN < ce.LINK_CHECK_STOP_MIN < ce.COLLECT_DEADLINE_MIN
+    assert stop - ce.COLLECT_DEADLINE_MIN >= 8
