@@ -203,6 +203,18 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       return;
     }
     if (job.kind === 'meta-ads') {
+      // Kept for HQ (GET /api/hq/summary ads.report), which sends one
+      // morning message for every town (Tristen, Oct 2026: one message,
+      // simple bullets, instead of one per town). Quiet days too.
+      if (typeof store.setTownFile === 'function' && (r.data || typeof r.report === 'string')) {
+        try {
+          await store.setTownFile('ads_report', { data: r.data && typeof r.data === 'object' ? r.data : null,
+            report: typeof r.report === 'string' ? r.report : null, link: typeof r.link === 'string' ? r.link : null }, nowFn());
+        } catch (err) { log.warn('[jobs] ads report not kept:', err.message); }
+      }
+      // With ADS_REPORT_VIA_HQ=1 HQ posts it; otherwise this town does, as
+      // before (a town HQ doesn't read keeps its own report).
+      if (String(env.ADS_REPORT_VIA_HQ || '') === '1') return;
       // The report meta_ads.py used to post to Slack itself.
       if (slack && typeof r.report === 'string' && r.report.trim()) {
         const [title, ...rest] = r.report.trim().split('\n');

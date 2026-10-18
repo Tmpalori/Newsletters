@@ -451,6 +451,19 @@ describe('the ads report and the digest on the worker', () => {
       link: 'https://adsmanager.facebook.com/x', channel: 'activity' })]);
   });
 
+  it('the ads report is kept for HQ; with ADS_REPORT_VIA_HQ=1 HQ posts it, not the town', async () => {
+    const data = { status: 'running', yesterday: { spend: 5, clicks: 20, leads: 3 }, last_7_days: { spend: 30, clicks: 90, leads: 12 }, problems: [] };
+    for (const [env, posts] of [[ON, 1], [{ ...ON, ADS_REPORT_VIA_HQ: '1' }, 0]]) {
+      const t = await start({ env });
+      await t.store.enqueueJob('meta-ads', 's1', {}, NOW);
+      const job = (await (await t.call('POST', '/api/jobs/claim')).json()).job;
+      await t.call('POST', `/api/jobs/${job.id}/finish`, { status: 'done', result: { report: '📈 Meta ads: yesterday $5.00 spent', link: 'https://adsmanager.facebook.com/x', data } });
+      expect(t.slack.notes).toHaveLength(posts);
+      const kept = await t.store.getTownFile('ads_report');
+      expect(kept.data).toEqual({ data, report: '📈 Meta ads: yesterday $5.00 spent', link: 'https://adsmanager.facebook.com/x' });
+    }
+  });
+
   it('a failed ads report or digest alerts like any failed job', async () => {
     const t = await start();
     for (const kind of ['meta-ads', 'digest']) {

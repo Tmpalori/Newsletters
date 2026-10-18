@@ -442,6 +442,10 @@ def job_meta_ads(site, run=run_script, env=None):
     if got.get("report"):
         result["report"] = str(got["report"])
         result["link"] = got.get("link")
+    # The same report as numbers, kept by the site for HQ's one morning
+    # message across every town (quiet days too: "no ads on" is news there).
+    if isinstance(got.get("data"), dict):
+        result["data"] = got["data"]
     return "done", result
 
 

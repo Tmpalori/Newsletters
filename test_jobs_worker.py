@@ -390,14 +390,17 @@ def test_switch_day_never_posts_what_github_already_did(victoria):
 
 # ─── the ads report and the digest ───────────────────────────────────────
 
-def fake_ads(report=None, code=0, tail=None):
+def fake_ads(report=None, code=0, tail=None, data=None):
     calls = []
 
     def run(args, timeout, env=None):
         calls.append((args, env))
         assert args[1:5] == ["-u", "scripts/meta_ads.py", "report", "--scheduled"]
         if report is not None:
-            json.dump({"report": report, "link": "https://adsmanager.facebook.com/x"}, open(args[args.index("--result") + 1], "w"))
+            body = {"report": report, "link": "https://adsmanager.facebook.com/x"}
+            if data is not None:
+                body["data"] = data
+            json.dump(body, open(args[args.index("--result") + 1], "w"))
         return code, tail or ["ok"]
     run.calls = calls
     return run
@@ -410,6 +413,13 @@ def test_victorias_ads_report_runs_on_her_page_token_and_goes_back_to_the_site(v
     assert status == "done" and result["report"] == "📈 Meta ads: yesterday $5" and result["link"]
     env = run.calls[0][1]
     assert env["META_ADS_TOKEN"] == "tok" and env["ADS_SPEND_SECRET"] == "r" * 40     # meta-ads.yml's fallbacks
+
+
+def test_ads_report_numbers_go_back_to_the_site_for_hq(victoria):
+    w, _ = victoria
+    data = {"status": "off", "problems": []}
+    status, result = w.job_meta_ads(FakeSite(), run=fake_ads("", data=data), env={"META_PAGE_TOKEN": "tok"})
+    assert status == "done" and result["data"] == data and "report" not in result
 
 
 def test_ads_report_quiet_week_and_failures(victoria):
