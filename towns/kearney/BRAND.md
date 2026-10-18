@@ -26,7 +26,7 @@ Header wordmark (two-tone, for `siteNameHtml` in town.json): `The Crane <span>30
 | accent | `#C8323C` | `#FF6B70` | hover underline, secondary highlights |
 | paper | `#FBF4E4` | `#161B23` (bg), `#212833` (surface) | page background |
 | ink | `#232A35` | `#07090D` (outlines/shadows), `#F3F5F8` (text) | text, outlines, offset shadows |
-| highlight | `#F4B63A` | `#F7C453` | the paid label ("Featured"), title badge, hero marker |
+| highlight | `#F4B63A` | `#F7C453` | the paid label ("Crane Pick"), title badge, hero marker |
 
 Dark-mode JSON:
 
