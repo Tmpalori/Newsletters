@@ -627,8 +627,11 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   // PER_DAY), recorded with the send for their reports.
   const picks = [...new Set(byDay.flatMap(({ list }) => shownOf(list))
     .filter(e => e.featured && !e.editor_pick && e.sponsor_order).map(e => e.sponsor_order))];
+  // Every event page the issue shows (its day lists and "Don't miss"),
+  // recorded with the send for the event reports (server/eventReach.js).
+  const shownPages = [...new Set([...byDay.flatMap(({ list }) => shownOf(list)), ...topShown].map(e => e.page).filter(Boolean))];
   return {
-    subject, total, picks,
+    subject, total, picks, events: shownPages,
     html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),
     text: utmTag(text, siteUrl, campaign, '&')
   };
@@ -1091,6 +1094,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     // record keeps every pick any part of the week's send starred (the
     // Vic's Pick report reads it).
     const picks = resume && Array.isArray(prior.picks) ? [...new Set([...prior.picks, ...probe.picks])] : probe.picks;
+    const shownEvents = resume && Array.isArray(prior.events) ? [...new Set([...prior.events, ...probe.events])] : probe.events;
     // Everyone in a chunk that isn't done is owed the issue (failed_emails,
     // which the admin and the scheduler read as "partly sent").
     const owed = () => [...new Set(plan.filter(c => !DONE.has(c.state)).flatMap(c => c.emails))];
@@ -1101,7 +1105,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const progress = () => {
       const failedEmails = owed();
       return store.recordNewsletterSend({
-        week_key: key, subject: probe.subject, recipients: base + sent, picks,
+        week_key: key, subject: probe.subject, recipients: base + sent, picks, events: shownEvents,
         failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
       });
     };
@@ -1164,7 +1168,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     }
     const failedEmails = owed();
     const record = {
-      week_key: key, subject: probe.subject, picks,
+      week_key: key, subject: probe.subject, picks, events: shownEvents,
       recipients: base + sent,
       failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
     };

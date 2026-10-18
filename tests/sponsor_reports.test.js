@@ -39,10 +39,10 @@ const weeklyOrder = (extra = {}) => ({
 
 let tmpDir, server, baseUrl, store, clock;
 
-async function startApp(extra = {}) {
+async function startApp({ events = EVENTS, ...extra } = {}) {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-reports-'));
   const eventsFile = path.join(tmpDir, 'events.json');
-  await fs.writeFile(eventsFile, JSON.stringify({ events: EVENTS }));
+  await fs.writeFile(eventsFile, JSON.stringify({ events }));
   store = new FileStore(path.join(tmpDir, 's.json'));
   clock = { now: new Date('2026-10-07T17:00:00Z') };
   const { app } = await createApp({
@@ -278,6 +278,26 @@ describe('Vic’s Pick report', () => {
     await new Promise(r => setTimeout(r, 100));
     expect(reports()).toHaveLength(1); // not twice
     expect(mail.sent.some(m => (m.to || []).includes('r@example.com') || (m.to || []).includes('h@example.com'))).toBe(false);
+  });
+
+  it('adds the social posts it was in and how it beat the other events that day', async () => {
+    const mail = mailer();
+    // Six other events that Saturday, two views each; the pick's page gets eight.
+    const others = Array.from({ length: 6 }, (_, i) => ({ date: '2026-10-10', name: `Other ${i}`, time: '1:00 PM', venue: `V${i}` }));
+    await startApp({ resendApiKey: 're_test', resend: mail.resend, newsletterAddress: '1 Main St', events: [...EVENTS, ...others] });
+    await store.saveSponsorOrder(pickOrder());
+    await store.setTownFile('social_posted', { '2026-10-09:weekend': { facebook: 'p1', pages: [PAGE] } });
+    for (let i = 0; i < 8; i++) await store.recordTraffic({ day: '2026-10-09', kind: 'view', path: PAGE, visitor: `p${i}`, ref_source: i < 3 ? 'Facebook' : null });
+    for (const page of withPages([...EVENTS, ...others]).slice(2).map(e => e.page)) {
+      for (let i = 0; i < 2; i++) await store.recordTraffic({ day: '2026-10-09', kind: 'view', path: page, visitor: `o${i}` });
+    }
+    clock.now = new Date('2026-10-11T15:00:00Z');
+    await fetch(baseUrl + '/api/submission-review/pending', { headers: { 'X-Cron-Secret': 'rs' } });
+    const report = () => mail.sent.find(m => m.key && m.key.startsWith('vic361-pick-report-'));
+    await waitFor(() => Boolean(report()));
+    expect(report().text).toContain('- In our Facebook posts: 1 post');
+    expect(report().text).toContain('- Visits from our social posts: 3');
+    expect(report().text).toContain('That’s about 4× the page views of a typical event that day.');
   });
 
   it('stops catching up after 14 days, and without email tells Slack once', async () => {

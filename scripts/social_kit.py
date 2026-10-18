@@ -426,6 +426,18 @@ def _footer(draw, text=None):
     draw.text((72, H - 100), text or TOWN["domain"], font=_font(True, 36), fill=ACCENT)
 
 
+def shown_pages(groups, kind):
+    """Pages of the events the post names: each day's first few on the
+    sneak-peek slide (every Vic's Pick, then the best; scripts/social_slides.py
+    digest_html), the same few the captions name."""
+    per_day = 6 if kind == "today" else 2  # social_slides DIGEST_TODAY / DIGEST_PER_DAY
+    out = []
+    for evs in groups.values():
+        n = max(per_day, sum(1 for e in evs if e.get("featured")))
+        out += [e["page"] for e in evs[:n] if isinstance(e.get("page"), str) and e["page"]]
+    return list(dict.fromkeys(out))
+
+
 def render_slides(groups, start, end, kind, out_dir):
     """The branded slides (scripts/social_slides.py: the site's fonts, colors,
     icons and skyline, rendered with headless Chrome); the plain Pillow
@@ -715,7 +727,10 @@ def main(argv=None):
                "events": sum(len(v) for v in groups.values()),
                # Paid picks only: the Thursday "today" post exists so a paid
                # pick that day is always posted, not for editor's picks.
-               "featured": sum(1 for v in groups.values() for e in v if is_paid_pick(e))}
+               "featured": sum(1 for v in groups.values() for e in v if is_paid_pick(e)),
+               # The event pages the post shows, kept with what was posted
+               # (social_posted) for the event reports (server/eventReach.js).
+               "pages": shown_pages(groups, kind)}
         # The Reel is for Instagram only (Facebook gets the photos), so a
         # town with no Instagram linked (IG_USER_ID unset) skips the build.
         if kind == "weekend" and os.environ.get("IG_USER_ID", "").strip():

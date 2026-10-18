@@ -550,3 +550,29 @@ def test_another_town_never_posts_with_credentials_not_its_own(tmp_path, monkeyp
     sess = FakeSession()
     assert sp.main(["--kind", "weekend", "--kit-dir", str(write_kit(tmp_path)), "--no-wait"], session=sess) == 0
     assert sess.calls == []
+
+
+def test_posted_record_keeps_the_events_the_post_showed(tmp_path, monkeypatch):
+    # The event reports (server/eventReach.js) read which events each post showed.
+    monkeypatch.setenv("META_PAGE_ID", "page9")
+    monkeypatch.setenv("META_PAGE_TOKEN", "tok")
+    monkeypatch.delenv("IG_USER_ID", raising=False)
+    monkeypatch.setattr(sp.time, "sleep", lambda s: None)
+    kit_dir = write_kit(tmp_path)
+    m = json.loads((kit_dir / "kit.json").read_text())
+    m["kits"]["weekend"]["pages"] = ["/events/2026-10-10-show"]
+    (kit_dir / "kit.json").write_text(json.dumps(m))
+    assert sp.main(["--kind", "weekend", "--kit-dir", str(kit_dir), "--no-wait"], session=FakeSession()) == 0
+    posted = json.loads((kit_dir / "posted.json").read_text())
+    assert posted["2026-10-08:weekend"] == {"pages": ["/events/2026-10-10-show"], "facebook": "post1"}
+
+
+def test_social_kit_lists_the_events_each_post_shows():
+    import social_kit as sk
+    from datetime import date
+    sat = date(2026, 10, 10)
+    evs = [{"name": f"E{i}", "page": f"/events/e{i}", **({"featured": True} if i == 3 else {})} for i in range(5)]
+    groups = {sat: [evs[3], evs[0], evs[1], evs[2], evs[4]]}
+    # Two a day plus every pick; "today" shows six.
+    assert sk.shown_pages(groups, "weekend") == ["/events/e3", "/events/e0"]
+    assert sk.shown_pages(groups, "today") == [f"/events/e{i}" for i in (3, 0, 1, 2, 4)]

@@ -326,6 +326,10 @@ def main(argv=None, session=None, on_save=None):
         posted = {}
     slot_key = f"{manifest['generated_for']}:{args.kind}"
     slot = posted.setdefault(slot_key, {})
+    # Which events this post shows, for the event reports (server/eventReach.js).
+    # A re-run after a platform already posted keeps what that post showed.
+    if isinstance(kit.get("pages"), list) and not (slot.get("facebook") or slot.get("instagram")):
+        slot["pages"] = kit["pages"]
 
     def remember(platform, post_id):
         slot[platform] = post_id
