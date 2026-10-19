@@ -55,7 +55,9 @@ describe('severity', () => {
     ['hype', '💰 New sponsor: Acme Tacos', 'today', 'sponsor'],
     ['hype', '📬 The Vic 361: 240 subscribers', 'fyi', 'growth'],
     ['activity', '🤖 Submission review: 2 live, 1 for you to look at', 'today', 'review'],
-    ['activity', '📝 New event submitted', 'fyi', 'submission']
+    ['activity', '📝 New event submitted', 'fyi', 'submission'],
+    ['inbox', '📝 New event submitted', 'fyi', 'submission'],
+    ['inbox', '📝 New event submitted (bot check didn’t pass: check it)', 'fyi', 'submission']
   ])('%s · %s → %s', (channel, title, severity, kind) => {
     expect(classify({ channel, title })).toEqual({ severity, kind });
   });

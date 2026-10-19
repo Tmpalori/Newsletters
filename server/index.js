@@ -723,6 +723,7 @@ export async function createApp(opts = {}) {
     formGuard.ok('submit', req);
     const ev = row.payload;
     slack.notify({
+      channel: 'inbox',
       title: botNote ? '📝 New event submitted (bot check didn’t pass: check it)' : '📝 New event submitted',
       fields: [['Event', ev.name], ['When', [ev.date, ev.time].filter(Boolean).join(' ')], ['Venue', ev.venue],
         ['From', [row.submitter_name, row.submitter_email].filter(Boolean).join(' · ')]],

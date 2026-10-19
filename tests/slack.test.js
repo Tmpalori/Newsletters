@@ -134,7 +134,7 @@ describe('server wiring', () => {
     });
     expect(r.status).toBe(201);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ kind: 'notify', title: '📝 New event submitted' });
+    expect(sent[0]).toMatchObject({ kind: 'notify', title: '📝 New event submitted', channel: 'inbox' });
     expect(sent[0].fields.find(f => f[0] === 'Event')[1]).toBe('Live Music at the Dive');
   });
 

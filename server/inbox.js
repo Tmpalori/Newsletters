@@ -32,6 +32,8 @@ export function classify({ channel = 'activity', title = '' }) {
   }
   if (channel === 'inbox') {
     if (/^↩️/u.test(t)) return { severity: 'fyi', kind: 'reply' };
+    // A public event submission: the AI review handles it, so fyi.
+    if (/^📝/u.test(t)) return { severity: 'fyi', kind: 'submission' };
     if (SALESY.test(t)) return { severity: 'urgent', kind: 'lead' };
     if (/^📬|^💰|email from/i.test(t)) return { severity: 'today', kind: 'email' };
     return { severity: 'today', kind: 'message' };
