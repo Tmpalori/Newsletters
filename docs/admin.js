@@ -2383,6 +2383,54 @@
     }
   }
 
+  // GET /api/admin/growth/cleanup (server/growth.js cleanupDryRun): how many
+  // active readers each never-opens rule would stop mailing. Counts only.
+  function renderCleanup(c) {
+    const el = document.getElementById('growth-cleanup');
+    if (!el) return;
+    if (!c || !c.ok) {
+      el.innerHTML = '<p class="muted">' + escapeHtml((c && c.message) || 'The dry run isn’t available here.') + '</p>';
+      return;
+    }
+    const t = c.totals || {};
+    const r = c.rules || {};
+    const w = c.window || {};
+    if (!w.issues) {
+      el.innerHTML = '<p class="muted">No issues with open counts yet, so there’s nothing to judge.</p>';
+      return;
+    }
+    const n = v => Number(v || 0).toLocaleString('en-US');
+    const pct = v => (v == null ? '—' : v + '%');
+    const weeks = x => Math.round(x / 2) + ' weeks';
+    const windowNote = w.full
+      ? 'Looking at the last ' + w.days + ' days (' + w.issues + ' issues).'
+      : 'Open counts only go back ' + w.days + ' days (' + w.issues + ' issues), so “quiet” means quiet for that long, not ' + r.quietDays + ' days.';
+    el.innerHTML =
+      '<div class="sources-summary">' +
+        '<div class="sources-summary__item"><span class="sources-summary__label">Would stop mailing</span><span class="sources-summary__value">' +
+          n(t.flagged) + ' of ' + n(t.active) + ' (' + pct(t.flagged_pct) + ')</span></div>' +
+        '<div class="sources-summary__item"><span class="sources-summary__label">New, never opened (first ' + weeks(r.firstIssues) + ')</span><span class="sources-summary__value">' + n(t.new_never_opened) + '</span></div>' +
+        '<div class="sources-summary__item"><span class="sources-summary__label">Went quiet (no opens, joined earlier)</span><span class="sources-summary__value">' + n(t.quiet) + '</span></div>' +
+        '<div class="sources-summary__item"><span class="sources-summary__label">With the tighter ' + weeks(r.strictFirstIssues) + ' rule</span><span class="sources-summary__value">' +
+          n(t.flagged_strict) + ' (' + pct(t.flagged_strict_pct) + ')</span></div>' +
+        '<div class="sources-summary__item"><span class="sources-summary__label">Too new to judge</span><span class="sources-summary__value">' + n(t.too_new) + '</span></div>' +
+      '</div>' +
+      '<p class="card__meta">' + escapeHtml(windowNote) + ' Only opens count: a reader whose mail app blocks images looks quiet, and Apple Mail opens some on its own.</p>' +
+      '<div class="table-scroll"><table class="growth-table"><thead><tr><th>Came from</th><th class="num">Active</th><th class="num">New, never opened</th><th class="num">Went quiet</th><th class="num">Would stop</th><th class="num">Tighter rule</th></tr></thead><tbody>' +
+      (c.by_source || []).map(s => '<tr><td>' + escapeHtml(s.source) + '</td><td class="num">' + n(s.active) + '</td><td class="num">' + n(s.new_never_opened) +
+        '</td><td class="num">' + n(s.quiet) + '</td><td class="num">' + n(s.flagged) + ' (' + pct(s.flagged_pct) + ')</td><td class="num">' + n(s.flagged_strict) + ' (' + pct(s.flagged_strict_pct) + ')</td></tr>').join('') +
+      '</tbody></table></div>';
+  }
+
+  async function loadCleanup() {
+    try {
+      const { json } = await adminFetch('/api/admin/growth/cleanup');
+      renderCleanup(json);
+    } catch (err) {
+      renderCleanup({ ok: false, message: err.message || String(err) });
+    }
+  }
+
   let growthSeq = 0;
   async function loadGrowth() {
     const seq = ++growthSeq;
@@ -2403,6 +2451,8 @@
       // Shown first: the charts measure the width they get.
       if (body) body.hidden = false;
       renderGrowth(json);
+      // Its own request: a slow or failed dry run never holds up the rest.
+      loadCleanup();
     } catch (err) {
       console.error(err);
       if (errEl) { errEl.hidden = false; errEl.textContent = err.message || String(err); }
@@ -3649,7 +3699,7 @@
     isHttpUrl, shortenUrl,
     _state: state,
     renderTraffic: renderTraffic,
-    renderGrowth, goalsHtml,
+    renderGrowth, renderCleanup, goalsHtml,
     _constants: {
       WEEKDAY_TARGET_MIN, WEEKDAY_TARGET_MAX,
       WEEKEND_TARGET_MIN, WEEKEND_TARGET_MAX,

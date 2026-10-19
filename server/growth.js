@@ -3,6 +3,8 @@
  * month), for Admin → Growth and the goal strip on Home.
  *
  *   GET  /api/admin/growth?days=30   admin
+ *   GET  /api/admin/growth/cleanup   admin; who a never-opens rule would
+ *                                    catch (a dry run, counts only)
  *   POST /api/ads/spend              X-Cron-Secret; scripts/meta_ads.py posts
  *                                    Meta's daily results with its daily report
  *
@@ -203,6 +205,68 @@ export function monthRevenue(orders, today) {
   return { month, cents: cents + recurring, orders: count, recurring_cents: recurring };
 }
 
+// List cleanup, dry run only: who a "stop mailing readers who never open"
+// rule would catch, counted and never acted on, so the owner can pick the
+// cutoffs from real numbers before anything is removed.
+//   - new: joined inside the window, sent at least `firstIssues` issues
+//     (3 weeks at two a week) and opened none. `strictFirstIssues` (2 weeks)
+//     is the tighter version for heavy ad spend, counted alongside.
+//   - quiet: joined before the window, sent at least `quietMinIssues` of the
+//     window's issues and opened none of them.
+// Opens are all we have per reader: site visits from the email carry no
+// subscriber id, so a reader whose mail app blocks images looks quiet.
+// Apple Mail's automatic opens push the other way, so the counts lean low.
+export const CLEANUP_RULES = Object.freeze({ firstIssues: 6, strictFirstIssues: 4, quietDays: 90, quietMinIssues: 6 });
+const CLEANUP_SENDS = 60; // about 30 weeks at two a week, more than the window
+
+export function cleanupDryRun(subs, sends, openRows, { now, rules = CLEANUP_RULES }) {
+  const from = new Date(now.getTime() - rules.quietDays * 86400000).toISOString();
+  const opened = new Set((openRows || []).map(r => `${r.week_key}|${r.subscriber_id}`));
+  const tracked = new Set((openRows || []).map(r => r.week_key));
+  // An issue nobody opened was sent before open counting worked (or the
+  // pixel broke): counting it would make everyone look quiet.
+  const issues = (sends || [])
+    .filter(s => s && s.sent_at && tracked.has(s.week_key))
+    .map(s => ({ key: s.week_key, at: new Date(s.sent_at).toISOString(), weekend: editionOf(s.week_key) === 'weekend' }))
+    .filter(s => s.at >= from)
+    .sort((a, b) => (a.at < b.at ? -1 : 1));
+  // The window starts at the oldest issue we can read, which is later than
+  // quietDays ago while open counting is newer than that.
+  const start = issues.length ? issues[0].at : null;
+  const days = start ? Math.max(1, Math.round((now.getTime() - new Date(start).getTime()) / 86400000)) : 0;
+  const blank = () => ({ active: 0, too_new: 0, new_never_opened: 0, new_never_opened_strict: 0, quiet: 0 });
+  const total = blank();
+  const bySource = new Map();
+  for (const s of subs || []) {
+    const joinedAt = s.confirmed_at ? new Date(s.confirmed_at) : null;
+    // A bad timestamp leaves the reader out rather than breaking the report.
+    if (s.status !== 'active' || !joinedAt || Number.isNaN(joinedAt.getTime())) continue;
+    const joined = joinedAt.toISOString();
+    const src = sourceOf(s);
+    if (!bySource.has(src)) bySource.set(src, blank());
+    const rows = [total, bySource.get(src)];
+    const add = k => rows.forEach(r => r[k]++);
+    add('active');
+    const got = issues.filter(i => i.at > joined && !(i.weekend && s.weekend_optout));
+    const none = !got.some(i => opened.has(`${i.key}|${s.id}`));
+    if (start && joined >= start) {
+      if (got.length < rules.strictFirstIssues) { add('too_new'); continue; }
+      if (none) add('new_never_opened_strict');
+      if (got.length < rules.firstIssues) { add('too_new'); continue; }
+      if (none) add('new_never_opened');
+    } else if (got.length >= rules.quietMinIssues && none) add('quiet');
+  }
+  const pct = (n, of) => (of ? Math.round(n / of * 1000) / 10 : null);
+  const finish = r => ({ ...r, flagged: r.new_never_opened + r.quiet, flagged_pct: pct(r.new_never_opened + r.quiet, r.active),
+    flagged_strict: r.new_never_opened_strict + r.quiet, flagged_strict_pct: pct(r.new_never_opened_strict + r.quiet, r.active) });
+  return {
+    rules: { ...rules },
+    window: { from: start, days, issues: issues.length, full: days >= rules.quietDays - 7 },
+    totals: finish(total),
+    by_source: [...bySource.entries()].map(([source, r]) => ({ source, ...finish(r) })).sort((a, b) => b.active - a.active)
+  };
+}
+
 export function goals(subs, daily, revenue, today) {
   const active = subs.filter(s => s.status === 'active').length;
   // The last 14 whole days (today is still going), imports left out.
@@ -249,6 +313,22 @@ export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, now
     } catch (err) {
       console.error('[growth] saving ad spend failed:', err.message);
       res.status(503).json({ ok: false, error: 'store-failed', message: err.message });
+    }
+  });
+
+  // The list cleanup dry run (cleanupDryRun): counts only, no addresses, and
+  // nothing is changed. Also under /api/hq/admin/ so HQ can compare towns.
+  app.get(adminOrHq ? hqPaths('/api/admin/growth/cleanup') : '/api/admin/growth/cleanup', adminOrHq || requireAdmin, async (req, res) => {
+    if (typeof store.listSubscriberStats !== 'function' || typeof store.listEmailOpens !== 'function') return res.json({ ok: false, error: 'not-supported' });
+    try {
+      const sends = typeof store.listNewsletterSends === 'function' ? await store.listNewsletterSends(CLEANUP_SENDS) : [];
+      const keys = sends.map(s => s.week_key);
+      const [subs, openRows] = await Promise.all([store.listSubscriberStats(), keys.length ? store.listEmailOpens(keys) : []]);
+      res.set('Cache-Control', 'no-store');
+      res.json({ ok: true, dry_run: true, ...cleanupDryRun(subs, sends, openRows, { now: nowFn() }) });
+    } catch (err) {
+      console.error('[growth] cleanup dry run failed:', err.message);
+      res.status(500).json({ ok: false, error: 'cleanup-failed', message: err.message });
     }
   });
 
