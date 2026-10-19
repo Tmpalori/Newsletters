@@ -52,6 +52,40 @@ describe('repeats', () => {
     expect(names(issueDays(evs, WEEKEND)[0])).toEqual(['Sunday Jazz Brunch', 'Art Walk']);
   });
 
+  it('two names for one event at one address show once, the hand-entered one, in "Don’t miss" too', () => {
+    // Shoals, 2026-10-19 issue: "Don't miss" #2 and #3 were this pair.
+    const evs = [
+      { date: '2026-10-10', name: 'Alabama Renaissance Faire (Florence, AL) Free Admission & Parking and Family-Friendly for 40 Faires!',
+        venue: '', address: '217 E Tuscaloosa St', time: '10:00 AM', appeal: 5, editor_pick: true },
+      { date: '2026-10-10', name: '40th Alabama Renaissance Faire', venue: 'Wilson Park', address: '217 E Tuscaloosa St, Florence',
+        time: 'All day', appeal: 5, editor_pick: true, curated: true },
+      { date: '2026-10-11', name: '40th Alabama Renaissance Faire', venue: 'Wilson Park', address: '217 E Tuscaloosa St, Florence',
+        time: 'All day', appeal: 4, curated: true },
+      { date: '2026-10-10', name: 'Renaissance Painting Class', venue: 'Art Barn', address: '217 E Tuscaloosa St', time: '2 PM', appeal: 4 }
+    ];
+    const days = issueDays(evs, WEEKEND);
+    expect(names(days[0])).toEqual(['40th Alabama Renaissance Faire', 'Renaissance Painting Class']);
+    expect(days[0].list[0].also).toBe('Sun');
+    expect(dontMiss(days).map(e => e.name)).toEqual(['40th Alabama Renaissance Faire', 'Renaissance Painting Class']);
+  });
+
+  it('a bar’s “Live Music at …” drops out when that night’s act there is listed', () => {
+    const evs = [
+      { date: '2026-10-09', name: 'Live Music at Swampers', venue: 'Swampers Bar & Grille', time: '7:30 PM – 10:00 PM' },
+      { date: '2026-10-09', name: 'Preston Watts', venue: 'Swampers Bar & Grille', time: '8:00 PM', icons: ['music'] },
+      { date: '2026-10-09', name: 'Karaoke at Rattlesnake Saloon', venue: 'Rattlesnake Saloon', time: '6:00 PM' },
+      { date: '2026-10-09', name: 'Karaoke w/ Cole', venue: 'Rattlesnake Saloon', time: '6:00 PM', icons: ['music'] },
+      // Hours apart: an early act and a late set are two things.
+      { date: '2026-10-09', name: 'Live Music at Champy’s', venue: 'Champy’s', time: '9:00 PM' },
+      { date: '2026-10-09', name: 'Happy Hour Duo', venue: 'Champy’s', time: '4:00 PM', icons: ['music'] },
+      // Karaoke isn't the band.
+      { date: '2026-10-09', name: 'Live Music at FloBama', venue: 'FloBama Music Hall', time: '8:00 PM' },
+      { date: '2026-10-09', name: 'Late-Night Karaoke', venue: 'FloBama Music Hall', time: '8:00 PM', icons: ['music'] }
+    ];
+    expect(names(issueDays(evs, WEEKEND)[0]).sort()).toEqual(['Happy Hour Duo', 'Karaoke w/ Cole', 'Late-Night Karaoke',
+      'Live Music at Champy’s', 'Live Music at FloBama', 'Preston Watts']);
+  });
+
   it('a paid Vic’s Pick keeps its own day (it was sold for that day)', () => {
     const evs = [
       { date: '2026-10-09', name: 'Haunted House', venue: 'Barn', time: '7 PM' },

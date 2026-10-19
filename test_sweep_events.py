@@ -296,9 +296,13 @@ def test_hide_batch_stays_under_the_server_limit_and_day_lists_go_first():
     events = []
     names = ["Pumpkin Patch", "Quilt Show", "Car Rally", "Book Swap", "Jazz Brunch", "Rodeo Night", "Taco Crawl",
              "Kite Day", "Chili Cookoff", "Art Walk", "Salsa Social", "Bike Parade", "Yoga Picnic", "Pottery Sale"]
-    for i, name in enumerate(names):
-        twin = {"date": "2026-10-10", "name": name, "venue": f"{name} Grounds", "time": f"{i % 9 + 1}:00 PM", "page": f"/events/{i}"}
-        events += [dict(twin, url="https://x", overflow=i < 7), dict(twin, overflow=i < 7)]
+    # Twins of each on three days: more than the cap, 7 on the day lists.
+    for d, day in enumerate(["2026-10-10", "2026-10-11", "2026-10-12"]):
+        for i, name in enumerate(names):
+            over = not (d == 0 and i < 7)
+            twin = {"date": day, "name": name, "venue": f"{name} Grounds", "time": f"{i % 9 + 1}:00 PM",
+                    "page": f"/events/{d}-{i}"}
+            events += [dict(twin, url="https://x", overflow=over), dict(twin, overflow=over)]
     picks, _ = sw.to_hide(events, sw.rule_findings(events))
     assert len(picks) > sw.MAX_PER_RUN
     capped = sw.cap_picks(events, picks)
@@ -474,3 +478,100 @@ def test_report_goes_to_the_activity_channel_not_the_default(monkeypatch):
     posted.clear(), sent.clear()
     sw.post_report("🔎 Event check: nothing looks off.", [], [])
     assert posted == [("https://hooks.slack.com/sales", "🔎 Event check: nothing looks off.")] and sent == []
+
+
+# ─── Before the send ──────────────────────────────────────────────────
+
+TODAY = __import__("datetime").date(2026, 10, 19)
+
+
+def test_placeholder_listing_is_flagged_when_the_act_is_there():
+    events = [
+        ev("Live Music at Swampers", date="2026-10-22", time="7:30 PM – 10:00 PM", venue="Swampers Bar & Grille",
+           curated=True, page="/events/a"),
+        ev("Preston Watts", date="2026-10-22", time="8:00 PM", venue="Swampers Bar & Grille", icons=["music"],
+           page="/events/b"),
+        ev("Karaoke at Rattlesnake Saloon", date="2026-10-22", time="6:00 PM", venue="Rattlesnake Saloon", page="/events/c"),
+        ev("Karaoke w/ Cole", date="2026-10-22", time="6:00 PM", venue="Rattlesnake Saloon", icons=["music"], page="/events/d"),
+        # A late set the act doesn't cover: two things that night.
+        ev("Live Music at Champy's", date="2026-10-22", time="9:00 PM – 11:00 PM", venue="Champy's", page="/events/e"),
+        ev("Happy Hour Duo", date="2026-10-22", time="4:00 PM – 6:00 PM", venue="Champy's", icons=["music"], page="/events/f"),
+        # Karaoke isn't a band's set.
+        ev("Live Music at FloBama", date="2026-10-22", time="8:00 PM", venue="FloBama Music Hall", page="/events/g"),
+        ev("Late-Night Karaoke", date="2026-10-22", time="8:00 PM", venue="FloBama Music Hall", icons=["music"], page="/events/h"),
+    ]
+    assert sw._placeholder_for(events, 0) == 1
+    assert sw._placeholder_for(events, 2) == 3
+    assert sw._placeholder_for(events, 1) is None
+    assert sw._placeholder_for(events, 4) is None
+    assert sw._placeholder_for(events, 6) is None
+    # Flagged on any run, but only hidden before the send (not exact twins).
+    rules = sw.rule_findings(events)
+    assert (0, "duplicate") in kinds(rules) and (2, "duplicate") in kinds(rules)
+    assert sw.to_hide(events, rules)[0] == []
+    picks, _ = sw.before_send_picks(events, rules, None, {}, TODAY)
+    assert sorted(i for i, _, _ in picks) == [0, 2]
+
+
+def test_before_send_hides_the_scraped_copy_of_a_hand_entered_event():
+    # Shoals, 2026-10-19 issue: both were in "Don't miss".
+    events = [
+        ev("Alabama Renaissance Faire (Florence, AL) Free Admission & Parking and Family-Friendly for 40 Faires!",
+           date="2026-10-24", time="10:00 AM", address="217 E Tuscaloosa St", sources=2, page="/events/fb"),
+        ev("40th Alabama Renaissance Faire", date="2026-10-24", time="All day", venue="Wilson Park",
+           address="217 E Tuscaloosa St, Florence", curated=True, sources=4, page="/events/ours"),
+    ]
+    rules = sw.rule_findings(events)
+    picks, resolved = sw.before_send_picks(events, rules, None, {}, TODAY)
+    assert [i for i, _, _ in picks] == [0]
+    assert "40th Alabama Renaissance Faire" in picks[0][2]
+
+
+def test_before_send_keeps_the_copy_more_sources_agree_on():
+    events = [
+        ev("Jack Karnes Memorial Golf Tournament", date="2026-10-23", venue="North Alabama Athletics (UNA Lions)",
+           sources=1, page="/events/ig"),
+        ev("Jack Karnes Memorial Golf Tournament", date="2026-10-23", time="9:00 AM",
+           venue="Cypress Lakes Golf & Tennis Club", sources=2, page="/events/fb"),
+    ]
+    ai = [(0, "duplicate", "same tournament")]
+    picks, _ = sw.before_send_picks(events, [], ai, {0: 1}, TODAY)
+    assert [i for i, _, _ in picks] == [0]
+
+
+def test_before_send_is_cautious():
+    events = [
+        # Paid and approved submissions: never.
+        ev("Haunted Trail", date="2026-10-22", time="7:00 PM", venue="Barn", featured=True, page="/events/a"),
+        ev("Haunted Trail!", date="2026-10-22", time="7:00 PM", venue="Barn", submitted=True, page="/events/b"),
+        # Past the coming week: left for the next issue's check.
+        ev("Monday Bingo", date="2026-10-27", time="6:00 PM", page="/events/c"),        # a Tuesday
+        # A rule's wrong day this week: hidden.
+        ev("Monday Bingo", date="2026-10-20", time="6:00 PM", page="/events/d"),        # a Tuesday
+        # "Early for this kind of event" is a guess; 3 AM isn't.
+        ev("APT Fieldwork Day", date="2026-10-25", time="10:00 AM", venue="Pope's Tavern Museum", page="/events/e"),
+        ev("Late Show", date="2026-10-21", time="3:00 AM", page="/events/f"),
+        # The AI's duplicate across town with nothing in common: not acted on.
+        ev("Fall Fest", date="2026-10-22", venue="Park", page="/events/g"),
+        ev("Pumpkin Patch", date="2026-10-22", venue="Farm", page="/events/h"),
+    ]
+    rules = sw.rule_findings(events) + [(4, "odd_time", "early for this kind of event")]
+    ai = [(6, "duplicate", "same"), (7, "odd_time", "too early"), (7, "other", "garbled")]
+    picks, _ = sw.before_send_picks(events, rules, ai, {6: 7}, TODAY)
+    assert sorted(i for i, _, _ in picks) == [3, 5]
+
+
+def test_between_issues_flags_say_what_comes_down(monkeypatch, capsys):
+    events = [
+        ev("Live Music at Swampers", date="2026-10-22", time="8:00 PM", venue="Swampers Bar & Grille", page="/events/a"),
+        ev("Preston Watts", date="2026-10-22", time="8:00 PM", venue="Swampers Bar & Grille", icons=["music"],
+           page="/events/b"),
+    ]
+    monkeypatch.setattr(sw, "fetch_live", lambda: {"events": events})
+    monkeypatch.setattr(sw.ce, "now_central", lambda: __import__("datetime").datetime(2026, 10, 19, 6, 43))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    sw.main(["--dry-run"])
+    out = capsys.readouterr().out
+    assert "hidden before the next issue unless fixed" in out
+    sw.main(["--dry-run", "--before-send"])
+    assert "hidden before the next issue unless fixed" not in capsys.readouterr().out

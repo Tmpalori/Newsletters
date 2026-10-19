@@ -243,8 +243,12 @@ def job_collect(site, run=run_script, env=None):
     }
 
 
-def job_event_check(site, run=run_script, env=None):
-    code, tail = run([sys.executable, "scripts/sweep_events.py"], TIMEOUTS["event-check"], env)
+def job_event_check(site, run=run_script, env=None, slot=""):
+    # The scheduled Monday and Thursday runs (slot: the date) come right
+    # before an issue; the one after a collect only flags.
+    before_send = bool(slot) and not str(slot).startswith("after-collect")
+    cmd = [sys.executable, "scripts/sweep_events.py"] + (["--before-send"] if before_send else [])
+    code, tail = run(cmd, TIMEOUTS["event-check"], env)
     return ("done" if code == 0 else "failed"), ({"log_tail": tail[-15:]} if code == 0 else
                                                  {"error": f"The event check exited with code {code}.", "log_tail": tail})
 
@@ -499,7 +503,8 @@ def run_one(site, job, run=run_script, clock=time.monotonic):
         status, result = "failed", {"error": f"This worker doesn't run {job.get('kind')!r} jobs."}
     else:
         try:
-            status, result = fn(site, run=run)
+            extra = {"slot": job.get("slot") or ""} if fn is job_event_check else {}
+            status, result = fn(site, run=run, **extra)
         except Exception as e:      # noqa: BLE001 - any failure is reported, never lost
             status, result = "failed", {"error": f"{type(e).__name__}: {e}"}
     result["seconds"] = round(clock() - started)

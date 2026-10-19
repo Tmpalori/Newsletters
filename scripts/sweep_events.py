@@ -10,7 +10,9 @@ the full list goes to the owner inbox (HQ) as an fyi item. What a rule is
 sure about (church events, non-events, exact duplicates, a cut-off name with
 the whole listing at the same place that day) it hides on its own through the site's
 /api/event-check/hide (server/eventcheck.js; never deletes, restore on admin
-Home); judgment calls, and everything the AI finds, only get reported.
+Home); judgment calls are flagged. The run right before an issue
+(--before-send) also hides what's still likely wrong in the coming week,
+the AI's findings included (before_send_picks).
 
 Two passes:
   - Rules (free): the collector's own duplicate, out-of-area and non-event
@@ -51,11 +53,26 @@ AI_KINDS = {"duplicate", "wrong_date", "not_an_event", "out_of_area", "religious
 # The inbox keeps 4,000 characters of an item's text (server/inbox.js).
 MAX_HQ_TEXT = 3800
 RELIGIOUS_REASONS = {"religious event", "church event", "worship service"}  # collect_events.non_event_reason
-# Rule findings certain enough to hide without asking. Wrong days and odd
-# times stay flags: the fix is an edit, not a removal. AI findings are never
-# acted on.
+# Rule findings certain enough to hide without asking, on any run. Wrong
+# days and odd times stay flags until the before-send check (below).
 AUTO_HIDE = {"religious", "not_an_event", "duplicate", "cut_off"}
-MAX_PER_RUN = 10  # server/eventcheck.js refuses a larger batch
+MAX_PER_RUN = 25  # server/eventcheck.js refuses a larger batch
+# The before-send check (the Monday and Thursday morning runs, an hour
+# before the issue): nobody may have read the flags, so what is still
+# likely wrong in the coming week comes down rather than go out to every
+# subscriber. Hiding never deletes; Restore on the admin Home tab undoes it
+# and a restored event is never hidden again. Paid picks and approved
+# submissions are never touched. Odd times from the AI and "other" stay
+# flags: the AI is too often wrong about those, and the fix is an edit.
+BEFORE_SEND_DAYS = 7
+BEFORE_SEND_RULE_KINDS = {"duplicate", "wrong_date", "not_an_event", "religious", "out_of_area", "odd_time"}
+BEFORE_SEND_AI_KINDS = {"duplicate", "wrong_date", "not_an_event", "religious", "out_of_area"}
+# A bar's standing "Live Music at Swampers" says nothing once the night's
+# act is listed there too (Shoals, Oct 2026: a dozen of these a week).
+_PLACEHOLDER_WORDS = {"live", "music", "band", "bands", "performance", "performances", "performer", "performers",
+                      "local", "artist", "artists", "musician", "musicians", "night", "nightly", "tonight", "show",
+                      "shows", "entertainment", "acoustic", "set", "sets", "by", "karaoke", "trivia", "bingo"}
+_ACTIVITY_WORDS = {"karaoke", "trivia", "bingo"}
 # Hand-written events (curated: true, from local_events.yaml) were checked
 # by a person: church trunk-or-treats and nearby-town festivals are on the
 # list on purpose, and a name like "Movie Night: Friday the 13th" on a
@@ -115,7 +132,47 @@ def rule_findings(events):
         j = _dup_of(events, i)
         if j is not None:
             found.append((i, "duplicate", f"same as “{events[j]['name']}” at {events[j].get('venue') or 'no venue'}"))
+        else:
+            j = _placeholder_for(events, i)
+            if j is not None:
+                found.append((i, "duplicate", f"a general listing; “{events[j]['name']}” is listed there then"))
     return found
+
+
+def _generic_name(e):
+    """Only the venue and words like "Live Music" in the name."""
+    words = ce._name_tokens(e.get("name"))
+    drop = set(ce._name_tokens(e.get("venue"))) | ce._CITY_TOKENS | ce._WEEKDAY_TOKENS
+    return bool(words) and all(w in _PLACEHOLDER_WORDS or w in drop for w in words)
+
+
+def _overlap(a, b):
+    """Times that overlap, or one isn't known. A set without an end runs two hours."""
+    (sa, ea), (sb, eb) = ce._time_range(a.get("time")), ce._time_range(b.get("time"))
+    if sa is None or sb is None:
+        return True
+    ea = ea if ea is not None and ea > sa else sa + 120
+    eb = eb if eb is not None and eb > sb else sb + 120
+    return sa < eb and sb < ea
+
+
+def _placeholder_for(events, i):
+    """The specific listing that makes events[i] a placeholder, or None:
+    same day, same named place, overlapping times, the same kind of thing
+    (karaoke for "Karaoke at ...", a music listing for "Live Music at ...")."""
+    e = events[i]
+    if not (e.get("venue") or "").strip() or not _generic_name(e):
+        return None
+    activity = _ACTIVITY_WORDS & set(ce._name_tokens(e.get("name")))
+    for j, o in enumerate(events):
+        if j == i or o.get("date") != e.get("date") or not (o.get("venue") or "").strip() or _generic_name(o):
+            continue
+        if not ce._same_place(e, o) or not _overlap(e, o):
+            continue
+        words = set(ce._name_tokens(o.get("name")))
+        if activity & words if activity else ("music" in (o.get("icons") or []) and not _ACTIVITY_WORDS & words):
+            return j
+    return None
 
 
 def _dup_of(events, i):
@@ -179,8 +236,9 @@ def _named(why, events):
                   name, why)
 
 
-def ai_findings(events, api_key):
-    """[(index, kind, why)] from one model pass, or None if it failed."""
+def ai_findings(events, api_key, dups=None):
+    """[(index, kind, why)] from one model pass, or None if it failed.
+    dups, when given, gets {index: the index it duplicates}."""
     lines = "\n".join(_line(i, e) for i, e in enumerate(events))
     try:
         content = ce._openai_chat(api_key, [
@@ -208,6 +266,8 @@ def ai_findings(events, api_key):
         if kind == "duplicate" and isinstance(dup, int) and 0 <= dup < len(events) and dup != i:
             other = events[dup]
             why = f"same as “{other['name']}” at {other.get('venue') or 'no venue'}" + (f" ({why})" if why else "")
+            if dups is not None:
+                dups[i] = dup
         out.append((i, kind, why))
     return out
 
@@ -328,6 +388,82 @@ def to_hide(events, rules):
         if i not in seen and events[i].get("page"):
             seen.add(i)
             out.append((i, kind, why))
+    return out, resolved
+
+
+def _protected(e):
+    """Never hidden by the before-send check: sold, or let through by a person."""
+    return _paid(e) or e.get("submitted") is True
+
+
+def _shares_word(a, b):
+    """The names share a distinctive word once the venues and town are out."""
+    drop = set(ce._name_tokens(a.get("venue"))) | set(ce._name_tokens(b.get("venue"))) | ce._CITY_TOKENS
+    wa = {w for w in ce._name_tokens(a.get("name")) if w not in drop and _distinctive(w)}
+    return bool(wa & set(ce._name_tokens(b.get("name"))))
+
+
+def _loser(events, i, j):
+    """Which of a duplicate pair to hide: never a protected copy, then the
+    placeholder, then not the owner's hand-entered copy, then the one fewer
+    sources listed (the organizer's post names itself as the venue; the
+    copies that agree name the arena), without a time, with the shorter name
+    (the full lineup beats "ft. Lightwatch"), with less detail. None when
+    both are protected."""
+    a, b = events[i], events[j]
+    if _protected(a) or _protected(b):
+        return None if _protected(a) and _protected(b) else (j if _protected(a) else i)
+
+    def rank(k):
+        e = events[k]
+        return (not _generic_name(e), e.get("curated") is True, int(e.get("sources") or 1),
+                ce._start_minutes(e.get("time")) is not None, len(ce._name_tokens(e.get("name"))), _detail(e))
+    return i if rank(i) <= rank(j) else j
+
+
+def before_send_picks(events, rules, ai, ai_dups, today):
+    """What the before-send check hides: (index, kind, why), at most one per
+    event, coming week only. Duplicates need a partner the rules found, or
+    the AI's on the same day at the same place or sharing a distinctive
+    name word. Returns (picks, resolved) like to_hide."""
+    end = (today + timedelta(days=BEFORE_SEND_DAYS - 1)).isoformat()
+    ai = ai or []
+    ai_set = {(i, k) for i, k, _ in ai}
+    out, seen, resolved = [], set(), {}
+    for i, kind, why in combine(rules, ai):
+        from_ai = (i, kind) in ai_set and (i, kind) not in {(r[0], r[1]) for r in rules}
+        if kind not in (BEFORE_SEND_AI_KINDS if from_ai else BEFORE_SEND_RULE_KINDS):
+            continue
+        # Only a start in the middle of the night is surely wrong; "early
+        # for this kind of event" is a guess (a 10 AM dig, Oct 2026).
+        start = ce._start_minutes(events[i].get("time"))
+        if kind == "odd_time" and (start is None or start >= 6 * 60):
+            continue
+        if kind == "duplicate":
+            if from_ai:
+                j = ai_dups.get(i)
+                if j is None or events[j].get("date") != events[i].get("date") \
+                        or not (ce._same_place(events[i], events[j]) or _shares_word(events[i], events[j])
+                                or _shares_word(events[j], events[i])):
+                    continue
+            else:
+                j = _dup_of(events, i)
+                j = _placeholder_for(events, i) if j is None else j
+                if j is None:
+                    continue
+            loser = _loser(events, i, j)
+            if loser is None:
+                continue
+            if loser != i:
+                keeper = events[i]
+                why = f"same as “{keeper['name']}” at {keeper.get('venue') or 'no venue'}"
+            resolved[i] = loser
+            i = loser
+        e = events[i]
+        if i in seen or not e.get("page") or str(e.get("date") or "") > end or _protected(e):
+            continue
+        seen.add(i)
+        out.append((i, kind, why))
     return out, resolved
 
 
@@ -551,6 +687,8 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true", help="print instead of posting to Slack")
     ap.add_argument("--wait-for", metavar="CANDIDATES_JSON",
                     help="only wait (up to 15 min) for these candidates to go live, then exit")
+    ap.add_argument("--before-send", action="store_true",
+                    help="the run before an issue: also hide what's still likely wrong this coming week")
     args = ap.parse_args(argv)
     if args.wait_for:
         if not wait_for_publish(args.wait_for):
@@ -573,10 +711,18 @@ def main(argv=None):
 
     rules = trusted(events, rule_findings(events))
     key = os.environ.get("OPENAI_API_KEY", "").strip()
-    ai = ai_findings(events, key) if key and events else None
+    ai_dups = {}
+    ai = ai_findings(events, key, ai_dups) if key and events else None
     ai = trusted(events, ai) if ai is not None else None
     secret = "" if args.dry_run else os.environ.get("EVENT_CHECK_SECRET", "").strip()
     picks, resolved = to_hide(events, rules)
+    later, later_resolved = before_send_picks(events, rules, ai, ai_dups, ce.now_central().date())
+    taken = {p[0] for p in picks}
+    later = [p for p in later if p[0] not in taken and p[0] not in resolved.values()]
+    if args.before_send:
+        picks += later
+        resolved = {**later_resolved, **resolved}
+        later = []
     picks = cap_picks(events, picks)
     hidden, restored, problem = hide(events, picks, secret)
     findings = combine(rules, ai)
@@ -587,6 +733,12 @@ def main(argv=None):
     # What the admin restored isn't hidden or flagged again for the same
     # reason; anything else about it (wrong day, odd time, AI) still shows.
     findings = sorted(f for f in findings if not (f[0] in restored and f[1] in AUTO_HIDE))
+    # Between issues, say what the before-send check will take down unless
+    # someone fixes it first.
+    due = {i for i, _, _ in later}
+    findings = [(i, k, f"{why}; hidden before the next issue unless fixed" if i in due and k in BEFORE_SEND_RULE_KINDS
+                 else why) for i, k, why in findings]
+    findings += [p for p in later if p[0] not in {f[0] for f in findings}]
     head, lines = report(events, findings, ai is not None, args.days, hidden, problem)
 
     # Every finding in the log (the worker's Railway log keeps all of it).

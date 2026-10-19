@@ -509,10 +509,46 @@ const appealOf = e => (Number.isFinite(Number(e.appeal)) && e.appeal != null ? N
 const byBest = (a, b) => pickRank(a) - pickRank(b) || appealOf(b) - appealOf(a) || startMin(a) - startMin(b);
 const normName = v => String(v || '').toLowerCase().replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ')
   .replace(/\b(the|disneys)\b/g, ' ').replace(/\s+/g, ' ').trim();
-// The same event listed twice (two sources): one name inside the other.
+const streetOf = e => normName(String(e.address || '').split(',')[0]);
+const nameWords = e => new Set(normName(e.name).replace(/\b(\d+)(?:st|nd|rd|th)\b/g, '$1').split(' ').filter(Boolean));
+// The same event listed twice (two sources): one name inside the other, or
+// at one street address with every word of the shorter name in the longer
+// ("40th Alabama Renaissance Faire" and "Alabama Renaissance Faire
+// (Florence, AL) Free Admission ... for 40 Faires!", 2026-10-19 issue).
 const sameEvent = (a, b) => {
   const x = normName(a.name), y = normName(b.name);
-  return x.length >= 8 && y.length >= 8 && (x === y || x.includes(y) || y.includes(x));
+  if (x.length >= 8 && y.length >= 8 && (x === y || x.includes(y) || y.includes(x))) return true;
+  if (!streetOf(a) || streetOf(a) !== streetOf(b)) return false;
+  const [small, big] = [nameWords(a), nameWords(b)].sort((p, q) => p.size - q.size);
+  return small.size >= 3 && [...small].every(w => big.has(w));
+};
+// A bar's standing "Live Music at Swampers" once that night's act there is
+// listed too: same day, same place, starts within three hours, same kind
+// of thing (scripts/sweep_events.py _placeholder_for; this catches it when
+// the event check didn't run).
+const PLACEHOLDER = new Set(['live', 'music', 'band', 'bands', 'performance', 'performances', 'performer', 'performers',
+  'local', 'artist', 'artists', 'musician', 'musicians', 'night', 'nightly', 'tonight', 'show', 'shows',
+  'entertainment', 'acoustic', 'set', 'sets', 'by', 'at', 'and', 'with', 'karaoke', 'trivia', 'bingo',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
+const ACTIVITY = ['karaoke', 'trivia', 'bingo'];
+const wordsOf = v => normName(v).split(' ').filter(Boolean);
+const genericName = e => {
+  const drop = new Set([...wordsOf(e.venue), ...wordsOf(town.city)]);
+  const w = wordsOf(e.name);
+  return w.length > 0 && w.every(x => PLACEHOLDER.has(x) || drop.has(x));
+};
+const isPlaceholder = (e, list) => {
+  const v = normName(e.venue);
+  if (!v || paidPick(e) || !genericName(e)) return false;
+  const act = ACTIVITY.filter(a => wordsOf(e.name).includes(a));
+  return list.some(o => {
+    const ov = normName(o.venue);
+    if (o === e || !ov || !(ov === v || ov.includes(v) || v.includes(ov)) || genericName(o)) return false;
+    const a = startMin(e), b = startMin(o);
+    if (a !== 9999 && b !== 9999 && Math.abs(a - b) >= 180) return false;
+    const w = wordsOf(o.name);
+    return act.length ? act.some(x => w.includes(x)) : (o.icons || []).includes('music') && !ACTIVITY.some(x => w.includes(x));
+  });
 };
 const dayShort = d => formatDay(d, { weekday: 'short' });
 
@@ -525,10 +561,14 @@ export function issueDays(events, days, { weekend = false } = {}) {
     for (const e of sortEvents(events.filter(x => x.date === d)).sort(byBest)) {
       if (weekend && isFiller(e)) continue;
       const twin = list.find(x => sameEvent(x, e) && (!x.venue || !e.venue || normName(x.venue) === normName(e.venue)));
-      if (twin && !paidPick(e)) continue;
+      if (twin && !paidPick(e)) {
+        // The owner's hand-entered listing reads better than a scraped one.
+        if (e.curated && !twin.curated && !paidPick(twin)) list[list.indexOf(twin)] = { ...e };
+        continue;
+      }
       list.push({ ...e });
     }
-    return { d, list };
+    return { d, list: list.filter(e => !isPlaceholder(e, list)) };
   });
   const seen = new Map();
   for (const day of out) {

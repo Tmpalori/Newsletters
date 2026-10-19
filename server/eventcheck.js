@@ -35,7 +35,7 @@ import { hqPaths } from './hqAdmin.js';
 import { localDateStr, withPages, addDays } from './seo.js';
 import { eventKeyOf, applyEventEdits, withPublishedLock } from './db.js';
 
-export const MAX_PER_RUN = 10;
+export const MAX_PER_RUN = 25;
 const ARCHIVE_DAYS = 400;
 const PAGE_RE = /^\/events\/[a-z0-9-]{3,200}$/;
 const OKEY = '_okey';
