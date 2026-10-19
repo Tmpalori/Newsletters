@@ -886,7 +886,8 @@ class FileStore {
   async listSubscriberStats() {
     const data = await this._read();
     return data.subscribers.map(x => ({ id: x.id, status: x.status, source: x.source || null, referred_by: x.referred_by || null,
-      created_at: x.created_at || null, confirmed_at: x.confirmed_at || null, unsubscribed_at: x.unsubscribed_at || null }));
+      created_at: x.created_at || null, confirmed_at: x.confirmed_at || null, unsubscribed_at: x.unsubscribed_at || null,
+      weekend_optout: Boolean(x.weekend_optout) }));
   }
 
   // Who opened the given issues: [{ week_key, subscriber_id }].
@@ -2245,10 +2246,11 @@ class PgStore {
   async listSubscriberStats() {
     await this.ready();
     const r = await this.pool.query(
-      'SELECT id, status, source, referred_by, created_at, confirmed_at, unsubscribed_at FROM subscribers ORDER BY created_at');
+      'SELECT id, status, source, referred_by, created_at, confirmed_at, unsubscribed_at, weekend_optout FROM subscribers ORDER BY created_at');
     const iso = v => (v instanceof Date ? v.toISOString() : v || null);
     return r.rows.map(x => ({ id: x.id, status: x.status, source: x.source || null, referred_by: x.referred_by || null,
-      created_at: iso(x.created_at), confirmed_at: iso(x.confirmed_at), unsubscribed_at: iso(x.unsubscribed_at) }));
+      created_at: iso(x.created_at), confirmed_at: iso(x.confirmed_at), unsubscribed_at: iso(x.unsubscribed_at),
+      weekend_optout: Boolean(x.weekend_optout) }));
   }
 
   async listEmailOpens(weekKeys) {

@@ -10,7 +10,7 @@ import http from 'node:http';
 import { JSDOM } from 'jsdom';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
-import { dailyGrowth, sumDays, issueReport, signupWeeks, categoryStats, monthRevenue, goals, sourceOf } from '../server/growth.js';
+import { dailyGrowth, sumDays, issueReport, signupWeeks, categoryStats, monthRevenue, goals, sourceOf, cleanupDryRun } from '../server/growth.js';
 
 const NOW = new Date('2026-10-14T17:00:00Z'); // Wed Oct 14, Central
 const TODAY = '2026-10-14';
@@ -208,5 +208,84 @@ describe('growth endpoints', () => {
     expect(doc.getElementById('growth-issues-chart').textContent).toContain('No issues sent yet.');
     expect(doc.getElementById('growth-daily').textContent).toContain('Facebook ads 1, Site 1');
     expect(doc.getElementById('growth-issues').textContent).toContain('No issues sent yet.');
+  });
+});
+
+// The list cleanup dry run: Monday and Thursday issues from Aug 31 to Oct 12
+// (13, each opened by someone), plus an older one nobody opened.
+describe('list cleanup dry run', () => {
+  const KEYS = ['2026-08-31', '2026-09-03', '2026-09-07', '2026-09-10', '2026-09-14', '2026-09-17', '2026-09-21', '2026-09-24',
+    '2026-09-28', '2026-10-01', '2026-10-05', '2026-10-08', '2026-10-12'];
+  const SENDS = [...KEYS, '2026-08-27'].map(k => ({ week_key: k, subject: 'Issue', recipients: 9, sent_at: at(k) }));
+  const SUBS = [
+    sub('opener', '2026-06-01'),
+    sub('old_quiet', '2026-06-01'),
+    sub('old_reader', '2026-06-01'),
+    sub('imp', '2026-06-01', { source: 'import' }),
+    sub('new_dead', '2026-09-20', { source: 'subscribe-page:ad' }),
+    sub('new_reader', '2026-09-20', { source: 'subscribe-page:ad' }),
+    // Joined just after Monday Sep 28 went out: 4 issues since.
+    sub('new_4', '2026-09-28', { source: 'subscribe-page:ad', confirmed_at: '2026-09-28T18:00:00.000Z' }),
+    // Weekend issue off: only 3 Mondays since, so too new to judge.
+    sub('weekend_off', '2026-09-27', { weekend_optout: true }),
+    sub('gone', '2026-06-01', { status: 'unsubscribed', unsubscribed_at: at('2026-09-01') })
+  ];
+  const OPENS = [...KEYS.map(k => ({ week_key: k, subscriber_id: 'opener' })),
+    { week_key: '2026-09-03', subscriber_id: 'old_reader' }, { week_key: '2026-10-08', subscriber_id: 'new_reader' }];
+
+  it('counts new readers who never opened, earlier readers gone quiet, and the tighter rule, by source', () => {
+    const out = cleanupDryRun(SUBS, SENDS, OPENS, { now: NOW });
+    // The unopened Aug 27 issue predates open counting: left out, and the
+    // window is the 44 days we can read, not 90.
+    expect(out.window).toEqual({ from: '2026-08-31T17:00:00.000Z', days: 44, issues: 13, full: false });
+    expect(out.totals).toEqual({ active: 8, too_new: 2, new_never_opened: 1, new_never_opened_strict: 2, quiet: 2,
+      flagged: 3, flagged_pct: 37.5, flagged_strict: 4, flagged_strict_pct: 50 });
+    expect(out.by_source.find(s => s.source === 'Facebook ads')).toMatchObject({ active: 3, new_never_opened: 1, new_never_opened_strict: 2, quiet: 0, flagged: 1 });
+    expect(out.by_source.find(s => s.source === 'Imported')).toMatchObject({ active: 1, quiet: 1, flagged: 1, flagged_pct: 100 });
+    expect(out.by_source.find(s => s.source === 'Site')).toMatchObject({ active: 4, too_new: 1, quiet: 1 });
+  });
+
+  it('judges nobody before any issue has open counts', () => {
+    const out = cleanupDryRun(SUBS, SENDS, [], { now: NOW });
+    expect(out.window).toMatchObject({ from: null, issues: 0 });
+    expect(out.totals).toMatchObject({ active: 8, flagged: 0, flagged_strict: 0 });
+  });
+
+  it('the admin endpoint needs a login, changes nothing, and the Growth page draws it', async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-cleanup-'));
+    const eventsFile = path.join(tmpDir, 'events.json');
+    await fs.writeFile(eventsFile, JSON.stringify({ events: [] }));
+    const file = path.join(tmpDir, 's.json');
+    const seeded = { subscribers: SUBS, newsletter_sends: SENDS, email_opens: OPENS.map(o => ({ ...o, opens: 1 })) };
+    await fs.writeFile(file, JSON.stringify(seeded));
+    const store = new FileStore(file);
+    const { app } = await createApp({
+      storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, now: () => NOW,
+      siteUrl: 'https://www.thevic361.com', adminUsername: 'a', adminPassword: 'b', adminSessionSecret: 'c'
+    });
+    server = http.createServer(app);
+    await new Promise(r => server.listen(0, r));
+    baseUrl = `http://127.0.0.1:${server.address().port}`;
+    expect((await fetch(baseUrl + '/api/admin/growth/cleanup')).status).toBe(401);
+    const login = await fetch(baseUrl + '/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'a', password: 'b' }) });
+    const h = { Authorization: `Bearer ${(await login.json()).token}` };
+    const c = await (await fetch(baseUrl + '/api/admin/growth/cleanup', { headers: h })).json();
+    expect(c).toMatchObject({ ok: true, dry_run: true, totals: { active: 8, flagged: 3, flagged_strict: 4 } });
+    // Counts only: no address anywhere in the answer.
+    expect(JSON.stringify(c)).not.toContain('@');
+    // A dry run: every subscriber is as it was.
+    expect((await store.listSubscriberStats()).map(s => s.status)).toEqual(SUBS.map(s => s.status));
+
+    const html = await fs.readFile(path.join(process.cwd(), 'docs/admin.html'), 'utf8');
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://www.thevic361.com/admin.html' });
+    dom.window.eval(await fs.readFile(path.join(process.cwd(), 'docs/admin.js'), 'utf8'));
+    dom.window.__vic361Admin.renderCleanup(c);
+    const text = dom.window.document.getElementById('growth-cleanup').textContent;
+    expect(text).toContain('Would stop mailing3 of 8 (37.5%)');
+    expect(text).toContain('With the tighter 2 weeks rule4 (50%)');
+    expect(text).toContain('Open counts only go back 44 days (13 issues)');
+    expect(text).toContain('Facebook ads');
+    dom.window.__vic361Admin.renderCleanup({ ok: true, window: { issues: 0 }, totals: {}, rules: {} });
+    expect(dom.window.document.getElementById('growth-cleanup').textContent).toContain('No issues with open counts yet');
   });
 });
