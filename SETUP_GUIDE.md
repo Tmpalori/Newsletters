@@ -36,10 +36,12 @@ without them, with fewer sources and no AI cleanup.
 ## 3. The Sunday digest email
 
 The digest of what was collected goes out Sunday at 9 PM town time from the
-town's jobs service, through Gmail SMTP with an
-[App Password](https://myaccount.google.com/apppasswords): set
-`SMTP_EMAIL` and `SMTP_PASSWORD` (the 16-character App Password, no spaces)
-on the jobs service. Without them the digest is skipped.
+town's jobs service. Give the jobs service the town's Resend key as a
+reference, `RESEND_API_KEY=${{<web service>.RESEND_API_KEY}}`, and it sends
+as news@ the town's domain. Gmail SMTP still works instead, with an
+[App Password](https://myaccount.google.com/apppasswords): `SMTP_EMAIL` and
+`SMTP_PASSWORD` (the 16-character App Password, no spaces); it wins when
+both are set. Without either the digest is skipped.
 
 ## 4. Newsletter (Resend)
 

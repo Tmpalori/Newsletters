@@ -515,7 +515,7 @@ On the town's jobs service (`<web>-jobs`), never shared with another town; RAILW
 | `SOCIAL_AUTOPOST` | `1` lets the daily social kit post; otherwise it only builds the kit and puts it on the site |
 | `META_ADS_TOKEN`, `META_AD_ACCOUNT_ID`, `ADS_SPEND_SECRET` | the daily ads report (`scripts/meta_ads.py`) |
 | `GRAPH_API_VERSION` | Meta Graph/Marketing API version for both; default `v23.0`. When Meta retires a version, set this; the alert names the refused version instead of blaming the token |
-| `SMTP_EMAIL`, `SMTP_PASSWORD`, `DIGEST_TO` | the Sunday digest email (`send_digest.py`; Gmail app password); without them the job does nothing |
+| `RESEND_API_KEY` (or `SMTP_EMAIL`, `SMTP_PASSWORD`), `DIGEST_TO` | the Sunday digest email (`send_digest.py`): `RESEND_API_KEY=${{<web service>.RESEND_API_KEY}}` sends as news@ the town's domain; Gmail SMTP (app password) wins when its password is set; without either the job does nothing |
 | `FB_POSTS_ENABLED`, `IG_POSTS_ENABLED`, the collector knobs, `OPENAI_MODEL`, `GEMINI_MODEL` | the collector and the review/check scripts (see the tables above) |
 
 ### GitHub Actions secrets and variables
