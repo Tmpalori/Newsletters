@@ -7,10 +7,10 @@
  * Channels: each message goes to one of three, each with its own webhook.
  * Any channel left unset falls back to SLACK_WEBHOOK_URL.
  *   sales     SLACK_SALES_WEBHOOK_URL     sponsor orders, refunds, disputes
- *   activity  SLACK_ACTIVITY_WEBHOOK_URL  submissions, messages, subscribers, publishing
+ *   activity  SLACK_ACTIVITY_WEBHOOK_URL  submission review, subscribers, publishing
  *   alerts    SLACK_ALERTS_WEBHOOK_URL    anything broken (every alert())
  *   hype      SLACK_HYPE_WEBHOOK_URL      wins only: new sponsors, Vic's Picks, and HQ's ping for every 10 new subscribers across all towns
- *   inbox     SLACK_INBOX_WEBHOOK_URL     people talking to us: email replies, contact form, our replies
+ *   inbox     SLACK_INBOX_WEBHOOK_URL     people talking to us: email replies, contact form, event submissions, our replies
  * hype falls back to sales and inbox to activity (then SLACK_WEBHOOK_URL),
  * so nothing moves until those channels have their own webhook.
  *
