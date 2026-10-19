@@ -150,10 +150,11 @@ issue and tick it off.
 - [ ] UptimeRobot (or similar) on `https://www.<domain>/api/health` and
       `https://hq.tristenpalori.com/health`, alerting Slack and a phone.
 - [ ] Turnstile: add `www.<domain>` to the widget.
-- [ ] Optional: the Sunday night digest email (the jobs worker at 9 PM
-      local mails the owner what's collected) needs `SMTP_EMAIL` and
-      `SMTP_PASSWORD` (a Gmail app password) on the town's jobs service;
-      without them the job does nothing. `DIGEST_TO` changes the recipient.
+- [ ] Agent: the Sunday night digest email (the jobs worker at 9 PM
+      local mails the owner what's collected) needs
+      `RESEND_API_KEY=${{<web service>.RESEND_API_KEY}}` on the town's jobs
+      service (or `SMTP_EMAIL` and `SMTP_PASSWORD`, a Gmail app password);
+      without it the job does nothing. `DIGEST_TO` changes the recipient.
 
 ## 8. Launch checks (Agent)
 

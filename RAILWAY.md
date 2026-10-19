@@ -303,9 +303,12 @@ a commit or a redeploy.
      daily spend goes to Admin → Growth. A town with no ad account pinned,
      or no token, does nothing. The report itself goes to Slack activity
      through the site; a dead token or lost access fails the job and alerts.
-   - The digest (Sunday 9 PM town time, optional): `SMTP_EMAIL`,
-     `SMTP_PASSWORD` (a Gmail app password), optional `DIGEST_TO` (default
-     the owner's Gmail). Without them the job does nothing.
+   - The digest (Sunday 9 PM town time): `RESEND_API_KEY=${{<web
+     service>.RESEND_API_KEY}}`, a reference to the town's own key, so it
+     sends as news@<domain>. Or Gmail instead: `SMTP_EMAIL` and
+     `SMTP_PASSWORD` (a Gmail app password), which win when both are set.
+     Optional `DIGEST_TO` (default the owner's Gmail). Without either the
+     job does nothing and alerts "Weekly digest email not sent".
 4. **Nothing on GitHub:** `"workflows": false` in `towns/<slug>/town.json`
    (the default). With `JOBS_ON_RAILWAY=1` the scheduler never starts a
    GitHub workflow and the site ignores `GITHUB_TOKEN`; remove it.
