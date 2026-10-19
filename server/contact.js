@@ -28,6 +28,21 @@ export const CONTACT_TOPICS = [
 
 const clean = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
+// The pitches the contact forms get from bots slow enough to pass the timing
+// check (Oct 18, Virginia Beach: "Feature thetide757.com in Google's Search
+// Index... Submit thetide757.com today: indexregister.pro"). Only ever
+// applied after the bot check failed, so a real advertiser who passes it is
+// never caught.
+const PITCH_RE = /\b(search[ -]index|google[’']?s? index|index(ed|ing)? (in|on|by) google|seo|backlinks?|guest posts?|first page (of|on) google|rank(ing|s)? (higher |#?1 |first )?(in|on) google|(website|web|site) traffic|domain authority|search engine (submission|registration|optimi[sz]ation))\b/i;
+
+export function looksLikePitch({ name = '', business = '', message = '' } = {}) {
+  const text = `${name}\n${business}\n${message}`;
+  if (PITCH_RE.test(text)) return true;
+  // "Submit thetide757.com today": selling us our own site.
+  const own = String(town.domain || '').toLowerCase();
+  return Boolean(own) && new RegExp(`\\b(submit|list|register|feature|promote)\\s+(www\\.)?${own.replace(/\./g, '\\.')}\\b`, 'i').test(text);
+}
+
 export function renderContactPage({ siteUrl, values = {}, errors = {}, sent = false, nowMs = Date.now() }) {
   const v = values;
   const e = errors;
@@ -113,6 +128,21 @@ export function registerContact(app, { siteUrl, slack, store = null, requireAdmi
       if (human.bot) return sendHtml(res, renderContactPage({ siteUrl, sent: true }), 200, 'no-store');
       if (!human.ok && human.error === 'hostname-mismatch') return fail({ _form: "We couldn't confirm you're not a bot. Please reload the page and try again." });
       const unverified = !human.ok;
+      // Bot check failed and it reads like an SEO pitch: told "sent", kept in
+      // the database already dismissed (so a mistake can still be found),
+      // never posted to Slack.
+      if (unverified && looksLikePitch(values)) {
+        console.warn('[contact] dropped as spam (bot check failed, SEO pitch)');
+        if (store && typeof store.saveContactMessage === 'function') {
+          const at = nowIso();
+          try {
+            await store.saveContactMessage({ id: newId(), created_at: at, ...values, email: normalizeEmail(values.email) || values.email, delivered: false, spam: true, dismissed_at: at });
+          } catch (err) {
+            console.warn('[contact] save failed:', err.message);
+          }
+        }
+        return sendHtml(res, renderContactPage({ siteUrl, sent: true }), 200, 'no-store');
+      }
       const errors = {};
       if (!values.name) errors.name = 'Please add your name.';
       const email = normalizeEmail(values.email);

@@ -212,8 +212,25 @@ describe('a bot that skips the check and fills a form in a blink is dropped quie
 
   it('contact: slower than 4 seconds without the check still goes through, labeled', async () => {
     await startApp();
-    await contact({ form_t: String(NOW.getTime() - 6000) });
+    await contact({ form_t: String(NOW.getTime() - 6000), message: 'Is the farmers market still on Saturday?' });
     expect(notes.some(n => /Website message/.test(n.title) && /bot check didn’t pass/.test(n.title))).toBe(true);
+  });
+
+  it('contact: an SEO pitch without the check is dropped however slow, but kept dismissed', async () => {
+    // Oct 19, Virginia Beach: slower than 4 seconds, so it went through labeled.
+    const store = await startApp();
+    const pitch = 'Hi\n\nFeature thevic361.com in Google’s Search Index so it can appear in web search results!\n\nSubmit thevic361.com today: indexregister.pro';
+    expect(await (await contact({ form_t: String(NOW.getTime() - 60_000), message: pitch })).text()).toContain('Message sent');
+    expect(notes.filter(n => /Website message/.test(n.title))).toEqual([]);
+    const [kept] = await store.listContactMessages();
+    expect(kept).toMatchObject({ spam: true, delivered: false });
+    expect(kept.dismissed_at).toBeTruthy();
+  });
+
+  it('contact: the same pitch with the check passed still reaches Slack', async () => {
+    await startApp();
+    await contact({ form_t: String(NOW.getTime() - 60_000), message: 'Want SEO help?', 'cf-turnstile-response': 'good' });
+    expect(notes.some(n => /Website message/.test(n.title))).toBe(true);
   });
 
   it('checkout: sent back to /advertise, no Stripe session and no week held', async () => {
