@@ -95,6 +95,15 @@ def test_submission_review_keeps_its_state_on_the_site(monkeypatch):
     assert "review_ai_alert" not in site.puts
 
 
+def test_event_check_before_an_issue_acts_after_a_collect_only_flags():
+    cmds = []
+    run = lambda a, t, e=None: (cmds.append(a), (0, []))[1]  # noqa: E731
+    jw.run_one(FakeSite(), {"id": 1, "kind": "event-check", "slot": "2026-10-19"}, run=run)
+    jw.run_one(FakeSite(), {"id": 2, "kind": "event-check", "slot": "after-collect-41"}, run=run)
+    assert cmds[0][-1] == "--before-send"
+    assert "--before-send" not in cmds[1]
+
+
 def test_run_one_reports_every_outcome():
     site = FakeSite()
     assert jw.run_one(site, {"id": 1, "kind": "event-check", "slot": "s"}, run=lambda a, t, e=None: (0, ["fine"])) == "done"

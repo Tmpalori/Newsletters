@@ -6,6 +6,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
+import { MAX_PER_RUN } from '../server/eventcheck.js';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -94,19 +95,20 @@ describe('event check: hiding', () => {
     expect(out.hidden).toEqual([]);
     expect(out.skipped.map(s => s.why)).toEqual(['not-live', 'not-live', 'not-live']);
 
-    // Repeats of one event are one hide, not eleven.
-    const same = await hide(Array.from({ length: 11 }, () => ({ page: CHURCH })));
+    // Repeats of one event are one hide, not one per ask.
+    const same = await hide(Array.from({ length: MAX_PER_RUN + 1 }, () => ({ page: CHURCH })));
     expect(same.status).toBe(200);
   });
 
   it('refuses a suspiciously big batch, counting only what it would hide', async () => {
-    const many = Array.from({ length: 11 }, (_, n) => ({ date: '2026-10-09', name: `Thing ${n}`, venue: 'Hall' }));
+    const many = Array.from({ length: MAX_PER_RUN + 1 }, (_, n) => ({ date: '2026-10-09', name: `Thing ${n}`, venue: 'Hall' }));
     await startApp({}, { events: many });
-    const pages = (await (await fetch(baseUrl + '/events.json')).json()).events.map(e => ({ page: e.page }));
+    const pages = (await (await fetch(baseUrl + '/events.json?all=1')).json()).events.map(e => ({ page: e.page }));
     const r = await hide(pages);
     expect(r.status).toBe(400);
     expect((await r.json()).error).toBe('too-many');
-    expect((await names())).toHaveLength(11);
+    expect(pages).toHaveLength(MAX_PER_RUN + 1);
+    expect((await (await fetch(baseUrl + '/events.json?all=1')).json()).events).toHaveLength(MAX_PER_RUN + 1);
   });
 
   it('never hides a paid Vic\'s Pick, and still hides the rest of the batch', async () => {

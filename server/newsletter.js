@@ -522,6 +522,34 @@ const sameEvent = (a, b) => {
   const [small, big] = [nameWords(a), nameWords(b)].sort((p, q) => p.size - q.size);
   return small.size >= 3 && [...small].every(w => big.has(w));
 };
+// A bar's standing "Live Music at Swampers" once that night's act there is
+// listed too: same day, same place, starts within three hours, same kind
+// of thing (scripts/sweep_events.py _placeholder_for; this catches it when
+// the event check didn't run).
+const PLACEHOLDER = new Set(['live', 'music', 'band', 'bands', 'performance', 'performances', 'performer', 'performers',
+  'local', 'artist', 'artists', 'musician', 'musicians', 'night', 'nightly', 'tonight', 'show', 'shows',
+  'entertainment', 'acoustic', 'set', 'sets', 'by', 'at', 'and', 'with', 'karaoke', 'trivia', 'bingo',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
+const ACTIVITY = ['karaoke', 'trivia', 'bingo'];
+const wordsOf = v => normName(v).split(' ').filter(Boolean);
+const genericName = e => {
+  const drop = new Set([...wordsOf(e.venue), ...wordsOf(town.city)]);
+  const w = wordsOf(e.name);
+  return w.length > 0 && w.every(x => PLACEHOLDER.has(x) || drop.has(x));
+};
+const isPlaceholder = (e, list) => {
+  const v = normName(e.venue);
+  if (!v || paidPick(e) || !genericName(e)) return false;
+  const act = ACTIVITY.filter(a => wordsOf(e.name).includes(a));
+  return list.some(o => {
+    const ov = normName(o.venue);
+    if (o === e || !ov || !(ov === v || ov.includes(v) || v.includes(ov)) || genericName(o)) return false;
+    const a = startMin(e), b = startMin(o);
+    if (a !== 9999 && b !== 9999 && Math.abs(a - b) >= 180) return false;
+    const w = wordsOf(o.name);
+    return act.length ? act.some(x => w.includes(x)) : (o.icons || []).includes('music') && !ACTIVITY.some(x => w.includes(x));
+  });
+};
 const dayShort = d => formatDay(d, { weekday: 'short' });
 
 // [{ d, list }] for the issue's days: filler out (weekend), same-day
@@ -540,7 +568,7 @@ export function issueDays(events, days, { weekend = false } = {}) {
       }
       list.push({ ...e });
     }
-    return { d, list };
+    return { d, list: list.filter(e => !isPlaceholder(e, list)) };
   });
   const seen = new Map();
   for (const day of out) {
