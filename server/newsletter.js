@@ -509,10 +509,18 @@ const appealOf = e => (Number.isFinite(Number(e.appeal)) && e.appeal != null ? N
 const byBest = (a, b) => pickRank(a) - pickRank(b) || appealOf(b) - appealOf(a) || startMin(a) - startMin(b);
 const normName = v => String(v || '').toLowerCase().replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ')
   .replace(/\b(the|disneys)\b/g, ' ').replace(/\s+/g, ' ').trim();
-// The same event listed twice (two sources): one name inside the other.
+const streetOf = e => normName(String(e.address || '').split(',')[0]);
+const nameWords = e => new Set(normName(e.name).replace(/\b(\d+)(?:st|nd|rd|th)\b/g, '$1').split(' ').filter(Boolean));
+// The same event listed twice (two sources): one name inside the other, or
+// at one street address with every word of the shorter name in the longer
+// ("40th Alabama Renaissance Faire" and "Alabama Renaissance Faire
+// (Florence, AL) Free Admission ... for 40 Faires!", 2026-10-19 issue).
 const sameEvent = (a, b) => {
   const x = normName(a.name), y = normName(b.name);
-  return x.length >= 8 && y.length >= 8 && (x === y || x.includes(y) || y.includes(x));
+  if (x.length >= 8 && y.length >= 8 && (x === y || x.includes(y) || y.includes(x))) return true;
+  if (!streetOf(a) || streetOf(a) !== streetOf(b)) return false;
+  const [small, big] = [nameWords(a), nameWords(b)].sort((p, q) => p.size - q.size);
+  return small.size >= 3 && [...small].every(w => big.has(w));
 };
 const dayShort = d => formatDay(d, { weekday: 'short' });
 
@@ -525,7 +533,11 @@ export function issueDays(events, days, { weekend = false } = {}) {
     for (const e of sortEvents(events.filter(x => x.date === d)).sort(byBest)) {
       if (weekend && isFiller(e)) continue;
       const twin = list.find(x => sameEvent(x, e) && (!x.venue || !e.venue || normName(x.venue) === normName(e.venue)));
-      if (twin && !paidPick(e)) continue;
+      if (twin && !paidPick(e)) {
+        // The owner's hand-entered listing reads better than a scraped one.
+        if (e.curated && !twin.curated && !paidPick(twin)) list[list.indexOf(twin)] = { ...e };
+        continue;
+      }
       list.push({ ...e });
     }
     return { d, list };
