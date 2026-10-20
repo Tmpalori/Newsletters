@@ -99,19 +99,27 @@ describe('repeats', () => {
 });
 
 describe('which events and in what order', () => {
-  // Eight on Saturday: the best six are shown, earliest first.
+  // Eight on Saturday: the best four are shown (a weekday shows three), earliest first.
   const SAT = [
     ['Early Run', '7 AM', 4], ['Pumpkin Patch', '9 AM', 5], ['Library Story Time', '10 AM', 3],
     ['Craft Fair', '11 AM', 4], ['Car Show', '12 PM', 4], ['Concert in the Park', '6 PM', 5],
     ['Bingo', '7 PM', 1], ['Karaoke', '9 PM', 3]
   ].map(([name, time, appeal]) => ({ date: '2026-10-10', name, time, appeal, venue: 'V' }));
 
-  it('shows the best-rated six (picks always), in time order', () => {
+  it('shows the best-rated four on a weekend day (picks always), in time order', () => {
     const evs = [...SAT, { date: '2026-10-10', name: 'Sponsor Night', time: '8 PM', appeal: 1, venue: 'V', featured: true, sponsor_order: 'o2' }];
     const issue = renderWeekly(withPages(evs), { ...opts, edition: 'weekly', now: new Date('2026-10-05T12:30:00Z') });
     const sat = issue.text.split('SATURDAY, OCTOBER 10')[1].split('\n\n')[0].split('\n').filter(Boolean).map(l => l.replace(/^- /, '').split(' @ ')[0]);
-    expect(sat).toEqual(['7 AM Early Run', '9 AM Pumpkin Patch', '11 AM Craft Fair', '12 PM Car Show', '6 PM Concert in the Park', '8 PM Sponsor Night']);
+    expect(sat).toEqual(['7 AM Early Run', '9 AM Pumpkin Patch', '6 PM Concert in the Park', '8 PM Sponsor Night']);
     expect(issue.picks).toEqual(['o2']);
+  });
+
+  it('shows three on a weekday, with "+N more" to the site for the rest', () => {
+    const wed = SAT.map(e => ({ ...e, date: '2026-10-07' }));
+    const issue = renderWeekly(withPages(wed), { ...opts, edition: 'weekly', now: new Date('2026-10-05T12:30:00Z') });
+    const day = issue.text.split('WEDNESDAY, OCTOBER 7')[1].split('\n\n')[0].split('\n').filter(Boolean);
+    expect(day).toHaveLength(3);
+    expect(issue.html).toMatch(/\+5 more on Wednesday/);
   });
 
   it('“Don’t miss” is the issue’s three best, in the HTML, text and preheader', () => {
@@ -137,13 +145,14 @@ describe('layout', () => {
 
   it('Vic’s Picks get space around them and no dashed line above', () => {
     const rowStyle = name => [...html.matchAll(/<tr><td style="([^"]*)">((?:(?!<tr>)[^])*?)>([A-H])<\/a>/g)].find(m => m[3] === name)[1];
+    // Four on a Saturday: E (its "12 AM" sorts first), A, then the picks B and C.
     expect(rowStyle('A')).not.toContain('dashed');
-    expect(rowStyle('D')).toContain('dashed');
+    expect(rowStyle('E')).toContain('dashed');
     expect(html.match(/<tr><td style="padding:6px 0;"><table/g)).toHaveLength(2);
   });
 
   it('"+N more" is a pill in the day’s color, not a plain link', () => {
-    const pill = html.match(/<a [^>]*>\+2 more on Saturday →<\/a>/)[0];
+    const pill = html.match(/<a [^>]*>\+4 more on Saturday →<\/a>/)[0];
     expect(pill).toContain('border-radius:999px');
     expect(pill).toMatch(/#B9A6FF/i); // Saturday's color, as on its header
   });
@@ -203,7 +212,7 @@ describe('the same as the site', () => {
   it('the weekly "+N more" opens that day on the homepage', () => {
     const evs = Array.from({ length: 8 }, (_, i) => ({ date: '2026-10-09', name: `E${i}`, time: `${i + 8} AM`, venue: 'V', appeal: 4 }));
     const html = renderWeekly(withPages(evs), weekly).html;
-    expect(html).toMatch(/href="https:\/\/www\.thevic361\.com\/\?utm_[^"]*#day-4"[^>]*>\+2 more on Friday/);
+    expect(html).toMatch(/href="https:\/\/www\.thevic361\.com\/\?utm_[^"]*#day-4"[^>]*>\+4 more on Friday/);
   });
 
   it('a hub page colors a day by its weekday, not its position', async () => {

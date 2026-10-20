@@ -75,7 +75,12 @@ const RESEND_API = 'https://api.resend.com';
 // refuses "josé@" with a 422). Matched after lowercasing.
 const EMAIL_RE = /^(?=[!-~]+@)[^\s@<>"',;.]+(?:\.[^\s@<>"',;.]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
 const BATCH_SIZE = 100;          // Resend batch limit
-const PER_DAY = 6;               // events per day in the email
+// Events per day in the email (the owner, Oct 2026): a short list, with
+// "+N more" to the site for the rest, so the sections have room. Weekdays
+// 3, Friday through Sunday 4 (the weekend issue's days).
+const PER_WEEKDAY = 3;
+const PER_WEEKEND_DAY = 4;
+export const perDay = d => ([5, 6, 0].includes(new Date(d + 'T12:00:00Z').getUTCDay()) ? PER_WEEKEND_DAY : PER_WEEKDAY);
 
 export function newsletterConfig(env = process.env, overrides = {}) {
   const c = {
@@ -507,7 +512,7 @@ export function sampleEmailPreviews(siteUrl = '') {
 }
 
 // ─── Choosing what an issue shows ─────────────────────────────────────
-// Each day shows PER_DAY events: paid Vic's Picks always, then editor's
+// Each day shows perDay(d) events: paid Vic's Picks always, then editor's
 // picks, then the best-rated (`appeal`, 1–5, from the collector), then
 // earlier ones. Shown in time order (picks keep their badge), so a day
 // reads morning to night. The weekend issue leaves out what nobody plans a
@@ -603,9 +608,9 @@ export function issueDays(events, days, { weekend = false } = {}) {
   return out.filter(x => x.list.length);
 }
 
-// The day's events to show: the best PER_DAY, in time order.
-function shownOf(list) {
-  return list.slice(0, PER_DAY).sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
+// The day's events to show: the best perDay(d), in time order.
+function shownOf(list, d) {
+  return list.slice(0, perDay(d)).sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
 }
 
 // The issue's top three: best-rated across all its days.
@@ -734,8 +739,8 @@ ${topShown.map((e, i) => `<div style="margin-top:6px;font-size:15px;"><strong>${
 <span style="font-size:21px;font-weight:bold;">${escHtml(formatDay(d, { weekday: 'long' }))}</span>
 <span style="display:inline-block;margin-left:6px;font-size:13px;font-weight:bold;background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:0 9px;">${escHtml(formatDay(d, { month: 'long', day: 'numeric' }))}</span></td></tr>
 <tr><td style="padding:4px 8px 10px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
-${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - PER_DAY} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list, d).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
+${list.length > perDay(d) ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - perDay(d)} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
 </td></tr></table>`; }).join('');
 
   const sponsorBlock = sponsorHtml(sponsor, siteUrl);
@@ -760,7 +765,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     `${subject}`, '', ...sponsorLine,
     ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
-      ...shownOf(list).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
+      ...shownOf(list, d).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
     `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId }),
     ...(replyAsk && !(sections && sections.question) ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
@@ -768,12 +773,12 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   ].join('\n');
 
   // The paid Vic's Picks this issue actually stars (shown, not cut by
-  // PER_DAY), recorded with the send for their reports.
-  const picks = [...new Set(byDay.flatMap(({ list }) => shownOf(list))
+  // perDay), recorded with the send for their reports.
+  const picks = [...new Set(byDay.flatMap(({ d, list }) => shownOf(list, d))
     .filter(e => e.featured && !e.editor_pick && e.sponsor_order).map(e => e.sponsor_order))];
   // Every event page the issue shows (its day lists and "Don't miss"),
   // recorded with the send for the event reports (server/eventReach.js).
-  const shownPages = [...new Set([...byDay.flatMap(({ list }) => shownOf(list)), ...topShown].map(e => e.page).filter(Boolean))];
+  const shownPages = [...new Set([...byDay.flatMap(({ d, list }) => shownOf(list, d)), ...topShown].map(e => e.page).filter(Boolean))];
   return {
     subject, total, picks, events: shownPages,
     html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),
