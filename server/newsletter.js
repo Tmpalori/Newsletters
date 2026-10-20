@@ -710,15 +710,77 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '' }) {
   return out;
 }
 
+// ─── The opening paragraph ──────────────────────────────────────────────
+// Every issue opens with a few sentences on what's in it (the owner, Oct
+// 2026; it replaced the "Don't miss" box): the issue's three best events
+// and what's further down. The sections job's AI writes one each Monday and
+// Thursday morning (sections.intro), after the event check; it's used only
+// when every event it names is in this issue. Otherwise, or without it,
+// this plain version from the same facts.
+const OPENERS = {
+  weekly: [c => `Good morning, ${c}!`, c => `Happy Monday, ${c}.`, c => `Here's your week, ${c}.`],
+  weekend: [c => `Happy Thursday, ${c}.`, c => `The weekend's almost here, ${c}.`, c => `Weekend plans, ${c}? We've got you.`]
+};
+const andList = xs => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+export function introText({ top, total, weekend, sections, key }) {
+  if (!total) return { text: `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}. Check back soon.`, names: [] };
+  const ai = sections && sections.intro;
+  const shown = new Set(top.map(e => e.name));
+  if (ai && typeof ai.text === 'string' && ai.text.length <= 480 && Array.isArray(ai.mentions) && ai.mentions.length &&
+      ai.mentions.every(n => shown.has(n) && ai.text.includes(n))) {
+    return { text: ai.text, names: ai.mentions };
+  }
+  const opener = (OPENERS[weekend ? 'weekend' : 'weekly'])[Math.floor(Date.parse(key + 'T12:00:00Z') / (7 * 86400000)) % 3](town.city);
+  // "Friday Live Music", not "Friday Live Music on Friday".
+  const picks = top.map(e => { const day = formatDay(e.date, { weekday: 'long' }); return new RegExp(`\\b${day}\\b`, 'i').test(e.name) ? e.name : `${e.name} on ${day}`; });
+  const lead = picks.length
+    ? `${andList(picks)} ${picks.length === 1 ? 'tops' : 'top'} ${total > picks.length ? `the ${total} things to do` : 'the list'} ${weekend ? 'this weekend' : 'this week'}.`
+    : `There are ${total} things to do ${weekend ? 'this weekend' : 'this week'}.`;
+  const more = [];
+  if (sections) {
+    if (sections.pet) more.push(`meet ${sections.pet.name}, our pet of the week`);
+    if (sections.places && sections.places.length) more.push(sections.places.length === 1 ? 'a new spot around town' : `${sections.places.length} new spots around town`);
+    if (sections.poll) more.push('a one-tap poll');
+    if (sections.question) more.push("this week's question");
+    if (sections.roundup) more.push("what you told us about Monday's question");
+    if (sections.good) more.push('some good news from City Hall');
+  }
+  const tail = more.length ? ` Further down: ${andList(more)}.` : '';
+  return { text: `${opener} ${lead}${tail}`, names: top.map(e => e.name) };
+}
+
+// What the sections job's AI gets to write the paragraph from: the same
+// top three and count the issue will show (GET /api/jobs/issue).
+export function issueFacts(events, { now, edition = 'weekly' }) {
+  const today = localDateStr(now);
+  const weekend = edition === 'weekend';
+  const byDay = issueDays(events, (EDITIONS[edition] || EDITIONS.weekly).days(today), { weekend });
+  const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
+  return { edition, week: (EDITIONS[edition] || EDITIONS.weekly).key(today), total: byDay.reduce((n, x) => n + x.list.length, 0),
+    top: top.map(e => ({ name: e.name, day: formatDay(e.date, { weekday: 'long' }), venue: e.venue || placeText(e) || '' })) };
+}
+
+// The paragraph as HTML, the events it names in bold.
+function introHtml({ text, names }) {
+  let html = escHtml(text);
+  for (const n of names) {
+    const e = escHtml(n);
+    const i = html.indexOf(e);
+    if (i !== -1) html = `${html.slice(0, i)}<strong>${e}</strong>${html.slice(i + e.length)}`;
+  }
+  return html;
+}
+
 export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false, sections = null, subscriberId = '' }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
   const byDay = issueDays(events, week, { weekend });
   const total = byDay.reduce((n, x) => n + x.list.length, 0);
-  const top = dontMiss(byDay);
-  // The "Don't miss" box only when there's a lot to choose from.
-  const topShown = total >= 6 ? top : [];
+  // The three best the issue actually shows (each day's list is cut to
+  // perDay), for the opening paragraph and the inbox preview.
+  const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
   const short = d => formatDay(d, { month: 'short', day: 'numeric' });
   const range = week.length ? (week.length === 1 ? short(week[0]) : `${short(week[0])}–${short(week[week.length - 1])}`) : '';
   const title = weekend ? `This weekend in ${town.city}` : `This week in ${town.city}`;
@@ -726,11 +788,7 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
   const subject = `${title}: ${total} ${total === 1 ? 'thing' : 'things'} to do (${range})`;
   const preheader = top.map(e => e.name).join(' · ');
   const when = e => [dayShort(e.date), clockOf(e.time)].filter(Boolean).join(' ');
-  const topHtml = topShown.length ? `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#fff;border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:12px 12px;">
-<div style="font-family:${DISPLAY};font-size:19px;font-weight:bold;margin-bottom:4px;">Don’t miss ${weekend ? 'this weekend' : 'this week'}</div>
-${topShown.map((e, i) => `<div style="margin-top:6px;font-size:15px;"><strong>${i + 1}.</strong> <a href="${escHtml(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl))}" style="color:${C.ink};font-weight:800;">${escHtml(e.name)}</a> <span style="color:${C.muted};">· ${escHtml([when(e), e.venue || placeText(e)].filter(Boolean).join(' · '))}${paidPick(e) ? ` · ${AD_LABEL}` : ''}</span></div>`).join('')}
-</td></tr></table>` : '';
+  const intro = introText({ top, total, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today) });
 
   // Day colors follow the weekday (Monday yellow ... Sunday coral), like the site.
   const days = byDay.map(({ d, list }) => { const dayColor = DAY_COLORS[(currentWeek(d).indexOf(d) + 7) % 7]; return `
@@ -748,9 +806,9 @@ ${list.length > perDay(d) ? `<p style="margin:12px 0 4px;text-align:center;"><a 
 
   const pill = (href, label) => `<a href="${siteUrl}${href}" style="display:inline-block;margin:6px 4px 0 0;font-family:${DISPLAY};font-weight:bold;font-size:13px;color:${C.ink};background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:2px 10px;text-decoration:none;">${label}</a>`;
   const bodyHtml = `
-<p style="margin:16px 0 4px;font-size:16px;">${total ? `Here's what's happening in ${town.cityState} ${weekend ? 'this weekend' : 'this week'}: <strong>${total} ${total === 1 ? 'event' : 'events'}</strong>.` : `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}.`}</p>
+<p style="margin:16px 0 6px;font-size:16px;line-height:1.55;">${introHtml(intro)}</p>
 <div>${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
-${sponsorBlock}${topHtml}${days}
+${sponsorBlock}${days}
 <p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sectionsEmailHtml(sections, { siteUrl, subscriberId })}
 ${replyAsk && !(sections && sections.question) ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
@@ -763,7 +821,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   const campaign = `${weekend ? 'weekend' : 'weekly'}-${(EDITIONS[edition] || EDITIONS.weekly).key(today)}`;
   const text = [
     `${subject}`, '', ...sponsorLine,
-    ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
+    intro.text, '',
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list, d).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
     `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId }),
@@ -778,7 +836,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     .filter(e => e.featured && !e.editor_pick && e.sponsor_order).map(e => e.sponsor_order))];
   // Every event page the issue shows (its day lists and "Don't miss"),
   // recorded with the send for the event reports (server/eventReach.js).
-  const shownPages = [...new Set([...byDay.flatMap(({ d, list }) => shownOf(list, d)), ...topShown].map(e => e.page).filter(Boolean))];
+  const shownPages = [...new Set(byDay.flatMap(({ d, list }) => shownOf(list, d)).map(e => e.page).filter(Boolean))];
   return {
     subject, total, picks, events: shownPages,
     html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),

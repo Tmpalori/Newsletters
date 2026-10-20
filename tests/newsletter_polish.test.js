@@ -122,14 +122,27 @@ describe('which events and in what order', () => {
     expect(issue.html).toMatch(/\+5 more on Wednesday/);
   });
 
-  it('“Don’t miss” is the issue’s three best, in the HTML, text and preheader', () => {
+  it('opens with a paragraph naming the issue’s three best (in bold), in the HTML, text and preheader', () => {
     const issue = renderWeekly(withPages(SAT), opts);
     expect(dontMiss(issueDays(SAT, WEEKEND, { weekend: true })).map(e => e.name)).toEqual(['Pumpkin Patch', 'Concert in the Park', 'Early Run']);
-    expect(issue.html).toContain('Don’t miss this weekend');
+    expect(issue.html).not.toContain('Don’t miss');
+    expect(issue.html).toContain('<strong>Pumpkin Patch</strong> on Saturday, <strong>Concert in the Park</strong> on Saturday and <strong>Early Run</strong> on Saturday top the 7 things to do this weekend.');
     expect(issue.html).toContain('Pumpkin Patch · Concert in the Park · Early Run');
-    expect(issue.text).toContain('DON\'T MISS THIS WEEKEND\n1. Pumpkin Patch (Sat 9 AM, V)');
+    expect(issue.text).toContain('Pumpkin Patch on Saturday, Concert in the Park on Saturday and Early Run on Saturday top the 7 things to do this weekend.');
     // Filler (Bingo, rated 1) isn't in the weekend count.
     expect(issue.total).toBe(7);
+  });
+
+  it('teases the sections further down, and uses the AI’s paragraph only when every event it names is in the issue', () => {
+    const sections = { pet: { name: 'Chloe' }, places: [{}, {}], question: 'Q?', monday: '2026-10-05' };
+    const plain = renderWeekly(withPages(SAT), { ...opts, sections });
+    expect(plain.text).toContain("Further down: meet Chloe, our pet of the week, 2 new spots around town and this week's question.");
+    const good = { text: 'Happy Thursday! Pumpkin Patch and Concert in the Park lead the way.', mentions: ['Pumpkin Patch', 'Concert in the Park'] };
+    expect(renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, intro: good } }).text).toContain(good.text);
+    expect(renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, intro: good } }).html).toContain('<strong>Pumpkin Patch</strong> and <strong>Concert in the Park</strong>');
+    // Names something the issue doesn't show (hidden by the event check): the plain one.
+    const stale = { text: 'Bingo Night is the big one.', mentions: ['Bingo Night'] };
+    expect(renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, intro: stale } }).text).not.toContain('Bingo Night is the big one');
   });
 
   it('a small issue skips the box', () => {
@@ -170,7 +183,7 @@ describe('the same as the site', () => {
   const MON = new Date('2026-10-05T12:30:00Z');
   const weekly = { ...opts, edition: 'weekly', now: MON };
 
-  it('times are formatted like the site, and "Don’t miss" gets AM/PM from a shared range', async () => {
+  it('times are formatted like the site', async () => {
     const { formatTime } = await import('../server/seo.js');
     const evs = [
       { date: '2026-10-09', name: 'Fair', time: '4-10 p.m.', venue: 'Grounds', appeal: 5 },
@@ -184,7 +197,7 @@ describe('the same as the site', () => {
     expect(issue.html).toContain('>7:30 AM</span>');
     expect(issue.html).not.toContain('07:30');
     expect(issue.text).toContain('- 8:00 PM Jazz @ Club');
-    expect(issue.text).toMatch(/Fair \(Fri 4 PM, Grounds\)/);
+    expect(issue.text).not.toContain('DON\'T MISS');
   });
 
   it('free: true is the Free icon on the site and in the email, never left out of the three', async () => {

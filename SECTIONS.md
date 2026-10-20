@@ -32,9 +32,15 @@ from any events list, and look forward to opening the email.
    out, with a link to admin → Newsletter.
 4. **Admin → Newsletter → This week's sections**: Take out (or Put back)
    any item. It's gone from the next issue and the homepage.
-5. **Monday 6:23 AM and Thursday 5:43 AM**, right before each issue, the
-   job runs again and only checks the pet is still listed. If it was
-   adopted, it picks another (and the editor reads the new blurb).
+5. **Monday 7:08 AM and Thursday 6:23 AM**, right before each issue and
+   after the event check, the job runs again: it checks the pet is still
+   listed (if it was adopted, it picks another, and the editor reads the
+   new blurb), and writes the issue's **opening paragraph** from what the
+   issue will show (`GET /api/jobs/issue`): two or three of its best events
+   by name and one or two sections further down, read by the editor and the
+   rules like everything else. The site uses it only when every event it
+   names is in the issue; otherwise, or without the AI, it writes a plain
+   one from the same facts (`introText` in `server/newsletter.js`).
 
 ## Turning it on for a town
 

@@ -160,3 +160,40 @@ def test_tall_and_wide_photos_are_cropped_for_the_email():
     assert shape(3000, 1000) == (720, 480)
     assert shape(1200, 900) == (720, 540)
     assert s.resize_photo(b"not an image") is None
+
+
+ISSUE = {"edition": "weekend", "week": "2026-10-15", "total": 9,
+         "top": [{"name": "Zoo Boo", "day": "Saturday", "venue": "The Texas Zoo"},
+                 {"name": "Boo-Fest", "day": "Saturday", "venue": "Downtown"}]}
+
+
+def test_the_opening_paragraph_is_written_checked_and_names_only_the_issues_events(monkeypatch):
+    def ai(text, verdict="keep"):
+        def fake(key, system, user, max_tokens=6000):
+            if "editor" in system:
+                return [{"id": "intro", "verdict": verdict, "why": "x"}]
+            return {"intro": text}
+        return fake
+    out = {"roundup": {"answers": [1, 2]}, "good_news": None}
+    monkeypatch.setattr(s, "ai_json", ai("Happy Thursday, Victoria. Zoo Boo and Boo-Fest — both Saturday — lead the weekend."))
+    review = []
+    got = s.write_intro("k", ISSUE, out, CFG, date(2026, 10, 12), review)
+    assert got == {"edition": "weekend", "week": "2026-10-15", "mentions": ["Zoo Boo", "Boo-Fest"],
+                   "text": "Happy Thursday, Victoria. Zoo Boo and Boo-Fest, both Saturday, lead the weekend."}
+    # Names none of the issue's events, sounds like AI, or the editor says no: the site writes a plain one.
+    monkeypatch.setattr(s, "ai_json", ai("Something for everyone this weekend in Victoria."))
+    assert s.write_intro("k", ISSUE, out, CFG, date(2026, 10, 12), review) is None
+    monkeypatch.setattr(s, "ai_json", ai("Zoo Boo is a hidden gem nestled in the park."))
+    assert s.write_intro("k", ISSUE, out, CFG, date(2026, 10, 12), review) is None
+    monkeypatch.setattr(s, "ai_json", ai("Zoo Boo leads the weekend.", verdict="drop"))
+    assert s.write_intro("k", ISSUE, out, CFG, date(2026, 10, 12), review) is None
+    assert s.write_intro("", ISSUE, out, CFG, date(2026, 10, 12), review) is None
+
+
+def test_before_send_writes_the_paragraph_for_this_issue(monkeypatch):
+    _no_network(monkeypatch)
+    monkeypatch.setattr(s, "write_intro", lambda key, issue, out, config, monday, review: {"text": "Hi", "edition": issue["edition"]})
+    prev = {"week": "2026-10-12", "pet": {"id": "pp-1", "name": "Chloe", "shelter": "County Shelter"}, "pet_history": []}
+    out = s.build(CFG, prev, [], date(2026, 10, 15), api_key="k", before_send=True, issue=ISSUE)
+    assert out["intro"] == {"text": "Hi", "edition": "weekend"}
+    assert out["pet"]["name"] == "Chloe"

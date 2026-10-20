@@ -85,12 +85,13 @@ export const JOBS = [
   // failed deploy) is still useful in the morning, not at 5 PM.
   { name: 'social-kit', at: '08:47', until: '12:00', kind: 'social-kit' },
   // The newsletter's extra sections (scripts/sections.py): built after each
-  // collect, and checked again right before each issue (the pet still up
-  // for adoption?), ahead of the event check.
+  // collect, and again right before each issue, after the event check, so
+  // the opening paragraph names only events still in it (and the pet is
+  // still up for adoption).
   { name: 'sections', dow: 0, at: '18:13', until: '23:59', kind: 'sections' },
   { name: 'sections-midweek', dow: 3, at: '18:13', until: '23:59', kind: 'sections' },
-  { name: 'sections-check', dow: 1, at: '06:23', until: '07:40', kind: 'sections' },
-  { name: 'sections-check-weekend', dow: 4, at: '05:43', until: '06:58', kind: 'sections' },
+  { name: 'sections-check', dow: 1, at: '07:08', until: '07:40', kind: 'sections' },
+  { name: 'sections-check-weekend', dow: 4, at: '06:23', until: '06:58', kind: 'sections' },
   // Sunday night, after the afternoon's collect.
   { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', kind: 'digest' },
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },

@@ -46,7 +46,7 @@ import { createJobs, canRunOnWorker } from './jobs.js';
 import { createSections, sectionsConfig } from './sections.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
-import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
+import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS, issueFacts } from './newsletter.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
@@ -316,6 +316,7 @@ export async function createApp(opts = {}) {
   const jobs = opts.jobs || createJobs({
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
     listReplies: sections.listReplies, onFile: sections.onFile,
+    issueFacts: async edition => issueFacts((await shownPayload({})).events, { now: (opts.now || (() => new Date()))(), edition }),
     nowFn: () => (opts.now || (() => new Date()))(),
     // Victoria's social kit was posted from GitHub, which kept what went out
     // in git (docs/social/latest/posted.json): her worker starts from it, so

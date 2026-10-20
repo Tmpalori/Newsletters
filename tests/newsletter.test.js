@@ -134,7 +134,7 @@ describe('newsletter content', () => {
       siteUrl: 'https://www.thevic361.com', now: sunday, sponsor: null, unsubscribeUrl: 'u', address: 'a'
     });
     expect(issue.subject).toBe('This week in Victoria: 1 thing to do (Oct 11)');
-    expect(issue.html).toContain('<strong>1 event</strong>');
+    expect(issue.html).toContain('<strong>Sunday Brunch</strong> tops the list this week.');
     expect(issue.html).toMatch(/Sunday Brunch(&#847;&zwnj;&nbsp;){80}<\/span>/);
   });
 

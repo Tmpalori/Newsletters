@@ -141,6 +141,16 @@ class Site:
             return r.json().get("replies") or []
         return _retry(go)
 
+    def get_issue(self, edition):
+        """The next issue's top events and count (its opening paragraph)."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/issue"), headers=self.headers, params={"edition": edition}, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("issue")
+        return _retry(go)
+
     def put_social(self, build, name, body):
         def go():
             r = self.session.put(self._url(f"/api/jobs/social/{build}/{name}"), data=body, timeout=300,
@@ -504,11 +514,16 @@ def job_sections(site, run=run_script, env=None, today=None):
     today = today or datetime.now(tz()).date()
     monday = today - timedelta(days=today.weekday())
     with tempfile.TemporaryDirectory() as tmp:
-        prev, replies, out = (os.path.join(tmp, n) for n in ("previous.json", "replies.json", "sections.json"))
+        prev, replies, issue, out = (os.path.join(tmp, n) for n in ("previous.json", "replies.json", "issue.json", "sections.json"))
         _write_json(prev, site.get_file("sections") or {})
         _write_json(replies, site.get_replies(monday.isoformat()))
+        before_send = today.weekday() in (0, 3)
         cmd = [sys.executable, "scripts/sections.py", "--out", out, "--previous", prev, "--replies", replies,
-               "--today", today.isoformat()] + (["--before-send"] if today.weekday() in (0, 3) else [])
+               "--today", today.isoformat()]
+        if before_send:
+            # The issue that goes out this morning: its opening paragraph.
+            _write_json(issue, site.get_issue("weekly" if today.weekday() == 0 else "weekend") or {})
+            cmd += ["--before-send", "--issue", issue]
         code, tail = run(cmd, TIMEOUTS["sections"], env)
         data = _read_json(out)
         if code == 0 and data is None:

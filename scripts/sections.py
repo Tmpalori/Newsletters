@@ -20,6 +20,9 @@ and Thursday (--before-send) to catch a pet that got adopted. Builds:
                look forward to opening.
   roundup      Thursday's best reader answers to Monday's question (the
                replies the site saved, handed in by the worker).
+  intro        the issue's opening paragraph (the --before-send runs, from
+               the events the issue will show); the site checks it names
+               only events in the issue, or writes a plain one.
 
 Then the editor pass: one AI call reads everything as an editor would
 (positive, accurate to the source, no politics or bad news, no word of
@@ -861,7 +864,7 @@ def finalize(text, kind):
 
 # ─── Putting it together ─────────────────────────────────────────────────
 
-def build(config, previous, replies, today, api_key, before_send=False):
+def build(config, previous, replies, today, api_key, before_send=False, issue=None):
     monday = monday_of(today)
     question = question_for(config, monday)
     out = {"town": TOWN["id"], "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -875,15 +878,19 @@ def build(config, previous, replies, today, api_key, before_send=False):
         out.update({k: previous.get(k) for k in ("pet", "good_news", "roundup")})
         out.update({"new_in_town": list(previous.get("new_in_town") or []), "review": list(previous.get("review") or [])})
         pet = previous.get("pet")
-        if not pet or pet_still_listed(pet, config):
-            print("before send: nothing to change")
-            return out
-        print(f"before send: {pet['name']} is no longer listed; picking another")
-        out["pet"] = None
-        new_pet = pick_pet(config, {"pet_history": out["pet_history"] + [{"id": pet["id"], "date": today.isoformat()}]}, today)
-        drafts = draft(api_key, new_pet, [], [], [], None) if new_pet else {}
-        if new_pet:
-            out["pet"] = _reviewed_pet(api_key, new_pet, drafts, out)
+        if pet and not pet_still_listed(pet, config):
+            print(f"before send: {pet['name']} is no longer listed; picking another")
+            out["pet"] = None
+            new_pet = pick_pet(config, {"pet_history": out["pet_history"] + [{"id": pet["id"], "date": today.isoformat()}]}, today)
+            drafts = draft(api_key, new_pet, [], [], [], None) if new_pet else {}
+            if new_pet:
+                out["pet"] = _reviewed_pet(api_key, new_pet, drafts, out)
+        else:
+            print("before send: the pet is still listed")
+        # The opening paragraph, from what this very issue shows (the event
+        # check has run by now).
+        if issue:
+            out["intro"] = write_intro(api_key, issue, out, config, monday, out["review"])
         return out
 
     pet = pick_pet(config, previous, today)
@@ -948,6 +955,52 @@ def build(config, previous, replies, today, api_key, before_send=False):
     return out
 
 
+INTRO_PROMPT = """You write the opening paragraph of <<SITE>>, a free local newsletter for <<PLACE>> that people look forward to opening. It sits right under the title and tells readers what's in this issue.
+
+<<VOICE>>
+
+You get JSON: "edition" ("weekly" is Monday's issue about the rest of the week, "weekend" is Thursday's about Friday to Sunday), "total" (how many things to do), "top" (the issue's best events: name, day, venue) and "inside" (the other sections in this issue). Write 2 or 3 sentences, 60 words at most. Name two or three of the "top" events, each with its exact "name" as given, and mention one or two of the "inside" sections so people keep scrolling. Greet the town naturally, in a different way each week. Don't use "Don't miss", "jam-packed", "exciting lineup" or "something for everyone". Mention only what's in the JSON.
+
+Return only JSON: {"intro": "..."}"""
+
+
+def write_intro(api_key, issue, out, config, monday, review):
+    """The AI's opening paragraph for this issue, after the editor and the
+    rules; None (the site writes a plain one) without a key or if it fails."""
+    if not api_key or not (issue or {}).get("top"):
+        return None
+    weekend = issue.get("edition") == "weekend"
+    inside = []
+    if not weekend:
+        if out.get("pet"):
+            inside.append(f"pet of the week: {out['pet']['name']}")
+        if out.get("new_in_town"):
+            inside.append(f"new in town: {', '.join(x['name'] for x in out['new_in_town'])}")
+        q = question_for(config, monday)
+        if q:
+            inside.append(f"question of the week: {q}")
+    else:
+        if out.get("roundup"):
+            inside.append("readers' answers to Monday's question")
+        if out.get("good_news"):
+            inside.append("good news from City Hall")
+    got = ai_json(api_key, _fill(INTRO_PROMPT), json.dumps({"edition": issue.get("edition"), "total": issue.get("total"),
+                                                             "top": issue["top"], "inside": inside}, ensure_ascii=False), max_tokens=2000)
+    text = str((got or {}).get("intro") or "").strip() if isinstance(got, dict) else ""
+    if not text:
+        return None
+    v = edit(api_key, [{"id": "intro", "kind": "intro", "text": text, "source": json.dumps({"top": issue["top"], "inside": inside})}])
+    verdict, fixed, why = v.get("intro", ("drop", "", ""))
+    text = finalize(fixed if verdict == "fix" and fixed else text, "intro")
+    names = [e["name"] for e in issue["top"] if e.get("name") and e["name"] in text]
+    probs = rule_problems(text, "intro") + ([] if names else ["names no event"]) + (["too long"] if len(text) > 420 else [])
+    ok = verdict in ("keep", "fix") and not probs
+    review.append({"id": "intro", "verdict": "keep" if ok else "drop", "why": "; ".join(probs) or why})
+    if not ok:
+        return None
+    return {"edition": issue.get("edition"), "week": issue.get("week"), "text": text, "mentions": names}
+
+
 def _reviewed_pet(api_key, pet, drafts, out):
     blurb = ((drafts.get("pet") or {}).get("blurb") or "").strip() or pet_plain_blurb(pet)
     plain = blurb == pet_plain_blurb(pet)
@@ -969,6 +1022,7 @@ def main(argv=None):
     ap.add_argument("--previous", help="the last sections.json (no repeats)")
     ap.add_argument("--replies", help="readers' replies since Monday (from the site)")
     ap.add_argument("--before-send", action="store_true")
+    ap.add_argument("--issue", help="the next issue's top events (from the site), for its opening paragraph")
     ap.add_argument("--today")
     args = ap.parse_args(argv)
     config = load_config()
@@ -986,7 +1040,8 @@ def main(argv=None):
     previous = read(args.previous, {}) or {}
     replies = read(args.replies, []) or []
     key = os.environ.get("OPENAI_API_KEY", "").strip()
-    out = build(config, previous, replies, today, key, before_send=args.before_send)
+    issue = read(args.issue, None)
+    out = build(config, previous, replies, today, key, before_send=args.before_send, issue=issue)
     with open(args.out, "w") as f:
         json.dump(out, f, ensure_ascii=False)
     pet = out.get("pet")

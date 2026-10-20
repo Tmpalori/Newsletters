@@ -83,6 +83,9 @@ export function sectionsFor({ cfg, file, hidden = [], edition = 'weekly', now = 
   const roundup = f.roundup && Array.isArray(f.roundup.answers) && !off.has('roundup')
     ? { ...f.roundup, answers: f.roundup.answers.filter((x, i) => !off.has(`reply:${i}`)) } : null;
   const out = { monday, edition };
+  // The AI's opening paragraph for this very issue (server/newsletter.js
+  // introText checks it names only events the issue shows).
+  out.intro = f.intro && f.intro.edition === edition && f.intro.week === (edition === 'weekend' ? addDays(monday, 3) : monday) ? f.intro : null;
   if (edition === 'weekend') {
     out.roundup = roundup && roundup.answers.length >= 2 ? roundup : null;
     out.good = good && good.items.length ? good : null;

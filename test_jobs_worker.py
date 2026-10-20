@@ -601,10 +601,18 @@ def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_bef
             self.since = since
             return [{"at": "2026-10-13T15:00:00Z", "name": "Maria", "text": "Kolaches!"}]
 
+        def get_issue(self, edition):
+            self.edition = edition
+            return {"edition": edition, "week": "2026-10-15", "total": 9, "top": [{"name": "Zoo Boo", "day": "Saturday", "venue": "Zoo"}]}
+
     seen = []
+
+    issues = []
 
     def run(args, timeout, env=None):
         seen.append(args)
+        if "--issue" in args:
+            issues.append(json.load(open(args[args.index("--issue") + 1])))
         assert json.load(open(args[args.index("--previous") + 1])) == {"week": "2026-10-05"}
         assert json.load(open(args[args.index("--replies") + 1]))[0]["name"] == "Maria"
         with open(args[args.index("--out") + 1], "w") as f:
@@ -617,7 +625,8 @@ def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_bef
     assert "--before-send" not in seen[0]
     site = Site(files={"sections": {"week": "2026-10-05"}})
     jw.job_sections(site, run=run, env={}, today=date(2026, 10, 15))   # Thursday morning
-    assert "--before-send" in seen[1]
+    assert "--before-send" in seen[1] and site.edition == "weekend"
+    assert issues[0]["top"][0]["name"] == "Zoo Boo"
     # A town without sections.json writes nothing: done, nothing handed in.
     site = Site()
     status, result = jw.job_sections(site, run=lambda a, t, e=None: (0, ["no sections.json"]), env={}, today=date(2026, 10, 14))
