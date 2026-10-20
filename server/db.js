@@ -339,7 +339,7 @@ class FileStore {
       const raw = await fs.readFile(this.file, 'utf8');
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') {
-        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [] };
+        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
       }
       if (!Array.isArray(parsed.submissions)) parsed.submissions = [];
       if (!parsed.event_archive || typeof parsed.event_archive !== 'object') parsed.event_archive = {};
@@ -350,10 +350,11 @@ class FileStore {
       if (!Array.isArray(parsed.referral_rewards)) parsed.referral_rewards = [];
       if (!Array.isArray(parsed.sponsor_orders)) parsed.sponsor_orders = [];
       if (!Array.isArray(parsed.event_edits)) parsed.event_edits = [];
+      if (!Array.isArray(parsed.subscriber_counts)) parsed.subscriber_counts = [];
       return parsed;
     } catch (err) {
       if (err.code === 'ENOENT') {
-        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [] };
+        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
       }
       throw err;
     }
@@ -501,7 +502,7 @@ class FileStore {
         // pending_since: when this signup asked, for the confirm reminder; a
         // comeback is a new ask and gets its own reminder.
         // weekend_optout: a fresh signup is promised both issues again.
-        Object.assign(sub, { status: 'pending', token: newToken(), unsubscribed_at: null, source,
+        Object.assign(sub, { status: 'pending', token: newToken(), unsubscribed_at: null, bounced_at: null, unsub_reason: null, source,
           old_tokens: [...(sub.old_tokens || []), sub.token], pending_since: now, reminded_at: null, weekend_optout: false,
           ...SOFT_BOUNCE_CLEAR });
         fresh = true;
@@ -532,7 +533,7 @@ class FileStore {
       const data = await this._read();
       const sub = data.subscribers.find(x => x.token === token || (x.old_tokens || []).includes(token));
       if (!sub) return false;
-      Object.assign(sub, { status: 'unsubscribed', unsubscribed_at: nowIso() });
+      Object.assign(sub, { status: 'unsubscribed', unsubscribed_at: nowIso(), unsub_reason: 'unsubscribe' });
       await this._write(data);
       return true;
     });
@@ -641,14 +642,16 @@ class FileStore {
 
   // A spam complaint (server/inbound.js): an unsubscribe by address, any
   // status, so a complainer waiting to confirm a comeback stays off too.
-  async unsubscribeByEmail(emails) {
+  // reason (unsub_reason): why, for the counts (complaint, bad_address,
+  // typo_fixed); a link unsubscribe is 'unsubscribe'.
+  async unsubscribeByEmail(emails, reason = null) {
     const set = new Set(emails || []);
     if (!set.size) return 0;
     return this._withWrite(async () => {
       const data = await this._read();
       let n = 0;
       for (const sub of data.subscribers) {
-        if (set.has(sub.email) && sub.status !== 'unsubscribed') { Object.assign(sub, { status: 'unsubscribed', unsubscribed_at: nowIso() }); n++; }
+        if (set.has(sub.email) && sub.status !== 'unsubscribed') { Object.assign(sub, { status: 'unsubscribed', unsubscribed_at: nowIso(), unsub_reason: reason }); n++; }
       }
       await this._write(data);
       return n;
@@ -924,7 +927,30 @@ class FileStore {
     const data = await this._read();
     return data.subscribers.map(x => ({ id: x.id, status: x.status, source: x.source || null, referred_by: x.referred_by || null,
       created_at: x.created_at || null, confirmed_at: x.confirmed_at || null, unsubscribed_at: x.unsubscribed_at || null,
+      bounced_at: x.bounced_at || null, unsub_reason: x.unsub_reason || null, pending_since: x.pending_since || null,
       weekend_optout: Boolean(x.weekend_optout) }));
+  }
+
+  // One row per town-local day of the list's own counts, written by the HQ
+  // summary (server/hq.js): a record that isn't worked out again from
+  // today's rows, so a restore or a wipe shows as a drop.
+  async saveSubscriberCounts(day, counts) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const row = { day, active: counts.active || 0, pending: counts.pending || 0, bounced: counts.bounced || 0,
+        unsubscribed: counts.unsubscribed || 0, recorded_at: nowIso() };
+      const i = data.subscriber_counts.findIndex(x => x.day === day);
+      if (i >= 0) data.subscriber_counts[i] = row; else data.subscriber_counts.push(row);
+      data.subscriber_counts.sort((a, b) => (a.day < b.day ? -1 : 1));
+      if (data.subscriber_counts.length > 400) data.subscriber_counts.splice(0, data.subscriber_counts.length - 400);
+      await this._write(data);
+    });
+  }
+
+  // The last `limit` days recorded, oldest first.
+  async listSubscriberCounts(limit = 31) {
+    const data = await this._read();
+    return data.subscriber_counts.slice(-limit);
   }
 
   // Who opened the given issues: [{ week_key, subscriber_id }].
@@ -1640,6 +1666,26 @@ class PgStore {
         await addColumn('subscribers', 'soft_bounces', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounces INT NOT NULL DEFAULT 0');
         await addColumn('subscribers', 'soft_bounce_first_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_first_at TIMESTAMPTZ');
         await addColumn('subscribers', 'soft_bounce_last_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS soft_bounce_last_at TIMESTAMPTZ');
+        // When an address bounced, so the daily history counts it as leaving
+        // (before October 2026 a bounce was only a status). Soft bounces
+        // carry their last date; older hard bounces stay undated.
+        await addColumn('subscribers', 'bounced_at', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS bounced_at TIMESTAMPTZ');
+        await this.pool.query(`UPDATE subscribers SET bounced_at = soft_bounce_last_at
+          WHERE status = 'bounced' AND bounced_at IS NULL AND soft_bounce_last_at IS NOT NULL`);
+        // Why someone left (FileStore.unsubscribeByEmail): unsubscribe,
+        // complaint, bad_address, typo_fixed. NULL before October 2026.
+        await addColumn('subscribers', 'unsub_reason', 'ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS unsub_reason TEXT');
+        // FileStore.saveSubscriberCounts: the list's counts, once a day.
+        await this.pool.query(`
+          CREATE TABLE IF NOT EXISTS subscriber_counts (
+            day DATE PRIMARY KEY,
+            active INT NOT NULL,
+            pending INT NOT NULL,
+            bounced INT NOT NULL,
+            unsubscribed INT NOT NULL,
+            recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `);
         await this.pool.query(`
           CREATE TABLE IF NOT EXISTS newsletter_sends (
             week_key TEXT PRIMARY KEY,
@@ -1960,7 +2006,7 @@ class PgStore {
       // unsubscribing (Gmail's Unsubscribe on an older issue still works).
       const row = (await this.pool.query(
         `UPDATE subscribers SET status = 'pending', old_tokens = array_append(old_tokens, token), token = $2,
-           unsubscribed_at = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE,
+           unsubscribed_at = NULL, bounced_at = NULL, unsub_reason = NULL, source = $3, pending_since = NOW(), reminded_at = NULL, weekend_optout = FALSE,
            soft_bounces = 0, soft_bounce_first_at = NULL, soft_bounce_last_at = NULL WHERE email = $1 RETURNING *`,
         [email, newToken(), source])).rows[0];
       return { ...row, new_signup: true };
@@ -1995,7 +2041,7 @@ class PgStore {
     if (!token) return false;
     await this.ready();
     const r = await this.pool.query(
-      `UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = NOW() WHERE token = $1 OR $1 = ANY(old_tokens)`, [token]);
+      `UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = NOW(), unsub_reason = 'unsubscribe' WHERE token = $1 OR $1 = ANY(old_tokens)`, [token]);
     return r.rowCount > 0;
   }
 
@@ -2018,13 +2064,12 @@ class PgStore {
     return r.rowCount > 0;
   }
 
-  // See FileStore.markSubscribersBounced. status is plain TEXT, so no
-  // migration; the date isn't kept here (the Slack note has it).
+  // See FileStore.markSubscribersBounced.
   async markSubscribersBounced(emails) {
     if (!emails || !emails.length) return 0;
     await this.ready();
     const r = await this.pool.query(
-      `UPDATE subscribers SET status = 'bounced' WHERE email = ANY($1::text[]) AND status = 'active'`, [emails]);
+      `UPDATE subscribers SET status = 'bounced', bounced_at = NOW() WHERE email = ANY($1::text[]) AND status = 'active'`, [emails]);
     return r.rowCount;
   }
 
@@ -2052,7 +2097,7 @@ class PgStore {
       [emails, now.toISOString(), ms(SOFT_BOUNCE.sameSendMs), ms(SOFT_BOUNCE.resetMs)]);
     if (!counted.rowCount) return [];
     const r = await this.pool.query(
-      `UPDATE subscribers SET status = 'bounced'
+      `UPDATE subscribers SET status = 'bounced', bounced_at = soft_bounce_last_at
        WHERE email = ANY($1::text[]) AND status = 'active' AND soft_bounces >= $2
          AND soft_bounce_last_at - soft_bounce_first_at >= $3::interval
        RETURNING email`,
@@ -2071,11 +2116,11 @@ class PgStore {
   }
 
   // See FileStore.unsubscribeByEmail.
-  async unsubscribeByEmail(emails) {
+  async unsubscribeByEmail(emails, reason = null) {
     if (!emails || !emails.length) return 0;
     await this.ready();
     const r = await this.pool.query(
-      `UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = NOW() WHERE email = ANY($1::text[]) AND status <> 'unsubscribed'`, [emails]);
+      `UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = NOW(), unsub_reason = $2 WHERE email = ANY($1::text[]) AND status <> 'unsubscribed'`, [emails, reason]);
     return r.rowCount;
   }
 
@@ -2324,11 +2369,33 @@ class PgStore {
   async listSubscriberStats() {
     await this.ready();
     const r = await this.pool.query(
-      'SELECT id, status, source, referred_by, created_at, confirmed_at, unsubscribed_at, weekend_optout FROM subscribers ORDER BY created_at');
+      `SELECT id, status, source, referred_by, created_at, confirmed_at, unsubscribed_at, bounced_at, unsub_reason, pending_since,
+              weekend_optout FROM subscribers ORDER BY created_at`);
     const iso = v => (v instanceof Date ? v.toISOString() : v || null);
     return r.rows.map(x => ({ id: x.id, status: x.status, source: x.source || null, referred_by: x.referred_by || null,
       created_at: iso(x.created_at), confirmed_at: iso(x.confirmed_at), unsubscribed_at: iso(x.unsubscribed_at),
+      bounced_at: iso(x.bounced_at), unsub_reason: x.unsub_reason || null, pending_since: iso(x.pending_since),
       weekend_optout: Boolean(x.weekend_optout) }));
+  }
+
+  // See FileStore.saveSubscriberCounts.
+  async saveSubscriberCounts(day, counts) {
+    await this.ready();
+    await this.pool.query(
+      `INSERT INTO subscriber_counts (day, active, pending, bounced, unsubscribed, recorded_at) VALUES ($1::date, $2, $3, $4, $5, NOW())
+       ON CONFLICT (day) DO UPDATE SET active = EXCLUDED.active, pending = EXCLUDED.pending, bounced = EXCLUDED.bounced,
+         unsubscribed = EXCLUDED.unsubscribed, recorded_at = NOW()`,
+      [day, counts.active || 0, counts.pending || 0, counts.bounced || 0, counts.unsubscribed || 0]);
+  }
+
+  // See FileStore.listSubscriberCounts.
+  async listSubscriberCounts(limit = 31) {
+    await this.ready();
+    const r = await this.pool.query(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, active, pending, bounced, unsubscribed, recorded_at
+         FROM subscriber_counts ORDER BY day DESC LIMIT $1`, [limit]);
+    return r.rows.reverse().map(x => ({ day: x.day, active: x.active, pending: x.pending, bounced: x.bounced,
+      unsubscribed: x.unsubscribed, recorded_at: x.recorded_at instanceof Date ? x.recorded_at.toISOString() : x.recorded_at }));
   }
 
   async listEmailOpens(weekKeys) {

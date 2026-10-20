@@ -14,7 +14,7 @@
  */
 
 import crypto from 'node:crypto';
-import { dailyGrowth, sumDays, issueReport, monthRevenue, goals } from './growth.js';
+import { dailyGrowth, sumDays, issueReport, monthRevenue, goals, activeByDay } from './growth.js';
 import { localDateStr, addDays, currentWeek } from './seo.js';
 import { partnerSummary } from './partners.js';
 import { HOLD_MS } from './sponsors.js';
@@ -98,7 +98,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   // ..."), the file store as an ISO string: both to the town's YYYY-MM-DD.
   const dayOf = v => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? localDateStr(d) : null; };
   const oldest = sends.map(s => dayOf(s.sent_at)).filter(Boolean).sort()[0] || today;
-  const rows = await safe(() => store.listTraffic(oldest), [], 'issues');
+  // Back to the oldest issue, and at least 30 days for the signup outcomes.
+  const rows = await safe(() => store.listTraffic([oldest, addDays(today, -30)].sort()[0]), [], 'issues');
   const events = await safe(getEvents, [], 'events');
   const lastMonthDay = addDays(today.slice(0, 7) + '-01', -1);
   const byStatus = {};
@@ -121,13 +122,33 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   const bad = part => failed.includes(part);
   const healthOut = h && typeof h === 'object' ? (({ database_configured: _c, ...rest }) => rest)(h) : h;
   const missing = level => s.checks.filter(c => c.level === level && c.ok === false).map(c => c.key);
-  // Active subscribers at the end of each day, worked back from today's count.
-  let after = 0;
-  const history = [];
-  for (let i = daily.length - 1; i >= 0; i--) {
-    history.unshift({ day: daily[i].day, active: active - after, joined: daily[i].joined, left: daily[i].unsubscribed });
-    after += daily[i].net;
+  // Active subscribers at the end of each day, counted from the rows (it
+  // was worked back from today's count, and every bounce pushed the early
+  // days below zero). left = unsubscribed + bounced.
+  const counts = activeByDay(subs, daily.map(d => d.day));
+  const history = daily.map((d, i) => ({ day: d.day, active: counts[i], joined: d.joined, left: d.unsubscribed + d.bounced,
+    unsubscribed: d.unsubscribed, bounced: d.bounced, complaints: d.complaints }));
+  // Today's counts, kept once a day in the town's own database (a record,
+  // not worked out again later), and a drop against the last one: a
+  // restore from an old backup, a wipe or a wave of bounces.
+  const statusCount = st => subs.filter(x => x.status === st).length;
+  let recorded = null;
+  let drop = null;
+  if (!bad('subscribers') && typeof store.saveSubscriberCounts === 'function') {
+    await safe(() => store.saveSubscriberCounts(today, { active, pending: statusCount('pending'), bounced: statusCount('bounced'), unsubscribed: statusCount('unsubscribed') }));
+    recorded = await safe(() => store.listSubscriberCounts(31), null);
+    const prev = (recorded || []).filter(r => r.day < today).at(-1);
+    if (prev && prev.active >= 20 && active < prev.active * 0.8) drop = { from_day: prev.day, from: prev.active, to: active };
   }
+  // What each signup on the form came to (server/newsletter.js
+  // signupOutcome) over the last 30 full days, and confirmations.
+  const signupOutcomes = {};
+  for (const r of rows) {
+    if (r.kind !== 'signup' || r.day < addDays(today, -30) || r.day >= today) continue;
+    signupOutcomes[r.click_type] = (signupOutcomes[r.click_type] || 0) + (Number(r.n) > 0 ? Number(r.n) : 1);
+  }
+  const weekAgo = now.getTime() - 7 * 864e5;
+  const stalePending = subs.filter(x => x.status === 'pending' && Date.parse(x.pending_since || x.created_at || '') < weekAgo).length;
   // The last six months' revenue, oldest first (this month so far last).
   const months = [];
   for (let m = today.slice(0, 7) + '-01', i = 0; i < 6; i++, m = addDays(m, -1).slice(0, 7) + '-01') {
@@ -147,9 +168,21 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       net_7_days: sumDays(done.slice(-7)).net,
       net_30_days: month30.net,
       joined_30_days: month30.joined,
-      left_30_days: month30.unsubscribed,
+      // left = unsubscribed + bounced (a bounce takes someone off the list
+      // too); complaints are the unsubscribes that were spam reports.
+      left_30_days: month30.unsubscribed + month30.bounced,
+      unsubscribed_30_days: month30.unsubscribed,
+      bounced_30_days: month30.bounced,
+      complaints_30_days: month30.complaints,
+      // Signups that never tapped Confirm, a week or more on.
+      pending_older_than_7_days: stalePending,
+      signup_outcomes_30_days: signupOutcomes,
       sources_30_days: month30.by_source,
       daily: history,
+      // The counts as recorded each day (oldest first, up to 31), and a
+      // drop of a fifth or more since the last one (null when none).
+      recorded_daily: recorded,
+      drop_since_last_snapshot: drop,
       goals: goals(subs, daily, monthRevenue(orders, today), today)
     },
     issues: bad('issues') ? null : issueReport(sends, opens, subs, rows, events).slice(0, 4)

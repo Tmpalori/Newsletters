@@ -54,7 +54,9 @@ describe('activitySummary', () => {
     expect(s).toMatchObject({ ok: true, days: 7, from: '2026-10-08', to: '2026-10-14' });
     expect(s.totals).toEqual({
       views: 4, visitors: 3, clicks: 6, event_link_clicks: 1, shares: 3, share_visits: 1, calendar_adds: 1,
-      sponsor_clicks: 1, subscribe_clicks: 0, ad_views: 1, newsletter_recipients: 100, newsletter_opens: 40
+      sponsor_clicks: 1, subscribe_clicks: 0, subscribe_link_taps: 0, subscribe_form_successes: 0,
+      signup_attempts: 0, signup_attempt_people: 0, signups_joined: 0, signups_confirmed: 0,
+      ad_views: 1, newsletter_recipients: 100, newsletter_opens: 40
     });
     expect(s.shares_by.map(x => x.key).sort()).toEqual(['share_facebook', 'share_from_list', 'share_native']);
     expect(s.clicks_by.find(x => x.key === 'add_to_calendar').label).toBe('Added to calendar');
@@ -70,12 +72,34 @@ describe('activitySummary', () => {
 
   it('has every day, and only the issues sent in the range', () => {
     expect(s.daily).toHaveLength(7);
-    expect(s.daily.at(-1)).toEqual({ day: '2026-10-14', views: 2, visitors: 2, clicks: 4, shares: 1 });
+    expect(s.daily.at(-1)).toEqual({ day: '2026-10-14', views: 2, visitors: 2, clicks: 4, shares: 1, signup_attempts: 0, signups_joined: 0, signups_confirmed: 0 });
     expect(s.newsletter).toEqual([{ week_key: '2026-10-12', subject: 'This week', sent_on: '2026-10-12', recipients: 100, opens: 40 }]);
   });
 
   it('carries no visitor ids', () => {
     expect(JSON.stringify(s)).not.toMatch(/"visitor"/);
+  });
+});
+
+describe('activitySummary signups', () => {
+  const sub = (visitor, outcome, path = 'footer') => ({ day: '2026-10-14', kind: 'signup', path, visitor, click_type: outcome });
+  const tap = (visitor, url = '') => ({ day: '2026-10-14', kind: 'click', path: '/', visitor, click_type: 'subscribe_click', click_url: url });
+  const rows = [
+    tap('a'), tap('a', 'form'), tap('b'), tap('c', 'list-card'),
+    sub('a', 'joined'), sub('b', 'invalid'), sub('b', 'joined', 'subscribe'), sub('c', 'already_subscribed'),
+    sub('d', 'pending_bot_check'), sub('d', 'confirmed'), sub('e', 'honeypot')
+  ];
+  const s = activitySummary(rows, { now: NOW, days: 7 });
+
+  it('splits Subscribe taps into links to the form and forms that answered ok', () => {
+    expect(s.totals).toMatchObject({ subscribe_clicks: 4, subscribe_link_taps: 2, subscribe_form_successes: 2 });
+  });
+
+  it('counts what each signup came to, apart from page views and clicks', () => {
+    expect(s.totals).toMatchObject({ views: 0, clicks: 4, signup_attempts: 6, signup_attempt_people: 5, signups_joined: 2, signups_confirmed: 1 });
+    expect(s.signups.outcomes).toEqual({ joined: 2, invalid: 1, already_subscribed: 1, pending_bot_check: 1, confirmed: 1, honeypot: 1 });
+    expect(s.signups.by_source).toEqual([{ key: 'footer', count: 5 }, { key: 'subscribe', count: 1 }]);
+    expect(s.daily.at(-1)).toMatchObject({ signup_attempts: 6, signups_joined: 2, signups_confirmed: 1 });
   });
 });
 

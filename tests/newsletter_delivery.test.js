@@ -258,7 +258,7 @@ describe('import never revives an opt-out', () => {
     const r = await (await post('/api/admin/newsletter/import', {
       emails: 'active@example.com, gone@example.com back@example.com;dead@example.com spam@example.com waiting@example.com new@example.com'
     }, h)).json();
-    expect(r).toEqual({ ok: true, added: 1, already: 2, skipped_unsubscribed: 3, skipped_bounced: 1 });
+    expect(r).toEqual({ ok: true, added: 1, already: 2, skipped_unsubscribed: 3, skipped_bounced: 1, invalid: 0 });
     expect(await statusOf('gone@example.com')).toBe('unsubscribed');
     expect(await statusOf('back@example.com')).toBe('pending');
     expect(await statusOf('dead@example.com')).toBe('bounced');
@@ -378,6 +378,8 @@ describe('Resend bounce and complaint webhooks', () => {
     expect((await store.countReferrals([code], { counted: false }))[code]).toBe(1);
     expect(await (await webhook(event('email.complained', 'friend@example.com'))).json()).toEqual({ ok: true, result: 'complained' });
     expect(await statusOf('friend@example.com')).toBe('unsubscribed');
+    // Kept as a complaint, for the summary's complaints_30_days.
+    expect((await store.listSubscriberStats()).find(x => x.id === friend.id).unsub_reason).toBe('complaint');
     expect((await store.countReferrals([code], { counted: false }))[code] || 0).toBe(0);
     expect(pings.some(p => /Spam complaint/.test(p.title))).toBe(true);
     // A sponsor's "copies sent" is the issue's recipients: they aren't in it.

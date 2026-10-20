@@ -3,8 +3,9 @@
  * GET /api/admin/activity?days=1..90 (also /api/hq/admin/activity, so HQ's
  * assistant can read every town's): page views, visitors, every kind of
  * click, shares (and the visits shared links brought), calendar adds,
- * sponsor clicks and ad views, per day and per event page, plus the
- * newsletter issues sent in the range with their opens. Counts only: no
+ * sponsor clicks and ad views, what each newsletter signup came to, per
+ * day and per event page, plus the newsletter issues sent in the range
+ * with their opens. Counts only: no
  * addresses, emails or visitor ids. Built from the same traffic rows as the
  * Traffic tab (server/analytics.js) and Event stats (server/sponsors.js),
  * so the numbers agree with the admin.
@@ -81,6 +82,14 @@ export function activitySummary(rows, { now, days = 7, events = [], sends = [], 
   const clicks = inRange.filter(r => r.kind === 'click');
   const shares = clicks.filter(r => isShare(r.click_type));
   const type = t => clicks.filter(r => r.click_type === t);
+  // Signups as the server saw them (newsletter.js signupOutcome): what each
+  // form submit came to, and confirmations. A Subscribe tap in the browser
+  // is either a link to the form or a form that answered ok
+  // (click_url 'form' / 'list-card'), so those are counted apart too.
+  const signups = inRange.filter(r => r.kind === 'signup');
+  const attempts = signups.filter(r => r.click_type !== 'confirmed');
+  const formOk = r => r.click_url === 'form' || r.click_url === 'list-card';
+  const outcomes = Object.fromEntries(countBy(signups, r => r.click_type, 30).map(c => [c.key, c.count]));
 
   const byDay = new Map();
   for (const r of inRange) {
@@ -92,7 +101,10 @@ export function activitySummary(rows, { now, days = 7, events = [], sends = [], 
     const day = byDay.get(d) || [];
     const v = day.filter(r => r.kind === 'view');
     const c = day.filter(r => r.kind === 'click');
-    daily.push({ day: d, views: rowCount(v), visitors: people(v), clicks: rowCount(c), shares: rowCount(c.filter(r => isShare(r.click_type))) });
+    const sg = day.filter(r => r.kind === 'signup');
+    daily.push({ day: d, views: rowCount(v), visitors: people(v), clicks: rowCount(c), shares: rowCount(c.filter(r => isShare(r.click_type))),
+      signup_attempts: rowCount(sg.filter(r => r.click_type !== 'confirmed')), signups_joined: rowCount(sg.filter(r => r.click_type === 'joined')),
+      signups_confirmed: rowCount(sg.filter(r => r.click_type === 'confirmed')) });
   }
 
   const dayOf = v => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? localDateStr(d) : null; };
@@ -114,12 +126,21 @@ export function activitySummary(rows, { now, days = 7, events = [], sends = [], 
       calendar_adds: rowCount(type('add_to_calendar')),
       sponsor_clicks: rowCount(type('sponsor_click')),
       subscribe_clicks: rowCount(type('subscribe_click')),
+      subscribe_link_taps: rowCount(type('subscribe_click').filter(r => !formOk(r))),
+      subscribe_form_successes: rowCount(type('subscribe_click').filter(formOk)),
+      signup_attempts: rowCount(attempts),
+      signup_attempt_people: people(attempts),
+      signups_joined: outcomes.joined || 0,
+      signups_confirmed: outcomes.confirmed || 0,
       ad_views: rowCount(inRange.filter(r => r.kind === 'impression')),
       newsletter_recipients: issues.reduce((n, s) => n + s.recipients, 0),
       newsletter_opens: issues.reduce((n, s) => n + s.opens, 0)
     },
     clicks_by: countBy(clicks, r => r.click_type, 20).map(c => ({ ...c, label: CLICK_LABELS[c.key] || c.key })),
     shares_by: countBy(shares, r => r.click_type, 10).map(c => ({ ...c, label: CLICK_LABELS[c.key] || c.key })),
+    // Every outcome's count (joined, already_subscribed, pending_bot_check,
+    // invalid, typo, no_mail_domain, honeypot, confirmed...), and by form.
+    signups: { outcomes, by_source: countBy(attempts, r => r.path || 'site', 10) },
     sources: countBy(views, r => r.ref_source || 'Direct', 10),
     top_pages: countBy(views, r => r.path, 10),
     events: byEvent(inRange, events, 25),

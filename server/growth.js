@@ -68,7 +68,7 @@ const round2 = n => Math.round(n * 100) / 100;
 export function dailyGrowth(subs, spend, { today, days }) {
   const start = addDays(today, -(days - 1));
   const rows = new Map();
-  for (let d = start; d <= today; d = addDays(d, 1)) rows.set(d, { day: d, joined: 0, by_source: {}, unsubscribed: 0, spend: null });
+  for (let d = start; d <= today; d = addDays(d, 1)) rows.set(d, { day: d, joined: 0, by_source: {}, unsubscribed: 0, bounced: 0, complaints: 0, spend: null });
   for (const s of subs) {
     const j = s.status !== 'pending' && dayOf(s.confirmed_at);
     if (j && rows.has(j)) {
@@ -77,25 +77,51 @@ export function dailyGrowth(subs, spend, { today, days }) {
       const src = sourceOf(s);
       r.by_source[src] = (r.by_source[src] || 0) + 1;
     }
-    const u = dayOf(s.unsubscribed_at);
-    if (u && rows.has(u)) rows.get(u).unsubscribed++;
+    // Leaving counts only for someone who had joined: a signup that never
+    // confirmed and is then taken off was never on the list. A bounce
+    // leaves too (bounced_at): without it every bounce read as a join
+    // that never left, and the history worked back from it went negative.
+    if (!s.confirmed_at) continue;
+    const u = s.status === 'unsubscribed' && dayOf(s.unsubscribed_at);
+    if (u && rows.has(u)) {
+      rows.get(u).unsubscribed++;
+      if (s.unsub_reason === 'complaint') rows.get(u).complaints++;
+    }
+    const b = s.status === 'bounced' && dayOf(s.bounced_at);
+    if (b && rows.has(b)) rows.get(b).bounced++;
   }
   for (const x of spend || []) if (rows.has(x.day)) rows.get(x.day).spend = round2(Number(x.spend) || 0);
   return [...rows.values()].map(r => ({
     ...r,
-    net: r.joined - r.unsubscribed,
+    net: r.joined - r.unsubscribed - r.bounced,
     // Imported addresses didn't cost anything.
     cost_per_sub: r.spend != null && r.joined - (r.by_source.Imported || 0) > 0
       ? round2(r.spend / (r.joined - (r.by_source.Imported || 0))) : null
   }));
 }
 
+// Active subscribers at the end of each day: joined by then and not yet
+// gone. Counted from the rows, not worked back from today's total, so no
+// day can go below zero. Someone who left without a date (a bounce from
+// before bounced_at was kept) counts as gone on every day.
+export function activeByDay(subs, days) {
+  const out = days.map(() => 0);
+  for (const s of subs || []) {
+    if (s.status === 'pending') continue;
+    const joined = dayOf(s.confirmed_at);
+    const left = s.status === 'active' ? null : dayOf(s.status === 'bounced' ? s.bounced_at : s.unsubscribed_at);
+    if (s.status !== 'active' && (!joined || !left)) continue;
+    days.forEach((day, i) => { if ((!joined || joined <= day) && (!left || left > day)) out[i]++; });
+  }
+  return out;
+}
+
 // Totals for a run of daily rows.
 export function sumDays(daily) {
-  const t = { joined: 0, unsubscribed: 0, net: 0, spend: 0, paid_joined: 0, by_source: {} };
+  const t = { joined: 0, unsubscribed: 0, bounced: 0, complaints: 0, net: 0, spend: 0, paid_joined: 0, by_source: {} };
   let spendDays = false;
   for (const d of daily) {
-    t.joined += d.joined; t.unsubscribed += d.unsubscribed; t.net += d.net;
+    t.joined += d.joined; t.unsubscribed += d.unsubscribed; t.bounced += d.bounced || 0; t.complaints += d.complaints || 0; t.net += d.net;
     for (const [k, v] of Object.entries(d.by_source)) t.by_source[k] = (t.by_source[k] || 0) + v;
     if (d.spend != null) { spendDays = true; t.spend += d.spend; t.paid_joined += d.joined - (d.by_source.Imported || 0); }
   }
@@ -129,13 +155,18 @@ export function issueReport(sends, opens, subs, rows, events) {
     const sent = Number(s.recipients) || 0;
     const opened = opens[s.week_key] || 0;
     const unsubscribed = (subs || []).filter(x => { const u = dayOf(x.unsubscribed_at); return u && u >= from && u <= end; }).length;
+    // Bounces and spam complaints in the same days, so an issue that hurt
+    // the list shows it.
+    const within = v => { const d = dayOf(v); return d && d >= from && d <= end; };
+    const bounced = (subs || []).filter(x => x.status === 'bounced' && within(x.bounced_at)).length;
+    const complaints = (subs || []).filter(x => x.unsub_reason === 'complaint' && within(x.unsubscribed_at)).length;
     return {
       week: s.week_key, edition: editionOf(s.week_key), subject: s.subject || '', sent_at: s.sent_at, sent, opens: opened,
       open_rate: sent ? Math.round(opened / sent * 1000) / 10 : null,
       clickers: firstDay, click_rate: sent ? Math.round(firstDay / sent * 1000) / 10 : null, reader_days: readerDays,
       visits: visits.reduce((a, r) => a + weight(r), 0),
       top_events: [...top.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, views]) => ({ name, views })),
-      unsubscribed
+      unsubscribed, bounced, complaints
     };
   });
   return out.reverse();
