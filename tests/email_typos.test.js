@@ -377,6 +377,19 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('active');
   });
 
+  it('HQ can add subscribers, a few at a time, never an impossible ending', async () => {
+    await seed();
+    const imp = body => fetch(baseUrl + '/api/hq/admin/newsletter/import', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HQK}` }, body: JSON.stringify(body) });
+    const r = await imp({ emails: 'mjiskra11@gmail.com, happy@gmail.com' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, added: 1, already: 1 });
+    expect(await statusOf('mjiskra11@gmail.com')).toBe('active');
+    expect((await (await imp({ emails: 'pat@gmail.comm' })).json()).error).toBe('bad-email');
+    expect((await (await imp({ emails: Array.from({ length: 26 }, (_, i) => `p${i}@gmail.com`).join(' ') })).json()).error).toBe('too-many');
+    expect((await fetch(baseUrl + '/api/hq/admin/newsletter/import', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' }, body: '{"emails":"x@gmail.com"}' })).status).toBe(401);
+    expect(await statusOf('x@gmail.com')).toBeUndefined();
+  });
+
   it('needs the HQ key or an admin login', async () => {
     await seed();
     const r = await fetch(baseUrl + '/api/hq/admin/newsletter/fix-subscriber', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' },
