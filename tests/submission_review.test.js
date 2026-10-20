@@ -718,7 +718,8 @@ describe('submissions through HQ (HQ_REPLY_KEY)', () => {
       expect((await hq('GET', `/api/admin/${p}`)).status, p).toBe(401);           // the key never opens the admin's own paths
     }
     expect((await hq('GET', '/api/hq/admin/subscribers.csv')).status).toBe(404);   // not every admin route
-    expect((await hq('POST', '/api/hq/admin/newsletter/import', { emails: 'a@b.co' })).status).toBe(404);
+    // Import is open to it (Tristen's OK, Oct 2026), but not to the read-only key.
+    expect((await hq('POST', '/api/hq/admin/newsletter/import', { emails: 'a@b.co' }, 'hq-read-only-key-0123456789')).status).toBe(401);
     expect((await hq('POST', '/api/hq/admin/newsletter/rewards/r1/approve', {})).status).toBe(404);
   });
 
