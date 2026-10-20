@@ -569,6 +569,20 @@ class FileStore {
     });
   }
 
+  // A stored address email can't go to, corrected in place (newsletter.js
+  // repairSubscriberEmails): the same subscriber, token and status. False
+  // when `from` isn't there or `to` already is.
+  async replaceSubscriberEmail(from, to) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      const sub = data.subscribers.find(x => x.email === from);
+      if (!sub || data.subscribers.some(x => x.email === to)) return false;
+      sub.email = to;
+      await this._write(data);
+      return true;
+    });
+  }
+
   // A soft bounce for these addresses (see SOFT_BOUNCE). Only active
   // subscribers count. Returns the addresses this marked bounced.
   async recordSoftBounce(emails, now = new Date()) {
@@ -1965,6 +1979,14 @@ class PgStore {
     const r = await this.pool.query(
       `UPDATE subscribers SET status = 'bounced' WHERE email = ANY($1::text[]) AND status = 'active'`, [emails]);
     return r.rowCount;
+  }
+
+  // See FileStore.replaceSubscriberEmail.
+  async replaceSubscriberEmail(from, to) {
+    await this.ready();
+    const r = await this.pool.query(
+      'UPDATE subscribers SET email = $2 WHERE email = $1 AND NOT EXISTS (SELECT 1 FROM subscribers WHERE email = $2)', [from, to]);
+    return r.rowCount > 0;
   }
 
   // See FileStore.recordSoftBounce. Count first, then mark the ones whose

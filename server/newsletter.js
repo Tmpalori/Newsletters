@@ -123,14 +123,21 @@ export const SCHEDULE = 'every Monday and Thursday';
 
 // Invisible characters a paste or autofill can carry in (zero-width space and
 // joiners, soft hyphen, BOM) come out first: the reader typed a good address.
-// A dash a phone or autocorrect swapped in for a hyphen ("alma‑mc@") is
-// the hyphen they meant.
+// Any dash a phone or autocorrect swapped in for a hyphen ("alma‑mc@") is
+// the hyphen they meant, and NFKC turns fullwidth and other compatibility
+// forms ("ａ", "ﬁ") into the plain letters.
 const INVISIBLE_RE = /[\u00ad\u200b-\u200d\u2060\ufeff]/g;
-const DASH_RE = /[\u2010-\u2015\u2212\ufe63\uff0d]/g;
+const DASH_RE = /[\p{Pd}\u2212\u2043\u02d7]/gu;
 
 export function normalizeEmail(raw) {
-  const e = String(raw || '').replace(INVISIBLE_RE, '').replace(DASH_RE, '-').trim().toLowerCase();
+  const e = String(raw || '').normalize('NFKC').replace(INVISIBLE_RE, '').replace(DASH_RE, '-').trim().toLowerCase();
   return e.length <= 254 && EMAIL_RE.test(e) ? e : null;
+}
+
+// An address with what's not ASCII spelled out ("alma[U+2011]mc@..."), for
+// an alert a person reads: the two look the same on screen.
+export function showUnicode(email) {
+  return String(email || '').replace(/[^\x20-\x7e]/gu, c => `[U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}]`);
 }
 
 // "j•••@gmail.com": enough for someone to recognize their own address.
@@ -1025,11 +1032,52 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   // keys, so one mustn't make the other look done ("in-progress" counts as
   // done for the scheduler, since that same issue is going out).
   const sending = new Set();
+  // Addresses on the list that email can't go to: a character outside
+  // ASCII (Resend refuses those with a 422), kept from before signups
+  // refused them or brought in by Import. One that normalizeEmail cleans up
+  // (a fancy dash, a fullwidth letter) is corrected in place, the same
+  // subscriber; one it can't (a look-alike letter) stops being mailed, and
+  // Slack shows exactly what's in it. Runs on boot, before each send and
+  // when a welcome email is refused. Oct 2026: alma-mctygue@hotmail.com on
+  // The Star 402.
+  let repairing = null;
+  function repairSubscriberEmails() {
+    if (!repairing) repairing = repairNow().finally(() => { repairing = null; });
+    return repairing;
+  }
+  async function repairNow() {
+    const out = { fixed: [], stopped: [] };
+    if (typeof store.listSubscribers !== 'function') return out;
+    const subs = await store.listSubscribers();
+    const have = new Set(subs.map(x => x.email));
+    for (const sub of subs) {
+      if (!/[^\x01-\x7f]/.test(sub.email || '') || (sub.status !== 'active' && sub.status !== 'pending')) continue;
+      const to = normalizeEmail(sub.email);
+      if (to && to !== sub.email && !have.has(to) && typeof store.replaceSubscriberEmail === 'function' && await store.replaceSubscriberEmail(sub.email, to)) {
+        have.add(to);
+        out.fixed.push([sub.email, to]);
+        console.log('[newsletter] subscriber address corrected:', showUnicode(sub.email), '->', to);
+        if (slack) slack.notify({ channel: 'activity', title: '✉️ Subscriber address corrected', text: 'It had a character email can\'t go to.', fields: [['Was', showUnicode(sub.email)], ['Now', to]] });
+        continue;
+      }
+      // Already on the list in its clean form, or no telling what it should be.
+      if (sub.status === 'active') await store.markSubscribersBounced([sub.email]);
+      else if (typeof store.unsubscribeByEmail === 'function') await store.unsubscribeByEmail([sub.email]);
+      out.stopped.push(sub.email);
+      console.warn('[newsletter] subscriber address email can\'t go to, no longer mailed:', showUnicode(sub.email));
+      if (slack) slack.alert(`newsletter-bad-address-${sub.id || sub.email}`, 'A subscriber address email can\'t go to',
+        `${showUnicode(sub.email)} has a character that isn't plain text${to && have.has(to) ? `, and ${to} is already on the list` : ''}. It's no longer mailed. If you know the address they meant, add it with Import.`, `${siteUrl}/admin.html`);
+    }
+    return out;
+  }
+  repairSubscriberEmails().catch(err => console.warn('[newsletter] address repair failed:', err.message));
+
   async function sendWeekly(opts = {}) {
     const edition = opts.edition || 'weekly';
     if (sending.has(edition)) return { ok: false, error: 'in-progress', message: 'The newsletter is going out right now. Check back in a minute.' };
     sending.add(edition);
     try {
+      try { await repairSubscriberEmails(); } catch (err) { console.warn('[newsletter] address repair failed:', err.message); }
       return await sendWeeklyNow(opts);
     } finally {
       sending.delete(edition);
@@ -1402,6 +1450,14 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       }, `${town.keyPrefix}-welcome-${sub.id || sub.token}-${new Date(sub.confirmed_at || 0).getTime() || 0}`);
     } catch (err) {
       console.warn('[newsletter] welcome email failed:', err.message);
+      // Resend refused the address itself: fix it (or stop mailing it) now.
+      // That's the address's problem, not email being down: no alert.
+      if (err.status === 422 && /non-ascii|invalid .?to/i.test(err.message)) {
+        try {
+          const r = await repairSubscriberEmails();
+          if (r.fixed.length || r.stopped.length) return;
+        } catch (e) { console.warn('[newsletter] address repair failed:', e.message); }
+      }
       // The signup is saved either way, but with single opt-in this is the
       // only email a new subscriber gets before Monday: a broken Resend key
       // or domain should reach the owner (de-duplicated by key).

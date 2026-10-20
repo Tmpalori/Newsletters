@@ -24,10 +24,11 @@ const NOW = new Date('2026-10-17T17:00:00Z');
 const nowS = Math.floor(NOW.getTime() / 1000);
 let tmpDir, server, baseUrl, store, alerts;
 
-async function startApp(extra = {}) {
+async function startApp({ before, ...extra } = {}) {
   alerts = [];
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vic361-typo-'));
   store = new FileStore(path.join(tmpDir, 's.json'));
+  if (before) await before(store);
   const eventsFile = path.join(tmpDir, 'events.json');
   await fs.writeFile(eventsFile, JSON.stringify({ events: [] }));
   const { app } = await createApp({
@@ -369,5 +370,34 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
       body: JSON.stringify({ from: 'melaniereeves60@gmail.comm', to: 'melaniereeves60@gmail.com' }) });
     expect(r.status).toBe(401);
     expect(await statusOf('melaniereeves60@gmail.com')).toBeUndefined();
+  });
+});
+
+describe('an address email can\'t go to is fixed by the site itself', () => {
+  // Oct 2026: alma-mctygue@hotmail.com on The Star 402 had a character
+  // Resend refuses, and nobody could see which one.
+  const statusOf = async (email) => ((await store.listSubscribers()).find(s => s.email === email) || {}).status;
+  const settle = async (check) => { for (let i = 0; i < 50 && !(await check()); i++) await new Promise(r => setTimeout(r, 10)); };
+
+  it('corrects one it can clean up in place, keeping the subscriber', async () => {
+    await startApp({ before: async s => {
+      await s.importSubscribers(['alma\u2011mctygue@hotmail.com', 'b\uff4fb@gmail.com', 'happy@gmail.com'], 'import');
+    } });
+    const token = (await store.listSubscribers()).find(s => s.email.startsWith('alma')).token;
+    await settle(async () => await statusOf('alma-mctygue@hotmail.com') === 'active' && await statusOf('bob@gmail.com') === 'active');
+    expect(await statusOf('alma-mctygue@hotmail.com')).toBe('active');
+    expect(await statusOf('bob@gmail.com')).toBe('active');
+    expect(await statusOf('happy@gmail.com')).toBe('active');
+    expect((await store.listSubscribers()).find(s => s.email === 'alma-mctygue@hotmail.com').token).toBe(token);
+    expect((await store.listSubscribers()).some(s => /[^\x01-\x7f]/.test(s.email))).toBe(false);
+    expect(alerts).toEqual([]);
+  });
+
+  it('stops mailing one it can\'t, and the alert spells out the character', async () => {
+    // A Cyrillic "а" looks like the Latin one.
+    await startApp({ before: async s => { await s.importSubscribers(['\u0430lma@hotmail.com'], 'import'); } });
+    await settle(async () => await statusOf('\u0430lma@hotmail.com') === 'bounced');
+    expect(await statusOf('\u0430lma@hotmail.com')).toBe('bounced');
+    expect(alerts.find(a => /can't go to/.test(a.title)).detail).toContain('[U+0430]lma@hotmail.com');
   });
 });

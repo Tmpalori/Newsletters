@@ -158,6 +158,8 @@ describe('newsletter content', () => {
     // So is a dash autocorrect put in place of a hyphen.
     expect(normalizeEmail('alma\u2011mc@hotmail.com')).toBe('alma-mc@hotmail.com');
     expect(normalizeEmail('alma\u2013mc@hotmail.com')).toBe('alma-mc@hotmail.com');
+    expect(normalizeEmail('alma\ufe58mc@hotmail.com')).toBe('alma-mc@hotmail.com');
+    expect(normalizeEmail('\uff41lma@hotmail.com')).toBe('alma@hotmail.com');
   });
 });
 
