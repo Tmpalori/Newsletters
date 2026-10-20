@@ -178,7 +178,7 @@ export function renderVenuePage(venue, live, archived, { siteUrl, now, sponsor, 
     description: `Upcoming events at ${venue.name} in ${town.cityState}${venue.event_potential ? `: ${venue.event_potential}` : ''}.`.slice(0, 300),
     body,
     ld: [place, breadcrumbLd(siteUrl, [{ name: 'Venues', path: '/venues' }, { name: venue.name, path: venue.path }]),
-      ...upcoming.slice(0, 20).map(ev => eventJsonLd(ev, siteUrl))]
+      ...upcoming.slice(0, 20).map(ev => eventJsonLd(ev, siteUrl, venue))]
   });
 }
 
@@ -455,7 +455,7 @@ export function activeSeasons(live, _archived, now) {
   return townSeasons().filter(s => (live || []).some(ev => ev && ev.page && ev.date >= today && seasonMatches(s, ev)));
 }
 
-export function renderSeasonPage(season, live, archived, { siteUrl, now, sponsor }) {
+export function renderSeasonPage(season, live, archived, { siteUrl, now, sponsor, venues = [] }) {
   const today = localDateStr(now);
   const { upcoming, past } = seasonEvents(season, live, archived, today);
   const lead = upcoming.length
@@ -479,7 +479,7 @@ export function renderSeasonPage(season, live, archived, { siteUrl, now, sponsor
     description: season.description,
     body,
     ld: [breadcrumbLd(siteUrl, [{ name: town.siteName, path: '/' }, { name: season.nav, path: season.path }]),
-      ...upcoming.slice(0, 30).map(ev => eventJsonLd(ev, siteUrl))]
+      ...upcoming.slice(0, 30).map(ev => eventJsonLd(ev, siteUrl, venueFor(ev, venues)))]
   });
 }
 
