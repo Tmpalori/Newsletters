@@ -214,6 +214,12 @@ def job_collect(site, run=run_script, env=None):
     cache = site.get_file("enrichment_cache")
     if cache is not None:
         _write_json(paths["enrichment_cache"], cache)
+    # The last collect's metadata carries the state the collector keeps
+    # between runs (quiet pages, where the post scrapers start next); the
+    # copy in the image is a deploy old, so start from the site's.
+    prev_meta = site.get_file("collection_metadata")
+    if prev_meta is not None:
+        _write_json(paths["collection_metadata"], prev_meta)
     with tempfile.TemporaryDirectory() as tmp:
         code, tail = run([sys.executable, "-u", "collect_events.py",
                           "--output", os.path.join(tmp, "events.json"),
@@ -238,6 +244,9 @@ def job_collect(site, run=run_script, env=None):
         "events": len(candidates.get("events") or []),
         "warnings": ((meta or {}).get("warnings") or {}).get("summary", ""),
         "sources": sources,
+        # What the Apify scrapers didn't read (the Slack message and HQ say so).
+        "scrape_stops": [x for x in (meta or {}).get("scrape_stops") or [] if isinstance(x, dict)],
+        "apify": (meta or {}).get("apify") if isinstance((meta or {}).get("apify"), dict) else None,
         "published": published,
         "log_tail": tail[-15:],
     }

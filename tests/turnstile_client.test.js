@@ -49,4 +49,18 @@ describe('vicTurnstile.token', () => {
     cb('tok-123');
     await expect(p).resolves.toBe('tok-123');
   });
+
+  it('a widget error answers at once and goes back with the form as ts_err', async () => {
+    let onError;
+    window.turnstile = { render: (box, opts) => { onError = opts['error-callback']; return 'w1'; }, reset: () => {} };
+    const form = document.querySelector('form');
+    let done = null;
+    window.vicTurnstile.token(form).then(t => { done = t; });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onError(110200)).toBe(true);           // handled: Cloudflare doesn't throw it
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done).toBe('');                          // no 10-second wait
+    expect(form.querySelector('input[name=ts_err]').value).toBe('110200');
+    expect(window.vicTurnstile.error(form)).toBe('110200');
+  });
 });

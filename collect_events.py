@@ -146,6 +146,7 @@ def reset_source_stats():
     _SOURCE_PARTIAL.clear()
     _SOURCE_OFF.clear()
     _WARNINGS.clear()
+    _SCRAPE_STOPS.clear()
 
 
 # A scraper's note about a partial run ("skipped 12 listings"), shown with
@@ -178,6 +179,63 @@ _SOURCE_PARTIAL = {}
 
 def _mark_partial(name, reason):
     _SOURCE_PARTIAL.setdefault(name, []).append(reason)
+
+
+# Scrape stops: each time an Apify scraper read less than it had to read (its
+# venue cap, the time limit, the Apify monthly limit, OpenAI down), with how
+# many it skipped and the first names. In collection_metadata.json
+# ("scrape_stops"), the "collect done" Slack message and HQ. Oct 2026:
+# Medford's Instagram pass dropped 46 of 61 accounts every run with only a
+# print line to show for it.
+_SCRAPE_STOPS = []
+SCRAPE_STOP_NAMES = 10
+
+
+def _scrape_stop(source, reason, skipped=None, of=None, names=()):
+    """Record a stop (reason: cap, time, apify-limit, openai) and mark the
+    source partial. skipped/of are None when the whole source was skipped."""
+    _SCRAPE_STOPS.append({"source": source, "reason": reason, "skipped": skipped, "of": of,
+                          "names": [str(n)[:120] for n in list(names)[:SCRAPE_STOP_NAMES]]})
+    _mark_partial(source, f"{reason}: skipped {skipped} of {of}" if skipped is not None else f"{reason}: skipped")
+
+
+# Where each post scraper starts its next run (a Facebook page URL or an
+# Instagram username): the first one this run skipped, so capped or cut-off
+# venues take turns instead of the same tail of the list never being read.
+# Kept between runs in collection_metadata.json ("post_rotation").
+_POST_ROTATION = {}
+
+
+def load_post_rotation(metadata_path):
+    """The last run's rotation, from its collection_metadata.json."""
+    _POST_ROTATION.clear()
+    try:
+        with open(metadata_path) as f:
+            saved = json.load(f).get("post_rotation") or {}
+    except (OSError, ValueError, AttributeError):
+        return
+    if isinstance(saved, dict):
+        _POST_ROTATION.update({k: v for k, v in saved.items() if isinstance(k, str) and isinstance(v, str) and v})
+
+
+def _rotated(items, source, key):
+    """items starting from where the last run left off (by key, so an edited
+    venue list can't shift it); unchanged when that venue is gone."""
+    start = _POST_ROTATION.pop(source, None)
+    keys = [key(x) for x in items]
+    if start is None or start not in keys:
+        return list(items)
+    i = keys.index(start)
+    return list(items[i:]) + list(items[:i])
+
+
+def _next_start(source, left, key):
+    """The next run starts with the first venue skipped this run."""
+    for x in left:
+        k = key(x)
+        if k:
+            _POST_ROTATION[source] = k
+            return
 
 
 def _stamp():
@@ -4482,6 +4540,7 @@ def fetch_apify_eventbrite_events(days_ahead=14):
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Eventbrite] Apify monthly limit already tripped this run — skipping")
+        _scrape_stop("apify_eventbrite", "apify-limit")
         return events
 
     payload = {
@@ -4685,6 +4744,7 @@ def fetch_apify_facebook_events(days_ahead=14):
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify FB] Monthly hard limit already tripped this run — skipping")
+        _scrape_stop("apify_facebook", "apify-limit")
         return events
 
     venues, venues_path = _load_venue_list()
@@ -5385,6 +5445,7 @@ def fetch_apify_facebook_posts(days_ahead=14):
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify FB Posts] Monthly hard limit already tripped this run — skipping")
+        _scrape_stop("apify_facebook_posts", "apify-limit")
         return events
     if not os.environ.get("OPENAI_API_KEY"):
         print("  [Apify FB Posts] No OPENAI_API_KEY — cannot extract events from posts")
@@ -5402,18 +5463,21 @@ def fetch_apify_facebook_posts(days_ahead=14):
         return events
 
     # Optional env-tunable cap (FB_POSTS_MAX_VENUES). Default ``None`` keeps
-    # the legacy behavior (no cap) — the weekly job can opt into a step-
-    # timeout-safe ceiling via Actions Variables when venues.json grows or
-    # IG_POSTS_ENABLED is also on. venues.json order is preserved (the seed
-    # already lists high-value pages first), matching how IG drops the
-    # lowest-priority targets first.
+    # the legacy behavior (no cap). venues.json order is kept, but the list
+    # starts where the last run stopped (_rotated), so the pages past the cap
+    # or the time limit take their turn instead of never being read.
+    fb_key = lambda v: v.get("facebook_page")
+    high_conf = _rotated(high_conf, "apify_facebook_posts", fb_key)
     fb_cap = _resolve_int_env("FB_POSTS_MAX_VENUES", _FB_POSTS_MAX_VENUES)
     if fb_cap is not None and len(high_conf) > fb_cap:
         dropped = len(high_conf) - fb_cap
         print(
             f"  [Apify FB Posts] Capping {len(high_conf)} → {fb_cap} "
-            f"venues for this run (dropped {dropped} lowest-priority)"
+            f"venues for this run (dropped {dropped}; they go first next run)"
         )
+        left = high_conf[fb_cap:]
+        _scrape_stop("apify_facebook_posts", "cap", dropped, len(high_conf), [v.get("name", "?") for v in left])
+        _next_start("apify_facebook_posts", left, fb_key)
         high_conf = high_conf[:fb_cap]
 
     newer_than = (datetime.now().date() - timedelta(days=_POSTS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
@@ -5424,6 +5488,12 @@ def fetch_apify_facebook_posts(days_ahead=14):
     venue_stats = []
     quiet_skipped = []
     for i, venue in enumerate(high_conf):
+        stop = ("apify-limit" if _APIFY_LIMIT_TRIPPED else "openai" if _OPENAI_DEAD
+                else "time" if _minutes_in() > fb_posts_budget_min() else None)
+        if stop:
+            rest = high_conf[i:]
+            _scrape_stop("apify_facebook_posts", stop, len(rest), len(high_conf), [v.get("name", "?") for v in rest])
+            _next_start("apify_facebook_posts", rest, fb_key)
         if _APIFY_LIMIT_TRIPPED:
             venue_stats.append(f"{venue.get('name','?')}: SKIP (limit tripped)")
             break
@@ -5734,6 +5804,7 @@ def fetch_apify_instagram_posts(days_ahead=14):
         return events
     if _APIFY_LIMIT_TRIPPED:
         print("  [Apify IG Posts] Monthly hard limit already tripped this run — skipping")
+        _scrape_stop("apify_instagram_posts", "apify-limit")
         return events
     if not os.environ.get("OPENAI_API_KEY"):
         print("  [Apify IG Posts] No OPENAI_API_KEY — cannot extract events from posts")
@@ -5772,6 +5843,10 @@ def fetch_apify_instagram_posts(days_ahead=14):
     # silently 10× our Apify bill. Stable sort preserves discovery order
     # within each tier so consecutive runs scrape the same set.
     targets.sort(key=lambda t: 0 if t[2] == "HIGH" else 1)
+    # Then start where the last run stopped, so accounts past the cap or the
+    # time limit take their turn (HIGH-first again once the turn comes round).
+    ig_key = lambda t: t[1]
+    targets = _rotated(targets, "apify_instagram_posts", ig_key)
     # Cap is env-tunable (IG_POSTS_MAX_VENUES) so the weekly workflow can be
     # re-tuned via Actions Variables without a code change. Default 20 is
     # a step-timeout-safe value picked from production timing in run
@@ -5781,8 +5856,11 @@ def fetch_apify_instagram_posts(days_ahead=14):
         dropped = len(targets) - cap
         print(
             f"  [Apify IG Posts] Capping {len(targets)} → {cap} "
-            f"venues for this run (dropped {dropped} lowest-priority)"
+            f"venues for this run (dropped {dropped}; they go first next run)"
         )
+        left = targets[cap:]
+        _scrape_stop("apify_instagram_posts", "cap", dropped, len(targets), [t[0].get("name", "?") for t in left])
+        _next_start("apify_instagram_posts", left, ig_key)
         targets = targets[:cap]
 
     newer_than = (datetime.now().date() - timedelta(days=_IG_POSTS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
@@ -5802,6 +5880,12 @@ def fetch_apify_instagram_posts(days_ahead=14):
     n_zero_post_venues = 0
     total_posts_pulled = 0
     for i, (venue, username, tier, posts_limit) in enumerate(targets):
+        stop = ("apify-limit" if _APIFY_LIMIT_TRIPPED else "openai" if _OPENAI_DEAD
+                else "time" if _minutes_in() > SCRAPE_BUDGET_MIN else None)
+        if stop:
+            rest = targets[i:]
+            _scrape_stop("apify_instagram_posts", stop, len(rest), len(targets), [t[0].get("name", "?") for t in rest])
+            _next_start("apify_instagram_posts", rest, ig_key)
         if _APIFY_LIMIT_TRIPPED:
             venue_stats.append(f"{venue.get('name','?')}: SKIP (limit tripped)")
             break
@@ -6048,7 +6132,9 @@ def main():
     global _RUN_STARTED
     _RUN_STARTED = datetime.now().timestamp()  # flyer time budget
     run_started_iso = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    load_quiet_pages(os.path.join(os.path.dirname(os.path.abspath(args.candidates)) or ".", "collection_metadata.json"))
+    _prev_meta = os.path.join(os.path.dirname(os.path.abspath(args.candidates)) or ".", "collection_metadata.json")
+    load_quiet_pages(_prev_meta)
+    load_post_rotation(_prev_meta)
     all_events = []
 
     # 1. Local YAML (backbone)
@@ -6227,6 +6313,10 @@ def main():
             "warnings": {"count": len(_WARNINGS), "first": _WARNINGS[:5], "summary": warning_summary()},
             **({"apify": spend} if spend else {}),
             "quiet_pages": dict(sorted(_QUIET_PAGES.items())),
+            # What the Apify scrapers didn't read this run, and where the
+            # post scrapers start next run.
+            "scrape_stops": list(_SCRAPE_STOPS),
+            "post_rotation": dict(sorted(_POST_ROTATION.items())),
         }
         with open(metadata_path, "w") as f:
             json.dump(metadata_output, f, indent=2)

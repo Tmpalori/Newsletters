@@ -308,3 +308,46 @@ describe('the summary for HQ: Meta detail, campaigns and dormant', () => {
     expect(s.dormant).toBeUndefined();
   });
 });
+
+describe('the summary for HQ: what it needs to catch a lost or restored database', () => {
+  it('the last issue\'s recipients next to active, how far back the database goes, and the bot check\'s day', async () => {
+    await start({ hqApiKey: KEY });
+    await store.recordNewsletterSend({ week_key: '2026-10-05', subject: 's', recipients: 250, failed: 0, failed_emails: [] });
+    const body = await (await get('/api/hq/summary', `Bearer ${KEY}`)).json();
+    expect(body.subscribers.last_send_recipients).toBe(250);
+    expect(body.database).toMatchObject({ issues_sent: 1 });
+    expect(body.database.first_subscriber_at).toMatch(/^\d{4}-\d\d-\d\dT/);
+    expect(body.database.first_send_at).toMatch(/^\d{4}-\d\d-\d\dT/);
+    expect(body.health.bot_check).toMatchObject({ forms: {} });
+    expect(body.health).toHaveProperty('database_created');
+  });
+});
+
+describe.skipIf(!PG)('databaseSpan on Postgres (TEST_DATABASE_URL)', () => {
+  it('the oldest subscriber and issue, and how many issues', async () => {
+    const { default: pg } = await import('pg');
+    const { createStore } = await import('../server/db.js');
+    const admin = new pg.Client({ connectionString: PG });
+    await admin.connect();
+    const dbName = `hq_span_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const url = new URL(PG);
+    url.pathname = `/${dbName}`;
+    url.searchParams.set('sslmode', 'disable');
+    const bundle = await createStore({ databaseUrl: url.toString() });
+    try {
+      const s = bundle.store;
+      expect(await s.databaseSpan()).toEqual({ first_subscriber_at: null, first_send_at: null, issues_sent: 0 });
+      await s.addSubscriber({ email: 'a@example.com', source: 'web' });
+      await s.recordNewsletterSend({ week_key: '2026-10-05', subject: 's', recipients: 1, failed: 0, failed_emails: [] });
+      const span = await s.databaseSpan();
+      expect(span.issues_sent).toBe(1);
+      expect(span.first_subscriber_at).toMatch(/Z$/);
+      expect(span.first_send_at).toMatch(/Z$/);
+    } finally {
+      await bundle.pool.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+      await admin.end();
+    }
+  });
+});

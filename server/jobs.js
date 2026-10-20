@@ -134,6 +134,19 @@ export function collectWarnings(summary) {
   return { title: `⚠️ Collect: ${n} warning${n === 1 ? '' : 's'}`, text: items.slice(0, 3).join('\n'), more: String(summary) };
 }
 
+// The collector's scrape stops (collect_events.py _scrape_stop): what the
+// Apify scrapers didn't read this run and why, one short line each. A venue
+// cap is by design (the skipped ones go first next run); the rest (out of
+// time, Apify's monthly limit, OpenAI down) cut the collect short.
+const STOP_SOURCE = { apify_facebook_posts: 'Facebook posts', apify_instagram_posts: 'Instagram posts', apify_facebook: 'Facebook events', apify_eventbrite: 'Eventbrite' };
+const STOP_WHY = { cap: 'over its venue cap', time: 'out of time', 'apify-limit': 'Apify monthly limit', openai: 'OpenAI down' };
+export function collectStops(stops) {
+  const list = (Array.isArray(stops) ? stops : []).filter(x => x && typeof x === 'object');
+  const line = x => `${STOP_SOURCE[x.source] || String(x.source || '?')}: ${Number.isFinite(x.skipped) ? `skipped ${x.skipped}${Number.isFinite(x.of) ? ` of ${x.of}` : ''}` : 'skipped'} (${STOP_WHY[x.reason] || String(x.reason || '?')})`;
+  const cut = list.filter(x => x.reason !== 'cap');
+  return { cutShort: cut.length > 0, cut: cut.map(line), capped: list.filter(x => x.reason === 'cap').map(line) };
+}
+
 export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {} }) {
   const cfg = jobsConfig(env);
   // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
@@ -268,7 +281,14 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     if (slack) {
       const n = Number.isFinite(r.upcoming) ? r.upcoming : '?';
       const warnings = typeof r.warnings === 'string' ? r.warnings : '';
-      slack.notify({ title: '🗓️ Collect done', text: `${n} events in the next two weeks are live; edit or remove any in admin.`, link: `${siteUrl}/admin.html`, channel: 'activity' });
+      const stops = collectStops(r.scrape_stops);
+      const extra = [
+        stops.cut.length ? `Not scraped: ${stops.cut.join('; ')}.` : '',
+        stops.capped.length ? `Capped: ${stops.capped.join('; ')}.` : '',
+        stops.cut.length || stops.capped.length ? 'The skipped ones go first next collect.' : ''
+      ].filter(Boolean).join('\n');
+      slack.notify({ title: stops.cutShort ? '🗓️ Collect done, cut short' : '🗓️ Collect done',
+        text: `${n} events in the next two weeks are live; edit or remove any in admin.${extra ? `\n${extra}` : ''}`, link: `${siteUrl}/admin.html`, channel: 'activity' });
       if (warnings) slack.notify({ ...collectWarnings(warnings), link: `${siteUrl}/admin.html`, channel: 'alerts' });
     }
     await enqueue('event-check', `after-collect-${job.id}`);

@@ -85,6 +85,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   const month30 = sumDays(done.slice(-30));
   const active = subs.filter(x => x.status === 'active').length;
   const sends = await safe(() => store.listNewsletterSends(4), [], 'issues');
+  // How far back the database goes, so HQ can tell one replaced or restored.
+  const span = typeof store.databaseSpan === 'function' ? await safe(() => store.databaseSpan(), null) : null;
   const weekKeys = sends.map(s => s.week_key);
   const opens = weekKeys.length ? await safe(() => store.countEmailOpens(weekKeys), {}, 'issues') : {};
   // Postgres returns sent_at as a Date (String() of one reads "Fri Oct 09
@@ -135,6 +137,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     subscribers: bad('subscribers') ? null : {
       active,
       pending: subs.filter(x => x.status === 'pending').length,
+      // The last issue's recipients, next to active, for HQ's loss check.
+      last_send_recipients: sends[0] && Number.isFinite(Number(sends[0].recipients)) ? Number(sends[0].recipients) : null,
       net_7_days: sumDays(done.slice(-7)).net,
       net_30_days: month30.net,
       joined_30_days: month30.joined,
@@ -170,6 +174,7 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     submissions_waiting: s.status.pending_submissions ?? null,
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,
+    database: span,
     setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') },
     ...(getJobs ? { jobs: jobsOut } : {}),
     ...(getNewsletterRuns ? { newsletter_runs: runsOut } : {}),
@@ -184,13 +189,30 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
 // asked for work (worker_since: this process's start, so HQ can tell a
 // worker silent since a redeploy). No personal data: counts, source names
 // and the collector's own warnings.
+// A collect's scrape stops (what Apify didn't read: source, reason cap /
+// time / apify-limit / openai, skipped of, the first names) and the Apify
+// account's month: numbers and venue names only.
+const numOrNull = v => (Number.isFinite(v) ? v : null);
+function scrapeStops(list) {
+  return (Array.isArray(list) ? list : []).filter(x => x && typeof x === 'object').slice(0, 20).map(x => ({
+    source: String(x.source || ''), reason: String(x.reason || ''), skipped: numOrNull(x.skipped), of: numOrNull(x.of),
+    names: (Array.isArray(x.names) ? x.names : []).slice(0, 10).map(n => String(n).slice(0, 120))
+  }));
+}
+function apifySpend(a) {
+  if (!a || typeof a !== 'object') return null;
+  return { month_usd: numOrNull(a.month_usd), limit_usd: numOrNull(a.limit_usd), this_collect_usd: numOrNull(a.run_usd),
+    cycle_end: typeof a.cycle_end === 'string' ? a.cycle_end.slice(0, 10) : null };
+}
+
 export function jobsSummary(st) {
   const last = {};
   for (const [kind, j] of Object.entries((st && st.last) || {})) {
     const r = j.result || {};
     last[kind] = {
       status: j.status, finished_at: j.finished_at, seconds: Number.isFinite(r.seconds) ? r.seconds : null,
-      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {} } : {}),
+      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {},
+        scrape_stops: scrapeStops(r.scrape_stops), apify: apifySpend(r.apify) } : {}),
       ...(j.status === 'failed' ? { error: String(r.error || '').slice(0, 300) } : {})
     };
   }

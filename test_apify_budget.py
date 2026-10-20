@@ -95,6 +95,122 @@ def test_the_fb_loop_skips_quiet_pages_and_lists_them(monkeypatch):
     assert ce._QUIET_PAGES["https://facebook.com/v1"]["misses"] == 1   # empty this run: one miss
 
 
+# ─── Scrape stops and rotation ──────────────────────────────────────────────
+
+def _fake_fb(asked):
+    def fake_post(url, **kw):
+        resp = MagicMock(status_code=200)
+        if "facebook-posts-scraper" in url:
+            asked.append(kw["json"]["startUrls"][0]["url"])
+            resp.json.return_value = []
+        else:
+            resp.json.return_value = {"choices": [{"message": {"content": "[]"}}]}
+        return resp
+    return fake_post
+
+
+def test_running_out_of_time_records_what_was_skipped_and_starts_there_next_run(monkeypatch):
+    _env(monkeypatch, ig=True)
+    _venues(monkeypatch)
+    ce.reset_source_stats()
+    ce._POST_ROTATION.clear()
+    ce._QUIET_PAGES.clear()
+    monkeypatch.setattr(ce, "_RUN_STARTED", time.time() - (ce.fb_posts_budget_min() + 1) * 60)
+    monkeypatch.setattr(ce.requests, "post", lambda *a, **k: pytest.fail("scraped past FB's slice"))
+    ce.safe_fetch("apify_facebook_posts", ce.fetch_apify_facebook_posts, expect_events=False)
+    assert ce._SCRAPE_STOPS == [{"source": "apify_facebook_posts", "reason": "time", "skipped": 3, "of": 3,
+                                 "names": ["V0", "V1", "V2"]}]
+    assert ce._POST_ROTATION == {"apify_facebook_posts": "https://facebook.com/v0"}
+    assert ce.get_source_stats()[-1]["status"] == "empty"   # nothing pulled: still flagged, not "ok"
+    assert "time: skipped 3 of 3" in ce.get_source_stats()[-1]["message"]
+
+
+def test_the_cap_records_a_stop_and_the_dropped_pages_go_first_next_run(monkeypatch):
+    _env(monkeypatch, ig=False)
+    _venues(monkeypatch, n=5)
+    monkeypatch.setenv("FB_POSTS_MAX_VENUES", "2")
+    ce.reset_source_stats()
+    ce._POST_ROTATION.clear()
+    ce._QUIET_PAGES.clear()
+    asked = []
+    with patch("collect_events.requests.post", side_effect=_fake_fb(asked)):
+        ce.fetch_apify_facebook_posts(14)
+    assert asked == ["https://facebook.com/v0", "https://facebook.com/v1"]
+    assert ce._SCRAPE_STOPS == [{"source": "apify_facebook_posts", "reason": "cap", "skipped": 3, "of": 5,
+                                 "names": ["V2", "V3", "V4"]}]
+    assert ce._POST_ROTATION == {"apify_facebook_posts": "https://facebook.com/v2"}
+    # The next run starts with the pages this one dropped.
+    ce.reset_source_stats()
+    ce._QUIET_PAGES.clear()
+    asked.clear()
+    with patch("collect_events.requests.post", side_effect=_fake_fb(asked)):
+        ce.fetch_apify_facebook_posts(14)
+    assert asked == ["https://facebook.com/v2", "https://facebook.com/v3"]
+    assert ce._POST_ROTATION == {"apify_facebook_posts": "https://facebook.com/v4"}
+
+
+def test_rotation_survives_an_edited_list_and_round_trips_through_the_metadata(tmp_path):
+    path = tmp_path / "collection_metadata.json"
+    path.write_text(json.dumps({"post_rotation": {"apify_instagram_posts": "bar", "bad": 3}}))
+    ce.load_post_rotation(str(path))
+    assert ce._POST_ROTATION == {"apify_instagram_posts": "bar"}
+    assert ce._rotated(["foo", "bar", "baz"], "apify_instagram_posts", lambda x: x) == ["bar", "baz", "foo"]
+    ce._POST_ROTATION["apify_instagram_posts"] = "gone"
+    assert ce._rotated(["foo", "bar"], "apify_instagram_posts", lambda x: x) == ["foo", "bar"]
+    ce.load_post_rotation(str(tmp_path / "missing.json"))
+    assert ce._POST_ROTATION == {}
+
+
+def test_the_monthly_limit_mid_loop_records_the_rest(monkeypatch):
+    _env(monkeypatch, ig=False)
+    _venues(monkeypatch, n=3)
+    ce.reset_source_stats()
+    ce._POST_ROTATION.clear()
+    ce._QUIET_PAGES.clear()
+    monkeypatch.setattr(ce, "_APIFY_LIMIT_TRIPPED", False)
+
+    def fake_post(url, **kw):
+        resp = MagicMock(status_code=403, text="Monthly usage hard limit exceeded")
+        return resp
+    with patch("collect_events.requests.post", side_effect=fake_post):
+        ce.fetch_apify_facebook_posts(14)
+    monkeypatch.setenv("IG_POSTS_ENABLED", "1")
+    stop = ce._SCRAPE_STOPS[-1]
+    assert (stop["reason"], stop["skipped"], stop["of"]) == ("apify-limit", 2, 3)
+    assert stop["names"] == ["V1", "V2"]
+    # A later Apify source this run is skipped whole, and says so.
+    ce.fetch_apify_instagram_posts(14)
+    assert ce._SCRAPE_STOPS[-1] == {"source": "apify_instagram_posts", "reason": "apify-limit", "skipped": None,
+                                    "of": None, "names": []}
+    monkeypatch.setattr(ce, "_APIFY_LIMIT_TRIPPED", False)
+
+
+def test_the_instagram_cap_rotates_by_username(monkeypatch):
+    _env(monkeypatch, ig=True)
+    venues = [{"name": f"V{i}", "tier": "HIGH", "instagram": f"https://instagram.com/v{i}"} for i in range(4)]
+    monkeypatch.setattr(ce, "_load_venue_list", lambda: (venues, "venues.json"))
+    monkeypatch.setenv("IG_POSTS_MAX_VENUES", "3")
+    ce.reset_source_stats()
+    ce._POST_ROTATION.clear()
+    asked = []
+
+    def fake_post(url, **kw):
+        resp = MagicMock(status_code=200)
+        if "instagram" in url:
+            asked.append(kw["json"]["username"][0])
+            resp.json.return_value = []
+        else:
+            resp.json.return_value = {"choices": [{"message": {"content": "[]"}}]}
+        return resp
+    with patch("collect_events.requests.post", side_effect=fake_post):
+        ce.fetch_apify_instagram_posts(14)
+        assert asked == ["v0", "v1", "v2"]
+        assert ce._SCRAPE_STOPS[0]["reason"] == "cap" and ce._SCRAPE_STOPS[0]["names"] == ["V3"]
+        asked.clear()
+        ce.fetch_apify_instagram_posts(14)
+        assert asked == ["v3", "v0", "v1"]
+
+
 # ─── Apify spend ────────────────────────────────────────────────────────────
 
 def _get(limits, runs, status=200):

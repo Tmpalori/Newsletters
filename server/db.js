@@ -871,6 +871,16 @@ class FileStore {
     return data.newsletter_sends.slice().sort((a, b) => (a.sent_at < b.sent_at ? 1 : -1)).slice(0, limit);
   }
 
+  // How far back this database goes: its oldest subscriber and oldest
+  // issue (HQ compares them with what it saw before, to catch a database
+  // replaced by an empty or older one). ISO strings or null.
+  async databaseSpan() {
+    const data = await this._read();
+    const min = list => list.filter(Boolean).sort()[0] || null;
+    return { first_subscriber_at: min(data.subscribers.map(x => x.created_at)), first_send_at: min(data.newsletter_sends.map(x => x.sent_at)),
+      issues_sent: data.newsletter_sends.length };
+  }
+
   // Newsletter opens (the tracking image): one row per issue and
   // subscriber, so the count is unique opens. An id that isn't a
   // subscriber is ignored, so made-up image URLs can't pad the number.
@@ -2243,6 +2253,15 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT * FROM newsletter_sends ORDER BY sent_at DESC LIMIT $1', [limit]);
     return r.rows;
+  }
+
+  // See FileStore.databaseSpan.
+  async databaseSpan() {
+    await this.ready();
+    const r = await this.pool.query(`SELECT (SELECT MIN(created_at) FROM subscribers) AS s, (SELECT MIN(sent_at) FROM newsletter_sends) AS n,
+      (SELECT COUNT(*)::int FROM newsletter_sends) AS c`);
+    const iso = v => (v instanceof Date ? v.toISOString() : v || null);
+    return { first_subscriber_at: iso(r.rows[0].s), first_send_at: iso(r.rows[0].n), issues_sent: Number(r.rows[0].c) || 0 };
   }
 
   // See FileStore.recordEmailOpen. The INSERT ... SELECT only inserts for

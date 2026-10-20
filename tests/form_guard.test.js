@@ -250,3 +250,43 @@ describe('a bot that skips the check and fills a form in a blink is dropped quie
     }
   });
 });
+
+describe('a bot check that fails for everyone is called out', () => {
+  const req = (ts_err = '') => ({ ip: '1.2.3.4', path: '/contact', body: ts_err ? { ts_err } : {}, get: () => 'Mozilla/5.0 (iPhone) Safari/605.1' });
+  const guard = (verify) => {
+    const got = [];
+    let now = Date.parse('2026-10-20T15:00:00Z');
+    const g = createFormGuard({ slack: { alert: (key, title, detail) => got.push({ key, title, detail }) }, verifyTurnstile: verify, nowFn: () => now });
+    return { g, got, later: ms => { now += ms; } };
+  };
+
+  it('five failures and no pass: one "broken" alert naming the widget\'s code and what it means', async () => {
+    const { g, got } = guard(async () => ({ ok: false, error: 'missing-token' }));
+    for (let i = 0; i < 7; i++) await g.botCheck('contact', req('110200'), '');
+    const broken = got.filter(a => a.key === 'turnstile-broken:contact');
+    expect(broken).toHaveLength(1);
+    expect(broken[0].detail).toContain('5 failures and no passes today (110200×5)');
+    expect(broken[0].detail).toContain("hostname isn't on the Turnstile widget");
+    expect(got.find(a => a.key === 'form-bot:contact').detail).toContain('missing-token, widget 110200');
+    expect(g.stats().forms.contact).toEqual({ passes: 0, failures: 7, bots: 0, codes: { 110200: 7 }, broken: true });
+  });
+
+  it('a pass in the day means it works: no "broken" alert; bots dropped are counted apart; a new day starts over', async () => {
+    let pass = true;
+    const { g, got, later } = guard(async () => (pass ? { ok: true } : { ok: false, error: 'verification-failed', codes: ['invalid-input-response'] }));
+    await g.botCheck('contact', req(), 'good');
+    pass = false;
+    for (let i = 0; i < 6; i++) await g.botCheck('contact', req(), 'bad');
+    await g.botCheck('contact', req(), 'bad', { fast: true });
+    expect(got.some(a => a.key.startsWith('turnstile-broken'))).toBe(false);
+    expect(g.stats().forms.contact).toEqual({ passes: 1, failures: 6, bots: 1, codes: { 'verification-failed': 6, 'invalid-input-response': 6 }, broken: false });
+    later(25 * 60 * 60 * 1000);
+    expect(g.stats().forms).toEqual({});
+  });
+
+  it('a town without Turnstile keys counts nothing', async () => {
+    const { g } = guard(async () => ({ ok: true, disabled: true }));
+    await g.botCheck('contact', req(), '');
+    expect(g.stats().forms).toEqual({});
+  });
+});
