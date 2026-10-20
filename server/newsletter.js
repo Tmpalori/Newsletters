@@ -1771,8 +1771,11 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       // non-ASCII ("alma‑mctygue@" with a non-breaking hyphen, Oct 2026),
       // which Resend refuses, fixed to exactly what the form makes of it
       // now. from may be the stored address or the one it should be.
+      // Or accents a person can see are a typo (mǰìskra11@ for mjiskra11@):
+      // only here, with someone's OK, never on its own (repairSubscriberEmails).
       const NON_ASCII = /[^\x01-\x7f]/;
-      const charFix = normalizeEmail(from) === to;
+      const plain = e => [normalizeEmail(e), normalizeEmail(String(e || '').normalize('NFKD').replace(/\p{M}/gu, ''))];
+      const charFix = plain(from).includes(to);
       const [fromUser, fromDomain] = [from.slice(0, from.lastIndexOf('@')), from.slice(from.lastIndexOf('@') + 1)];
       const [toUser, toDomain] = [to.slice(0, to.lastIndexOf('@')), to.slice(to.lastIndexOf('@') + 1)];
       if (!charFix && (!fromUser || fromUser !== toUser || fromDomain === toDomain)) {
@@ -1784,7 +1787,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       // back (melaniereeves60@gmail.comm did).
       const subs = await store.listSubscribers();
       const old = charFix
-        ? subs.find(x => NON_ASCII.test(x.email || '') && normalizeEmail(x.email) === to && ['active', 'pending', 'bounced'].includes(x.status))
+        ? subs.find(x => NON_ASCII.test(x.email || '') && plain(x.email).includes(to) && ['active', 'pending', 'bounced'].includes(x.status))
         : subs.find(x => String(x.email || '').toLowerCase() === from &&
           (x.status === 'bounced' || x.status === 'pending' || (x.status === 'active' && impossibleEmailError(from))));
       if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced, waiting to confirm, or an address that can't receive mail.`);

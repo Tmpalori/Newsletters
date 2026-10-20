@@ -353,6 +353,19 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('bounced');
   });
 
+  it('takes the accents off one the site stopped mailing, with someone\'s OK', async () => {
+    // Oct 2026: "m\u01f0\u00ecskra11@gmail.com" on The Star 402.
+    await seed();
+    await store.importSubscribers(['m\u01f0\u00ecskra11@gmail.com'], 'import');
+    await store.markSubscribersBounced(['m\u01f0\u00ecskra11@gmail.com']);
+    const r = await fix({ from: 'mjiskra11@gmail.com', to: 'mjiskra11@gmail.com' });
+    expect(r.status).toBe(200);
+    expect(await statusOf('mjiskra11@gmail.com')).toBe('active');
+    expect(await statusOf('m\u01f0\u00ecskra11@gmail.com')).toBe('bounced');
+    // Never to another name.
+    expect((await (await fix({ from: 'm\u01f0\u00ecskra11@gmail.com', to: 'miskra11@gmail.com' })).json()).error).toBe('not-a-typo');
+  });
+
   it('a stray-character fix is only ever to what the form makes of the address', async () => {
     await seed();
     await store.importSubscribers(['alma\u2011mctygue@hotmail.com'], 'import');
