@@ -108,9 +108,9 @@ export function homeSections({ cfg, file, hidden = [], now = new Date() }) {
 // btn) plus a few card rules of its own, inline so the stylesheet (and its
 // cache hash in every golden page) doesn't change.
 const HOME_CSS = `<style>
-.sx-feature{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-6);align-items:center;margin-block:var(--space-8)}
-@media (max-width:640px){.sx-feature{grid-template-columns:minmax(0,1fr);gap:var(--space-4)}}
-.sx-feature img{width:100%;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
+.sx-feature{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:var(--space-6);align-items:center;margin-block:var(--space-8)}
+@media (max-width:640px){.sx-feature{grid-template-columns:140px minmax(0,1fr);gap:var(--space-4);align-items:start}.sx-name{font-size:var(--text-xl)}}
+.sx-feature img{width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
 .sx-kicker{font-weight:800;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
 .sx-name{font-family:var(--font-display);font-size:var(--text-2xl);line-height:1;margin:var(--space-2) 0}
 .sx-muted{color:var(--color-text-muted);font-size:var(--text-sm)}

@@ -641,14 +641,14 @@ export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '' }) {
   if (!sx) return '';
   const out = [];
   if (sx.pet) {
-    // A feature: the photo as big as the email allows, the name in display
-    // type under it. No box.
+    // A feature: a square photo beside the name in display type. No box.
     const p = sx.pet;
     out.push(`${sxKicker('Pet of the week', C.sunset)}
-<img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="576" alt="${escHtml(p.name)}" style="display:block;width:100%;max-width:576px;height:auto;margin-top:8px;border:3px solid ${C.ink};border-radius:18px;">
-<div style="font-family:${DISPLAY};font-size:30px;font-weight:bold;line-height:1.1;margin-top:12px;">${escHtml(p.name)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>
+<td width="162" valign="top" style="padding-right:12px;"><img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="150" height="150" alt="${escHtml(p.name)}" style="display:block;width:150px;height:150px;object-fit:cover;border:3px solid ${C.ink};border-radius:16px;"></td>
+<td valign="top"><div style="font-family:${DISPLAY};font-size:28px;font-weight:bold;line-height:1.1;">${escHtml(p.name)}</div>
 ${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
-<p style="margin:8px 0 0;font-size:16px;">${escHtml(p.blurb)}</p>
+<p style="margin:6px 0 0;font-size:15px;">${escHtml(p.blurb)}</p></td></tr></table>
 ${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(p.url, `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
 <div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`);
   }
