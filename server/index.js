@@ -1601,7 +1601,7 @@ export async function createApp(opts = {}) {
       const since = new Date(now.getTime() - (days + 1) * 86400000).toISOString().slice(0, 10);
       const rows = await store.listTraffic(since);
       res.set('Cache-Control', 'no-store');
-      res.json(summarize(rows, { now, days }));
+      res.json(summarize(rows, { now, days, siteHost: new URL(siteUrl).host }));
     } catch (err) {
       console.error('[traffic] summary failed:', err.message);
       res.status(500).json({ ok: false, error: 'traffic-failed', message: err.message });
@@ -1667,9 +1667,11 @@ export async function createApp(opts = {}) {
       // A failed read leaves the opens off, not the report.
       const opens = sends.length && typeof store.countEmailOpens === 'function'
         ? await store.countEmailOpens(sends.map(s => s.week_key)).catch(() => ({})) : {};
+      const emailClicks = sends.length && typeof store.listEmailClicks === 'function'
+        ? await store.listEmailClicks(sends.map(s => s.week_key)).catch(() => []) : [];
       const events = [...((payload && payload.events) || []), ...(archived || [])];
       res.set('Cache-Control', 'no-store');
-      res.json(activitySummary(rows, { now, days, events, sends, opens }));
+      res.json(activitySummary(rows, { now, days, events, sends, opens, emailClicks, siteHost: new URL(siteUrl).host }));
     } catch (err) {
       console.error('[activity] summary failed:', err.message);
       res.status(500).json({ ok: false, error: 'activity-failed', message: err.message });

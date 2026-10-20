@@ -2340,7 +2340,7 @@
     barChart(document.getElementById('growth-issues-chart'), sent.map(x => ({
       label: (x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week), value: x.open_rate || 0,
       tip: (x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week) + ': ' + (x.open_rate == null ? '—' : x.open_rate + '%') + ' opened, ' +
-        (x.click_rate == null ? '—' : x.click_rate + '%') + ' clicked · ' + x.sent + ' sent'
+        (x.click_rate == null ? 'no click data' : x.click_rate + '% clicked') + ' · ' + x.sent + ' sent'
     })), { empty: 'No issues sent yet.', max: 100, unitShort: '%' });
 
     const daily = document.getElementById('growth-daily');
@@ -2357,9 +2357,11 @@
     if (issues) {
       const pct = v => (v == null ? '—' : v + '%');
       issues.innerHTML = (g.issues || []).length
-        ? '<thead><tr><th>Issue</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked that day</th><th class="num">Reader visits until the next issue</th><th>Top events from the email</th><th class="num">Left</th></tr></thead><tbody>' +
+        ? '<thead><tr><th>Issue</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked a link</th><th>Most-clicked links</th><th class="num">On the site that day</th><th class="num">Reader visits until the next issue</th><th>Top events from the email</th><th class="num">Left</th></tr></thead><tbody>' +
           g.issues.map(x => '<tr><td>' + escapeHtml((x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week)) + (x.edition === 'weekend' ? ' <span class="muted">weekend</span>' : '') + '</td><td class="num">' + x.sent + '</td><td class="num">' + x.opens + ' (' + pct(x.open_rate) + ')' +
-            '</td><td class="num">' + x.clickers + ' (' + pct(x.click_rate) + ')</td><td class="num">' + (x.reader_days || 0) + '</td><td class="muted">' +
+            '</td><td class="num">' + (x.clickers == null ? '<span class="muted">not counted yet</span>' : x.clickers + ' (' + pct(x.click_rate) + ')') +
+            '</td><td class="muted">' + escapeHtml((x.top_links || []).map(l => (l.name || l.url) + ' (' + l.clickers + ')').join(', ') || '—') +
+            '</td><td class="num">' + (x.site_visitors || 0) + ' (' + pct(x.site_visit_rate) + ')</td><td class="num">' + (x.reader_days || 0) + '</td><td class="muted">' +
             escapeHtml(x.top_events.map(e => e.name + ' (' + e.views + ')').join(', ') || '—') + '</td><td class="num">' + (x.unsubscribed || '') + '</td></tr>').join('') + '</tbody>'
         : '<tbody><tr><td class="traffic-empty">No issues sent yet.</td></tr></tbody>';
     }
@@ -2854,7 +2856,7 @@
     const range = t.totals.range || t.totals.month;
     // Shares sent (every share_* click) and the visits shared links brought.
     const shares = (t.clicks || []).filter(c => /^share_/.test(c.key)).reduce((a, c) => a + c.count, 0);
-    const fromShares = ((t.sources || []).find(s => s.key === 'Shared link') || {}).count || 0;
+    const fromShares = ((t.source_views || t.sources || []).find(s => s.key === 'Shared link') || {}).count || 0;
     if (totals) totals.innerHTML = stat('Today', t.totals.today) +
       (t.days === 7 ? '' : stat('Last 7 days', t.totals.week)) +
       stat('Last ' + t.days + ' days', range) +

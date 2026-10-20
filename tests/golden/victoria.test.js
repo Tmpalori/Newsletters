@@ -292,7 +292,7 @@ describe('Victoria outbound requests', () => {
       expect(sent.status).toBe(200);
       // Subscriber ids and tokens are random: normalized to UUID / TOKEN.
       const shown = rec.shown().map(c => ({ ...c, body: c.body && typeof c.body === 'object' ? JSON.parse(JSON.stringify(c.body)
-        .replace(/\/email\/o\/([0-9-]+)\/[A-Za-z0-9-]+\.gif/g, '/email/o/$1/SUB.gif').replace(/\/r\/[A-Za-z0-9]+/g, '/r/CODE')
+        .replace(/\/email\/o\/([0-9-]+)\/[A-Za-z0-9-]+\.gif/g, '/email/o/$1/SUB.gif').replace(/\/email\/c\/([0-9-]+)\/[A-Za-z0-9-]+\?/g, '/email/c/$1/SUB?').replace(/\/r\/[A-Za-z0-9]+/g, '/r/CODE')
         .replace(/vic361-[0-9-]+-[a-f0-9]{8,}/g, m => m.replace(/-[a-f0-9]{8,}$/, '-HASH'))) : c.body,
         headers: Object.fromEntries(Object.entries(c.headers).map(([k, v]) => [k, String(v).replace(/-[a-f0-9]{8,}$/, '-HASH')])) }));
       await expect(json(shown)).toMatchFileSnapshot(golden('outbound/resend.json'));

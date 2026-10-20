@@ -907,6 +907,45 @@ describe('open tracking', () => {
     expect(await store.countEmailOpens(['2026-10-05', '2026-09-28'])).toEqual({ '2026-10-05': 1 });
   });
 
+  it("each copy's links count clicks per subscriber, then go on to our own site only", async () => {
+    await startApp();
+    const h = await auth();
+    await post('/api/admin/newsletter/import', { emails: 'a@example.com, b@example.com' }, h);
+    expect((await post('/api/admin/newsletter/send', {}, h)).status).toBe(200);
+    const subs = await store.listSubscribers({ status: 'active' });
+    const msg = sent.batches[0].msgs[0];
+    const links = [...msg.html.matchAll(/href="(https:\/\/www\.thevic361\.com\/email\/c\/[^"]+)"/g)].map(m => m[1].replace(/&amp;/g, '&'));
+    expect(links.length).toBeGreaterThan(3);
+    const sid = links[0].match(/\/email\/c\/2026-10-05\/([^?]+)\?/)[1];
+    expect(subs.map(x => x.id)).toContain(sid);
+    // The unsubscribe and settings links stay direct; the plain text keeps readable URLs.
+    expect(msg.html).toMatch(/href="https:\/\/www\.thevic361\.com\/unsubscribe\?token=/);
+    expect(msg.text).not.toContain('/email/c/');
+
+    const go = (url, ua = 'Mozilla/5.0 (iPhone)') => fetch(url.replace('https://www.thevic361.com', baseUrl), { redirect: 'manual', headers: { 'User-Agent': ua } });
+    const r = await go(links[0]);
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toMatch(/^\/.*utm_source=newsletter/);
+    expect(r.headers.get('cache-control')).toBe('no-store, private');
+    await go(links[0]);                                       // the same link again: one clicker, two clicks
+    await go(links[1], 'Mozilla/5.0 (compatible; bingbot/2.0)'); // a bot isn't counted
+    // Never off the site, and a made-up id counts nothing.
+    for (const u of ['//evil.example', '/\\evil.example', 'https://evil.example', 'javascript:alert(1)']) {
+      const bad = await fetch(`${baseUrl}/email/c/2026-10-05/${sid}?u=${encodeURIComponent(u)}`, { redirect: 'manual' });
+      expect(bad.headers.get('location')).toBe('/');
+    }
+    await fetch(`${baseUrl}/email/c/2026-10-05/00000000-0000-0000-0000-000000000000?u=%2F`, { redirect: 'manual' });
+    await vi.waitFor(async () => {
+      const rows = await store.listEmailClicks(['2026-10-05']);
+      expect(rows.filter(x => x.subscriber_id === sid).reduce((n, x) => n + x.clicks, 0)).toBeGreaterThanOrEqual(3);
+    }, { timeout: 2000 });
+    const rows = await store.listEmailClicks(['2026-10-05']);
+    expect(rows.every(x => x.subscriber_id === sid)).toBe(true);
+    expect(rows.find(x => x.clicks === 2)).toBeTruthy();
+    // The send knows its clicks are counted.
+    expect((await store.listNewsletterSends(1))[0].clicks_tracked).toBe(true);
+  });
+
   it('the welcome, confirmation and test emails have no tracking image', async () => {
     await startApp();
     const h = await auth();
@@ -914,6 +953,7 @@ describe('open tracking', () => {
     await post('/api/admin/newsletter/test', { email: 'me@example.com' }, h);
     await vi.waitFor(() => expect(sent.single).toHaveLength(2), { timeout: 2000 });
     for (const m of sent.single) expect(m.html).not.toContain('/email/o/');
+    for (const m of sent.single) expect(m.html).not.toContain('/email/c/');
   });
 
   it('the privacy page discloses it', async () => {

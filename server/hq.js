@@ -87,6 +87,8 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   const sends = await safe(() => store.listNewsletterSends(4), [], 'issues');
   const weekKeys = sends.map(s => s.week_key);
   const opens = weekKeys.length ? await safe(() => store.countEmailOpens(weekKeys), {}, 'issues') : {};
+  const emailClicks = weekKeys.length && typeof store.listEmailClicks === 'function'
+    ? await safe(() => store.listEmailClicks(weekKeys), [], 'issues') : [];
   // Postgres returns sent_at as a Date (String() of one reads "Fri Oct 09
   // ..."), the file store as an ISO string: both to the town's YYYY-MM-DD.
   const dayOf = v => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? localDateStr(d) : null; };
@@ -143,9 +145,15 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       daily: history,
       goals: goals(subs, daily, monthRevenue(orders, today), today)
     },
-    issues: bad('issues') ? null : issueReport(sends, opens, subs, rows, events).slice(0, 4)
+    // Each issue's numbers (growth.js issueReport): click_rate is unique
+    // email clickers over recipients (null before clicks were counted);
+    // site_visit_rate is the send day's readers on the site, what
+    // click_rate measured before October 2026.
+    issues: bad('issues') ? null : issueReport(sends, opens, subs, rows, events, emailClicks).slice(0, 4)
       .map(i => ({ week: i.week, edition: i.edition, sent_at: i.sent_at, sent: i.sent, opens: i.opens, open_rate: i.open_rate,
-        clickers: i.clickers, click_rate: i.click_rate })),
+        clicks_tracked: i.clicks_tracked, clickers: i.clickers, click_rate: i.click_rate, clicks: i.clicks, top_links: i.top_links,
+        scanner_clicks_left_out: i.scanner_clicks_left_out, site_visitors: i.site_visitors, site_visit_rate: i.site_visit_rate,
+        readers_7_days: i.readers_7_days, unsubscribed: i.unsubscribed })),
     revenue: bad('revenue') ? null : {
       month_to_date: monthRevenue(orders, today),
       last_month: monthRevenue(orders, lastMonthDay),

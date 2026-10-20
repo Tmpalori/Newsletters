@@ -124,7 +124,8 @@ describe('ad impressions (docs/track.js)', () => {
     }
     // Earlier tests' copies of track.js are still listening, hence the Set.
     const clicks = [...new Set(sent.filter(b => b.kind === 'click').map(c => `${c.type}|${c.ad || ''}`))];
-    expect(clicks).toEqual([`event_click|${AD}`, 'event_click|', `sponsor_click|${AD}`]);
+    // A list tap to the event's page here is event_open (still the ad's).
+    expect(clicks).toEqual([`event_open|${AD}`, 'event_open|', `sponsor_click|${AD}`]);
   });
 });
 
