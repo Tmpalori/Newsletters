@@ -446,7 +446,7 @@
       body.appendChild(document.createTextNode(text));
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn btn--small';
+      btn.className = 'btn btn--outline';
       btn.textContent = hidden.has(id) ? 'Put back' : 'Take out';
       btn.addEventListener('click', async () => {
         btn.disabled = true;

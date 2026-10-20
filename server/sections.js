@@ -190,11 +190,13 @@ export function renderPollPage(poll, counts, { voted = null, siteUrl }) {
   }).join('');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escHtml(poll.question)} · ${escHtml(town.siteName)}</title><meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:wght@400..900&display=swap">
 <link rel="stylesheet" href="/base.css"><link rel="stylesheet" href="/style.css">
 <style>.poll{max-width:560px;margin:40px auto;padding:0 16px;display:grid;gap:16px}.poll-card{background:var(--color-surface);border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:5px 5px 0 var(--color-border);padding:20px;display:grid;gap:12px}
 .poll-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 44px;gap:10px;align-items:center}.poll-track{height:14px;border:2px solid var(--color-border);border-radius:99px;overflow:hidden;background:var(--color-bg)}
-.poll-track i{display:block;height:100%;background:var(--color-primary, #4B3FD1)}.poll h1{font-family:var(--font-display);font-size:var(--text-xl);margin:0;line-height:1.15}</style></head>
-<body><main class="poll"><p><a href="/">← ${escHtml(town.siteName)}</a></p><div class="poll-card">
+.poll-track i{display:block;height:100%;background:var(--color-primary, #4B3FD1)}.poll h1{font-family:var(--font-display);font-size:var(--text-xl);margin:0;line-height:1.15}
+body{font-family:var(--font-body)}.poll-back{color:var(--color-text);font-weight:800;text-decoration:none;font-family:var(--font-display)}.poll-row--mine span:first-child{font-weight:800}</style></head>
+<body><main class="poll"><p><a class="poll-back" href="/">← ${escHtml(town.siteName)}</a></p><div class="poll-card">
 <h1>${escHtml(poll.question)}</h1>${voted != null ? '<p>Thanks for voting! Here is how readers answered so far.</p>' : '<p>How readers answered so far.</p>'}
 ${rows}<p class="sx-muted">${total} ${total === 1 ? 'vote' : 'votes'}</p></div>
 <p><a class="btn btn--primary" href="${siteUrl}/">See what's happening this week</a></p></main></body></html>`;
