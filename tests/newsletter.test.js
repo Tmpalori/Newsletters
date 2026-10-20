@@ -146,12 +146,18 @@ describe('newsletter content', () => {
 
   it('rejects addresses Resend would refuse (dots in the wrong place, bad domain labels)', () => {
     for (const bad of ['bob@gmail..com', '.bob@gmail.com', 'bob.@gmail.com', 'a..b@gmail.com', 'bob@.gmail.com',
-      'bob@gmail.com.', 'bob@-gmail.com', 'bob@gmail-.com', 'bob@gmail.c', 'bob@gm_ail.com', 'bob@gmail.123']) {
+      'bob@gmail.com.', 'bob@-gmail.com', 'bob@gmail-.com', 'bob@gmail.c', 'bob@gm_ail.com', 'bob@gmail.123',
+      'josé@gmail.com', 'bob\u00a0smith@gmail.com', 'bob\u2019s@gmail.com']) {
       expect(normalizeEmail(bad), bad).toBeNull();
     }
     for (const good of ['first.last+tag@sub.example.co.uk', 'a_b-c@my-site.example', 'x@xn--bcher-kva.example']) {
       expect(normalizeEmail(good), good).toBe(good);
     }
+    // A zero-width space or BOM pasted in with the address is dropped, not refused.
+    expect(normalizeEmail('\ufeffbob\u200b@gmail.com')).toBe('bob@gmail.com');
+    // So is a dash autocorrect put in place of a hyphen.
+    expect(normalizeEmail('alma\u2011mc@hotmail.com')).toBe('alma-mc@hotmail.com');
+    expect(normalizeEmail('alma\u2013mc@hotmail.com')).toBe('alma-mc@hotmail.com');
   });
 });
 
