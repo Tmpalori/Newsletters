@@ -108,20 +108,27 @@ export function homeSections({ cfg, file, hidden = [], now = new Date() }) {
 // btn) plus a few card rules of its own, inline so the stylesheet (and its
 // cache hash in every golden page) doesn't change.
 const HOME_CSS = `<style>
-.sx-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--space-5);margin-block:var(--space-6)}
-.sx-card{background:var(--color-surface);border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:5px 5px 0 var(--color-border);padding:var(--space-4);display:grid;gap:var(--space-3);align-content:start;min-width:0}
-.sx-card--sun{background:var(--color-surface-offset)}
-.sx-kicker{font-weight:800;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
-.sx-card h3{font-family:var(--font-display);font-size:var(--text-lg);margin:0;line-height:1.15}
-.sx-pet{display:grid;grid-template-columns:96px minmax(0,1fr);gap:var(--space-3);align-items:start}
-.sx-pet img{width:96px;height:96px;object-fit:cover;border:2px solid var(--color-border);border-radius:12px}
+.sx-feature{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:var(--space-6);align-items:center;margin-block:var(--space-8)}
+@media (max-width:640px){.sx-feature{grid-template-columns:minmax(0,1fr);gap:var(--space-4)}}
+.sx-feature img{width:100%;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
+.sx-kicker{font-weight:800;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
+.sx-name{font-family:var(--font-display);font-size:var(--text-2xl);line-height:1;margin:var(--space-2) 0}
 .sx-muted{color:var(--color-text-muted);font-size:var(--text-sm)}
-.sx-quote{border-left:4px solid var(--color-border);padding-left:12px;margin:0}
-.sx-quote b{display:block;font-size:var(--text-xs);color:var(--color-text-muted)}
-.sx-card ul{margin:0;padding-left:18px;display:grid;gap:6px}
-.sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 5px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle}
+.sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle;transform:rotate(-3deg);background:var(--color-surface-offset)}
+.sx-says{background:var(--color-surface-offset);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);margin-block:var(--space-8)}
+.sx-says h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-4);line-height:1.15}
+.sx-bubble{max-width:85%;background:var(--color-surface);border-radius:18px 18px 18px 4px;padding:10px 14px;margin:0 0 10px}
+.sx-bubble:nth-of-type(even){margin-left:auto;border-radius:18px 18px 4px 18px}
+.sx-bubble b{display:block;font-size:var(--text-xs);color:var(--color-text-muted)}
+.sx-good{border-top:3px solid var(--color-border);padding-top:var(--space-5);margin-block:var(--space-8)}
+.sx-good h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-3)}
+.sx-good ul{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3)}
+.sx-good li{padding-left:28px;position:relative}
+.sx-good li::before{content:"✓";position:absolute;left:0;font-weight:800}
 </style>`;
 
+// Each section has its own look, like the email: an open list, a photo
+// feature, a tinted band of chat bubbles, a checklist under a rule.
 export function sectionsHomeHtml(s, { siteUrl }) {
   if (!s || !(s.pet || (s.places && s.places.length) || s.roundup || s.good)) return '';
   const parts = [];
@@ -133,26 +140,32 @@ export function sectionsHomeHtml(s, { siteUrl }) {
         </ul>
       </section>`);
   }
-  const cards = [];
   if (s.pet) {
     const p = s.pet;
-    cards.push(`<div class="sx-card sx-card--sun"><span class="sx-kicker">Pet of the week</span>
-          <div class="sx-pet"><img src="${siteUrl}/sections/pet/${encodeURIComponent(p.id)}.jpg" alt="${escHtml(p.name)}" width="96" height="96" loading="lazy">
-          <div><h3>${escHtml(p.name)}</h3><p class="sx-muted">${escHtml(p.facts || '')}</p></div></div>
+    parts.push(`<section class="sx-feature" id="pet-of-the-week">
+        <img src="${siteUrl}/sections/pet/${encodeURIComponent(p.id)}.jpg" alt="${escHtml(p.name)}" width="480" height="480" loading="lazy">
+        <div><span class="sx-kicker">Pet of the week</span>
+          <h2 class="sx-name">${escHtml(p.name)}</h2>
+          <p class="sx-muted">${escHtml(p.facts || '')}</p>
           <p>${escHtml(p.blurb)}</p>
-          <p class="sx-muted">${safeUrl(p.url) ? `<a href="${escHtml(p.url)}" rel="noopener">More about ${escHtml(p.name)}</a> · ` : ''}Photo: ${escHtml(p.shelter)}</p></div>`);
+          ${safeUrl(p.url) ? `<p><a class="btn btn--outline" href="${escHtml(p.url)}" rel="noopener">Meet ${escHtml(p.name)}</a></p>` : ''}
+          <p class="sx-muted">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</p></div>
+      </section>`);
   }
   if (s.roundup) {
-    cards.push(`<div class="sx-card"><span class="sx-kicker">${escHtml(town.city)} says</span><h3>${escHtml(s.roundup.question || 'You answered')}</h3>
-          ${s.roundup.answers.slice(0, 3).map(a => `<p class="sx-quote">“${escHtml(a.quote)}”${a.name ? `<b>${escHtml(a.name)}</b>` : ''}</p>`).join('')}
-          <a class="btn btn--primary" href="/subscribe">Answer next week's question</a></div>`);
+    parts.push(`<section class="sx-says" id="readers-say"><span class="sx-kicker">${escHtml(town.city)} says</span>
+        <h3>${escHtml(s.roundup.question || 'You answered')}</h3>
+        ${s.roundup.answers.map(a => `<p class="sx-bubble">${escHtml(a.quote)}${a.name ? `<b>${escHtml(a.name)}</b>` : ''}</p>`).join('')}
+        <a class="btn btn--primary" href="/subscribe">Answer next week's question</a>
+      </section>`);
   }
   if (s.good) {
-    cards.push(`<div class="sx-card"><span class="sx-kicker">Good news from City Hall</span><h3>On the agenda</h3>
-          <ul>${s.good.items.map(g => `<li><b>${escHtml(g.title)}.</b> ${escHtml(g.line)}</li>`).join('')}</ul>
-          ${safeUrl(s.good.url) ? `<p class="sx-muted"><a href="${escHtml(s.good.url)}" rel="noopener">The full agenda</a></p>` : ''}</div>`);
+    parts.push(`<section class="sx-good" id="good-news"><span class="sx-kicker">Good news from City Hall</span>
+        <h3>On the agenda</h3>
+        <ul>${s.good.items.map(g => `<li><b>${escHtml(g.title)}.</b> ${escHtml(g.line)}</li>`).join('')}</ul>
+        ${safeUrl(s.good.url) ? `<p class="sx-muted"><a href="${escHtml(s.good.url)}" rel="noopener">The full agenda</a></p>` : ''}
+      </section>`);
   }
-  if (cards.length) parts.push(`<div class="sx-grid">${cards.join('')}</div>`);
   return `${HOME_CSS}
       <section id="sections">
       ${parts.join('\n      ')}

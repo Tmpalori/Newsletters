@@ -145,3 +145,18 @@ def test_every_town_with_sections_has_a_complete_file():
         assert cfg["new_in_town"]["source"] in s.NEW_READERS, f
         assert all(g["source"] in s.AGENDA_READERS for g in cfg["good_news"]["sources"]), f
         assert len(cfg["questions"]) >= 8 and len(cfg["polls"]) >= 3, f
+
+
+def test_tall_and_wide_photos_are_cropped_for_the_email():
+    import base64
+    import io
+    from PIL import Image
+
+    def shape(w, h):
+        buf = io.BytesIO()
+        Image.new("RGB", (w, h), "white").save(buf, "JPEG")
+        return Image.open(io.BytesIO(base64.b64decode(s.resize_photo(buf.getvalue())))).size
+    assert shape(900, 1600) == (720, 720)
+    assert shape(3000, 1000) == (720, 480)
+    assert shape(1200, 900) == (720, 540)
+    assert s.resize_photo(b"not an image") is None

@@ -178,6 +178,16 @@ def resize_photo(raw):
         im = im.convert("RGB")
         if min(im.size) < 160:
             return None   # a thumbnail or a placeholder icon
+        # The email shows it full width: a tall phone photo would fill the
+        # whole screen. Tall → a square from near the top (where the face
+        # usually is); very wide → 3:2 from the middle.
+        w, h = im.size
+        if h > w:
+            top = int((h - w) * 0.2)
+            im = im.crop((0, top, w, top + w))
+        elif w > h * 1.5:
+            cut = (w - int(h * 1.5)) // 2
+            im = im.crop((cut, 0, cut + int(h * 1.5), h))
         im.thumbnail((PHOTO_MAX, PHOTO_MAX))
         out = io.BytesIO()
         im.save(out, "JPEG", quality=82, optimize=True)

@@ -622,49 +622,75 @@ export function dontMiss(byDay, n = 3) {
 // Under the events, before the referral box. Each block is its own
 // outlined box in the site's colors; sections = null (a town without
 // them) renders nothing, so its issues are exactly what they were.
-const sxBox = (bg, inner) => `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;background:${bg};border:2px solid ${C.ink};border-radius:14px;border-collapse:separate;"><tr><td style="padding:14px 14px;font-size:15px;">${inner}</td></tr></table>`;
-const sxKicker = t => `<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${C.accent};">${escHtml(t)}</div>`;
-const sxHead = t => `<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.2;margin:4px 0 8px;">${escHtml(t)}</div>`;
-const sxBtn = (href, label) => `<a href="${escHtml(href)}" style="display:inline-block;margin:6px 6px 0 0;background:${C.sun};color:${C.ink};border:2px solid ${C.ink};border-radius:10px;padding:8px 12px;font-weight:800;text-decoration:none;">${escHtml(label)}</a>`;
-const sxTag = t => `<span style="display:inline-block;margin-left:6px;background:${C.sun};border:2px solid ${C.ink};border-radius:6px;padding:0 5px;font-size:11px;font-weight:800;vertical-align:middle;">${t}</span>`;
+// Each section has its own look so the email doesn't read as one long
+// stack of boxes (the owner, Oct 2026): the days and events keep their
+// outlined boxes; these are open, banded or bubbled instead.
+const sxGap = '<div style="height:30px;line-height:30px;font-size:1px;">&nbsp;</div>';
+const sxKicker = (t, color = C.accent) => `<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${color};">${escHtml(t)}</div>`;
+// A heading with a short, thick underline in the given color, like the
+// site's squiggle headings.
+const sxHeading = (t, color) => `<div style="font-family:${DISPLAY};font-size:23px;font-weight:bold;line-height:1.2;margin:2px 0 0;">${escHtml(t)}</div>
+<div style="width:56px;height:5px;background:${color};border-radius:3px;margin:6px 0 12px;font-size:1px;line-height:5px;">&nbsp;</div>`;
+const sxBtn = (href, label, bg = C.sun) => `<a href="${escHtml(href)}" style="display:inline-block;margin:6px 4px 0;background:${bg};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:8px 16px;font-family:${DISPLAY};font-weight:bold;font-size:15px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">${escHtml(label)}</a>`;
+const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;background:${bg};border:2px solid ${C.ink};border-radius:6px;padding:0 6px;font-family:${DISPLAY};font-size:11px;font-weight:bold;vertical-align:middle;transform:rotate(-3deg);">${t}</span>`;
+// A full-width band (no outline), for the question.
+const sxBand = (bg, inner) => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="center" style="padding:22px 16px;">${inner}</td></tr></table>`;
 
 export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '' }) {
   if (!sx) return '';
   const out = [];
   if (sx.pet) {
+    // A feature: the photo as big as the email allows, the name in display
+    // type under it. No box.
     const p = sx.pet;
-    out.push(sxBox(C.sunLight, `${sxKicker('Pet of the week')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td width="108" valign="top" style="padding:6px 12px 0 0;"><img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="96" height="96" alt="${escHtml(p.name)}" style="display:block;width:96px;height:96px;object-fit:cover;border:2px solid ${C.ink};border-radius:12px;"></td>
-<td valign="top">${sxHead(p.name)}${p.facts ? `<div style="font-size:13px;color:${C.muted};margin-bottom:6px;">${escHtml(p.facts)}</div>` : ''}${escHtml(p.blurb)}</td></tr></table>
-${safeUrl(p.url) ? `<div style="margin-top:6px;">${sxBtn(p.url, `Meet ${p.name}`)}</div>` : ''}
-<div style="margin-top:10px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`));
+    out.push(`${sxKicker('Pet of the week', C.sunset)}
+<img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="576" alt="${escHtml(p.name)}" style="display:block;width:100%;max-width:576px;height:auto;margin-top:8px;border:3px solid ${C.ink};border-radius:18px;">
+<div style="font-family:${DISPLAY};font-size:30px;font-weight:bold;line-height:1.1;margin-top:12px;">${escHtml(p.name)}</div>
+${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
+<p style="margin:8px 0 0;font-size:16px;">${escHtml(p.blurb)}</p>
+${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(p.url, `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
+<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`);
   }
   if (sx.places && sx.places.length) {
-    out.push(sxBox('#FFFFFF', `${sxKicker('New in town')}${sxHead(`New around ${town.city}`)}
-${sx.places.map((x, i) => `<p style="margin:${i ? '8px' : '0'} 0 0;"><strong>${escHtml(x.name)}</strong>${sxTag(x.status === 'soon' ? 'SOON' : 'NEW')}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></p>`).join('')}
-<div style="margin-top:10px;font-size:12px;color:${C.muted};">Know a place that just opened? Hit reply and tell us.</div>`));
+    // An open list: a heading, a line per place, dotted rules between.
+    out.push(`${sxHeading(`New around ${town.city}`, C.sunset)}
+${sx.places.map((x, i) => `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><strong style="font-size:16px;">${escHtml(x.name)}</strong>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></div>`).join('')}
+<div style="font-size:13px;color:${C.muted};margin-top:4px;">Know a place that just opened? Hit reply and tell us.</div>`);
   }
   if (sx.poll) {
-    out.push(sxBox(C.sky, `${sxKicker('Quick poll · one tap')}${sxHead(sx.poll.question)}
-${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c)).join('')}`));
+    // Centered buttons on the page itself.
+    out.push(`<div style="text-align:center;">${sxKicker('Quick poll · one tap')}
+<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.25;margin:6px 0 6px;">${escHtml(sx.poll.question)}</div>
+${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c, [C.sun, C.sky, C.sunLight, '#FFD6E8'][i % 4])).join('')}</div>`);
   }
   if (sx.question) {
-    out.push(sxBox('#FFFFFF', `${sxKicker('Question of the week')}${sxHead(sx.question)}
-Hit reply and tell us. We'll share some favorites in Thursday's email (first names only).`));
+    // A tinted band with the question as a big pull quote.
+    out.push(sxBand(C.sky, `${sxKicker('Question of the week')}
+<div style="font-family:${DISPLAY};font-size:46px;line-height:0.6;color:${C.accent};margin-top:14px;">“</div>
+<div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;">${escHtml(sx.question)}</div>
+<div style="font-size:14px;margin-top:10px;">Hit reply and tell us. Some favorites go in Thursday's email (first names only).</div>`));
   }
   if (sx.roundup) {
-    out.push(sxBox('#FFFFFF', `${sxKicker(`${town.city} says`)}${sxHead(sx.roundup.question || 'You answered')}
-${sx.roundup.answers.map(a => `<p style="margin:0 0 10px;padding-left:12px;border-left:4px solid ${C.sun};">“${escHtml(a.quote)}”${a.name ? `<br><span style="font-size:12px;color:${C.muted};font-weight:bold;">${escHtml(a.name)}</span>` : ''}</p>`).join('')}
-<div style="font-size:13px;color:${C.muted};">A new question comes Monday.</div>`));
+    // Chat bubbles, alternating sides and colors.
+    const bubbles = sx.roundup.answers.map((a, i) => {
+      const right = i % 2 === 1;
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr><td align="${right ? 'right' : 'left'}">
+<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:86%;border-collapse:separate;"><tr><td style="background:${right ? C.sunLight : C.sky};border-radius:${right ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};padding:10px 14px;font-size:15px;">${escHtml(a.quote)}${a.name ? `<div style="font-size:12px;font-weight:bold;color:${C.muted};margin-top:2px;">${escHtml(a.name)}</div>` : ''}</td></tr></table></td></tr></table>`;
+    }).join('');
+    out.push(`${sxKicker(`${town.city} says`)}
+<div style="font-family:${DISPLAY};font-size:22px;font-weight:bold;line-height:1.25;margin:4px 0 4px;">${escHtml(sx.roundup.question || 'You answered')}</div>
+${bubbles}
+<div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`);
   }
   if (sx.good) {
-    out.push(sxBox(C.sunLight, `${sxKicker('Good news from City Hall')}${sxHead('On the agenda')}
-<ul style="margin:0;padding-left:18px;">${sx.good.items.map(g => `<li style="margin-bottom:6px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</li>`).join('')}</ul>
-${safeUrl(sx.good.url) ? `<div style="margin-top:6px;font-size:12px;color:${C.muted};"><a href="${escHtml(sx.good.url)}" style="color:${C.accent};font-weight:bold;">The full agenda</a></div>` : ''}`));
+    // A plain list set off by a rule, a check per item.
+    out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('Good news from City Hall', '#1C7C4A')}
+<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda</div>
+${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
+${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sx.good.url)}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}</div>`);
   }
-  return out.join('');
+  return out.length ? sxGap + out.join(sxGap) : '';
 }
 
 export function sectionsEmailText(sx, { siteUrl, subscriberId = '' }) {
