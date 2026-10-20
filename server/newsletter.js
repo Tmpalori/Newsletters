@@ -1711,16 +1711,26 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       if (!from || !to) return no(400, 'bad-request', 'Send from (the address on the list) and to (the corrected one).');
       const typo = impossibleEmailError(to);
       if (typo) return no(400, 'bad-to', typo);
+      // A stray character: an address kept from before signups refused
+      // non-ASCII ("alma‑mctygue@" with a non-breaking hyphen, Oct 2026),
+      // which Resend refuses, fixed to exactly what the form makes of it
+      // now. from may be the stored address or the one it should be.
+      const NON_ASCII = /[^\x01-\x7f]/;
+      const charFix = normalizeEmail(from) === to;
       const [fromUser, fromDomain] = [from.slice(0, from.lastIndexOf('@')), from.slice(from.lastIndexOf('@') + 1)];
       const [toUser, toDomain] = [to.slice(0, to.lastIndexOf('@')), to.slice(to.lastIndexOf('@') + 1)];
-      if (!fromUser || fromUser !== toUser || fromDomain === toDomain) {
-        return no(400, 'not-a-typo', 'Only a typo after the @ can be fixed here (same name before the @, a different domain). Anything else is a new subscriber: use Import.');
+      if (!charFix && (!fromUser || fromUser !== toUser || fromDomain === toDomain)) {
+        return no(400, 'not-a-typo', 'Only a typo after the @ (same name before the @, a different domain) or a stray character like a fancy dash can be fixed here. Anything else is a new subscriber: use Import.');
       }
-      // Dead: bounced, never confirmed, or an ending no mail can reach. The
-      // last can still read active: Resend may refuse it before sending, so
-      // no bounce ever comes back (melaniereeves60@gmail.comm did).
-      const old = (await store.listSubscribers()).find(x => String(x.email || '').toLowerCase() === from &&
-        (x.status === 'bounced' || x.status === 'pending' || (x.status === 'active' && impossibleEmailError(from))));
+      // Dead: bounced, never confirmed, or an address no mail can reach (an
+      // impossible ending, a non-ASCII character). The last can still read
+      // active: Resend refuses it before sending, so no bounce ever comes
+      // back (melaniereeves60@gmail.comm did).
+      const subs = await store.listSubscribers();
+      const old = charFix
+        ? subs.find(x => NON_ASCII.test(x.email || '') && normalizeEmail(x.email) === to && ['active', 'pending', 'bounced'].includes(x.status))
+        : subs.find(x => String(x.email || '').toLowerCase() === from &&
+          (x.status === 'bounced' || x.status === 'pending' || (x.status === 'active' && impossibleEmailError(from))));
       if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced, waiting to confirm, or an address that can't receive mail.`);
       const result = await store.importSubscribers([to], 'typo-fix');
       if (result.skipped_unsubscribed || result.skipped_bounced) {
@@ -1730,8 +1740,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       if (old.status === 'active') await store.markSubscribersBounced([old.email]);
       const by = viaHq(req) ? 'through HQ' : 'in the admin';
       console.log(`[newsletter] subscriber typo fixed ${by}`);
-      if (slack) slack.notify({ channel: 'activity', title: `✉️ Subscriber typo fixed ${by}`, fields: [['Was', from], ['Now', to]] });
-      res.json({ ok: true, from, to, added: result.added > 0, already: result.already > 0 });
+      if (slack) slack.notify({ channel: 'activity', title: `✉️ Subscriber typo fixed ${by}`, fields: [['Was', old.email], ['Now', to]] });
+      res.json({ ok: true, from: old.email, to, added: result.added > 0, already: result.already > 0 });
     } catch (err) {
       res.status(500).json({ ok: false, error: 'failed', message: err.message });
     }

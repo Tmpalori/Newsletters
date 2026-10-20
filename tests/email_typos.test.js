@@ -339,6 +339,30 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect(await statusOf('happy@yahoo.com')).toBeUndefined();
   });
 
+  it('fixes a stray character before the @ (a fancy dash Resend refuses), active or not', async () => {
+    // Oct 2026: "alma\u2011mctygue@hotmail.com" (a non-breaking hyphen) got on
+    // The Star 402's list and its welcome email failed with a 422.
+    await seed();
+    await store.importSubscribers(['alma\u2011mctygue@hotmail.com'], 'import');
+    // from as HQ would likely type it, with a plain hyphen.
+    const r = await fix({ from: 'alma-mctygue@hotmail.com', to: 'alma-mctygue@hotmail.com' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, from: 'alma\u2011mctygue@hotmail.com', to: 'alma-mctygue@hotmail.com', added: true });
+    expect(await statusOf('alma-mctygue@hotmail.com')).toBe('active');
+    expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('bounced');
+  });
+
+  it('a stray-character fix is only ever to what the form makes of the address', async () => {
+    await seed();
+    await store.importSubscribers(['alma\u2011mctygue@hotmail.com'], 'import');
+    // Another name before the @ isn't the same person.
+    expect((await (await fix({ from: 'alma\u2011mctygue@hotmail.com', to: 'alma.mctygue@hotmail.com' })).json()).error).toBe('not-a-typo');
+    // A plain-ASCII address that's fine has nothing to fix.
+    expect((await fix({ from: 'happy@gmail.com', to: 'happy@gmail.com' })).status).toBe(404);
+    expect(await statusOf('alma.mctygue@hotmail.com')).toBeUndefined();
+    expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('active');
+  });
+
   it('needs the HQ key or an admin login', async () => {
     await seed();
     const r = await fetch(baseUrl + '/api/hq/admin/newsletter/fix-subscriber', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' },
