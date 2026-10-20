@@ -46,6 +46,7 @@ import { createJobs, canRunOnWorker } from './jobs.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
+import { createMailDomainCheck } from './mailDomain.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
@@ -1952,6 +1953,12 @@ export async function createApp(opts = {}) {
     store, requireAdmin, adminOrHq, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
     // The newsletter is a day-by-day list: only events that made their day.
     getPublicPayload: shownPayload, createRateLimiter, config: newsletter, resend: nlResend, slack, verifyHuman, tremendous,
+    // Signup outcomes are counted per daily visitor hash, like page views.
+    analyticsSecret,
+    // A signup's domain must take mail (server/mailDomain.js). Off under
+    // tests (no DNS from the suite) and with SIGNUP_DOMAIN_CHECK=0.
+    mailDomainOk: opts.mailDomainOk !== undefined ? opts.mailDomainOk
+      : (process.env.VITEST || process.env.SIGNUP_DOMAIN_CHECK === '0' ? null : createMailDomainCheck()),
     // No secret, no check: signups then confirm by email (newsletter.js).
     turnstileConfigured: Boolean(turnstileSecret),
     // The send itself must carry the paid placements (see sponsors.apply).

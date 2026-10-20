@@ -2320,7 +2320,8 @@
     const totals = document.getElementById('growth-totals');
     if (totals) totals.innerHTML =
       (y ? item('Yesterday', y.joined + ' new' + (y.cost_per_sub != null ? ' · ' + money(y.cost_per_sub) + ' each' : '')) : '') +
-      item('Last ' + g.days + ' days', t.joined + ' new · ' + t.unsubscribed + ' left · net ' + (t.net >= 0 ? '+' : '') + t.net) +
+      item('Last ' + g.days + ' days', t.joined + ' new · ' + t.unsubscribed + ' unsubscribed · ' + (t.bounced || 0) + ' bounced' +
+        (t.complaints ? ' (' + t.complaints + ' spam complaints)' : '') + ' · net ' + (t.net >= 0 ? '+' : '') + t.net) +
       item('Ad spend', t.spend != null ? money(t.spend) : 'not reported yet') +
       item('Real cost per subscriber', t.cost_per_sub != null ? money(t.cost_per_sub) : '—') +
       item('Where they came from', Object.entries(t.by_source || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join(' · ') || '—') +
@@ -2328,7 +2329,7 @@
 
     barChart(document.getElementById('growth-chart'), (g.daily || []).map(d => ({
       label: fmtDay(d.day), value: d.joined,
-      tip: fmtDay(d.day) + ': ' + d.joined + ' new, ' + d.unsubscribed + ' left' + (d.spend != null ? ', ' + money(d.spend) + ' spent' : '')
+      tip: fmtDay(d.day) + ': ' + d.joined + ' new, ' + (d.unsubscribed + (d.bounced || 0)) + ' left' + (d.spend != null ? ', ' + money(d.spend) + ' spent' : '')
     })));
     const note = document.getElementById('growth-spend-note');
     if (note) note.textContent = g.spend_reported
@@ -2348,7 +2349,7 @@
       const rows = g.daily.slice().reverse();
       daily.innerHTML = '<thead><tr><th>Day</th><th class="num">New</th><th>From</th><th class="num">Left</th><th class="num">Spend</th><th class="num">Per sub</th></tr></thead><tbody>' +
         rows.map(d => '<tr><td>' + escapeHtml(fmtDay(d.day)) + '</td><td class="num">' + d.joined + '</td><td class="muted">' +
-          escapeHtml(Object.entries(d.by_source).map(([k, v]) => k + ' ' + v).join(', ')) + '</td><td class="num">' + (d.unsubscribed || '') +
+          escapeHtml(Object.entries(d.by_source).map(([k, v]) => k + ' ' + v).join(', ')) + '</td><td class="num">' + ((d.unsubscribed + (d.bounced || 0)) || '') +
           '</td><td class="num">' + (d.spend != null ? money(d.spend) : '') + '</td><td class="num">' + (d.cost_per_sub != null ? money(d.cost_per_sub) : '') + '</td></tr>').join('') +
         '</tbody>';
     }

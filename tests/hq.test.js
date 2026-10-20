@@ -148,7 +148,8 @@ describe('a town whose database is down', () => {
     const body = await buildSummary({ store, nowFn: () => NOW, town: VICTORIA, siteUrl: 'https://www.thevic361.com',
       getEvents: async () => [], getOrders: async () => [], setup: async () => ({ checks: [], status: {} }), health: async () => null });
     expect(body).not.toHaveProperty('failed');
-    expect(since).toBe('2026-10-09');
+    // The oldest issue's day, or 30 days back for the signup outcomes.
+    expect(since).toBe('2026-09-09');
     expect(body.issues).toHaveLength(1);
   });
 
