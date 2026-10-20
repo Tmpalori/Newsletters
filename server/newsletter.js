@@ -42,6 +42,10 @@
  *     /email/o/<week>/<subscriber id>.gif, counted once per subscriber per
  *     issue (email_opens) and shown as opens and open rate per send in the
  *     admin. Welcome, confirmation and test emails have none.
+ *   - Click tracking: each weekly copy's links to our own pages go through
+ *     /email/c/<week>/<subscriber id>?u=<path> (clickWrap), counted once
+ *     per subscriber, issue and link (email_clicks) and then redirected
+ *     there. The issue's click rate is unique clickers over recipients.
  *   - Admin: counts, preview, test send, send now, CSV/paste import.
  *   - Automation: the site's scheduler (server/scheduler.js) sends both
  *     issues. POST /api/newsletter/cron with X-Cron-Secret is a send
@@ -52,6 +56,7 @@
 
 import { town } from './town.js';
 import { impossibleEmailError } from './emailTypos.js';
+import { visitorHash } from './analytics.js';
 import { hqPaths, viaHq } from './hqAdmin.js';
 import crypto from 'node:crypto';
 import { emailKey } from './db.js';
@@ -66,13 +71,18 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
+import { botName } from './analytics.js';
 
 const RESEND_API = 'https://api.resend.com';
-// Strict enough that Resend accepts every address we keep: no empty dot
-// segments ("bob@gmail..com", ".bob@"), domain labels of letters, digits
-// and inner hyphens, and a real TLD, and only ASCII before the @ (Resend
-// refuses "josé@" with a 422). Matched after lowercasing.
-const EMAIL_RE = /^(?=[!-~]+@)[^\s@<>"',;.]+(?:\.[^\s@<>"',;.]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
+// Strict enough that Resend accepts every address we keep: before the @,
+// 1 to 64 of the characters an address may have unquoted (RFC 5322 atext:
+// letters, digits and !#$%&'*+/=?^_`{|}~-, so o'brien@ is fine but a(b)@,
+// a[b]@, a\b@ and a:b@ aren't), in dot-separated runs with no empty one
+// ("bob@gmail..com", ".bob@"), and nothing but ASCII (Resend refuses
+// "josé@" with a 422); after it, domain labels of letters, digits and
+// inner hyphens, and a real TLD. Matched after lowercasing.
+const ATEXT = "[a-z0-9!#$%&'*+/=?^_`{|}~-]";
+const EMAIL_RE = new RegExp(`^(?=[^@]{1,64}@)${ATEXT}+(?:\\.${ATEXT}+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$`);
 const BATCH_SIZE = 100;          // Resend batch limit
 const PER_DAY = 6;               // events per day in the email
 
@@ -382,6 +392,34 @@ export function utmTag(content, siteUrl, campaign, amp = '&amp;') {
   });
 }
 
+// Click tracking: each copy's links to our own pages go through
+// /email/c/<week>/<subscriber id>?u=<path> (see the route below), which
+// counts the click and sends the reader on. HTML links only (the plain
+// text keeps readable URLs, and its visits still count as Newsletter by
+// their UTM tags), and never the private-token links (unsubscribe,
+// confirm, email settings), images, or the reader's referral link (/r/,
+// which they forward: a friend's tap isn't the reader's click). Runs after utmTag, so the reader
+// lands with the tags. `clickBase` is '' for previews and tests.
+export function clickWrap(html, siteUrl, clickBase) {
+  if (!siteUrl || !clickBase) return html;
+  const base = siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`href="${base}(/[^"]*)?"`, 'g');
+  return html.replace(re, (all, rest = '/') => {
+    if (/^\/(unsubscribe|subscribe\/confirm|email-prefs|email\/|sponsor-logo\/|r\/)/.test(rest)) return all;
+    const path = rest.replace(/&amp;/g, '&');
+    return `href="${escHtml(`${clickBase}?u=${encodeURIComponent(path)}`)}"`;
+  });
+}
+
+// The path a click link may send someone to: our own site only. A path
+// that could leave it ("//evil.example", "/\\evil.example", a scheme)
+// goes home instead.
+export function clickTarget(u) {
+  const s = String(u || '');
+  if (!s.startsWith('/') || /^\/[\/\\]/.test(s) || /[\u0000-\u001f\u007f]/.test(s) || s.length > 1000) return '/';
+  return s;
+}
+
 // A paid weekly sponsor's button goes through /go/s/<week> (server/
 // sponsors.js), which counts the click for the sponsor's end-of-week report
 // and then sends the reader on with UTM tags. A hand-set sponsor (no order)
@@ -617,7 +655,7 @@ export function dontMiss(byDay, n = 3) {
 // Sunday (weekend, Thursday). See EDITIONS.
 // partners: the payload's `partners` (server/partners.js partnersPayload);
 // missing means every category is open.
-export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
+export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', clickBase = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
@@ -687,7 +725,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   const shownPages = [...new Set([...byDay.flatMap(({ list }) => shownOf(list)), ...topShown].map(e => e.page).filter(Boolean))];
   return {
     subject, total, picks, events: shownPages,
-    html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),
+    html: clickWrap(utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign), siteUrl, clickBase),
     text: utmTag(text, siteUrl, campaign, '&')
   };
 }
@@ -968,7 +1006,7 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
-export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null }) {
+export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, analyticsSecret = '', mailDomainOk = null }) {
   const rewards = createReferralRewards({ store, slack, tremendous, nowFn, localDate: localDateStr });
   const subscribeLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
   const confirmLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
@@ -986,6 +1024,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   const supported = typeof store.addSubscriber === 'function';
 
   const openPixel = (week, id) => `${siteUrl}/email/o/${week}/${encodeURIComponent(id)}.gif`;
+  const clickLink = (week, id) => `${siteUrl}/email/c/${week}/${encodeURIComponent(id)}`;
+  const clickLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 2000 });
 
   // One subscriber's referral link and count, for the welcome email. A
   // store without referrals (or a failed read) just leaves the box out.
@@ -1062,7 +1102,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       }
       // Already on the list in its clean form, or no telling what it should be.
       if (sub.status === 'active') await store.markSubscribersBounced([sub.email]);
-      else if (typeof store.unsubscribeByEmail === 'function') await store.unsubscribeByEmail([sub.email]);
+      else if (typeof store.unsubscribeByEmail === 'function') await store.unsubscribeByEmail([sub.email], 'bad_address');
       out.stopped.push(sub.email);
       console.warn('[newsletter] subscriber address email can\'t go to, no longer mailed:', showUnicode(sub.email));
       if (slack) slack.alert(`newsletter-bad-address-${sub.id || sub.email}`, 'A subscriber address email can\'t go to',
@@ -1202,7 +1242,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const failedEmails = owed();
       return store.recordNewsletterSend({
         week_key: key, subject: probe.subject, recipients: base + sent, picks, events: shownEvents,
-        failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
+        failed: failedEmails.length, failed_emails: failedEmails, chunks: plan, clicks_tracked: true
       });
     };
     const refs = await referralsForSend(subs);
@@ -1228,9 +1268,10 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         // Open tracking: a 1x1 image per copy, keyed by week and subscriber
         // id (not the token, which unsubscribes). See /email/o below.
         const openPixelUrl = s.id ? openPixel(key, s.id) : '';
+        const clickBase = s.id ? clickLink(key, s.id) : '';
         const code = s.id && refs.codes[s.id];
         const referral = code ? { code, count: refs.counts[code] || 0 } : null;
-        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, referral, replyAsk: Boolean(config.replyTo || config.inbound),
+        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, clickBase, referral, replyAsk: Boolean(config.replyTo || config.inbound),
           edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
         return {
           from: config.from, to: [s.email], subject: issue.subject, html: issue.html, text: issue.text,
@@ -1266,7 +1307,10 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const record = {
       week_key: key, subject: probe.subject, picks, events: shownEvents,
       recipients: base + sent,
-      failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
+      failed: failedEmails.length, failed_emails: failedEmails, chunks: plan,
+      // Its copies' links go through /email/c, so a click rate means
+      // something; issues from before that read null.
+      clicks_tracked: true
     };
     await store.recordNewsletterSend(record);
     const unknownCount = plan.filter(c => c.state === 'sent-unknown').reduce((n, c) => n + c.emails.filter(e => active.has(e)).length, 0);
@@ -1302,20 +1346,42 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     return { ok: failures.length === 0, ...summary, unknown: unknownCount, refused: refusedEmails.map(r => r.email), errors: failures.slice(0, 3) };
   }
 
+  // What each signup on the form came to, one traffic row (kind 'signup',
+  // click_type the outcome, path the form's source, the day's visitor
+  // hash; never the address), so the gap between Subscribe taps and joins
+  // can be read off (server/activity.js, the HQ summary). Never throws.
+  function signupOutcome(req, outcome, source) {
+    if (typeof store.recordTraffic !== 'function') return;
+    try {
+      const day = localDateStr(nowFn());
+      const ip = req.ip || (req.socket && req.socket.remoteAddress) || '';
+      store.recordTraffic({ day, kind: 'signup', click_type: outcome, path: String(source || 'site').slice(0, 40),
+        visitor: visitorHash(ip, req.get('user-agent') || '', day, analyticsSecret) })
+        .catch(err => console.warn('[newsletter] signup outcome not saved:', err.message));
+    } catch (err) {
+      console.warn('[newsletter] signup outcome not saved:', err.message);
+    }
+  }
+
   app.post('/api/subscribe', async (req, res) => {
+    const body = req.body || {};
+    const source = signupSource(body.source);
+    const outcome = o => signupOutcome(req, o, source);
     // A paused town: nobody new goes on a list that isn't being sent.
-    if (town.dormant) return res.status(503).json({ ok: false, error: 'dormant', message: DORMANT_SIGNUP });
+    if (town.dormant) { outcome('dormant'); return res.status(503).json({ ok: false, error: 'dormant', message: DORMANT_SIGNUP }); }
     if (!supported) return res.status(503).json({ ok: false, message: 'Signups are paused. Try again soon.' });
     const ip = req.ip || req.socket.remoteAddress || '';
-    if (!subscribeLimiter.check(ip).ok) return res.status(429).json({ ok: false, message: 'Too many tries. Try again later.' });
-    const body = req.body || {};
+    if (!subscribeLimiter.check(ip).ok) { outcome('rate_limited'); return res.status(429).json({ ok: false, message: 'Too many tries. Try again later.' }); }
     // Honeypot: a hidden field people never fill. Pretend it worked.
-    if (honeypotTripped(body, 'newsletter signup', { slack })) return res.json({ ok: true });
+    if (honeypotTripped(body, 'newsletter signup', { slack })) { outcome('honeypot'); return res.json({ ok: true }); }
     const email = normalizeEmail(body.email);
     // Logged without the address: enough to tell a typo from a bot-check
     // failure ([turnstile] rejected) when a signup is turned away.
     if (!email) {
       console.warn('[newsletter] signup rejected: invalid email');
+      // Kept apart: a character email can't carry before the @ (an accent).
+      const raw = String(body.email || '');
+      outcome(/[^\x00-\x7f]/.test(raw.slice(0, Math.max(raw.lastIndexOf('@'), 0))) ? 'invalid_non_ascii' : 'invalid');
       return res.status(400).json({ ok: false, message: 'Enter a valid email address.' });
     }
     // An ending no address can have (...@gmail.comm): the confirmation
@@ -1323,7 +1389,19 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const typo = impossibleEmailError(email);
     if (typo) {
       console.warn('[newsletter] signup rejected: impossible email ending');
+      outcome('typo');
       return res.status(400).json({ ok: false, message: typo });
+    }
+    // A domain DNS says can't take mail (server/mailDomain.js): every email
+    // to it would bounce. Only a clear no; a slow or failed lookup lets it in.
+    if (mailDomainOk) {
+      let ok = null;
+      try { ok = await mailDomainOk(email.slice(email.lastIndexOf('@') + 1)); } catch { ok = null; }
+      if (ok === false) {
+        console.warn('[newsletter] signup rejected: domain takes no mail');
+        outcome('no_mail_domain');
+        return res.status(400).json({ ok: false, message: `${email.slice(email.lastIndexOf('@') + 1)} can't receive email. Check the part after the @.` });
+      }
     }
     // The bot check. A token that fails is a 400. No token at all usually
     // means the check never loaded (the Facebook/Instagram in-app browser,
@@ -1374,9 +1452,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       : { ok: true, message: config.enabled ? "You're on the list! Check your inbox." : "You're on the list! Look for us Monday and Thursday mornings.",
           ...(confirmFirst ? {} : { lead: true }) };
     try {
-      const source = signupSource(body.source);
       const sub = await store.addSubscriber({ email, source, referredBy });
-      if (sub.status === 'active') return res.json(done);
+      if (sub.status === 'active') { outcome('already_subscribed'); return res.json(done); }
       // A referred address still waiting to confirm stays that way when it's
       // sent again without the code: only its inbox can put it on the list.
       // The answer doesn't change (that would tell anyone it's waiting).
@@ -1394,20 +1471,27 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         const confirmed = await store.confirmSubscriber(sub.token);
         // Not awaited: the welcome email shouldn't hold up the form.
         if (confirmed && confirmed.newly_confirmed) welcome(confirmed);
+        outcome(confirmed && confirmed.newly_confirmed ? 'joined' : 'already_subscribed');
         return res.json(done);
       }
+      // Waiting for Confirm, and why: a comeback, no passed bot check, a
+      // referral code (theirs or the address's), or a re-submit of an
+      // address already waiting.
+      const waiting = !sub.new_signup ? 'already_pending' : comeback ? 'comeback_pending'
+        : unverified ? 'pending_bot_check' : 'pending_referral';
       // Email is off (no RESEND_API_KEY yet, or mid key rotation), so no
       // confirmation email can go out. The signup stays pending rather than
       // being confirmed for them: a comeback, a referred friend or an
       // unchecked signup only joins by tapping Confirm in their own inbox
       // (the reminder job asks them once email is on).
-      if (!config.enabled) return res.json(done);
+      if (!config.enabled) { outcome('pending_email_off'); return res.json(done); }
       // A few confirmation emails per inbox a day, whoever asks (a +tag or
       // Gmail dots don't make a new inbox), so the form can't be used to
       // flood someone's inbox.
-      if (!confirmLimiter.check(inboxKey(email)).ok) return res.json(done);
+      if (!confirmLimiter.check(inboxKey(email)).ok) { outcome('confirm_capped'); return res.json(done); }
       if (unverified && !unverifiedLimiter.check('all').ok) {
         console.warn('[newsletter] hourly cap on confirmation emails for signups without a bot check reached');
+        outcome('confirm_capped');
         return res.json(done);
       }
       const confirmUrl = `${siteUrl}/subscribe/confirm?token=${encodeURIComponent(sub.token)}`;
@@ -1417,12 +1501,15 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       // waiting address) when a new one gets "You're on the list".
       try {
         await resend.send({ from: config.from, to: [email], subject: mail.subject, html: mail.html, text: mail.text });
+        outcome(waiting);
       } catch (err) {
+        outcome('confirm_email_failed');
         console.error('[newsletter] confirmation email failed:', err.message);
         if (slack) slack.alert('newsletter-confirm-failed', 'Newsletter confirmation emails are failing', err.message, `${siteUrl}/admin.html`);
       }
       res.json(done);
     } catch (err) {
+      outcome('error');
       console.error('[newsletter] subscribe failed:', err.message);
       // Usually Resend (key rotated, domain unverified, outage): every signup
       // fails until someone looks, so tell the owner (de-duplicated by key).
@@ -1488,6 +1575,28 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     res.end(PIXEL_GIF);
   });
 
+  // Click tracking (clickWrap above). Always sends the reader on, to our
+  // own site only (clickTarget). Counted once per subscriber, issue and
+  // link (store.recordEmailClick, which ignores ids that aren't
+  // subscribers), with the same six-month window as opens and an hourly
+  // per-IP cap; known bots and link scanners that say so (analytics.js
+  // botName) aren't counted. Scanners that look like browsers are caught
+  // when the report is built (growth.js emailClickStats).
+  app.get('/email/c/:week/:sid', (req, res) => {
+    const target = clickTarget(req.query.u);
+    const week = req.params.week;
+    const sid = /^[A-Za-z0-9-]{8,64}$/.test(req.params.sid) ? req.params.sid : null;
+    const today = localDateStr(nowFn());
+    const recent = /^\d{4}-\d{2}-\d{2}$/.test(week) && week <= addDays(today, 3) && week >= addDays(today, -183);
+    if (sid && recent && !botName(req.get('user-agent')) && clickLimiter.check(req.ip || '').ok &&
+      supported && typeof store.recordEmailClick === 'function') {
+      store.recordEmailClick({ week_key: week, subscriber_id: sid, url: target.split('?')[0].split('#')[0].slice(0, 300) })
+        .catch(err => console.warn('[newsletter] recording a click failed:', err.message));
+    }
+    res.set({ 'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer' });
+    res.redirect(302, target);
+  });
+
   // Referral links. The code rides along to the signup form in the URL
   // (docs/track.js keeps it for the visit); nothing is looked up here, so
   // the link can't be used to check whose code is whose.
@@ -1545,7 +1654,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   app.post('/subscribe/confirm', async (req, res) => {
     const sub = supported ? await store.confirmSubscriber(String(req.query.token || '')) : null;
     // Only the first confirm: a second click on the same link sends nothing.
-    if (sub && sub.newly_confirmed) welcome(sub);
+    if (sub && sub.newly_confirmed) { welcome(sub); signupOutcome(req, 'confirmed', sub.source); }
     res.status(sub ? 200 : 404).type('html').send(sub
       ? page("You're subscribed", 'The week\'s events will land in your inbox every Monday morning, and the weekend\'s every Thursday.')
       : page('Link expired', 'That confirmation link isn\'t valid anymore. <a href="/subscribe">Sign up again</a>.'));
@@ -1743,14 +1852,18 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   // a few at a time, and never an ending no mail can reach.
   app.post(paths('/api/admin/newsletter/import'), gate, async (req, res) => {
     const raw = String((req.body || {}).emails || '');
-    const emails = [...new Set(raw.split(/[\s,;]+/).map(normalizeEmail).filter(Boolean))];
-    if (!emails.length) return res.status(400).json({ ok: false, message: 'No valid email addresses found.' });
+    const parts = raw.split(/[\s,;]+/).filter(Boolean);
+    const emails = [...new Set(parts.map(normalizeEmail).filter(Boolean))];
+    // Lines that aren't an address mail can reach, counted (not silently
+    // dropped) so the admin can see some were left out.
+    const invalid = parts.filter(p => !normalizeEmail(p));
+    if (!emails.length) return res.status(400).json({ ok: false, message: 'No valid email addresses found.', invalid: invalid.length });
     const hq = viaHq(req);
-    if (hq) {
-      if (emails.length > 25) return res.status(400).json({ ok: false, error: 'too-many', message: 'At most 25 addresses at a time through HQ. More is an Import in the admin.' });
-      const bad = emails.find(e => impossibleEmailError(e));
-      if (bad) return res.status(400).json({ ok: false, error: 'bad-email', message: impossibleEmailError(bad) });
-    }
+    if (hq && emails.length > 25) return res.status(400).json({ ok: false, error: 'too-many', message: 'At most 25 addresses at a time through HQ. More is an Import in the admin.' });
+    // An ending no mail can reach is refused either way (it was HQ only, and
+    // the admin's Import took ...@gmail.comm).
+    const bad = emails.find(e => impossibleEmailError(e));
+    if (bad) return res.status(400).json({ ok: false, error: 'bad-email', message: `${bad}: ${impossibleEmailError(bad)}` });
     // Anyone who unsubscribed, complained or bounced here is skipped and
     // counted (skipped_unsubscribed, skipped_bounced), never made active.
     const result = await store.importSubscribers(emails, 'import');
@@ -1758,7 +1871,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       console.log(`[newsletter] ${result.added} subscriber(s) added through HQ`);
       if (slack && result.added) slack.notify({ channel: 'activity', title: '✉️ Subscribers added through HQ', fields: [['Added', emails.join(', ').slice(0, 500)]] });
     }
-    res.json({ ok: true, ...result });
+    res.json({ ok: true, ...result, invalid: invalid.length, ...(invalid.length ? { invalid_examples: invalid.slice(0, 5).map(p => p.slice(0, 80)) } : {}) });
   });
 
   // A signup's typo fixed (October 2026: "melaniereeves60@gmail.comm" on
@@ -1807,7 +1920,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       if (result.skipped_unsubscribed || result.skipped_bounced) {
         return no(409, 'to-blocked', `${to} unsubscribed or bounced before, so it can't be added back here.`);
       }
-      if (old.status === 'pending') await store.unsubscribeByEmail([old.email]);
+      if (old.status === 'pending') await store.unsubscribeByEmail([old.email], 'typo_fixed');
       if (old.status === 'active') await store.markSubscribersBounced([old.email]);
       const by = viaHq(req) ? 'through HQ' : 'in the admin';
       console.log(`[newsletter] subscriber typo fixed ${by}`);

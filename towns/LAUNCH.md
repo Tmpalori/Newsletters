@@ -48,10 +48,27 @@ account per town.
 
 ## 4. Cloudflare Turnstile: spam protection on forms (2 minutes total)
 
-dash.cloudflare.com → Turnstile → your existing widget → Settings → add
-`www.tupelocurrent.com`, `www.thecrane308.com`, `www.therogue541.com`,
-`www.shoalssetlist.com`. (Or one new widget for all four; send Claude its
-site key and secret key.)
+dash.cloudflare.com → Turnstile → the widget → Hostname management. Every
+town's `www.` host must be on the widget whose keys its service uses:
+
+| Town | Host |
+|---|---|
+| Victoria | `www.thevic361.com` |
+| Tupelo | `www.tupelocurrent.com` |
+| Kearney | `www.thecrane308.com` |
+| Medford | `www.therogue541.com` |
+| Shoals | `www.shoalssetlist.com` |
+| Lincoln | `www.thestar402.com` |
+| Virginia Beach | `www.thetide757.com` |
+
+A free widget holds at most **10 hostnames**: seven towns' `www.` hosts fit,
+but adding apex or Railway domains (or an eighth town and beyond) needs a
+second widget. A service's `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`
+must come from the same widget. A missing hostname makes the widget fail
+with error 110200 for every visitor; the form sends that code back
+(`ts_err`), and after five failures and no pass in a day the town alerts
+"The bot check fails for everyone" and its setup check reads failing
+(`server/formGuard.js`). Messages still come through, labeled.
 
 ## 5. Facebook and Instagram (15 min a town)
 

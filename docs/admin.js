@@ -2320,7 +2320,8 @@
     const totals = document.getElementById('growth-totals');
     if (totals) totals.innerHTML =
       (y ? item('Yesterday', y.joined + ' new' + (y.cost_per_sub != null ? ' · ' + money(y.cost_per_sub) + ' each' : '')) : '') +
-      item('Last ' + g.days + ' days', t.joined + ' new · ' + t.unsubscribed + ' left · net ' + (t.net >= 0 ? '+' : '') + t.net) +
+      item('Last ' + g.days + ' days', t.joined + ' new · ' + t.unsubscribed + ' unsubscribed · ' + (t.bounced || 0) + ' bounced' +
+        (t.complaints ? ' (' + t.complaints + ' spam complaints)' : '') + ' · net ' + (t.net >= 0 ? '+' : '') + t.net) +
       item('Ad spend', t.spend != null ? money(t.spend) : 'not reported yet') +
       item('Real cost per subscriber', t.cost_per_sub != null ? money(t.cost_per_sub) : '—') +
       item('Where they came from', Object.entries(t.by_source || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v).join(' · ') || '—') +
@@ -2328,7 +2329,7 @@
 
     barChart(document.getElementById('growth-chart'), (g.daily || []).map(d => ({
       label: fmtDay(d.day), value: d.joined,
-      tip: fmtDay(d.day) + ': ' + d.joined + ' new, ' + d.unsubscribed + ' left' + (d.spend != null ? ', ' + money(d.spend) + ' spent' : '')
+      tip: fmtDay(d.day) + ': ' + d.joined + ' new, ' + (d.unsubscribed + (d.bounced || 0)) + ' left' + (d.spend != null ? ', ' + money(d.spend) + ' spent' : '')
     })));
     const note = document.getElementById('growth-spend-note');
     if (note) note.textContent = g.spend_reported
@@ -2340,7 +2341,7 @@
     barChart(document.getElementById('growth-issues-chart'), sent.map(x => ({
       label: (x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week), value: x.open_rate || 0,
       tip: (x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week) + ': ' + (x.open_rate == null ? '—' : x.open_rate + '%') + ' opened, ' +
-        (x.click_rate == null ? '—' : x.click_rate + '%') + ' clicked · ' + x.sent + ' sent'
+        (x.click_rate == null ? 'no click data' : x.click_rate + '% clicked') + ' · ' + x.sent + ' sent'
     })), { empty: 'No issues sent yet.', max: 100, unitShort: '%' });
 
     const daily = document.getElementById('growth-daily');
@@ -2348,7 +2349,7 @@
       const rows = g.daily.slice().reverse();
       daily.innerHTML = '<thead><tr><th>Day</th><th class="num">New</th><th>From</th><th class="num">Left</th><th class="num">Spend</th><th class="num">Per sub</th></tr></thead><tbody>' +
         rows.map(d => '<tr><td>' + escapeHtml(fmtDay(d.day)) + '</td><td class="num">' + d.joined + '</td><td class="muted">' +
-          escapeHtml(Object.entries(d.by_source).map(([k, v]) => k + ' ' + v).join(', ')) + '</td><td class="num">' + (d.unsubscribed || '') +
+          escapeHtml(Object.entries(d.by_source).map(([k, v]) => k + ' ' + v).join(', ')) + '</td><td class="num">' + ((d.unsubscribed + (d.bounced || 0)) || '') +
           '</td><td class="num">' + (d.spend != null ? money(d.spend) : '') + '</td><td class="num">' + (d.cost_per_sub != null ? money(d.cost_per_sub) : '') + '</td></tr>').join('') +
         '</tbody>';
     }
@@ -2357,9 +2358,11 @@
     if (issues) {
       const pct = v => (v == null ? '—' : v + '%');
       issues.innerHTML = (g.issues || []).length
-        ? '<thead><tr><th>Issue</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked that day</th><th class="num">Reader visits until the next issue</th><th>Top events from the email</th><th class="num">Left</th></tr></thead><tbody>' +
+        ? '<thead><tr><th>Issue</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked a link</th><th>Most-clicked links</th><th class="num">On the site that day</th><th class="num">Reader visits until the next issue</th><th>Top events from the email</th><th class="num">Left</th></tr></thead><tbody>' +
           g.issues.map(x => '<tr><td>' + escapeHtml((x.edition === 'weekend' ? 'Thu ' : 'Mon ') + fmtDay(x.week)) + (x.edition === 'weekend' ? ' <span class="muted">weekend</span>' : '') + '</td><td class="num">' + x.sent + '</td><td class="num">' + x.opens + ' (' + pct(x.open_rate) + ')' +
-            '</td><td class="num">' + x.clickers + ' (' + pct(x.click_rate) + ')</td><td class="num">' + (x.reader_days || 0) + '</td><td class="muted">' +
+            '</td><td class="num">' + (x.clickers == null ? '<span class="muted">not counted yet</span>' : x.clickers + ' (' + pct(x.click_rate) + ')') +
+            '</td><td class="muted">' + escapeHtml((x.top_links || []).map(l => (l.name || l.url) + ' (' + l.clickers + ')').join(', ') || '—') +
+            '</td><td class="num">' + (x.site_visitors || 0) + ' (' + pct(x.site_visit_rate) + ')</td><td class="num">' + (x.reader_days || 0) + '</td><td class="muted">' +
             escapeHtml(x.top_events.map(e => e.name + ' (' + e.views + ')').join(', ') || '—') + '</td><td class="num">' + (x.unsubscribed || '') + '</td></tr>').join('') + '</tbody>'
         : '<tbody><tr><td class="traffic-empty">No issues sent yet.</td></tr></tbody>';
     }
@@ -2854,7 +2857,7 @@
     const range = t.totals.range || t.totals.month;
     // Shares sent (every share_* click) and the visits shared links brought.
     const shares = (t.clicks || []).filter(c => /^share_/.test(c.key)).reduce((a, c) => a + c.count, 0);
-    const fromShares = ((t.sources || []).find(s => s.key === 'Shared link') || {}).count || 0;
+    const fromShares = ((t.source_views || t.sources || []).find(s => s.key === 'Shared link') || {}).count || 0;
     if (totals) totals.innerHTML = stat('Today', t.totals.today) +
       (t.days === 7 ? '' : stat('Last 7 days', t.totals.week)) +
       stat('Last ' + t.days + ' days', range) +

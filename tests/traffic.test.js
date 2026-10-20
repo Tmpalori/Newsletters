@@ -96,6 +96,22 @@ describe('analytics helpers', () => {
     expect(beaconRow({ kind: 'view', ref: 'https://www.google.com/', utm: 'chatgpt.com' }, ctx).ref_source).toBe('Google');
   });
 
+  it('counts a tagged newsletter link as the newsletter whatever the email app sends, and notes which email', () => {
+    const ctx = { ip: '1.1.1.1', ua: UA, secret: 's', siteHost: 'www.thevic361.com', now: NOW };
+    const row = b => beaconRow({ kind: 'view', utm: 'newsletter', utm_campaign: 'weekly-2026-10-12', ...b }, ctx);
+    for (const ref of ['https://mail.google.com/', 'https://www.google.com/', 'android-app://com.google.android.gm/',
+      'https://outlook.office.com/mail/', 'https://outlook.live.com/', 'https://mail.yahoo.com/d/folders/1', '']) {
+      expect(row({ ref })).toMatchObject({ ref_source: 'Newsletter', ref_host: 'weekly-2026-10-12' });
+    }
+    expect(row({ ref: '', utm_campaign: 'welcome' }).ref_host).toBe('welcome');
+    // Anything else in utm_campaign isn't kept.
+    expect(row({ ref: 'https://mail.google.com/', utm_campaign: '<b>x</b>' }).ref_host).toBe('mail.google.com');
+    // Webmail without our tag is still email, not Google search.
+    expect(referrerSource('https://mail.google.com/mail/u/0/', 'www.thevic361.com').source).toBe('Newsletter');
+    expect(referrerSource('android-app://com.google.android.gm', 'www.thevic361.com').source).toBe('Newsletter');
+    expect(referrerSource('https://www.google.com/', 'www.thevic361.com').source).toBe('Google');
+  });
+
   it('splits Meta ad taps from free Facebook and Instagram visits', () => {
     const ctx = { ip: '1.1.1.1', ua: UA, secret: 's', siteHost: 'www.thevic361.com', now: NOW };
     const view = b => beaconRow({ kind: 'view', ...b }, ctx).ref_source;
@@ -179,7 +195,10 @@ describe('traffic endpoints', () => {
     const t = await r.json();
     expect(t.ok).toBe(true);
     expect(t.totals.today).toEqual({ visitors: 1, views: 2 });
-    expect(t.sources.map(s => s.key).sort()).toEqual(['Direct', 'Google']);
+    // One person, who came from Google and then moved around the site:
+    // one Google visitor; the page views keep both.
+    expect(t.sources).toEqual([{ key: 'Google', count: 1 }]);
+    expect(t.source_views.map(s => s.key).sort()).toEqual(['Direct', 'Google']);
     expect(t.clicks).toEqual([{ key: 'sponsor_click', count: 1, label: 'Sponsor clicks' }]);
     expect(t.crawlers.sort((a, b) => a.key.localeCompare(b.key))).toEqual([
       { key: 'ChatGPT (answering someone)', count: 1 }, { key: 'GPTBot (AI training)', count: 1 }]);

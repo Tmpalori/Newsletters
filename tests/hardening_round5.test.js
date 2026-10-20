@@ -181,8 +181,24 @@ describe('database backups: a new empty database and a wiped list alert', () => 
     await store.recordNewsletterSend({ week_key: '2026-10-05', subject: 's', recipients: 250, failed: 0, failed_emails: [] });
     expect((await healthCheck(NOW)).problems).toContain('subscribers');
     expect(slack.alerts.some(a => /0 active subscribers/.test(a.text))).toBe(true);
-    await store.importSubscribers(['a@example.com'], 'test');
-    expect((await healthCheck(new Date(NOW.getTime() + 3600000))).problems).not.toContain('subscribers');
+    // A partial loss is one too: 100 of the 250 the last issue went to.
+    await store.importSubscribers(Array.from({ length: 100 }, (_, i) => `a${i}@example.com`), 'test');
+    expect((await healthCheck(new Date(NOW.getTime() + 3600000))).problems).toContain('subscribers');
+    // 60% or more is ordinary churn.
+    await store.importSubscribers(Array.from({ length: 60 }, (_, i) => `b${i}@example.com`), 'test');
+    expect((await healthCheck(new Date(NOW.getTime() + 7200000))).problems).not.toContain('subscribers');
+  });
+
+  it('a small list is only flagged at 0, not for a few leaving', async () => {
+    const dir = await tmp();
+    const eventsFile = path.join(dir, 'events.json');
+    await fs.writeFile(eventsFile, JSON.stringify({ events: [] }));
+    const store = new FileStore(path.join(dir, 's.json'));
+    const { healthCheck } = await createApp({ storeBundle: { kind: 'file', store }, eventsFile, trustProxy: false, slack: recordingSlack(),
+      autoPublish: false, startScheduler: false, now: () => NOW });
+    await store.recordNewsletterSend({ week_key: '2026-10-05', subject: 's', recipients: 10, failed: 0, failed_emails: [] });
+    await store.importSubscribers(['a@example.com', 'b@example.com'], 'test');
+    expect((await healthCheck(NOW)).problems).not.toContain('subscribers');
   });
 });
 
