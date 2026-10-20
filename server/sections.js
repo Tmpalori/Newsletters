@@ -108,11 +108,15 @@ export function homeSections({ cfg, file, hidden = [], now = new Date() }) {
 // btn) plus a few card rules of its own, inline so the stylesheet (and its
 // cache hash in every golden page) doesn't change.
 const HOME_CSS = `<style>
-.sx-feature{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:var(--space-6);align-items:center;margin-block:var(--space-8)}
-@media (max-width:640px){.sx-feature{grid-template-columns:140px minmax(0,1fr);gap:var(--space-4);align-items:start}.sx-name{font-size:var(--text-xl)}}
-.sx-feature img{width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
+.sx-feature{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);grid-template-areas:"photo head" "photo body";column-gap:var(--space-6);align-items:start;margin-block:var(--space-8)}
+.sx-feature img{grid-area:photo;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
+.sx-feature .sx-head{grid-area:head;align-self:end}
+.sx-feature .sx-body{grid-area:body;display:grid;gap:var(--space-3);justify-items:start;margin-top:var(--space-3)}
+.sx-feature .sx-body p{margin:0}
+@media (max-width:640px){.sx-feature{grid-template-columns:120px minmax(0,1fr);grid-template-areas:"photo head" "body body";column-gap:var(--space-4)}.sx-feature .sx-head{align-self:center}.sx-name{font-size:var(--text-xl)}}
 .sx-kicker{font-weight:800;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
-.sx-name{font-family:var(--font-display);font-size:var(--text-2xl);line-height:1;margin:var(--space-2) 0}
+.sx-name{font-family:var(--font-display);font-size:var(--text-2xl);line-height:1;margin:var(--space-1) 0 var(--space-2)}
+.sx-head p{margin:0}
 .sx-muted{color:var(--color-text-muted);font-size:var(--text-sm)}
 .sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle;transform:rotate(-3deg);background:var(--color-surface-offset)}
 .sx-says{background:var(--color-surface-offset);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);margin-block:var(--space-8)}
@@ -143,12 +147,12 @@ export function sectionsHomeHtml(s, { siteUrl }) {
   if (s.pet) {
     const p = s.pet;
     parts.push(`<section class="sx-feature" id="pet-of-the-week">
-        <img src="${siteUrl}/sections/pet/${encodeURIComponent(p.id)}.jpg" alt="${escHtml(p.name)}" width="480" height="480" loading="lazy">
-        <div><span class="sx-kicker">Pet of the week</span>
+        <img src="${siteUrl}/sections/pet/${encodeURIComponent(p.id)}.jpg" alt="${escHtml(p.name)}" width="260" height="260" loading="lazy">
+        <div class="sx-head"><span class="sx-kicker">Pet of the week</span>
           <h2 class="sx-name">${escHtml(p.name)}</h2>
-          <p class="sx-muted">${escHtml(p.facts || '')}</p>
-          <p>${escHtml(p.blurb)}</p>
-          ${safeUrl(p.url) ? `<p><a class="btn btn--outline" href="${escHtml(p.url)}" rel="noopener">Meet ${escHtml(p.name)}</a></p>` : ''}
+          <p class="sx-muted">${escHtml(p.facts || '')}</p></div>
+        <div class="sx-body"><p>${escHtml(p.blurb)}</p>
+          ${safeUrl(p.url) ? `<a class="btn btn--outline" href="${escHtml(p.url)}" rel="noopener">Meet ${escHtml(p.name)}</a>` : ''}
           <p class="sx-muted">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</p></div>
       </section>`);
   }
