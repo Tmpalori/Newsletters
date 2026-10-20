@@ -79,7 +79,9 @@ describe('/api/hq/summary', () => {
     expect(body.sponsors.weeks).toEqual([
       { week_start: '2026-10-12', booked: true }, { week_start: '2026-10-19', booked: false },
       { week_start: '2026-10-26', booked: false }, { week_start: '2026-11-02', booked: false }]);
-    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null, meta_7_days: null, meta_30_days: null });
+    expect(body.ads).toEqual({ spend_30_days: null, cost_per_sub_30_days: null, meta_7_days: null, meta_30_days: null,
+      spend_30_days_window: { from: '2026-09-09', to: '2026-10-08' }, spend_month_to_date: 0, spend_last_month: 0,
+      spend_all_time: 0, first_spend_day: null, daily: [], restated_30_days: [] });
     const text = JSON.stringify(body);
     for (const personal of ['@', 'reader', 'Acme', 'owner']) expect(text).not.toContain(personal);
   });
@@ -294,7 +296,54 @@ describe.skipIf(!PG)('listConfirmedSince on Postgres (TEST_DATABASE_URL)', () =>
   });
 });
 
+describe.skipIf(!PG)('ad spend on Postgres (TEST_DATABASE_URL)', () => {
+  it('keeps restatements and adds up every day, like the file store', async () => {
+    const { default: pg } = await import('pg');
+    const { createStore } = await import('../server/db.js');
+    const admin = new pg.Client({ connectionString: PG });
+    await admin.connect();
+    const dbName = `hq_ads_${process.pid}_${Date.now()}`;
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    const url = new URL(PG);
+    url.pathname = `/${dbName}`;
+    url.searchParams.set('sslmode', 'disable');
+    const bundle = await createStore({ databaseUrl: url.toString() });
+    try {
+      const s = bundle.store;
+      const day = (d, spend) => ({ day: d, spend, impressions: 1, clicks: 2, leads: 3 });
+      expect(await s.sumAdSpend()).toEqual({ spend: 0, days: 0, first_spend_day: null, last_spend_day: null });
+      await s.saveAdSpend([day('2026-09-30', 0), day('2026-10-01', 40), day('2026-10-08', 50)], { today: '2026-10-09' });
+      await s.saveAdSpend([day('2026-10-01', 46.5), day('2026-10-08', 60)], { today: '2026-10-09' });
+      await s.saveAdSpend([day('2026-10-01', 46.6)], { today: '2026-10-09' });
+      const rows = await s.listAdSpend('2026-09-01');
+      expect(rows.map(r => [r.day, r.spend, r.restated_from])).toEqual([['2026-09-30', 0, null], ['2026-10-01', 46.6, 40], ['2026-10-08', 60, null]]);
+      expect(rows[1].restated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(rows[2].restated_at).toBeNull();
+      expect(await s.sumAdSpend()).toEqual({ spend: 106.6, days: 3, first_spend_day: '2026-10-01', last_spend_day: '2026-10-08' });
+    } finally {
+      await bundle.pool.end();
+      await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+      await admin.end();
+    }
+  });
+});
+
 describe('the summary for HQ: Meta detail, campaigns and dormant', () => {
+  it('lists past days Meta restated, and the campaigns no town claims', async () => {
+    await start({ hqApiKey: KEY });
+    const day = (d, spend) => ({ day: d, spend, impressions: 0, clicks: 0, leads: 0 });
+    await store.saveAdSpend([day('2026-10-01', 40), day('2026-10-08', 50)], { today: '2026-10-09' });
+    // Recent days move freely (Meta settles them over ~3 days); an older one
+    // moving more than $1 is a restatement, and a cent isn't.
+    await store.saveAdSpend([day('2026-10-01', 46.5), day('2026-10-02', 0), day('2026-10-08', 60)], { today: '2026-10-09' });
+    await store.saveAdSpend([day('2026-10-01', 46.6)], { today: '2026-10-09' });
+    await store.setTownFile('ad_campaigns', { campaigns: [], unclaimed: [{ name: 'Rogue 541 Boost', daily_budget: 25 }], limit: 50 }, NOW);
+    const s = await (await get('/api/hq/summary', `Bearer ${KEY}`)).json();
+    expect(s.ads.restated_30_days).toEqual([{ day: '2026-10-01', from: 40, to: 46.6, at: expect.any(String) }]);
+    expect(s.ads.unclaimed_campaigns).toEqual([{ name: 'Rogue 541 Boost', daily_budget: 25 }]);
+    expect(s.ads.budget_command_limit).toBe(50);
+  });
+
   it('adds up Meta\'s days, carries the campaigns, and says dormant only when it is', async () => {
     await start({ hqApiKey: KEY });
     await store.saveAdSpend([{ day: '2026-10-08', spend: 10, impressions: 1000, clicks: 50, leads: 20 },
@@ -305,6 +354,16 @@ describe('the summary for HQ: Meta detail, campaigns and dormant', () => {
     expect(s.ads.meta_30_days.spend).toBe(15);
     expect(s.ads.campaigns).toEqual([{ name: 'Vic Newsletter Leads', status: 'ACTIVE', daily_budget: 68 }]);
     expect(s.ads.campaigns_updated_at).toBe('2026-10-09T13:37:00.000Z');
+    // A rolling window, named; the month's, last month's and all-time spend.
+    expect(s.ads.spend_30_days_window).toEqual({ from: '2026-09-09', to: '2026-10-08' });
+    expect(s.ads.spend_month_to_date).toBe(15);
+    expect(s.ads.spend_last_month).toBe(99);
+    expect(s.ads.spend_all_time).toBe(114);
+    expect(s.ads.first_spend_day).toBe('2026-09-01');
+    expect(s.ads.daily).toEqual([{ day: '2026-10-05', spend: 5, impressions: 400, clicks: 10, leads: 5 },
+      { day: '2026-10-08', spend: 10, impressions: 1000, clicks: 50, leads: 20 }]);
+    expect(s.ads.restated_30_days).toEqual([]);
+    expect(s.ads.unclaimed_campaigns).toBeUndefined();
     expect(s.dormant).toBeUndefined();
   });
 });

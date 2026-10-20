@@ -52,7 +52,7 @@ import requests
 sys.path.insert(0, os.path.dirname(__file__))
 import slack_notify  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from town import TOWN, meta_allowed, site_url  # noqa: E402
+from town import TOWN, campaign_prefixes, meta_allowed, site_url  # noqa: E402
 
 # One place for the Graph/Marketing API version. GRAPH_API_VERSION on the
 # town's jobs service overrides it, so moving off a version Meta retires
@@ -60,7 +60,10 @@ from town import TOWN, meta_allowed, site_url  # noqa: E402
 GRAPH_VERSION = os.environ.get("GRAPH_API_VERSION", "").strip() or "v23.0"
 GRAPH_VERSION = GRAPH_VERSION if GRAPH_VERSION.startswith("v") else f"v{GRAPH_VERSION}"
 GRAPH = f"https://graph.facebook.com/{GRAPH_VERSION}"
-MAX_DAILY_BUDGET = 50  # dollars; a typo like 1000 shouldn't go live
+# Dollars. The budget command refuses more without --force, so a typo like
+# 1000 can't go live from here. Meta doesn't know it: a budget set in Ads
+# Manager can be higher, and the report notes that (over_budget).
+MAX_DAILY_BUDGET = 50
 SITE = site_url()
 CENTRAL = ZoneInfo(TOWN["timezone"])  # the town's zone (Central for Victoria)
 NEEDS = ("ads_read", "ads_management")
@@ -243,8 +246,8 @@ def structure(api, account_id):
     # stop_time / end_time: a finished campaign or ad set (and its ads) keeps
     # reading ACTIVE in the API ("Completed" is only an Ads Manager label),
     # so the end date is how running_ads tells it has stopped.
-    campaigns = api.all(f"{account_id}/campaigns", fields=fields + ",objective,daily_budget,stop_time")
-    adsets = api.all(f"{account_id}/adsets", fields=fields + ",campaign_id,daily_budget,optimization_goal,end_time")
+    campaigns = api.all(f"{account_id}/campaigns", fields=fields + ",objective,daily_budget,lifetime_budget,stop_time")
+    adsets = api.all(f"{account_id}/adsets", fields=fields + ",campaign_id,daily_budget,lifetime_budget,optimization_goal,end_time")
     ads = api.all(f"{account_id}/ads", fields=fields + ",adset_id,ad_review_feedback,created_time")
     if CAMPAIGN_PREFIX:
         # Another town's rejected ad or stalled campaign is its report's.
@@ -287,7 +290,8 @@ def cmd_status(api, account, out):
     out.append(f"Ad account: {account.get('name')} ({account['id']}), {account.get('currency', '')}")
     campaigns, adsets, ads = structure(api, account["id"])
     out += status_lines(campaigns, adsets, ads)
-    out += over_budget(campaigns, adsets)
+    out += over_budget(campaigns, adsets, spend_yday=spend_by_campaign(api, account["id"]))
+    out += unclaimed_lines(unclaimed(api, account["id"]))
     for label, preset in [("Today", "today"), ("Yesterday", "yesterday"), ("Last 7 days", "last_7d")]:
         _, line = summarize(insights(api, account["id"], preset))
         out.append(f"{label}: {line}")
@@ -327,17 +331,109 @@ def running_ads(campaigns, adsets, ads, now=None):
     return [a for a in ads if a.get("effective_status") == "ACTIVE" and a.get("adset_id") in live_adsets]
 
 
-def over_budget(campaigns, adsets, now=None):
-    """A note per live campaign or ad set budgeted above MAX_DAILY_BUDGET.
-    The limit only guards the budget command; a budget raised in Ads
-    Manager can be on purpose, so this says so and blocks nothing."""
+def _live(campaigns, adsets, now):
+    """ACTIVE, unfinished campaigns, each with its ACTIVE, unfinished ad sets."""
+    out = []
+    for c in campaigns:
+        if c.get("effective_status") != "ACTIVE" or _ended(c, "stop_time", now):
+            continue
+        sets = [s for s in adsets if s.get("campaign_id") == c["id"] and s.get("effective_status") == "ACTIVE"
+                and not _ended(s, "end_time", now)]
+        out.append((c, sets))
+    return out
+
+
+def daily_budget(c, sets):
+    """A campaign's real daily budget in cents: its own (Advantage campaign
+    budget) or else its ad sets' added up. None when neither has one."""
+    if c.get("daily_budget"):
+        return float(c["daily_budget"])
+    got = [float(s["daily_budget"]) for s in sets if s.get("daily_budget")]
+    return sum(got) if got else None
+
+
+def lifetime_budget(c, sets):
+    """A lifetime budget in cents (the campaign's, or its ad sets' added up)."""
+    if c.get("lifetime_budget"):
+        return float(c["lifetime_budget"])
+    got = [float(s["lifetime_budget"]) for s in sets if s.get("lifetime_budget")]
+    return sum(got) if got else None
+
+
+def spend_by_campaign(api, account_id, preset="yesterday"):
+    """{campaign id or name: dollars} for this town's campaigns; {} when
+    Meta won't say (the report goes out without the spend check)."""
+    try:
+        rows = campaign_rows(api, account_id, "spend,campaign_id", date_preset=preset)
+    except AdsError as e:
+        print(f"Couldn't read yesterday's spend per campaign: {e}")
+        return {}
+    out = {}
+    for r in rows:
+        v = float(r.get("spend") or 0)
+        if r.get("campaign_id"):
+            out[r["campaign_id"]] = v
+        if r.get("campaign_name"):
+            out[r["campaign_name"]] = out.get(r["campaign_name"], 0) + v
+    return out
+
+
+def _spent(spend_yday, c):
+    if not spend_yday:
+        return None
+    v = spend_yday.get(c.get("id"))
+    return v if v is not None else spend_yday.get(c.get("name"))
+
+
+def over_budget(campaigns, adsets, now=None, spend_yday=None):
+    """Notes per live campaign: a daily budget (the campaign's, or its ad
+    sets' added up) above MAX_DAILY_BUDGET, a lifetime budget (no daily
+    limit to check), and yesterday's actual spend above MAX_DAILY_BUDGET
+    (spend_yday: {campaign id or name: dollars}). The limit only guards the
+    budget command and Meta doesn't enforce it; a budget raised in Ads
+    Manager can be on purpose (A22), so this says so and blocks nothing."""
     now = now or dt.datetime.now(dt.timezone.utc)
-    live = [c for c in campaigns if c.get("effective_status") == "ACTIVE" and not _ended(c, "stop_time", now)]
-    ids = {c["id"] for c in live}
-    live += [s for s in adsets if s.get("effective_status") == "ACTIVE" and s.get("campaign_id") in ids
-             and not _ended(s, "end_time", now)]
-    return [f"ℹ️ *{o.get('name')}* is at {money(o['daily_budget'])}/day, over the ${MAX_DAILY_BUDGET}/day safety limit"
-            for o in live if float(o.get("daily_budget") or 0) > MAX_DAILY_BUDGET * 100]
+    cap = MAX_DAILY_BUDGET * 100
+    out = []
+    for c, sets in _live(campaigns, adsets, now):
+        daily = daily_budget(c, sets)
+        if daily and daily > cap:
+            how = "" if c.get("daily_budget") else f" across {len(sets)} ad set{'s' if len(sets) != 1 else ''}"
+            out.append(f"ℹ️ *{c.get('name')}* is budgeted {money(daily)}/day{how} in Ads Manager, above the "
+                       f"${MAX_DAILY_BUDGET}/day the budget command allows (Meta doesn't enforce that limit)")
+        life = lifetime_budget(c, sets)
+        if life:
+            out.append(f"ℹ️ *{c.get('name')}* has a lifetime budget of {money(life)}: no daily limit to check")
+        spent = _spent(spend_yday, c)
+        if spent is not None and spent > MAX_DAILY_BUDGET:
+            on = f" on a {money(daily)}/day budget" if daily else ""
+            out.append(f"⚠️ *{c.get('name')}* spent ${spent:,.2f} yesterday{on}, over ${MAX_DAILY_BUDGET}/day "
+                       "(Meta may spend up to 75% over a daily budget on one day, within 7 days' budget a week)")
+    return out
+
+
+def unclaimed(api, account_id, now=None, prefixes=None):
+    """Live campaigns in the shared ad account whose name starts with no
+    town's campaign_prefix: no town reports or counts their spend. Victoria's
+    run asks (her report is the one that always runs); [] elsewhere."""
+    if not CAMPAIGN_PREFIX or TOWN.get("id") != "victoria":
+        return []
+    now = now or dt.datetime.now(dt.timezone.utc)
+    prefixes = prefixes or campaign_prefixes()
+    campaigns = api.all(f"{account_id}/campaigns", fields="id,name,effective_status,daily_budget,lifetime_budget,stop_time")
+    adsets = api.all(f"{account_id}/adsets", fields="id,campaign_id,effective_status,daily_budget,lifetime_budget,end_time")
+    out = []
+    for c, sets in _live(campaigns, adsets, now):
+        if any(str(c.get("name") or "").startswith(p) for p in prefixes):
+            continue
+        daily = daily_budget(c, sets)
+        out.append({"id": c.get("id"), "name": c.get("name"), "daily_budget": round(daily / 100, 2) if daily else None})
+    return out
+
+
+def unclaimed_lines(rows):
+    return [f"⚠️ *{u['name']}* is on in the shared ad account" + (f" at ${u['daily_budget']:,.2f}/day" if u.get("daily_budget") else "")
+            + ", but its name starts with no town's campaign prefix, so no town counts its spend" for u in rows]
 
 
 def daily_rows(api, account_id, today=None):
@@ -363,10 +459,12 @@ def daily_rows(api, account_id, today=None):
     return [got.get(d) or {"day": d, "spend": 0.0, "impressions": 0, "clicks": 0, "leads": 0} for d in days]
 
 
-def campaign_snapshot(api, account_id):
+def campaign_snapshot(api, account_id, spend_yday=None, now=None):
     """This town's campaigns for HQ: name, status, daily budget (dollars, the
-    campaign's or else its ad sets'), and the last 7 days' spend, leads and
-    link clicks. Archived and deleted ones are left out."""
+    campaign's or else its ad sets' added up), lifetime budget, yesterday's
+    spend, whether either is over MAX_DAILY_BUDGET, and the last 7 days'
+    spend, leads and link clicks. Archived and deleted ones are left out."""
+    now = now or dt.datetime.now(dt.timezone.utc)
     campaigns, adsets, _ = structure(api, account_id)
     stats = {r.get("campaign_name"): r for r in campaign_rows(api, account_id, "spend,inline_link_clicks,actions", date_preset="last_7d")}
     out = []
@@ -374,20 +472,24 @@ def campaign_snapshot(api, account_id):
         status = c.get("effective_status")
         if status not in LIVE | {"PAUSED", "CAMPAIGN_PAUSED"}:
             continue
-        budget = c.get("daily_budget")
-        if not budget:
-            sets = [float(a["daily_budget"]) for a in adsets if a.get("campaign_id") == c["id"] and a.get("daily_budget")]
-            budget = sum(sets) if sets else None
+        sets = [s for s in adsets if s.get("campaign_id") == c["id"]]
+        budget = daily_budget(c, sets)
+        life = lifetime_budget(c, sets)
+        spent = _spent(spend_yday, c)
         r = stats.get(c.get("name")) or {}
         out.append({"name": c.get("name"), "status": status,
                     "daily_budget": round(float(budget) / 100, 2) if budget else None,
+                    "budget_level": "campaign" if c.get("daily_budget") or c.get("lifetime_budget") else ("ad_sets" if budget or life else None),
+                    "lifetime_budget": round(life / 100, 2) if life else None,
+                    "spend_yesterday": round(spent, 2) if spent is not None else None,
+                    "over_limit": bool((budget and budget > MAX_DAILY_BUDGET * 100) or (spent or 0) > MAX_DAILY_BUDGET),
                     "spend_7_days": float(r.get("spend") or 0),
                     "leads_7_days": action(r, "lead") or action(r, "offsite_conversion.fb_pixel_lead"),
                     "clicks_7_days": int(float(r.get("inline_link_clicks") or 0))})
     return out
 
 
-def push_spend(api, account):
+def push_spend(api, account, spend_yday=None, stray=None):
     """Send the daily spend to the site; it answers with its own subscriber
     counts. None (with a warning) when that isn't set up or fails: the
     Slack report goes out either way."""
@@ -396,11 +498,13 @@ def push_spend(api, account):
         return None
     try:
         days = daily_rows(api, account["id"])
-        body = {"days": days}
+        body = {"days": days, "limit": MAX_DAILY_BUDGET}
         try:
-            body["campaigns"] = campaign_snapshot(api, account["id"])
+            body["campaigns"] = campaign_snapshot(api, account["id"], spend_yday)
         except AdsError as e:   # the spend still goes; HQ shows the last campaigns it had
             print(f"Couldn't read the campaigns for HQ: {e}")
+        if stray is not None:
+            body["unclaimed"] = stray
         r = api.s.request("POST", f"{SITE}/api/ads/spend", json=body, timeout=30,
                           headers={"X-Cron-Secret": secret, "User-Agent": "vic361-meta-ads"})
         body = r.json() if r.status_code == 200 else {}
@@ -441,9 +545,15 @@ def cmd_report(api, account, out, data=None):
     week_row = insights(api, account["id"], "last_7d")
     spend7, week = summarize(week_row)
     data["last_7_days"] = numbers(week_row)
+    spend_yday = spend_by_campaign(api, account["id"])
+    try:
+        stray = unclaimed(api, account["id"])
+    except AdsError as e:
+        print(f"Couldn't check the shared account for unclaimed campaigns: {e}")
+        stray = None
     # Every report sends the days (quiet weeks too: Meta revises recent
     # days, and a pause should show as $0 on the site).
-    site = push_spend(api, account)
+    site = push_spend(api, account, spend_yday, stray)
     campaigns, adsets, ads = structure(api, account["id"])
     problems = [f"⚠️ Ad *{a['name']}* is {a['effective_status'].lower()}: check it in Ads Manager"
                 for a in ads if a.get("effective_status") in ("DISAPPROVED", "WITH_ISSUES")]
@@ -452,9 +562,12 @@ def cmd_report(api, account, out, data=None):
     if account.get("account_status") not in (None, 1):
         problems.insert(0, f"⚠️ The ad account is disabled or on hold (status {account['account_status']}): "
                            "check Ads Manager → Account overview")
+    # A campaign no town claims spends unseen: a problem, so it's reported.
+    problems += unclaimed_lines(stray or [])
     # Rides along when there's a report; never a reason to send one.
-    notes = over_budget(campaigns, adsets)
+    notes = over_budget(campaigns, adsets, spend_yday=spend_yday)
     data["problems"] = [plain(x) for x in problems + notes]
+    data["unclaimed"] = stray or []
     if site:
         data["site"] = {k: site[k] for k in ("yesterday", "last_7_days") if isinstance(site.get(k), dict)}
     if spend7 <= 0:
@@ -505,7 +618,7 @@ def cmd_budget(api, target, dollars, force, out):
     if dollars <= 0:
         raise AdsError("Budget must be more than $0.")
     if dollars > MAX_DAILY_BUDGET and not force:
-        raise AdsError(f"${dollars:,.2f}/day is over the ${MAX_DAILY_BUDGET} safety limit; run again with force to confirm.")
+        raise AdsError(f"${dollars:,.2f}/day is over this command's ${MAX_DAILY_BUDGET}/day limit; run again with force to confirm.")
     obj = api.call("GET", target, fields="name,daily_budget")
     if not obj.get("daily_budget"):
         raise AdsError(f"{obj.get('name') or target} has no daily budget to change (the budget may be set on the campaign or ad set instead).")

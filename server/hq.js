@@ -79,7 +79,12 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   };
   const subs = await safe(() => store.listSubscriberStats(), [], 'subscribers');
   const orders = await safe(getOrders, [], 'revenue');
-  const spend = typeof store.listAdSpend === 'function' ? await safe(() => store.listAdSpend(addDays(today, -31)), [], 'ads') : [];
+  // From the 1st of last month (or 31 days back, if earlier): the 30-day
+  // window, this month and last month all come from the same rows.
+  const lastMonthStart = addDays(today.slice(0, 7) + '-01', -1).slice(0, 7) + '-01';
+  const spendSince = lastMonthStart < addDays(today, -31) ? lastMonthStart : addDays(today, -31);
+  const spend = typeof store.listAdSpend === 'function' ? await safe(() => store.listAdSpend(spendSince), [], 'ads') : [];
+  const spendAll = typeof store.sumAdSpend === 'function' ? await safe(() => store.sumAdSpend(), null, 'ads') : null;
   const daily = dailyGrowth(subs, spend, { today, days: 31 });
   const done = daily.filter(d => d.day < today);
   const month30 = sumDays(done.slice(-30));
@@ -154,12 +159,31 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       months
     },
     ads: bad('ads') || bad('subscribers') ? null : {
+      // A rolling window (the last 30 full days), not a running total: it
+      // names its days. The month's and all-time spend only ever grow
+      // (unless Meta restates a day, listed in restated_30_days).
       spend_30_days: month30.spend, cost_per_sub_30_days: month30.cost_per_sub,
+      spend_30_days_window: { from: addDays(today, -30), to: addDays(today, -1) },
+      spend_month_to_date: (metaTotals(spend, today.slice(0, 7) + '-01', addDays(today, 1)) || { spend: 0 }).spend,
+      spend_last_month: (metaTotals(spend, lastMonthStart, today.slice(0, 7) + '-01') || { spend: 0 }).spend,
+      spend_all_time: spendAll ? spendAll.spend : null,
+      first_spend_day: spendAll ? spendAll.first_spend_day : null,
+      // Meta's days, oldest first, for a chart: the 31-day window.
+      daily: spend.filter(r => r.day >= addDays(today, -31))
+        .map(r => ({ day: r.day, spend: r.spend, impressions: r.impressions, clicks: r.clicks, leads: r.leads })),
+      // Past days Meta changed by more than $1 after they settled, latest first.
+      restated_30_days: spend.filter(r => r.restated_at && Date.parse(r.restated_at) >= now.getTime() - 30 * 864e5)
+        .map(r => ({ day: r.day, from: r.restated_from, to: r.spend, at: r.restated_at }))
+        .sort((a, b) => (a.at < b.at ? 1 : -1)),
       // Meta's own counts (its Lead is a signup on the site): the last 7
       // and 30 full days, and the town's campaigns as of the last ads report.
       meta_7_days: metaTotals(spend, addDays(today, -7), today),
       meta_30_days: metaTotals(spend, addDays(today, -30), today),
       ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {}),
+      // Live campaigns in the shared ad account no town's prefix claims
+      // (Victoria's report checks), and the budget command's limit (meta_ads.py).
+      ...(campaigns && campaigns.unclaimed ? { unclaimed_campaigns: campaigns.unclaimed } : {}),
+      ...(campaigns && campaigns.limit ? { budget_command_limit: campaigns.limit } : {}),
       ...(adsReport ? { report: adsReport } : {})
     },
     sponsors: bad('revenue') ? null : sponsorCounts(orders, today),

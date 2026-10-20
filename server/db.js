@@ -218,6 +218,19 @@ export function withPublishedLock(store, fn) {
 // ─── JSON FILE BACKEND ───
 const FILE_TRAFFIC_CAP = 50000;
 
+// Meta settles a day's spend within about three days; a day older than that
+// (before `today`, YYYY-MM-DD, default UTC) changing by more than $1 is a
+// restatement. Returns the old spend when it is, else null, and logs it.
+export function adSpendRestated(old, row, today) {
+  if (!old || !row) return null;
+  const t = today || new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(Date.parse(`${t}T12:00:00Z`) - 3 * 864e5).toISOString().slice(0, 10);
+  const was = Number(old.spend) || 0, now = Number(row.spend) || 0;
+  if (!(row.day < cutoff) || Math.abs(was - now) <= 1) return null;
+  console.warn(`[ads] Meta restated ${row.day}: $${was.toFixed(2)} → $${now.toFixed(2)}`);
+  return was;
+}
+
 function newToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
@@ -912,12 +925,22 @@ class FileStore {
   }
 
   // Meta's ad results per day (scripts/meta_ads.py posts them): a day's
-  // row is replaced each time, since Meta revises the last few days.
-  async saveAdSpend(rows) {
+  // row is replaced each time, since Meta revises the last few days. A day
+  // older than that changing by more than $1 is a restatement: logged, and
+  // the row keeps what it was (restated_from) and when (restated_at), so
+  // HQ can say why a past total moved.
+  async saveAdSpend(rows, { today } = {}) {
     return this._withWrite(async () => {
       const data = await this._read();
       const byDay = new Map((data.ad_spend || []).map(r => [r.day, r]));
-      for (const r of rows) byDay.set(r.day, { ...r, updated_at: nowIso() });
+      const at = nowIso();
+      for (const r of rows) {
+        const old = byDay.get(r.day);
+        const was = adSpendRestated(old, r, today);
+        byDay.set(r.day, { ...r, updated_at: at,
+          restated_from: was != null ? was : (old && old.restated_from != null ? old.restated_from : null),
+          restated_at: was != null ? at : (old && old.restated_at) || null });
+      }
       data.ad_spend = [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
       await this._write(data);
       return rows.length;
@@ -926,7 +949,18 @@ class FileStore {
 
   async listAdSpend(sinceDay) {
     const data = await this._read();
-    return (data.ad_spend || []).filter(r => r.day >= sinceDay);
+    return (data.ad_spend || []).filter(r => r.day >= sinceDay)
+      .map(r => ({ ...r, restated_from: r.restated_from ?? null, restated_at: r.restated_at || null }));
+  }
+
+  // Every stored day added up: { spend, days, first_day, last_day } (first_day
+  // is the town's first day with a row, not necessarily its first spend).
+  async sumAdSpend() {
+    const data = await this._read();
+    const rows = data.ad_spend || [];
+    const spent = rows.filter(r => Number(r.spend) > 0).map(r => r.day).sort();
+    return { spend: Math.round(rows.reduce((t, r) => t + (Number(r.spend) || 0), 0) * 100) / 100,
+      days: rows.length, first_spend_day: spent[0] || null, last_spend_day: spent.at(-1) || null };
   }
 
   // ─── Sponsor orders (server/sponsors.js) ───
@@ -1724,6 +1758,9 @@ class PgStore {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
         `);
+        // A past day Meta restated (PgStore.saveAdSpend): what it was, and when.
+        await addColumn('ad_spend', 'restated_from', 'ALTER TABLE ad_spend ADD COLUMN IF NOT EXISTS restated_from NUMERIC(12,2)');
+        await addColumn('ad_spend', 'restated_at', 'ALTER TABLE ad_spend ADD COLUMN IF NOT EXISTS restated_at TIMESTAMPTZ');
         if (created.length && typeof this.onTablesCreated === 'function') {
           try { this.onTablesCreated(created); } catch (err) { console.warn('[db] fresh-table hook failed:', err.message); }
         }
@@ -2281,26 +2318,51 @@ class PgStore {
     return r.rows.map(x => ({ week_key: x.week_key, subscriber_id: x.subscriber_id }));
   }
 
-  async saveAdSpend(rows) {
+  // See FileStore.saveAdSpend.
+  async saveAdSpend(rows, { today } = {}) {
     await this.ready();
     if (!rows.length) return 0;
+    const prev = await this.pool.query(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, spend::float AS spend FROM ad_spend WHERE day = ANY($1::date[])`,
+      [rows.map(r => r.day)]);
+    const old = new Map(prev.rows.map(x => [x.day, { day: x.day, spend: Number(x.spend) }]));
+    const withWas = rows.map(r => ({ ...r, restated_from: adSpendRestated(old.get(r.day), r, today) }));
     // One statement, so a bad row saves nothing rather than half the days.
     await this.pool.query(
-      `INSERT INTO ad_spend (day, spend, impressions, clicks, leads, updated_at)
-       SELECT x.day, x.spend, x.impressions, x.clicks, x.leads, NOW()
-         FROM jsonb_to_recordset($1::jsonb) AS x(day date, spend numeric, impressions int, clicks int, leads int)
+      `INSERT INTO ad_spend (day, spend, impressions, clicks, leads, updated_at, restated_from, restated_at)
+       SELECT x.day, x.spend, x.impressions, x.clicks, x.leads, NOW(), x.restated_from,
+              CASE WHEN x.restated_from IS NULL THEN NULL ELSE NOW() END
+         FROM jsonb_to_recordset($1::jsonb) AS x(day date, spend numeric, impressions int, clicks int, leads int, restated_from numeric)
        ON CONFLICT (day) DO UPDATE SET spend = EXCLUDED.spend, impressions = EXCLUDED.impressions,
-         clicks = EXCLUDED.clicks, leads = EXCLUDED.leads, updated_at = NOW()`,
-      [JSON.stringify(rows)]);
+         clicks = EXCLUDED.clicks, leads = EXCLUDED.leads, updated_at = NOW(),
+         restated_from = COALESCE(EXCLUDED.restated_from, ad_spend.restated_from),
+         restated_at = COALESCE(EXCLUDED.restated_at, ad_spend.restated_at)`,
+      [JSON.stringify(withWas)]);
     return rows.length;
   }
 
   async listAdSpend(sinceDay) {
     await this.ready();
     const r = await this.pool.query(
-      `SELECT to_char(day, 'YYYY-MM-DD') AS day, spend::float AS spend, impressions, clicks, leads
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, spend::float AS spend, impressions, clicks, leads,
+              restated_from::float AS restated_from, restated_at
          FROM ad_spend WHERE day >= $1::date ORDER BY day`, [sinceDay]);
-    return r.rows.map(x => ({ day: x.day, spend: Number(x.spend), impressions: Number(x.impressions), clicks: Number(x.clicks), leads: Number(x.leads) }));
+    return r.rows.map(x => ({ day: x.day, spend: Number(x.spend), impressions: Number(x.impressions), clicks: Number(x.clicks), leads: Number(x.leads),
+      restated_from: x.restated_from == null ? null : Number(x.restated_from),
+      restated_at: x.restated_at instanceof Date ? x.restated_at.toISOString() : x.restated_at || null }));
+  }
+
+  // See FileStore.sumAdSpend.
+  async sumAdSpend() {
+    await this.ready();
+    const r = await this.pool.query(
+      `SELECT COALESCE(SUM(spend), 0)::float AS spend, COUNT(*)::int AS days,
+              to_char(MIN(day) FILTER (WHERE spend > 0), 'YYYY-MM-DD') AS first_spend_day,
+              to_char(MAX(day) FILTER (WHERE spend > 0), 'YYYY-MM-DD') AS last_spend_day
+         FROM ad_spend`);
+    const x = r.rows[0] || {};
+    return { spend: Math.round(Number(x.spend || 0) * 100) / 100, days: Number(x.days) || 0,
+      first_spend_day: x.first_spend_day || null, last_spend_day: x.last_spend_day || null };
   }
 
   async addReferralReward(row) {

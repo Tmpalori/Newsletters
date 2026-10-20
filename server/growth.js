@@ -295,15 +295,30 @@ export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, now
       .map(r => ({ day: String(r.day), spend: round2(num(r.spend)), impressions: Math.round(num(r.impressions)),
         clicks: Math.round(num(r.clicks)), leads: Math.round(num(r.leads)) }));
     // The town's campaigns as the ads report saw them (scripts/meta_ads.py
-    // campaign_snapshot), for HQ: name, status, budget, last 7 days.
+    // campaign_snapshot), for HQ: name, status, daily budget (the campaign's
+    // or its ad sets' added up) and where it's set, lifetime budget,
+    // yesterday's spend, whether either is over the budget command's limit,
+    // and the last 7 days. Victoria's report also sends the shared account's
+    // live campaigns no town's prefix claims (unclaimed).
+    const money = v => (v == null || v === '' ? null : round2(num(v)));
     const cams = Array.isArray((req.body || {}).campaigns) ? req.body.campaigns.slice(0, 30)
       .filter(c => c && typeof c.name === 'string')
       .map(c => ({ name: c.name.slice(0, 120), status: String(c.status || '').slice(0, 30),
-        daily_budget: c.daily_budget == null ? null : round2(num(c.daily_budget)),
+        daily_budget: money(c.daily_budget),
+        ...(c.budget_level === 'campaign' || c.budget_level === 'ad_sets' ? { budget_level: c.budget_level } : {}),
+        ...('lifetime_budget' in c ? { lifetime_budget: money(c.lifetime_budget) } : {}),
+        ...('spend_yesterday' in c ? { spend_yesterday: money(c.spend_yesterday) } : {}),
+        ...('over_limit' in c ? { over_limit: c.over_limit === true } : {}),
         spend_7_days: round2(num(c.spend_7_days)), leads_7_days: Math.round(num(c.leads_7_days)), clicks_7_days: Math.round(num(c.clicks_7_days)) })) : null;
+    const stray = Array.isArray((req.body || {}).unclaimed) ? req.body.unclaimed.slice(0, 30)
+      .filter(c => c && typeof c.name === 'string')
+      .map(c => ({ name: c.name.slice(0, 120), daily_budget: money(c.daily_budget) })) : null;
+    const limit = Number.isFinite(Number((req.body || {}).limit)) && Number(req.body.limit) > 0 ? Number(req.body.limit) : null;
     try {
-      await store.saveAdSpend(clean);
-      if (cams && typeof store.setTownFile === 'function') await store.setTownFile('ad_campaigns', { campaigns: cams }, nowFn());
+      await store.saveAdSpend(clean, { today: localDateStr(nowFn()) });
+      if (cams && typeof store.setTownFile === 'function') {
+        await store.setTownFile('ad_campaigns', { campaigns: cams, ...(stray ? { unclaimed: stray } : {}), ...(limit ? { limit } : {}) }, nowFn());
+      }
       const today = localDateStr(nowFn());
       const yday = addDays(today, -1);
       const daily = dailyGrowth(await store.listSubscriberStats(), clean, { today, days: 8 });

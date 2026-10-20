@@ -159,7 +159,7 @@ def test_pause_resume_and_budget_with_a_safety_limit(capsys):
     assert "$10.00 → $15.00" in capsys.readouterr().out
     assert ma.main(["budget", "999", "500"], session=meta) == 1
     assert meta.objects["999"]["daily_budget"] == "1500"
-    assert "safety limit" in capsys.readouterr().out
+    assert "this command's $50/day limit" in capsys.readouterr().out
     assert ma.main(["budget", "999", "500", "--force"], session=meta) == 0
     assert meta.objects["999"]["daily_budget"] == "50000"
 
@@ -331,7 +331,9 @@ def test_report_sends_hq_this_towns_campaigns_with_budget_and_last_7_days(monkey
             return super().request(method, url, **k)
     assert ma.main(["report"], session=Shared()) == 0
     assert posted[0]["campaigns"] == [{"name": "The Star 402 Newsletter Leads", "status": "ACTIVE", "daily_budget": 55.0,
-                                       "spend_7_days": 41.79, "leads_7_days": 54, "clicks_7_days": 116}]
+                                       "budget_level": "campaign", "lifetime_budget": None, "spend_yesterday": None,
+                                       "over_limit": True, "spend_7_days": 41.79, "leads_7_days": 54, "clicks_7_days": 116}]
+    assert posted[0]["limit"] == 50
 
 
 def test_report_still_goes_out_when_the_site_is_down(monkeypatch, capsys):
@@ -462,10 +464,12 @@ def test_a_live_budget_over_the_limit_is_noted_but_never_sends_a_report(monkeypa
     # A22: the owner runs $55/day on purpose; say so, don't block it.
     monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "Vic Newsletter Leads")
     assert ma.main(["report"], session=SharedAccount()) == 0
-    assert "ℹ️ *Vic Newsletter Leads* is at $68.00/day, over the $50/day safety limit" in sent[0][0]
-    assert "Copy* is at" not in sent[0][0]            # $40/day is under it
+    assert ("ℹ️ *Vic Newsletter Leads* is budgeted $68.00/day in Ads Manager, above the $50/day the budget command "
+            "allows (Meta doesn't enforce that limit)") in sent[0][0]
+    assert "Copy* is budgeted" not in sent[0][0]      # $40/day is under it
+    assert "safety" not in sent[0][0]
     assert ma.main(["status"], session=SharedAccount()) == 0
-    assert "*Vic Newsletter Leads* is at $68.00/day" in capsys.readouterr().out
+    assert "*Vic Newsletter Leads* is budgeted $68.00/day" in capsys.readouterr().out
     # A paused or finished campaign's budget isn't live.
     now = ma.dt.datetime(2026, 10, 16, tzinfo=ma.dt.timezone.utc)
     done = [{"id": "x", "name": "Old", "effective_status": "PAUSED", "daily_budget": "9000"},
@@ -510,3 +514,75 @@ def test_a_stalled_campaign_and_a_rejected_ad_are_plain_lines_for_hq(tmp_path):
     assert data["status"] == "stalled"
     assert data["problems"][0].startswith("Meta ads: $0 spent in the last 7 days")
     assert "Ad Video is disapproved: check it in Ads Manager" in data["problems"]
+
+
+def test_ad_sets_budgets_add_up_to_the_campaigns_and_a_lifetime_budget_is_named():
+    now = ma.dt.datetime(2026, 10, 16, tzinfo=ma.dt.timezone.utc)
+    camps = [{"id": "c1", "name": "Split", "effective_status": "ACTIVE"},
+             {"id": "c2", "name": "Lifetime", "effective_status": "ACTIVE"}]
+    sets = [{"id": "s1", "campaign_id": "c1", "effective_status": "ACTIVE", "daily_budget": "3000"},
+            {"id": "s2", "campaign_id": "c1", "effective_status": "ACTIVE", "daily_budget": "3000"},
+            {"id": "s3", "campaign_id": "c1", "effective_status": "PAUSED", "daily_budget": "9000"},
+            {"id": "s4", "campaign_id": "c2", "effective_status": "ACTIVE", "lifetime_budget": "70000"}]
+    notes = ma.over_budget(camps, sets, now=now)
+    # Two $30 ad sets are a $60/day campaign; the paused one doesn't count.
+    assert "ℹ️ *Split* is budgeted $60.00/day across 2 ad sets in Ads Manager" in notes[0]
+    assert notes[1] == "ℹ️ *Lifetime* has a lifetime budget of $700.00: no daily limit to check"
+    assert len(notes) == 2
+
+
+def test_yesterdays_spend_over_the_limit_is_noted_even_under_budget():
+    now = ma.dt.datetime(2026, 10, 16, tzinfo=ma.dt.timezone.utc)
+    camps = [{"id": "c1", "name": "The Rogue 541 Newsletter Leads", "effective_status": "ACTIVE", "daily_budget": "4500"}]
+    assert ma.over_budget(camps, [], now=now, spend_yday={"c1": 40.0}) == []
+    [note] = ma.over_budget(camps, [], now=now, spend_yday={"c1": 62.17})
+    assert note.startswith("⚠️ *The Rogue 541 Newsletter Leads* spent $62.17 yesterday on a $45.00/day budget, over $50/day")
+    assert "up to 75% over a daily budget on one day" in note
+    # By name when Meta's rows carry no campaign id.
+    assert ma.over_budget(camps, [], now=now, spend_yday={"The Rogue 541 Newsletter Leads": 51.0})
+
+
+def test_the_report_checks_yesterdays_spend_per_campaign(monkeypatch):
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402 Newsletter Leads")
+
+    class Hot(SharedAccount):
+        ROWS = {**SharedAccount.ROWS, "c3": {**SharedAccount.ROWS["c3"], "spend": "62.17"}}
+    assert ma.main(["report"], session=Hot()) == 0
+    assert "⚠️ *The Star 402 Newsletter Leads* spent $62.17 yesterday on a $55.00/day budget" in sent[0][0]
+
+
+def test_victorias_run_names_a_live_campaign_no_town_claims(monkeypatch, tmp_path):
+    monkeypatch.setenv("ADS_SPEND_SECRET", "s3cret")
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "Vic Newsletter Leads")
+    posted = []
+
+    class Stray(SharedAccount):
+        CAMPAIGNS = SharedAccount.CAMPAIGNS + [
+            {"id": "c9", "name": "Rogue 541 Boost", "effective_status": "ACTIVE", "daily_budget": "2500"},
+            {"id": "c8", "name": "Old boost", "effective_status": "PAUSED", "daily_budget": "2500"}]
+        ROWS = {**SharedAccount.ROWS, "c9": {"spend": "25", "reach": "1", "impressions": "1", "inline_link_clicks": "1", "lead": "0"},
+                "c8": {"spend": "0", "reach": "0", "impressions": "0", "inline_link_clicks": "0", "lead": "0"}}
+
+        def request(self, method, url, **k):
+            if url.startswith(ma.SITE):
+                posted.append(k["json"])
+                return Resp({"ok": True})
+            return super().request(method, url, **k)
+    out = tmp_path / "r.json"
+    assert ma.main(["report", "--scheduled", "--result", str(out)], session=Stray()) == 0
+    got = json.loads(out.read_text())
+    assert got["data"]["unclaimed"] == [{"id": "c9", "name": "Rogue 541 Boost", "daily_budget": 25.0}]
+    assert any(p.startswith("Rogue 541 Boost is on in the shared ad account at $25.00/day") for p in got["data"]["problems"])
+    assert posted[0]["unclaimed"] == [{"id": "c9", "name": "Rogue 541 Boost", "daily_budget": 25.0}]
+    # Another town's run doesn't check the whole account.
+    monkeypatch.setattr(ma, "CAMPAIGN_PREFIX", "The Star 402 Newsletter Leads")
+    monkeypatch.setattr(ma, "TOWN", {**ma.TOWN, "id": "lincoln"})
+    assert ma.unclaimed(ma.Api(TOKEN, Stray()), "act_1") == []
+
+
+def test_every_towns_prefix_is_known_to_the_unclaimed_check():
+    import town as town_mod
+    got = town_mod.campaign_prefixes()
+    assert got[0] == "Vic Newsletter Leads"
+    assert {"The Star 402 Newsletter Leads", "The Tide 757 Newsletter Leads", "The Rogue 541 Newsletter Leads",
+            "Shoals Setlist Newsletter Leads"} <= set(got)
