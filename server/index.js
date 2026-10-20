@@ -2069,7 +2069,9 @@ export async function createApp(opts = {}) {
       res.locals.seasons = activeSeasons(payload.events, archived, now);
       // partners: live category partners and open categories (null in a
       // paused town: nothing about partners shows).
-      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues });
+      // venueOf: an event's directory venue, for its JSON-LD organizer url.
+      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues,
+        venueOf: ev => venueFor(ev, venues) });
     } catch (err) {
       next(err);
     }
@@ -2205,7 +2207,7 @@ export async function createApp(opts = {}) {
     if (!ev) return sendHtml(res, renderNotFoundPage({ ...ctx, kind: 'event' }), gone ? 410 : 404);
     const venue = venueFor(ev, venues);
     sendHtml(res, renderEventPage(ev, payload.events, {
-      ...ctx, extras: eventActionsHtml(ev, siteUrl), venuePath: venue ? venue.path : null,
+      ...ctx, extras: eventActionsHtml(ev, siteUrl), venuePath: venue ? venue.path : null, dirVenue: venue,
       image: `${ev.page}.png?v=${eventCardVersion(ev)}`
     }));
   }));
