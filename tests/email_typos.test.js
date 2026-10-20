@@ -353,6 +353,19 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('bounced');
   });
 
+  it('takes the accents off one the site stopped mailing, with someone\'s OK', async () => {
+    // Oct 2026: "m\u01f0\u00ecskra11@gmail.com" on The Star 402.
+    await seed();
+    await store.importSubscribers(['m\u01f0\u00ecskra11@gmail.com'], 'import');
+    await store.markSubscribersBounced(['m\u01f0\u00ecskra11@gmail.com']);
+    const r = await fix({ from: 'mjiskra11@gmail.com', to: 'mjiskra11@gmail.com' });
+    expect(r.status).toBe(200);
+    expect(await statusOf('mjiskra11@gmail.com')).toBe('active');
+    expect(await statusOf('m\u01f0\u00ecskra11@gmail.com')).toBe('bounced');
+    // Never to another name.
+    expect((await (await fix({ from: 'm\u01f0\u00ecskra11@gmail.com', to: 'miskra11@gmail.com' })).json()).error).toBe('not-a-typo');
+  });
+
   it('a stray-character fix is only ever to what the form makes of the address', async () => {
     await seed();
     await store.importSubscribers(['alma\u2011mctygue@hotmail.com'], 'import');
@@ -362,6 +375,19 @@ describe('a subscriber typo can be fixed, by the owner or HQ (with his OK)', () 
     expect((await fix({ from: 'happy@gmail.com', to: 'happy@gmail.com' })).status).toBe(404);
     expect(await statusOf('alma.mctygue@hotmail.com')).toBeUndefined();
     expect(await statusOf('alma\u2011mctygue@hotmail.com')).toBe('active');
+  });
+
+  it('HQ can add subscribers, a few at a time, never an impossible ending', async () => {
+    await seed();
+    const imp = body => fetch(baseUrl + '/api/hq/admin/newsletter/import', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HQK}` }, body: JSON.stringify(body) });
+    const r = await imp({ emails: 'mjiskra11@gmail.com, happy@gmail.com' });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ ok: true, added: 1, already: 1 });
+    expect(await statusOf('mjiskra11@gmail.com')).toBe('active');
+    expect((await (await imp({ emails: 'pat@gmail.comm' })).json()).error).toBe('bad-email');
+    expect((await (await imp({ emails: Array.from({ length: 26 }, (_, i) => `p${i}@gmail.com`).join(' ') })).json()).error).toBe('too-many');
+    expect((await fetch(baseUrl + '/api/hq/admin/newsletter/import', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' }, body: '{"emails":"x@gmail.com"}' })).status).toBe(401);
+    expect(await statusOf('x@gmail.com')).toBeUndefined();
   });
 
   it('needs the HQ key or an admin login', async () => {

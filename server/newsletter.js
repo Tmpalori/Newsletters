@@ -1739,13 +1739,25 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     }
   });
 
-  app.post('/api/admin/newsletter/import', requireAdmin, async (req, res) => {
+  // Also /api/hq/admin/ for HQ's assistant, with Tristen's OK (Oct 2026):
+  // a few at a time, and never an ending no mail can reach.
+  app.post(paths('/api/admin/newsletter/import'), gate, async (req, res) => {
     const raw = String((req.body || {}).emails || '');
     const emails = [...new Set(raw.split(/[\s,;]+/).map(normalizeEmail).filter(Boolean))];
     if (!emails.length) return res.status(400).json({ ok: false, message: 'No valid email addresses found.' });
+    const hq = viaHq(req);
+    if (hq) {
+      if (emails.length > 25) return res.status(400).json({ ok: false, error: 'too-many', message: 'At most 25 addresses at a time through HQ. More is an Import in the admin.' });
+      const bad = emails.find(e => impossibleEmailError(e));
+      if (bad) return res.status(400).json({ ok: false, error: 'bad-email', message: impossibleEmailError(bad) });
+    }
     // Anyone who unsubscribed, complained or bounced here is skipped and
     // counted (skipped_unsubscribed, skipped_bounced), never made active.
     const result = await store.importSubscribers(emails, 'import');
+    if (hq) {
+      console.log(`[newsletter] ${result.added} subscriber(s) added through HQ`);
+      if (slack && result.added) slack.notify({ channel: 'activity', title: '✉️ Subscribers added through HQ', fields: [['Added', emails.join(', ').slice(0, 500)]] });
+    }
     res.json({ ok: true, ...result });
   });
 
@@ -1771,8 +1783,11 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       // non-ASCII ("alma‑mctygue@" with a non-breaking hyphen, Oct 2026),
       // which Resend refuses, fixed to exactly what the form makes of it
       // now. from may be the stored address or the one it should be.
+      // Or accents a person can see are a typo (mǰìskra11@ for mjiskra11@):
+      // only here, with someone's OK, never on its own (repairSubscriberEmails).
       const NON_ASCII = /[^\x01-\x7f]/;
-      const charFix = normalizeEmail(from) === to;
+      const plain = e => [normalizeEmail(e), normalizeEmail(String(e || '').normalize('NFKD').replace(/\p{M}/gu, ''))];
+      const charFix = plain(from).includes(to);
       const [fromUser, fromDomain] = [from.slice(0, from.lastIndexOf('@')), from.slice(from.lastIndexOf('@') + 1)];
       const [toUser, toDomain] = [to.slice(0, to.lastIndexOf('@')), to.slice(to.lastIndexOf('@') + 1)];
       if (!charFix && (!fromUser || fromUser !== toUser || fromDomain === toDomain)) {
@@ -1784,7 +1799,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       // back (melaniereeves60@gmail.comm did).
       const subs = await store.listSubscribers();
       const old = charFix
-        ? subs.find(x => NON_ASCII.test(x.email || '') && normalizeEmail(x.email) === to && ['active', 'pending', 'bounced'].includes(x.status))
+        ? subs.find(x => NON_ASCII.test(x.email || '') && plain(x.email).includes(to) && ['active', 'pending', 'bounced'].includes(x.status))
         : subs.find(x => String(x.email || '').toLowerCase() === from &&
           (x.status === 'bounced' || x.status === 'pending' || (x.status === 'active' && impossibleEmailError(from))));
       if (!old) return no(404, 'not-found', `${from} isn't on the list as bounced, waiting to confirm, or an address that can't receive mail.`);
