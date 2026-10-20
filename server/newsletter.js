@@ -70,8 +70,9 @@ import { partnerState, categoryOf, partnerHref } from './partners.js';
 const RESEND_API = 'https://api.resend.com';
 // Strict enough that Resend accepts every address we keep: no empty dot
 // segments ("bob@gmail..com", ".bob@"), domain labels of letters, digits
-// and inner hyphens, and a real TLD. Matched after lowercasing.
-const EMAIL_RE = /^[^\s@<>"',;.]+(?:\.[^\s@<>"',;.]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
+// and inner hyphens, and a real TLD, and only ASCII before the @ (Resend
+// refuses "josé@" with a 422). Matched after lowercasing.
+const EMAIL_RE = /^(?=[!-~]+@)[^\s@<>"',;.]+(?:\.[^\s@<>"',;.]+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
 const BATCH_SIZE = 100;          // Resend batch limit
 const PER_DAY = 6;               // events per day in the email
 
@@ -120,8 +121,12 @@ export function editionOf(weekKey) {
 // stops the Thursday send and its settings link, not this wording.
 export const SCHEDULE = 'every Monday and Thursday';
 
+// Invisible characters a paste or autofill can carry in (zero-width space and
+// joiners, soft hyphen, BOM) come out first: the reader typed a good address.
+const INVISIBLE_RE = /[\u00ad\u200b-\u200d\u2060\ufeff]/g;
+
 export function normalizeEmail(raw) {
-  const e = String(raw || '').trim().toLowerCase();
+  const e = String(raw || '').replace(INVISIBLE_RE, '').trim().toLowerCase();
   return e.length <= 254 && EMAIL_RE.test(e) ? e : null;
 }
 
