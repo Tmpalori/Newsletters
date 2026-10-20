@@ -339,7 +339,7 @@ class FileStore {
       const raw = await fs.readFile(this.file, 'utf8');
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') {
-        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
+        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], email_clicks: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
       }
       if (!Array.isArray(parsed.submissions)) parsed.submissions = [];
       if (!parsed.event_archive || typeof parsed.event_archive !== 'object') parsed.event_archive = {};
@@ -347,6 +347,7 @@ class FileStore {
       if (!Array.isArray(parsed.subscribers)) parsed.subscribers = [];
       if (!Array.isArray(parsed.newsletter_sends)) parsed.newsletter_sends = [];
       if (!Array.isArray(parsed.email_opens)) parsed.email_opens = [];
+      if (!Array.isArray(parsed.email_clicks)) parsed.email_clicks = [];
       if (!Array.isArray(parsed.referral_rewards)) parsed.referral_rewards = [];
       if (!Array.isArray(parsed.sponsor_orders)) parsed.sponsor_orders = [];
       if (!Array.isArray(parsed.event_edits)) parsed.event_edits = [];
@@ -354,7 +355,7 @@ class FileStore {
       return parsed;
     } catch (err) {
       if (err.code === 'ENOENT') {
-        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
+        return { submissions: [], published: null, event_edits: [], event_archive: {}, traffic: [], subscribers: [], newsletter_sends: [], email_opens: [], email_clicks: [], referral_rewards: [], sponsor_orders: [], subscriber_counts: [] };
       }
       throw err;
     }
@@ -912,6 +913,29 @@ class FileStore {
     });
   }
 
+  // Newsletter link clicks (/email/c, server/newsletter.js): one row per
+  // issue, subscriber and link, with the first click's time and a count.
+  // Like opens, an id that isn't a subscriber is ignored.
+  async recordEmailClick({ week_key, subscriber_id, url }) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.subscribers.some(x => x.id === subscriber_id)) return false;
+      const row = data.email_clicks.find(x => x.week_key === week_key && x.subscriber_id === subscriber_id && x.url === url);
+      if (row) Object.assign(row, { clicks: (row.clicks || 1) + 1, last_at: nowIso() });
+      else data.email_clicks.push({ week_key, subscriber_id, url, clicks: 1, first_at: nowIso(), last_at: nowIso() });
+      await this._write(data);
+      return true;
+    });
+  }
+
+  // Every click row for the given issues: [{ week_key, subscriber_id, url, clicks, first_at }].
+  async listEmailClicks(weekKeys) {
+    const data = await this._read();
+    const want = new Set(weekKeys);
+    return data.email_clicks.filter(r => want.has(r.week_key))
+      .map(r => ({ week_key: r.week_key, subscriber_id: r.subscriber_id, url: r.url, clicks: r.clicks || 1, first_at: r.first_at || null }));
+  }
+
   // { week_key: unique opens } for the given issues.
   async countEmailOpens(weekKeys) {
     const data = await this._read();
@@ -1384,6 +1408,9 @@ class FileStore {
       const opens = data.email_opens.length;
       data.email_opens = data.email_opens.filter(x => !gone.has(x.subscriber_id));
       out.email_opens = opens - data.email_opens.length;
+      const clicks = data.email_clicks.length;
+      data.email_clicks = data.email_clicks.filter(x => !gone.has(x.subscriber_id));
+      if (clicks - data.email_clicks.length) out.email_clicks = clicks - data.email_clicks.length;
       for (const r of data.submissions) {
         if (!same(r.submitter_email)) continue;
         Object.assign(r, { submitter_email: null, submitter_name: null, submitter_ip: null, user_agent: null,
@@ -1701,6 +1728,9 @@ class PgStore {
         await addColumn('newsletter_sends', 'picks', 'ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS picks JSONB');
         // Event pages the issue showed, for the event reports (server/eventReach.js).
         await addColumn('newsletter_sends', 'events', 'ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS events JSONB');
+        // Whether its links counted clicks (/email/c), so older issues read
+        // "no click data" rather than 0%.
+        await addColumn('newsletter_sends', 'clicks_tracked', 'ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS clicks_tracked BOOLEAN NOT NULL DEFAULT FALSE');
         // Each batch's idempotency key, members and outcome, saved when first
         // tried, so a retry resends a batch under its original key
         // (newsletter.js sendWeeklyNow).
@@ -1737,6 +1767,19 @@ class PgStore {
             first_opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             last_opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (week_key, subscriber_id)
+          );
+        `);
+        // Newsletter link clicks (see FileStore.recordEmailClick): one row
+        // per issue, subscriber and link.
+        await this.pool.query(`
+          CREATE TABLE IF NOT EXISTS email_clicks (
+            week_key TEXT NOT NULL,
+            subscriber_id TEXT NOT NULL,
+            url TEXT NOT NULL,
+            clicks INT NOT NULL DEFAULT 1,
+            first_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (week_key, subscriber_id, url)
           );
         `);
         // Sponsor orders (server/sponsors.js). Low volume, read whole; the
@@ -1974,6 +2017,7 @@ class PgStore {
       await this.pool.query(`DELETE FROM traffic WHERE day < CURRENT_DATE - $1::int`, [TRAFFIC_RETENTION_DAYS]);
       // Newsletter opens are kept as long as traffic.
       await this.pool.query(`DELETE FROM email_opens WHERE first_opened_at < NOW() - make_interval(days => $1::int)`, [TRAFFIC_RETENTION_DAYS]);
+      await this.pool.query(`DELETE FROM email_clicks WHERE first_at < NOW() - make_interval(days => $1::int)`, [TRAFFIC_RETENTION_DAYS]);
     }
   }
 
@@ -1985,7 +2029,7 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query(`
       SELECT to_char(day, 'YYYY-MM-DD') AS day, kind, path, visitor, ref_source, ref_host,
-             click_type, click_url, bot, ad, COUNT(*)::int AS n
+             click_type, click_url, bot, ad, COUNT(*)::int AS n, MIN(ts) AS first_at
       FROM traffic WHERE day >= $1::date
       GROUP BY day, kind, path, visitor, ref_source, ref_host, click_type, click_url, bot, ad
     `, [sinceDay]);
@@ -2274,14 +2318,15 @@ class PgStore {
   async recordNewsletterSend(rec) {
     await this.ready();
     await this.pool.query(`
-      INSERT INTO newsletter_sends (week_key, subject, recipients, failed, failed_emails, picks, chunks, events, sent_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, NOW())
+      INSERT INTO newsletter_sends (week_key, subject, recipients, failed, failed_emails, picks, chunks, events, clicks_tracked, sent_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9, NOW())
       ON CONFLICT (week_key) DO UPDATE SET subject = EXCLUDED.subject, recipients = EXCLUDED.recipients,
         failed = EXCLUDED.failed, failed_emails = EXCLUDED.failed_emails,
         picks = COALESCE(EXCLUDED.picks, newsletter_sends.picks), chunks = EXCLUDED.chunks,
-        events = COALESCE(EXCLUDED.events, newsletter_sends.events), sent_at = NOW()
+        events = COALESCE(EXCLUDED.events, newsletter_sends.events),
+        clicks_tracked = newsletter_sends.clicks_tracked OR EXCLUDED.clicks_tracked, sent_at = NOW()
     `, [rec.week_key, rec.subject, rec.recipients, rec.failed, toJsonb(rec.failed_emails || []),
         Array.isArray(rec.picks) ? toJsonb(rec.picks) : null, toJsonb(Array.isArray(rec.chunks) ? rec.chunks : []),
-        Array.isArray(rec.events) ? toJsonb(rec.events) : null]);
+        Array.isArray(rec.events) ? toJsonb(rec.events) : null, Boolean(rec.clicks_tracked)]);
   }
 
   async saveSponsorOrder(order) {
@@ -2357,6 +2402,26 @@ class PgStore {
          SET opens = email_opens.opens + 1, last_opened_at = NOW()`,
       [week_key, subscriber_id]);
     return r.rowCount > 0;
+  }
+
+  // See FileStore.recordEmailClick.
+  async recordEmailClick({ week_key, subscriber_id, url }) {
+    await this.ready();
+    const r = await this.pool.query(
+      `INSERT INTO email_clicks (week_key, subscriber_id, url)
+         SELECT $1::text, id, $3::text FROM subscribers WHERE id = $2::text
+       ON CONFLICT (week_key, subscriber_id, url) DO UPDATE
+         SET clicks = email_clicks.clicks + 1, last_at = NOW()`,
+      [week_key, subscriber_id, url]);
+    return r.rowCount > 0;
+  }
+
+  async listEmailClicks(weekKeys) {
+    await this.ready();
+    const r = await this.pool.query(
+      'SELECT week_key, subscriber_id, url, clicks, first_at FROM email_clicks WHERE week_key = ANY($1::text[])', [weekKeys]);
+    return r.rows.map(x => ({ week_key: x.week_key, subscriber_id: x.subscriber_id, url: x.url, clicks: Number(x.clicks) || 1,
+      first_at: x.first_at instanceof Date ? x.first_at.toISOString() : x.first_at || null }));
   }
 
   async countEmailOpens(weekKeys) {
@@ -2824,6 +2889,9 @@ class PgStore {
       const out = {};
       out.email_opens = n(await db.query(
         'DELETE FROM email_opens WHERE subscriber_id IN (SELECT id FROM subscribers WHERE lower(email) = $1)', [email]));
+      const clicksGone = n(await db.query(
+        'DELETE FROM email_clicks WHERE subscriber_id IN (SELECT id FROM subscribers WHERE lower(email) = $1)', [email]));
+      if (clicksGone) out.email_clicks = clicksGone;
       out.subscribers = n(await db.query('DELETE FROM subscribers WHERE lower(email) = $1', [email]));
       out.submissions = n(await db.query(
         `UPDATE event_submissions SET submitter_email = NULL, submitter_name = NULL, submitter_ip = NULL, user_agent = NULL,

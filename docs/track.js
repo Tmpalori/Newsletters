@@ -3,7 +3,7 @@
  * Each event goes two places: Google Analytics (when it loaded) and our own
  * /api/track beacon, which feeds the admin Traffic tab. Sponsors and venues
  * pay for clicks, so we record the ones they care about: event detail
- * clicks, sponsor clicks, subscribe clicks. One delegated listener covers
+ * clicks out, event pages opened from a list, sponsor clicks, subscribe clicks. One delegated listener covers
  * both the server-rendered pages and the homepage list app.js re-renders.
  * Paid placements ([data-ad]) also report when they're seen, for the
  * sponsor reports (server/sponsors.js).
@@ -70,11 +70,14 @@
   // ?s=sh marks a link someone shared from the site (share buttons below):
   // the view counts as "Shared link", and the tag comes off the address
   // bar so a reload or a copied URL doesn't count again.
-  var utm = '', utmMedium = '', viaShare = false;
+  // utm_campaign says which email a newsletter visit came from (weekly-…,
+  // weekend-…, welcome), so the issue report credits the right issue.
+  var utm = '', utmMedium = '', utmCampaign = '', viaShare = false;
   try {
     var q = new URLSearchParams(location.search);
     utm = q.get('utm_source') || '';
     utmMedium = q.get('utm_medium') || '';
+    utmCampaign = q.get('utm_campaign') || '';
     if (q.get('s') === 'sh') {
       viaShare = true;
       q.delete('s');
@@ -96,7 +99,7 @@
     clearTimeout(timer);
     ENGAGE_EVENTS.forEach(function (t) { window.removeEventListener(t, sendView, true); });
     document.removeEventListener('visibilitychange', onVisibility);
-    var view = { kind: 'view', ref: document.referrer || '', utm: utm, utm_medium: utmMedium };
+    var view = { kind: 'view', ref: document.referrer || '', utm: utm, utm_medium: utmMedium, utm_campaign: utmCampaign };
     if (viaShare) view.via = 'share';
     beacon(view);
   }
@@ -197,14 +200,27 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchAds);
   else watchAds();
 
+  // A link that leaves the site (an event's own page at its venue or
+  // organizer), as opposed to one of our pages.
+  function isOutbound(a) {
+    return /^https?:$/.test(a.protocol || '') && !!a.host && a.host !== location.host;
+  }
+
+  // Event links: event_click is a tap out to the event's own link (the
+  // "See event details" button, or a list item that links out);
+  // event_open is a tap from a list to the event's page here. Other
+  // buttons in .page-actions (the 404 page's) fall through to the checks
+  // below.
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a') : null;
     if (!a) return;
     var href = a.getAttribute('href') || '';
     if (a.classList.contains('sponsor-cta')) {
       track('sponsor_click', { link_url: href }, a);
-    } else if (a.closest('.event-entry, .page-actions')) {
+    } else if (a.closest('.event-entry, .page-actions') && isOutbound(a)) {
       track('event_click', { link_url: href, link_text: a.textContent.trim().slice(0, 100) }, a);
+    } else if (a.closest('.event-entry')) {
+      track('event_open', { link_url: href }, a);
     } else if (href.indexOf('#subscribe') !== -1 || isOurSubscribeLink(a)) {
       track('subscribe_click');
     } else if (href.indexOf('/advertise') === 0) {

@@ -42,6 +42,10 @@
  *     /email/o/<week>/<subscriber id>.gif, counted once per subscriber per
  *     issue (email_opens) and shown as opens and open rate per send in the
  *     admin. Welcome, confirmation and test emails have none.
+ *   - Click tracking: each weekly copy's links to our own pages go through
+ *     /email/c/<week>/<subscriber id>?u=<path> (clickWrap), counted once
+ *     per subscriber, issue and link (email_clicks) and then redirected
+ *     there. The issue's click rate is unique clickers over recipients.
  *   - Admin: counts, preview, test send, send now, CSV/paste import.
  *   - Automation: the site's scheduler (server/scheduler.js) sends both
  *     issues. POST /api/newsletter/cron with X-Cron-Secret is a send
@@ -67,6 +71,7 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
+import { botName } from './analytics.js';
 
 const RESEND_API = 'https://api.resend.com';
 // Strict enough that Resend accepts every address we keep: before the @,
@@ -387,6 +392,34 @@ export function utmTag(content, siteUrl, campaign, amp = '&amp;') {
   });
 }
 
+// Click tracking: each copy's links to our own pages go through
+// /email/c/<week>/<subscriber id>?u=<path> (see the route below), which
+// counts the click and sends the reader on. HTML links only (the plain
+// text keeps readable URLs, and its visits still count as Newsletter by
+// their UTM tags), and never the private-token links (unsubscribe,
+// confirm, email settings), images, or the reader's referral link (/r/,
+// which they forward: a friend's tap isn't the reader's click). Runs after utmTag, so the reader
+// lands with the tags. `clickBase` is '' for previews and tests.
+export function clickWrap(html, siteUrl, clickBase) {
+  if (!siteUrl || !clickBase) return html;
+  const base = siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`href="${base}(/[^"]*)?"`, 'g');
+  return html.replace(re, (all, rest = '/') => {
+    if (/^\/(unsubscribe|subscribe\/confirm|email-prefs|email\/|sponsor-logo\/|r\/)/.test(rest)) return all;
+    const path = rest.replace(/&amp;/g, '&');
+    return `href="${escHtml(`${clickBase}?u=${encodeURIComponent(path)}`)}"`;
+  });
+}
+
+// The path a click link may send someone to: our own site only. A path
+// that could leave it ("//evil.example", "/\\evil.example", a scheme)
+// goes home instead.
+export function clickTarget(u) {
+  const s = String(u || '');
+  if (!s.startsWith('/') || /^\/[\/\\]/.test(s) || /[\u0000-\u001f\u007f]/.test(s) || s.length > 1000) return '/';
+  return s;
+}
+
 // A paid weekly sponsor's button goes through /go/s/<week> (server/
 // sponsors.js), which counts the click for the sponsor's end-of-week report
 // and then sends the reader on with UTM tags. A hand-set sponsor (no order)
@@ -622,7 +655,7 @@ export function dontMiss(byDay, n = 3) {
 // Sunday (weekend, Thursday). See EDITIONS.
 // partners: the payload's `partners` (server/partners.js partnersPayload);
 // missing means every category is open.
-export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
+export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', clickBase = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
@@ -692,7 +725,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   const shownPages = [...new Set([...byDay.flatMap(({ list }) => shownOf(list)), ...topShown].map(e => e.page).filter(Boolean))];
   return {
     subject, total, picks, events: shownPages,
-    html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),
+    html: clickWrap(utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign), siteUrl, clickBase),
     text: utmTag(text, siteUrl, campaign, '&')
   };
 }
@@ -991,6 +1024,8 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
   const supported = typeof store.addSubscriber === 'function';
 
   const openPixel = (week, id) => `${siteUrl}/email/o/${week}/${encodeURIComponent(id)}.gif`;
+  const clickLink = (week, id) => `${siteUrl}/email/c/${week}/${encodeURIComponent(id)}`;
+  const clickLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 2000 });
 
   // One subscriber's referral link and count, for the welcome email. A
   // store without referrals (or a failed read) just leaves the box out.
@@ -1207,7 +1242,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const failedEmails = owed();
       return store.recordNewsletterSend({
         week_key: key, subject: probe.subject, recipients: base + sent, picks, events: shownEvents,
-        failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
+        failed: failedEmails.length, failed_emails: failedEmails, chunks: plan, clicks_tracked: true
       });
     };
     const refs = await referralsForSend(subs);
@@ -1233,9 +1268,10 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         // Open tracking: a 1x1 image per copy, keyed by week and subscriber
         // id (not the token, which unsubscribes). See /email/o below.
         const openPixelUrl = s.id ? openPixel(key, s.id) : '';
+        const clickBase = s.id ? clickLink(key, s.id) : '';
         const code = s.id && refs.codes[s.id];
         const referral = code ? { code, count: refs.counts[code] || 0 } : null;
-        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, referral, replyAsk: Boolean(config.replyTo || config.inbound),
+        const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, clickBase, referral, replyAsk: Boolean(config.replyTo || config.inbound),
           edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
         return {
           from: config.from, to: [s.email], subject: issue.subject, html: issue.html, text: issue.text,
@@ -1271,7 +1307,10 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const record = {
       week_key: key, subject: probe.subject, picks, events: shownEvents,
       recipients: base + sent,
-      failed: failedEmails.length, failed_emails: failedEmails, chunks: plan
+      failed: failedEmails.length, failed_emails: failedEmails, chunks: plan,
+      // Its copies' links go through /email/c, so a click rate means
+      // something; issues from before that read null.
+      clicks_tracked: true
     };
     await store.recordNewsletterSend(record);
     const unknownCount = plan.filter(c => c.state === 'sent-unknown').reduce((n, c) => n + c.emails.filter(e => active.has(e)).length, 0);
@@ -1534,6 +1573,28 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     }
     res.set({ 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, private', 'Content-Length': String(PIXEL_GIF.length) });
     res.end(PIXEL_GIF);
+  });
+
+  // Click tracking (clickWrap above). Always sends the reader on, to our
+  // own site only (clickTarget). Counted once per subscriber, issue and
+  // link (store.recordEmailClick, which ignores ids that aren't
+  // subscribers), with the same six-month window as opens and an hourly
+  // per-IP cap; known bots and link scanners that say so (analytics.js
+  // botName) aren't counted. Scanners that look like browsers are caught
+  // when the report is built (growth.js emailClickStats).
+  app.get('/email/c/:week/:sid', (req, res) => {
+    const target = clickTarget(req.query.u);
+    const week = req.params.week;
+    const sid = /^[A-Za-z0-9-]{8,64}$/.test(req.params.sid) ? req.params.sid : null;
+    const today = localDateStr(nowFn());
+    const recent = /^\d{4}-\d{2}-\d{2}$/.test(week) && week <= addDays(today, 3) && week >= addDays(today, -183);
+    if (sid && recent && !botName(req.get('user-agent')) && clickLimiter.check(req.ip || '').ok &&
+      supported && typeof store.recordEmailClick === 'function') {
+      store.recordEmailClick({ week_key: week, subscriber_id: sid, url: target.split('?')[0].split('#')[0].slice(0, 300) })
+        .catch(err => console.warn('[newsletter] recording a click failed:', err.message));
+    }
+    res.set({ 'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer' });
+    res.redirect(302, target);
   });
 
   // Referral links. The code rides along to the signup form in the URL

@@ -13,12 +13,13 @@
  *   cost per subscriber: Meta's spend that day over the subscribers who
  *   actually joined, not Meta's own "signups" (its pixel misses iPhones,
  *   in-app browsers and blockers).
- * - Each issue (Monday's week, Thursday's weekend): sent, unique opens, readers who came to the site
- *   from it (links carry utm_source=newsletter; a visit is credited to the
- *   issue sent before it): on the day it went out (the click rate; the
- *   visitor id changes daily, so later days can't be told apart from new
- *   readers) and reader-days over its week, top events those visits opened,
- *   and unsubscribes that week.
+ * - Each issue (Monday's week, Thursday's weekend): sent, unique opens,
+ *   unique clickers (its links go through /email/c; the click rate), the
+ *   most-clicked links, readers who came to the site from it (links carry
+ *   utm_source=newsletter and the issue's utm_campaign): on the day it went
+ *   out (site_visitors; the visitor id changes daily, so later days can't
+ *   be told apart from new readers) and reader-days over its week, top
+ *   events those visits opened, and unsubscribes that week. See issueReport.
  * - Signup weeks: of each week's new subscribers, how many are still
  *   subscribed and how many opened one of the last two issues.
  * - Event categories: event page views and link taps by icon.
@@ -29,6 +30,7 @@ import crypto from 'node:crypto';
 import { hqPaths } from './hqAdmin.js';
 import { localDateStr, addDays, currentWeek } from './seo.js';
 import { editionOf } from './newsletter.js';
+import { EMAIL_CAMPAIGN } from './analytics.js';
 
 export const SUBSCRIBER_GOAL = 10000;
 export const REVENUE_GOAL_CENTS = 1000000;
@@ -130,19 +132,69 @@ export function sumDays(daily) {
   return t;
 }
 
-// One row per issue (Monday's and Thursday's), newest first. A visit is
-// credited to the latest issue before it, so the two split the week.
-export function issueReport(sends, opens, subs, rows, events) {
+// Link scanners (Microsoft Safe Links, Proofpoint, Mimecast...) open every
+// link in a copy within seconds of delivery, with a browser's user agent.
+// A subscriber whose clicks hit SCANNER_LINKS or more links, all within
+// SCANNER_SECONDS of each other, is taken for one and left out.
+export const SCANNER_LINKS = 4;
+export const SCANNER_SECONDS = 10;
+
+// One issue's email clicks (store.listEmailClicks rows for it): unique
+// clickers, total clicks, the most-clicked links, and how many
+// subscribers looked like scanners and were left out.
+export function emailClickStats(rows, pageEvent = new Map()) {
+  const bySub = new Map();
+  for (const r of rows || []) {
+    if (!bySub.has(r.subscriber_id)) bySub.set(r.subscriber_id, []);
+    bySub.get(r.subscriber_id).push(r);
+  }
+  let clickers = 0, clicks = 0, scanners = 0;
+  const links = new Map();
+  for (const list of bySub.values()) {
+    const times = list.map(r => Date.parse(r.first_at)).filter(Number.isFinite);
+    if (list.length >= SCANNER_LINKS && times.length === list.length &&
+      Math.max(...times) - Math.min(...times) <= SCANNER_SECONDS * 1000) { scanners++; continue; }
+    clickers++;
+    for (const r of list) {
+      const n = Number(r.clicks) || 1;
+      clicks += n;
+      const l = links.get(r.url) || { url: r.url, clickers: 0, clicks: 0 };
+      l.clickers++; l.clicks += n;
+      links.set(r.url, l);
+    }
+  }
+  const top_links = [...links.values()].sort((a, b) => b.clickers - a.clickers || b.clicks - a.clicks).slice(0, 5)
+    .map(l => ({ ...l, ...(pageEvent.get(pathOf(l.url)) ? { name: pageEvent.get(pathOf(l.url)) } : {}) }));
+  return { clickers, clicks, top_links, scanners };
+}
+
+// One row per issue (Monday's and Thursday's), newest first.
+//   opens, open_rate     unique openers (the image), over recipients
+//   clickers, click_rate unique subscribers who clicked a link in it
+//                        (/email/c), over recipients; null for an issue
+//                        sent before clicks were counted
+//   clicks, top_links    every click, and the most-clicked links
+//   site_visitors,       readers who came to the site from it on its send
+//   site_visit_rate      day (the visitor id changes daily, so later days
+//                        can't be told apart from new readers), over
+//                        recipients: what click_rate was before Oct 2026
+//   readers_7_days       reader-days from it over its week (reader_days)
+// A visit is matched to its issue by the link's utm_campaign; untagged
+// visits (older ones) go to the latest issue before them, so the two split
+// the week. Visits from the welcome email count for no issue.
+export function issueReport(sends, opens, subs, rows, events, clicks = []) {
   const sorted = (sends || []).filter(x => x && x.sent_at).slice().sort((a, b) => (a.sent_at < b.sent_at ? -1 : 1));
   const pageEvent = new Map();
   for (const ev of events || []) if (ev && ev.page) pageEvent.set(pathOf(ev.page), ev.name || ev.page);
   const fromEmail = (rows || []).filter(r => r.kind === 'view' && r.ref_source === 'Newsletter');
+  const tagged = r => EMAIL_CAMPAIGN.test(String(r.ref_host || ''));
   const out = sorted.map((s, i) => {
     const from = dayOf(s.sent_at);
     const next = sorted[i + 1] ? dayOf(sorted[i + 1].sent_at) : null;
     const until = addDays(from, ISSUE_WINDOW_DAYS - 1);
     const end = next && addDays(next, -1) < until ? addDays(next, -1) : until;
-    const visits = fromEmail.filter(r => r.day >= from && r.day <= end);
+    const campaign = `${editionOf(s.week_key)}-${s.week_key}`;
+    const visits = fromEmail.filter(r => (tagged(r) ? r.ref_host === campaign && r.day >= from && r.day <= until : r.day >= from && r.day <= end));
     // Visitor ids are per day (analytics.js), so only the send day's
     // readers are unique; the week's figure is reader-days.
     const readerDays = new Set(visits.map(r => `${r.day}|${r.visitor}`)).size;
@@ -160,10 +212,18 @@ export function issueReport(sends, opens, subs, rows, events) {
     const within = v => { const d = dayOf(v); return d && d >= from && d <= end; };
     const bounced = (subs || []).filter(x => x.status === 'bounced' && within(x.bounced_at)).length;
     const complaints = (subs || []).filter(x => x.unsub_reason === 'complaint' && within(x.unsubscribed_at)).length;
+    const mine = (clicks || []).filter(c => c.week_key === s.week_key);
+    const tracked = Boolean(s.clicks_tracked) || mine.length > 0;
+    const c = emailClickStats(mine, pageEvent);
+    const rate = n => (sent ? Math.round(n / sent * 1000) / 10 : null);
     return {
       week: s.week_key, edition: editionOf(s.week_key), subject: s.subject || '', sent_at: s.sent_at, sent, opens: opened,
-      open_rate: sent ? Math.round(opened / sent * 1000) / 10 : null,
-      clickers: firstDay, click_rate: sent ? Math.round(firstDay / sent * 1000) / 10 : null, reader_days: readerDays,
+      open_rate: rate(opened),
+      clicks_tracked: tracked,
+      clickers: tracked ? c.clickers : null, click_rate: tracked ? rate(c.clickers) : null,
+      clicks: tracked ? c.clicks : null, top_links: tracked ? c.top_links : [], scanner_clicks_left_out: tracked ? c.scanners : null,
+      site_visitors: firstDay, site_visit_rate: rate(firstDay),
+      readers_7_days: readerDays, reader_days: readerDays,
       visits: visits.reduce((a, r) => a + weight(r), 0),
       top_events: [...top.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, views]) => ({ name, views })),
       unsubscribed, bounced, complaints
@@ -406,6 +466,8 @@ export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, now
       const [opens, openRows] = weekKeys.length && typeof store.listEmailOpens === 'function'
         ? await Promise.all([store.countEmailOpens(weekKeys).catch(() => ({})), store.listEmailOpens(weekKeys).catch(() => [])])
         : [{}, []];
+      const clickRows = weekKeys.length && typeof store.listEmailClicks === 'function'
+        ? await store.listEmailClicks(weekKeys).catch(() => []) : [];
       const all = dailyGrowth(subs, spend, { today, days: span });
       const daily = all.slice(-days);
       const newest = sends.slice().sort((a, b) => (a.sent_at < b.sent_at ? 1 : -1));
@@ -419,7 +481,7 @@ export function registerGrowth(app, { store, requireAdmin, adminOrHq = null, now
         daily,
         pending: subs.filter(s => s.status === 'pending').length,
         spend_reported: spend.length > 0,
-        issues: issueReport(sends, opens, subs, rows, events),
+        issues: issueReport(sends, opens, subs, rows, events, clickRows),
         signup_weeks: signupWeeks(subs, openRows, lastTwo, { today, lastSentAt: newest[0] ? new Date(newest[0].sent_at).toISOString() : null }),
         categories: categoryStats(rows, events, { start: addDays(today, -(days - 1)) })
       });
