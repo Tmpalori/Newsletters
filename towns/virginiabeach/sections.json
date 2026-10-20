@@ -1,0 +1,79 @@
+{
+  "enabled": false,
+  "pets": [
+    {
+      "name": "Virginia Beach Animal Care & Adoption Center",
+      "source": "adopets",
+      "api_key": "be02b406-ea8d-4939-ba35-bab4b50e6cbf",
+      "shelter_uuid": "dcb26481-aee1-47ea-a40f-8c909b06b12b",
+      "address": "341 S Birdneck Rd",
+      "url": "https://vbacac.com/adopt/available-animals"
+    }
+  ],
+  "new_in_town": {
+    "source": "arcgis_permits",
+    "url": "https://services2.arcgis.com/CyVvlIiUfRBmMQuu/arcgis/rest/services/Building_Permits_Applications_view/FeatureServer/0/query"
+  },
+  "good_news": {
+    "sources": [
+      {
+        "source": "pdf_url",
+        "url": "https://s3.us-east-1.amazonaws.com/virginia-beach-departments-docs/city-clerk/City-Council/Brief-Agenda.pdf",
+        "body": "City Council"
+      }
+    ]
+  },
+  "questions": [
+    "Best Orange Crush in town?",
+    "Favorite beach that isn't the Oceanfront?",
+    "Best Neptune Festival memory?",
+    "Best sunset spot: Rudee Inlet, Lynnhaven or Back Bay?",
+    "Your go-to Pungo farm stand?",
+    "Mount Trashmore: best for the playground, a walk or kites?",
+    "Best breakfast near the beach?",
+    "A small business more people should know about?",
+    "Best seafood spot locals actually go to?",
+    "Best burger at the beach? Make your case.",
+    "What Virginia Beach tradition do you never miss?",
+    "Best thing you did at the beach this year?"
+  ],
+  "polls": [
+    {
+      "id": "went-to-event",
+      "question": "Have you gone to something you found in The Tide 757?",
+      "choices": [
+        "Yes, more than once",
+        "Yes, once",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "tried-a-place",
+      "question": "Have you tried a place you first saw here?",
+      "choices": [
+        "Yes",
+        "Not yet",
+        "It's on my list"
+      ]
+    },
+    {
+      "id": "forward",
+      "question": "Do you ever forward The Tide 757 to someone?",
+      "choices": [
+        "All the time",
+        "Sometimes",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "best-season",
+      "question": "Best time of year around here?",
+      "choices": [
+        "Spring",
+        "Summer",
+        "Fall",
+        "Winter"
+      ]
+    }
+  ]
+}

@@ -66,6 +66,7 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
+import { petPhotoUrl, pollVoteUrl } from './sections.js';
 
 const RESEND_API = 'https://api.resend.com';
 // Strict enough that Resend accepts every address we keep: no empty dot
@@ -301,14 +302,14 @@ export function emailShell({ title, preheader, bodyHtml, footerHtml, siteUrl, pi
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet"></head>
 <body style="margin:0;padding:0;background:${C.bg};">
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escHtml(preheader || '')}${PREHEADER_FILLER}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};"><tr><td align="center" style="padding:16px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${C.card};border:3px solid ${C.ink};border-radius:20px;box-shadow:6px 6px 0 ${C.ink};overflow:hidden;">
-<tr><td align="center" style="background:${C.sky};padding:22px 24px 0;font-family:${DISPLAY};color:${C.ink};">
+<tr><td align="center" style="background:${C.sky};padding:20px 16px 0;font-family:${DISPLAY};color:${C.ink};">
 <div>${emailWordmark()}</div>
 <div style="font-size:30px;font-weight:bold;line-height:1.15;margin:10px 0 12px;">${escHtml(title)}</div></td></tr>
 <tr><td style="background:${C.sky};padding:0;line-height:0;border-bottom:3px solid ${C.ink};"><img src="${siteUrl}/email/skyline.png" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>
-<tr><td style="padding:8px 22px 26px;font-family:${BODY};color:${C.ink};font-size:15px;line-height:1.5;">${bodyHtml}</td></tr>
-<tr><td style="background:${C.navy};padding:18px 24px;border-top:3px solid ${C.ink};font-family:${BODY};color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">${footerHtml}</td></tr>
+<tr><td style="padding:8px 12px 24px;font-family:${BODY};color:${C.ink};font-size:15px;line-height:1.5;">${bodyHtml}</td></tr>
+<tr><td style="background:${C.navy};padding:18px 16px;border-top:3px solid ${C.ink};font-family:${BODY};color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">${footerHtml}</td></tr>
 </table></td></tr></table>${pixelUrl ? `<img src="${escHtml(pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;">` : ''}</body></html>`);
 }
 
@@ -617,7 +618,68 @@ export function dontMiss(byDay, n = 3) {
 // Sunday (weekend, Thursday). See EDITIONS.
 // partners: the payload's `partners` (server/partners.js partnersPayload);
 // missing means every category is open.
-export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
+// ─── The extra sections (server/sections.js, SECTIONS.md) ────────────────
+// Under the events, before the referral box. Each block is its own
+// outlined box in the site's colors; sections = null (a town without
+// them) renders nothing, so its issues are exactly what they were.
+const sxBox = (bg, inner) => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;background:${bg};border:2px solid ${C.ink};border-radius:14px;border-collapse:separate;"><tr><td style="padding:14px 14px;font-size:15px;">${inner}</td></tr></table>`;
+const sxKicker = t => `<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${C.accent};">${escHtml(t)}</div>`;
+const sxHead = t => `<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.2;margin:4px 0 8px;">${escHtml(t)}</div>`;
+const sxBtn = (href, label) => `<a href="${escHtml(href)}" style="display:inline-block;margin:6px 6px 0 0;background:${C.sun};color:${C.ink};border:2px solid ${C.ink};border-radius:10px;padding:8px 12px;font-weight:800;text-decoration:none;">${escHtml(label)}</a>`;
+const sxTag = t => `<span style="display:inline-block;margin-left:6px;background:${C.sun};border:2px solid ${C.ink};border-radius:6px;padding:0 5px;font-size:11px;font-weight:800;vertical-align:middle;">${t}</span>`;
+
+export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '' }) {
+  if (!sx) return '';
+  const out = [];
+  if (sx.pet) {
+    const p = sx.pet;
+    out.push(sxBox(C.sunLight, `${sxKicker('Pet of the week')}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="108" valign="top" style="padding:6px 12px 0 0;"><img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="96" height="96" alt="${escHtml(p.name)}" style="display:block;width:96px;height:96px;object-fit:cover;border:2px solid ${C.ink};border-radius:12px;"></td>
+<td valign="top">${sxHead(p.name)}${p.facts ? `<div style="font-size:13px;color:${C.muted};margin-bottom:6px;">${escHtml(p.facts)}</div>` : ''}${escHtml(p.blurb)}</td></tr></table>
+${safeUrl(p.url) ? `<div style="margin-top:6px;">${sxBtn(p.url, `Meet ${p.name}`)}</div>` : ''}
+<div style="margin-top:10px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`));
+  }
+  if (sx.places && sx.places.length) {
+    out.push(sxBox('#FFFFFF', `${sxKicker('New in town')}${sxHead(`New around ${town.city}`)}
+${sx.places.map((x, i) => `<p style="margin:${i ? '8px' : '0'} 0 0;"><strong>${escHtml(x.name)}</strong>${sxTag(x.status === 'soon' ? 'SOON' : 'NEW')}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></p>`).join('')}
+<div style="margin-top:10px;font-size:12px;color:${C.muted};">Know a place that just opened? Hit reply and tell us.</div>`));
+  }
+  if (sx.poll) {
+    out.push(sxBox(C.sky, `${sxKicker('Quick poll · one tap')}${sxHead(sx.poll.question)}
+${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c)).join('')}`));
+  }
+  if (sx.question) {
+    out.push(sxBox('#FFFFFF', `${sxKicker('Question of the week')}${sxHead(sx.question)}
+Hit reply and tell us. We'll share some favorites in Thursday's email (first names only).`));
+  }
+  if (sx.roundup) {
+    out.push(sxBox('#FFFFFF', `${sxKicker(`${town.city} says`)}${sxHead(sx.roundup.question || 'You answered')}
+${sx.roundup.answers.map(a => `<p style="margin:0 0 10px;padding-left:12px;border-left:4px solid ${C.sun};">“${escHtml(a.quote)}”${a.name ? `<br><span style="font-size:12px;color:${C.muted};font-weight:bold;">${escHtml(a.name)}</span>` : ''}</p>`).join('')}
+<div style="font-size:13px;color:${C.muted};">A new question comes Monday.</div>`));
+  }
+  if (sx.good) {
+    out.push(sxBox(C.sunLight, `${sxKicker('Good news from City Hall')}${sxHead('On the agenda')}
+<ul style="margin:0;padding-left:18px;">${sx.good.items.map(g => `<li style="margin-bottom:6px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</li>`).join('')}</ul>
+${safeUrl(sx.good.url) ? `<div style="margin-top:6px;font-size:12px;color:${C.muted};"><a href="${escHtml(sx.good.url)}" style="color:${C.accent};font-weight:bold;">The full agenda</a></div>` : ''}`));
+  }
+  return out.join('');
+}
+
+export function sectionsEmailText(sx, { siteUrl, subscriberId = '' }) {
+  if (!sx) return [];
+  const out = [];
+  if (sx.pet) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
+  if (sx.places && sx.places.length) out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}`), '');
+  if (sx.poll) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
+  if (sx.question) out.push(`QUESTION OF THE WEEK: ${sx.question}`, "Hit reply and tell us. We'll share some favorites Thursday (first names only).", '');
+  if (sx.roundup) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
+  if (sx.good) out.push('GOOD NEWS FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
+  return out;
+}
+
+export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false, sections = null, subscriberId = '' }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
@@ -634,7 +696,7 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
   const preheader = top.map(e => e.name).join(' · ');
   const when = e => [dayShort(e.date), clockOf(e.time)].filter(Boolean).join(' ');
   const topHtml = topShown.length ? `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#fff;border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:12px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#fff;border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:12px 12px;">
 <div style="font-family:${DISPLAY};font-size:19px;font-weight:bold;margin-bottom:4px;">Don’t miss ${weekend ? 'this weekend' : 'this week'}</div>
 ${topShown.map((e, i) => `<div style="margin-top:6px;font-size:15px;"><strong>${i + 1}.</strong> <a href="${escHtml(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl))}" style="color:${C.ink};font-weight:800;">${escHtml(e.name)}</a> <span style="color:${C.muted};">· ${escHtml([when(e), e.venue || placeText(e)].filter(Boolean).join(' · '))}${paidPick(e) ? ` · ${AD_LABEL}` : ''}</span></div>`).join('')}
 </td></tr></table>` : '';
@@ -642,10 +704,10 @@ ${topShown.map((e, i) => `<div style="margin-top:6px;font-size:15px;"><strong>${
   // Day colors follow the weekday (Monday yellow ... Sunday coral), like the site.
   const days = byDay.map(({ d, list }) => { const dayColor = DAY_COLORS[(currentWeek(d).indexOf(d) + 7) % 7]; return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;border:3px solid ${C.ink};border-radius:16px;overflow:hidden;border-collapse:separate;">
-<tr><td style="background:${dayColor};padding:10px 14px;border-bottom:3px solid ${C.ink};font-family:${DISPLAY};color:${C.ink};">
+<tr><td style="background:${dayColor};padding:10px 12px;border-bottom:3px solid ${C.ink};font-family:${DISPLAY};color:${C.ink};">
 <span style="font-size:21px;font-weight:bold;">${escHtml(formatDay(d, { weekday: 'long' }))}</span>
 <span style="display:inline-block;margin-left:6px;font-size:13px;font-weight:bold;background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:0 9px;">${escHtml(formatDay(d, { month: 'long', day: 'numeric' }))}</span></td></tr>
-<tr><td style="padding:6px 12px 10px;">
+<tr><td style="padding:4px 8px 10px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
 ${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - PER_DAY} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
 </td></tr></table>`; }).join('');
@@ -658,8 +720,8 @@ ${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a hr
 <p style="margin:16px 0 4px;font-size:16px;">${total ? `Here's what's happening in ${town.cityState} ${weekend ? 'this weekend' : 'this week'}: <strong>${total} ${total === 1 ? 'event' : 'events'}</strong>.` : `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}.`}</p>
 <div>${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
 ${sponsorBlock}${topHtml}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}
-${replyAsk ? replyAskHtml(false) : ''}
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sectionsEmailHtml(sections, { siteUrl, subscriberId })}
+${replyAsk && !(sections && sections.question) ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
   // Sponsors are sold "the top of the newsletter": first in both parts (and
@@ -673,7 +735,8 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
+    `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId }),
+    ...(replyAsk && !(sections && sections.question) ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`
   ].join('\n');
@@ -968,7 +1031,7 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
-export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null }) {
+export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, getSections = async () => null }) {
   const rewards = createReferralRewards({ store, slack, tremendous, nowFn, localDate: localDateStr });
   const subscribeLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
   const confirmLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
@@ -1106,6 +1169,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (prior && !force && !priorFailed.length && !(resendUnknown && unknownChunks.length)) return { ok: false, error: 'already-sent', sent: prior };
     const resume = Boolean(prior && !force);
     const payload = await getSendPayload();
+    const sections = await getSections(edition, now).catch(err => { console.warn('[newsletter] sections:', err.message); return null; });
     let subs = await store.listSubscribers({ status: 'active' });
     if (weekend) subs = subs.filter(s => !s.weekend_optout);
     // Only people still on the list (and still taking this issue): someone
@@ -1231,7 +1295,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         const code = s.id && refs.codes[s.id];
         const referral = code ? { code, count: refs.counts[code] || 0 } : null;
         const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, referral, replyAsk: Boolean(config.replyTo || config.inbound),
-          edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
+          sections, subscriberId: s.id || '', edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
         return {
           from: config.from, to: [s.email], subject: issue.subject, html: issue.html, text: issue.text,
           ...(config.replyTo ? { reply_to: config.replyTo } : {}),
@@ -1690,8 +1754,9 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const edition = editionParam(req.query.edition);
     const { day, now } = await upcomingNow(edition);
     const payload = await getPublicPayload({ now });
+    const sections = await getSections(edition, now).catch(() => null);
     const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-      edition, prefsUrl: config.weekend ? '#' : '' });
+      sections, edition, prefsUrl: config.weekend ? '#' : '' });
     res.set('X-Issue-Date', day).set('X-Issue-Subject', encodeURIComponent(issue.subject)).type('html').send(issue.html);
   });
 
@@ -1703,8 +1768,9 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const edition = editionParam((req.body || {}).edition);
       const { now } = await upcomingNow(edition);
       const payload = await getPublicPayload({ now });
+      const sections = await getSections(edition, now).catch(() => null);
       const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-        edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
+        sections, edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
       await resend.send({ from: config.from, to: [to], subject: `[Test] ${issue.subject}`, html: issue.html, text: issue.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}) });
       res.json({ ok: true, to });
     } catch (err) {

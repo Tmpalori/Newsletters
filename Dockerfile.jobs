@@ -5,9 +5,11 @@ FROM python:3.11-slim
 # The social kit (JOBS_ON_RAILWAY.md 2b): Chromium screenshots the branded
 # slides (scripts/social_slides.py; without it they fall back to plain
 # Pillow slides), ffmpeg stitches the weekend Reel (without it Instagram
-# gets the carousel), DejaVu is the plain slides' font.
+# gets the carousel), DejaVu is the plain slides' font, and pdftotext
+# (poppler-utils) reads the council agendas for the good-news section
+# (scripts/sections.py).
 RUN apt-get update -qq \
- && apt-get install -y -qq --no-install-recommends chromium ffmpeg fonts-dejavu-core \
+ && apt-get install -y -qq --no-install-recommends chromium ffmpeg fonts-dejavu-core poppler-utils \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .

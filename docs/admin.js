@@ -408,6 +408,57 @@
   // requireAdmin's 'unauthorized' plus /api/admin/me's reasons (server/auth.js).
   const SESSION_ERRORS = new Set(['unauthorized', 'missing-credentials', 'missing', 'expired', 'malformed', 'bad-signature', 'not-configured']);
 
+  // ─── This week's newsletter sections (server/sections.js) ───
+  // Each item with a Take out / Put back button. Built with textContent:
+  // the items come from public data and readers' emails.
+  async function loadSections() {
+    const card = document.getElementById('sections-card');
+    const list = document.getElementById('sections-list');
+    if (!card || !list) return;
+    const { res, json } = await adminFetch('/api/admin/sections');
+    if (!res.ok || !json || !json.enabled) { card.hidden = true; return; }
+    card.hidden = false;
+    const hidden = new Set(json.hidden || []);
+    const rows = [];
+    if (json.pet) rows.push(['pet', 'Pet of the week', json.pet.name + ' (' + (json.pet.shelter || '') + '): ' + (json.pet.blurb || '')]);
+    (json.new_in_town || []).forEach(x => rows.push(['place:' + x.key, 'New in town', x.name + ': ' + x.line]));
+    if (json.question) rows.push(['question', 'Question of the week', json.question]);
+    if (json.poll) rows.push(['poll', 'Poll', json.poll.question]);
+    ((json.good_news && json.good_news.items) || []).forEach((g, i) => rows.push(['good:' + i, 'Good news', g.title + ': ' + g.line]));
+    ((json.roundup && json.roundup.answers) || []).forEach((a, i) => rows.push(['reply:' + i, 'Readers say', '“' + a.quote + '” ' + (a.name || '')]));
+    list.textContent = '';
+    if (!rows.length) {
+      const p = document.createElement('p');
+      p.className = 'card__meta';
+      p.textContent = 'Nothing yet this week. The sections build Sunday and Wednesday evenings.';
+      list.appendChild(p);
+      return;
+    }
+    rows.forEach(([id, label, text]) => {
+      const row = document.createElement('div');
+      row.className = 'sections-row' + (hidden.has(id) ? ' is-hidden' : '');
+      row.style.cssText = 'display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--color-divider, #e5e5e5);' + (hidden.has(id) ? 'opacity:.5;' : '');
+      const body = document.createElement('div');
+      body.style.flex = '1';
+      const b = document.createElement('strong');
+      b.textContent = label + ': ';
+      body.appendChild(b);
+      body.appendChild(document.createTextNode(text));
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn--small';
+      btn.textContent = hidden.has(id) ? 'Put back' : 'Take out';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        await adminFetch('/api/admin/sections/hide', { method: 'POST', body: JSON.stringify({ id, hidden: !hidden.has(id) }) });
+        loadSections();
+      });
+      row.appendChild(body);
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
   async function adminFetch(path, init) {
     const headers = Object.assign({}, (init && init.headers) || {});
     if (state.session) headers['Authorization'] = 'Bearer ' + state.session;
@@ -2503,7 +2554,7 @@
     if (name === 'settings') loadSettings();
     if (name === 'growth') loadGrowth();
     if (name === 'preview') refreshPreview();
-    if (name === 'newsletter') { refreshNewsletter(); loadEmailNewsletter(); }
+    if (name === 'newsletter') { refreshNewsletter(); loadEmailNewsletter(); loadSections(); }
     if (name === 'sources') loadSources();
     if (name === 'traffic') loadTraffic();
     if (name === 'sponsors') loadSponsors();

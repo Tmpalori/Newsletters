@@ -43,6 +43,7 @@ import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks, morningBlocks
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, canRunOnWorker } from './jobs.js';
+import { createSections, sectionsConfig } from './sections.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS } from './newsletter.js';
@@ -306,10 +307,15 @@ export async function createApp(opts = {}) {
   });
   const store = storeBundle.store;
   inboxStore = store;
+  // The newsletter's extra sections (server/sections.js, SECTIONS.md): off
+  // unless the town's sections.json says "enabled" (or SECTIONS=1).
+  const sections = createSections({ store, cfg: opts.sectionsConfig || sectionsConfig(town, { env: opts.sectionsEnv || process.env }),
+    slack, siteUrl, nowFn: () => (opts.now || (() => new Date()))() });
   // The town's jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md): off
   // (404, nothing queued) unless JOBS_ON_RAILWAY=1 and JOBS_SECRET are set.
   const jobs = opts.jobs || createJobs({
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
+    listReplies: sections.listReplies, onFile: sections.onFile,
     nowFn: () => (opts.now || (() => new Date()))(),
     // Victoria's social kit was posted from GitHub, which kept what went out
     // in git (docs/social/latest/posted.json): her worker starts from it, so
@@ -440,7 +446,7 @@ export async function createApp(opts = {}) {
   // (server/inbound.js). Raw body too, so also before the JSON parser.
   const inbound = createInbound({ config: inboundConfig(process.env, opts), apiKey: newsletter.apiKey, slack, siteUrl,
     fetchImpl: opts.inboundFetch || globalThis.fetch, nowFn: () => (opts.now ? opts.now().getTime() : Date.now()),
-    otherDomains: opts.inboundOtherDomains, store });
+    otherDomains: opts.inboundOtherDomains, store, onReply: sections.enabled ? sections.saveReply : null });
   inbound.register(app);
 
   // The admin's sponsor edit can carry a new logo (a data URL, shrunk in
@@ -1948,6 +1954,9 @@ export async function createApp(opts = {}) {
     placements: payload => sponsors.apply(payload, { strict: true })
   });
 
+  // Pet photo, poll votes and results, the admin's sections list (server/sections.js).
+  sections.register(app, { requireAdmin });
+
   const newsletterApi = registerNewsletter(app, {
     store, requireAdmin, adminOrHq, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
     // The newsletter is a day-by-day list: only events that made their day.
@@ -1956,6 +1965,7 @@ export async function createApp(opts = {}) {
     turnstileConfigured: Boolean(turnstileSecret),
     // The send itself must carry the paid placements (see sponsors.apply).
     getSendPayload: () => shownPayload({ strict: true }),
+    getSections: (edition, now) => sections.forIssue(edition, now),
     // Monday's run also sends last week's sponsor reports (and any Vic's
     // Pick reports due). The submission review cron runs them too, every
     // 15 minutes; both are idempotent (each order records report_sent).
@@ -2088,7 +2098,7 @@ export async function createApp(opts = {}) {
       indexTemplate = localizeHtml(await fsp.readFile(path.join(DOCS_DIR, 'index.html'), 'utf8'));
     }
     sendHtml(res, renderHome(indexTemplate, shown(payload.events), {
-      ...ctx, signupHtml: signupFormHtml()
+      ...ctx, signupHtml: signupFormHtml(), sectionsHtml: sections.enabled ? await sections.forHome().catch(() => '') : ''
     }));
   }));
 

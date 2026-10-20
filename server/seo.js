@@ -1619,7 +1619,7 @@ export function renderComingUp(events, today) {
       </section>`;
 }
 
-export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null }) {
+export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null, sectionsHtml = '' }) {
   const today = localDateStr(now);
   const week = currentWeek(today);
   const weekEvents = events.filter(ev => ev.date >= week[0] && ev.date <= week[6]);
@@ -1636,6 +1636,9 @@ export function renderHome(template, events, { siteUrl, now, sponsor = null, sig
   let page = template;
   // The newsletter signup form (server/newsletter.js) fills the footer slot.
   if (signupHtml) page = page.replace(/<!--SIGNUP_START-->[\s\S]*?<!--SIGNUP_END-->/, () => signupHtml);
+  // The newsletter's sections (server/sections.js), above the sponsor spot;
+  // nothing at all for a town without them.
+  if (sectionsHtml) page = page.replace('<!-- ═══ SPONSOR ═══ -->', () => sectionsHtml + '<!-- ═══ SPONSOR ═══ -->');
   return page
     // Function replacements: event text can contain "$'" or "$&", which a
     // string replacement would expand into chunks of the page.

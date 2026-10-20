@@ -591,3 +591,35 @@ def test_a_failed_build_hands_over_nothing(medford):
     site = SocialSite()
     status, result = w.job_social_kit(site, run=lambda args, timeout, env=None: (1, ["boom"]), env=POSTING, today=TUE)
     assert status == "failed" and "code 1" in result["error"] and site.uploads == []
+
+
+def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_before_an_issue():
+    from datetime import date
+
+    class Site(FakeSite):
+        def get_replies(self, since):
+            self.since = since
+            return [{"at": "2026-10-13T15:00:00Z", "name": "Maria", "text": "Kolaches!"}]
+
+    seen = []
+
+    def run(args, timeout, env=None):
+        seen.append(args)
+        assert json.load(open(args[args.index("--previous") + 1])) == {"week": "2026-10-05"}
+        assert json.load(open(args[args.index("--replies") + 1]))[0]["name"] == "Maria"
+        with open(args[args.index("--out") + 1], "w") as f:
+            json.dump({"week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": [{}], "good_news": None}, f)
+        return 0, ["pet: Chloe"]
+    site = Site(files={"sections": {"week": "2026-10-05"}})
+    status, result = jw.job_sections(site, run=run, env={}, today=date(2026, 10, 14))   # Wednesday
+    assert status == "done" and result["pet"] == "Chloe" and result["new_in_town"] == 1
+    assert site.since == "2026-10-12" and site.files["sections"]["week"] == "2026-10-12"
+    assert "--before-send" not in seen[0]
+    site = Site(files={"sections": {"week": "2026-10-05"}})
+    jw.job_sections(site, run=run, env={}, today=date(2026, 10, 15))   # Thursday morning
+    assert "--before-send" in seen[1]
+    # A town without sections.json writes nothing: done, nothing handed in.
+    site = Site()
+    status, result = jw.job_sections(site, run=lambda a, t, e=None: (0, ["no sections.json"]), env={}, today=date(2026, 10, 14))
+    assert status == "done" and "sections" not in site.puts
+    assert jw.job_sections(Site(), run=lambda a, t, e=None: (1, ["boom"]), env={}, today=date(2026, 10, 14))[0] == "failed"

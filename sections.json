@@ -1,0 +1,29 @@
+{
+  "enabled": false,
+  "pets": [
+    {"name": "Victoria County Animal Services", "source": "petpoint", "authkey": "msptli3aiqutkj3v1peitefu735ylqksug7udkdp1rw02q8xpn",
+     "address": "513 Profit St", "url": "https://www.victoriacountytx.gov/182/Pet-Adoptions"}
+  ],
+  "new_in_town": {"source": "tx_comptroller", "county_code": "235", "cities": ["VICTORIA"]},
+  "good_news": {"sources": [{"source": "civicclerk", "client": "victoriacotx", "body": "Victoria County"}]},
+  "questions": [
+    "Best kolache or breakfast taco in Victoria? Tell us where, and what you order.",
+    "Favorite spot in Riverside Park: the rose garden, the river, the disc golf course or somewhere else?",
+    "Which animal at The Texas Zoo do you always go see first?",
+    "Where do you take family when they visit Victoria?",
+    "Best place to watch a sunset or get out on the Guadalupe?",
+    "What's a Victoria restaurant you've loved for years?",
+    "Favorite memory from downtown or DeLeon Plaza?",
+    "What's the best thing you did in Victoria this year?",
+    "Best burger in town? Make your case.",
+    "What's a small business in Victoria more people should know about?",
+    "Best spot for a Saturday morning in Victoria?",
+    "What Victoria tradition do you never miss?"
+  ],
+  "polls": [
+    {"id": "went-to-event", "question": "Have you gone to something you found in The Vic 361?", "choices": ["Yes, more than once", "Yes, once", "Not yet"]},
+    {"id": "tried-a-place", "question": "Have you tried a place you first saw here?", "choices": ["Yes", "Not yet", "It's on my list"]},
+    {"id": "forward", "question": "Do you ever forward The Vic 361 to someone?", "choices": ["All the time", "Sometimes", "Not yet"]},
+    {"id": "best-season", "question": "Best time of year in Victoria?", "choices": ["Spring", "Summer", "Fall", "Winter"]}
+  ]
+}

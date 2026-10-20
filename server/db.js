@@ -886,6 +886,56 @@ class FileStore {
     });
   }
 
+  // ─── Newsletter sections (server/sections.js) ───
+  // Readers' replies, for the Thursday roundup: kept 30 days.
+  async saveReaderReply(r) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!Array.isArray(data.reader_replies)) data.reader_replies = [];
+      if (data.reader_replies.some(x => x.id === r.id)) return false;
+      const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+      data.reader_replies = data.reader_replies.filter(x => x.created_at >= cutoff);
+      data.reader_replies.push({ id: r.id, created_at: r.created_at, name: r.name || '', email: r.email || '', subject: r.subject || '', text: r.text || '' });
+      await this._write(data);
+      return true;
+    });
+  }
+
+  async listReaderReplies(since) {
+    const data = await this._read();
+    return (data.reader_replies || []).filter(x => x.created_at >= since).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+  }
+
+  // One-tap polls: one vote per subscriber per poll; a real subscriber only.
+  async recordPollVote({ week, poll, subscriber_id, choice, at }) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.subscribers.some(x => x.id === subscriber_id)) return null;
+      if (!Array.isArray(data.poll_votes)) data.poll_votes = [];
+      const row = data.poll_votes.find(x => x.week === week && x.poll === poll && x.subscriber_id === subscriber_id);
+      const prior = row ? { ...row } : null;
+      if (row) Object.assign(row, { choice, at });
+      else data.poll_votes.push({ week, poll, subscriber_id, choice, at, first_at: at });
+      await this._write(data);
+      return { prior };
+    });
+  }
+
+  async deletePollVote({ week, poll, subscriber_id }) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      data.poll_votes = (data.poll_votes || []).filter(x => !(x.week === week && x.poll === poll && x.subscriber_id === subscriber_id));
+      await this._write(data);
+    });
+  }
+
+  async countPollVotes(week, poll) {
+    const data = await this._read();
+    const out = {};
+    for (const v of data.poll_votes || []) if (v.week === week && v.poll === poll) out[v.choice] = (out[v.choice] || 0) + 1;
+    return out;
+  }
+
   // { week_key: unique opens } for the given issues.
   async countEmailOpens(weekKeys) {
     const data = await this._read();
@@ -2243,6 +2293,62 @@ class PgStore {
     await this.ready();
     const r = await this.pool.query('SELECT * FROM newsletter_sends ORDER BY sent_at DESC LIMIT $1', [limit]);
     return r.rows;
+  }
+
+  // ─── Newsletter sections (server/sections.js): see FileStore. Their own
+  // tables, made on first use, so a town without sections gets none.
+  async _sectionTables() {
+    await this.ready();
+    if (!this._sectionTablesPromise) {
+      this._sectionTablesPromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS reader_replies (
+          id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL, name TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS poll_votes (
+          week TEXT NOT NULL, poll TEXT NOT NULL, subscriber_id TEXT NOT NULL, choice INTEGER NOT NULL,
+          at TIMESTAMPTZ NOT NULL, first_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (week, poll, subscriber_id))`)
+        .catch(err => { this._sectionTablesPromise = null; throw err; });
+    }
+    await this._sectionTablesPromise;
+  }
+
+  async saveReaderReply(r) {
+    await this._sectionTables();
+    await this.pool.query(`DELETE FROM reader_replies WHERE created_at < NOW() - INTERVAL '30 days'`);
+    const q = await this.pool.query(
+      `INSERT INTO reader_replies (id, created_at, name, email, subject, text) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+      [r.id, r.created_at, r.name || '', r.email || '', r.subject || '', r.text || '']);
+    return q.rowCount > 0;
+  }
+
+  async listReaderReplies(since) {
+    await this._sectionTables();
+    const q = await this.pool.query('SELECT id, created_at, name, email, subject, text FROM reader_replies WHERE created_at >= $1 ORDER BY created_at', [since]);
+    return q.rows.map(r => ({ ...r, created_at: new Date(r.created_at).toISOString() }));
+  }
+
+  async recordPollVote({ week, poll, subscriber_id, choice, at }) {
+    await this._sectionTables();
+    const prior = await this.pool.query('SELECT choice, at, first_at FROM poll_votes WHERE week = $1 AND poll = $2 AND subscriber_id = $3', [week, poll, subscriber_id]);
+    const q = await this.pool.query(
+      `INSERT INTO poll_votes (week, poll, subscriber_id, choice, at, first_at)
+         SELECT $1, $2, id, $4, $5, $5 FROM subscribers WHERE id = $3
+       ON CONFLICT (week, poll, subscriber_id) DO UPDATE SET choice = EXCLUDED.choice, at = EXCLUDED.at`,
+      [week, poll, subscriber_id, choice, at]);
+    if (!q.rowCount) return null;
+    const p = prior.rows[0];
+    return { prior: p ? { choice: p.choice, at: new Date(p.at).toISOString(), first_at: new Date(p.first_at).toISOString() } : null };
+  }
+
+  async deletePollVote({ week, poll, subscriber_id }) {
+    await this._sectionTables();
+    await this.pool.query('DELETE FROM poll_votes WHERE week = $1 AND poll = $2 AND subscriber_id = $3', [week, poll, subscriber_id]);
+  }
+
+  async countPollVotes(week, poll) {
+    await this._sectionTables();
+    const q = await this.pool.query('SELECT choice, COUNT(*)::int AS n FROM poll_votes WHERE week = $1 AND poll = $2 GROUP BY choice', [week, poll]);
+    return Object.fromEntries(q.rows.map(r => [r.choice, r.n]));
   }
 
   // See FileStore.recordEmailOpen. The INSERT ... SELECT only inserts for

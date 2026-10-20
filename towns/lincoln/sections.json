@@ -1,0 +1,84 @@
+{
+  "enabled": false,
+  "pets": [
+    {
+      "name": "Capital Humane Society",
+      "source": "capital_humane",
+      "address": "6500 S 70th St",
+      "url": "https://www.capitalhumanesociety.org/adopt/available.html"
+    }
+  ],
+  "new_in_town": {
+    "source": "news_rss",
+    "feeds": [
+      "https://journalstar.com/search/?f=rss&t=article&c=life-entertainment/local/food-drink&l=25&s=start_time&sd=desc",
+      "https://journalstar.com/search/?f=rss&t=article&c=news/local/business&l=25&s=start_time&sd=desc"
+    ]
+  },
+  "good_news": {
+    "sources": [
+      {
+        "source": "cablecast",
+        "api": "https://lnktv.lincoln.ne.gov/CablecastAPI/v1",
+        "transcripts": "https://reflect-lnktv-lincoln.cablecast.tv",
+        "search": "council",
+        "match": "City Council",
+        "body": "Lincoln City Council",
+        "page": "https://www.lincoln.ne.gov/City/City-Council"
+      }
+    ]
+  },
+  "questions": [
+    "What's your go-to Runza order? Fries or Frings?",
+    "Best spot for a fall walk: Pioneers Park, Holmes Lake or Wilderness Park?",
+    "Where in the Haymarket do you take out-of-town guests?",
+    "Who makes the best pizza in Lincoln?",
+    "Favorite Sunken Gardens memory?",
+    "What's your Husker Saturday ritual?",
+    "Best breakfast in Lincoln?",
+    "A small business more people should know about?",
+    "Best ice cream in town?",
+    "Best burger in Lincoln? Make your case.",
+    "What Lincoln tradition do you never miss?",
+    "Best thing you did in Lincoln this year?"
+  ],
+  "polls": [
+    {
+      "id": "went-to-event",
+      "question": "Have you gone to something you found in The Star 402?",
+      "choices": [
+        "Yes, more than once",
+        "Yes, once",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "tried-a-place",
+      "question": "Have you tried a place you first saw here?",
+      "choices": [
+        "Yes",
+        "Not yet",
+        "It's on my list"
+      ]
+    },
+    {
+      "id": "forward",
+      "question": "Do you ever forward The Star 402 to someone?",
+      "choices": [
+        "All the time",
+        "Sometimes",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "best-season",
+      "question": "Best time of year around here?",
+      "choices": [
+        "Spring",
+        "Summer",
+        "Fall",
+        "Winter"
+      ]
+    }
+  ]
+}

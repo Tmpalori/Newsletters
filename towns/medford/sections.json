@@ -1,0 +1,88 @@
+{
+  "enabled": false,
+  "pets": [
+    {
+      "name": "Southern Oregon Humane Society",
+      "source": "shelterluv",
+      "gid": "10593",
+      "address": "2910 Table Rock Rd",
+      "url": "https://www.sohumane.org/dogs"
+    },
+    {
+      "name": "Jackson County Animal Services",
+      "source": "24petconnect",
+      "code": "JacksonCountyAdoptablePets",
+      "detail_code": "JACK",
+      "address": "5595 S Pacific Hwy, Phoenix",
+      "url": "https://24petconnect.com/JacksonCountyAdoptablePets"
+    }
+  ],
+  "new_in_town": {
+    "source": "oregon_sos",
+    "cities": [
+      "MEDFORD",
+      "CENTRAL POINT",
+      "ASHLAND",
+      "PHOENIX",
+      "JACKSONVILLE",
+      "EAGLE POINT",
+      "TALENT"
+    ]
+  },
+  "good_news": {
+    "sources": []
+  },
+  "questions": [
+    "Best stretch of the Bear Creek Greenway, and where do you stop for coffee?",
+    "Best show you ever saw at the Britt Festival?",
+    "Favorite Rogue Valley hike: Table Rocks, Roxy Ann or somewhere else?",
+    "Your go-to Pear Blossom tradition?",
+    "Where do you take visitors first?",
+    "Best breakfast in the Rogue Valley?",
+    "Favorite Rogue Creamery cheese?",
+    "Best place to watch a sunset around here?",
+    "A small business more people should know about?",
+    "Best burger in the valley? Make your case.",
+    "What Rogue Valley tradition do you never miss?",
+    "Best thing you did around here this year?"
+  ],
+  "polls": [
+    {
+      "id": "went-to-event",
+      "question": "Have you gone to something you found in The Rogue 541?",
+      "choices": [
+        "Yes, more than once",
+        "Yes, once",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "tried-a-place",
+      "question": "Have you tried a place you first saw here?",
+      "choices": [
+        "Yes",
+        "Not yet",
+        "It's on my list"
+      ]
+    },
+    {
+      "id": "forward",
+      "question": "Do you ever forward The Rogue 541 to someone?",
+      "choices": [
+        "All the time",
+        "Sometimes",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "best-season",
+      "question": "Best time of year around here?",
+      "choices": [
+        "Spring",
+        "Summer",
+        "Fall",
+        "Winter"
+      ]
+    }
+  ]
+}

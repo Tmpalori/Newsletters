@@ -18,6 +18,9 @@ Jobs:
                      report; nothing when the town has no ads settings)
   digest             send_digest.py (Sunday night's email of what's
                      collected; nothing without RESEND_API_KEY or SMTP settings)
+  sections           scripts/sections.py (the pet of the week, new in town,
+                     good news and the readers' answers, SECTIONS.md); the
+                     early Monday and Thursday runs only recheck the pet
 
 Environment (on Railway, the secrets are references to the web service's
 own variables, so nothing is copied):
@@ -61,7 +64,7 @@ from town import TOWN, VICTORIA, meta_allowed, repo_path, site_url, town_paths, 
 # How long each script may run (the site gives up a little later, see
 # JOB_KINDS in server/jobs.js). The collect's own budget is 50 minutes.
 TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60, "social-kit": 10 * 60,
-            "meta-ads": 5 * 60, "digest": 5 * 60}
+            "meta-ads": 5 * 60, "digest": 5 * 60, "sections": 10 * 60}
 LOG_TAIL = 60
 LINE_MAX = 500          # a log line's length in a report (one line can be megabytes)
 HTTP_TIMEOUT = 60
@@ -126,6 +129,16 @@ class Site:
             r = self.session.put(self._url(f"/api/jobs/files/{name}"), headers=self.headers, json=data, timeout=300)
             r.raise_for_status()
             return r.json()
+        return _retry(go)
+
+    def get_replies(self, since):
+        """Readers' replies to the newsletter since a date (server/sections.js)."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/replies"), headers=self.headers, params={"since": since}, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return []
+            r.raise_for_status()
+            return r.json().get("replies") or []
         return _retry(go)
 
     def put_social(self, build, name, body):
@@ -483,6 +496,30 @@ def job_digest(site, run=run_script, env=None, session=None):
     return "done", {"events": len((events or {}).get("events") or []), "log_tail": tail[-5:]}
 
 
+def job_sections(site, run=run_script, env=None, today=None):
+    """The extra sections (scripts/sections.py): last week's file in (no
+    repeats), the readers' replies since Monday, the new file out. The
+    Monday and Thursday morning runs, right before an issue, only check the
+    pet is still listed (server/scheduler.js JOBS)."""
+    today = today or datetime.now(tz()).date()
+    monday = today - timedelta(days=today.weekday())
+    with tempfile.TemporaryDirectory() as tmp:
+        prev, replies, out = (os.path.join(tmp, n) for n in ("previous.json", "replies.json", "sections.json"))
+        _write_json(prev, site.get_file("sections") or {})
+        _write_json(replies, site.get_replies(monday.isoformat()))
+        cmd = [sys.executable, "scripts/sections.py", "--out", out, "--previous", prev, "--replies", replies,
+               "--today", today.isoformat()] + (["--before-send"] if today.weekday() in (0, 3) else [])
+        code, tail = run(cmd, TIMEOUTS["sections"], env)
+        data = _read_json(out)
+        if code == 0 and data is None:
+            return "done", {"skipped": "the town has no sections.json", "log_tail": tail[-3:]}
+        if code != 0 or data is None:
+            return "failed", {"error": f"The sections job exited with code {code}.", "log_tail": tail}
+        site.put_file("sections", data)
+    return "done", {"pet": (data.get("pet") or {}).get("name"), "new_in_town": len(data.get("new_in_town") or []),
+                    "good_news": len((data.get("good_news") or {}).get("items") or []), "log_tail": tail[-8:]}
+
+
 def _social_post_main(argv, session=None, on_save=None):
     sys.path.insert(0, os.path.join(ROOT, "scripts"))
     import social_post
@@ -490,7 +527,7 @@ def _social_post_main(argv, session=None, on_save=None):
 
 
 JOBS = {"social-kit": job_social_kit, "collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review,
-        "meta-ads": job_meta_ads, "digest": job_digest}
+        "meta-ads": job_meta_ads, "digest": job_digest, "sections": job_sections}
 
 
 def run_one(site, job, run=run_script, clock=time.monotonic):
