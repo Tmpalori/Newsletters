@@ -155,6 +155,9 @@ describe('newsletter content', () => {
     }
     // A zero-width space or BOM pasted in with the address is dropped, not refused.
     expect(normalizeEmail('\ufeffbob\u200b@gmail.com')).toBe('bob@gmail.com');
+    // So is a dash autocorrect put in place of a hyphen.
+    expect(normalizeEmail('alma\u2011mc@hotmail.com')).toBe('alma-mc@hotmail.com');
+    expect(normalizeEmail('alma\u2013mc@hotmail.com')).toBe('alma-mc@hotmail.com');
   });
 });
 

@@ -123,10 +123,13 @@ export const SCHEDULE = 'every Monday and Thursday';
 
 // Invisible characters a paste or autofill can carry in (zero-width space and
 // joiners, soft hyphen, BOM) come out first: the reader typed a good address.
+// A dash a phone or autocorrect swapped in for a hyphen ("alma‑mc@") is
+// the hyphen they meant.
 const INVISIBLE_RE = /[\u00ad\u200b-\u200d\u2060\ufeff]/g;
+const DASH_RE = /[\u2010-\u2015\u2212\ufe63\uff0d]/g;
 
 export function normalizeEmail(raw) {
-  const e = String(raw || '').replace(INVISIBLE_RE, '').trim().toLowerCase();
+  const e = String(raw || '').replace(INVISIBLE_RE, '').replace(DASH_RE, '-').trim().toLowerCase();
   return e.length <= 254 && EMAIL_RE.test(e) ? e : null;
 }
 
