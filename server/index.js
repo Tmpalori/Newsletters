@@ -2937,7 +2937,9 @@ export async function createApp(opts = {}) {
       getNewsletterRuns: async () => ({ weekly: await scheduler.ran('newsletter'), weekend: await scheduler.ran('newsletter-weekend') }),
       getAdCampaigns: typeof store.getTownFile === 'function' ? async () => {
         const f = await store.getTownFile('ad_campaigns');
-        return f ? { campaigns: (f.data && f.data.campaigns) || [], updated_at: f.updated_at } : null;
+        const d = f && f.data ? f.data : {};
+        return f ? { campaigns: d.campaigns || [], updated_at: f.updated_at,
+          ...(Array.isArray(d.unclaimed) ? { unclaimed: d.unclaimed } : {}), ...(d.limit ? { limit: d.limit } : {}) } : null;
       } : null,
       getAdsReport: typeof store.getTownFile === 'function' ? async () => {
         const f = await store.getTownFile('ads_report');

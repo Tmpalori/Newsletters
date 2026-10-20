@@ -173,6 +173,13 @@ describe('growth endpoints', () => {
       { nope: true }] });
     const f = await store.getTownFile('ad_campaigns');
     expect(f.data.campaigns).toEqual([{ name: 'Vic Newsletter Leads - Copy', status: 'ACTIVE', daily_budget: 40, spend_7_days: 26.14, leads_7_days: 15, clicks_7_days: 91 }]);
+    // The budget detail and the shared account's unclaimed campaigns.
+    await postSpend({ days: [], limit: 50, unclaimed: [{ id: 'c9', name: 'Rogue 541 Boost', daily_budget: 25 }, 'junk'],
+      campaigns: [{ name: 'The Rogue 541 Newsletter Leads', status: 'ACTIVE', daily_budget: 55, budget_level: 'ad_sets',
+        lifetime_budget: null, spend_yesterday: '62.17', over_limit: true, spend_7_days: 300, leads_7_days: 400, clicks_7_days: 900 }] });
+    expect((await store.getTownFile('ad_campaigns')).data).toEqual({ limit: 50, unclaimed: [{ name: 'Rogue 541 Boost', daily_budget: 25 }],
+      campaigns: [{ name: 'The Rogue 541 Newsletter Leads', status: 'ACTIVE', daily_budget: 55, budget_level: 'ad_sets', lifetime_budget: null,
+        spend_yesterday: 62.17, over_limit: true, spend_7_days: 300, leads_7_days: 400, clicks_7_days: 900 }] });
     // A post without campaigns leaves the last ones.
     await postSpend({ days: [{ day: '2026-10-13', spend: 1 }] });
     expect((await store.getTownFile('ad_campaigns')).data.campaigns).toHaveLength(1);

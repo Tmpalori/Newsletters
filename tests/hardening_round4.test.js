@@ -172,7 +172,8 @@ describe('database', () => {
     const { PgStore } = await import('../server/db.js');
     const all = [['event_submissions', 'ai_review'], ['traffic', 'ad'], ['newsletter_sends', 'failed_emails'], ['newsletter_sends', 'picks'], ['newsletter_sends', 'events'], ['newsletter_sends', 'chunks'],
       ['subscribers', 'old_tokens'], ['subscribers', 'ref_code'], ['subscribers', 'referred_by'], ['subscribers', 'ref_tier'], ['subscribers', 'reminded_at'], ['subscribers', 'pending_since'], ['subscribers', 'weekend_optout'],
-      ['subscribers', 'soft_bounces'], ['subscribers', 'soft_bounce_first_at'], ['subscribers', 'soft_bounce_last_at']]
+      ['subscribers', 'soft_bounces'], ['subscribers', 'soft_bounce_first_at'], ['subscribers', 'soft_bounce_last_at'],
+      ['ad_spend', 'restated_from'], ['ad_spend', 'restated_at']]
       .map(([table_name, column_name]) => ({ table_name, column_name }));
     const pool = fakePool(all);
     await new PgStore(pool).ready();
@@ -180,7 +181,7 @@ describe('database', () => {
     const fresh = fakePool([{ table_name: 'traffic', column_name: 'ad' }]);
     await new PgStore(fresh).ready();
     const alters = fresh.calls.filter(c => /ALTER TABLE/.test(c.text)).map(c => c.text);
-    expect(alters).toHaveLength(15);
+    expect(alters).toHaveLength(17);
     // The referral code's unique constraint comes with its column (one
     // statement), never as a separate index build on boot.
     expect(pool.calls.some(c => /CREATE UNIQUE INDEX/.test(c.text))).toBe(false);
