@@ -388,8 +388,40 @@ def pets_adopets(src):
     return out
 
 
+PETFINDER_QUERY = """query SearchAnimal($pagination: PaginationInfoInput!, $filters: AnimalSearchFiltersInput!) {
+  searchAnimal(pagination: $pagination, sort: { field: "animal_type", order: "desc" }, filters: $filters) {
+    totalCount
+    animals { animalId animalName animalType primaryPhotoId meta { publishTime }
+      physical { sex species breed { primary secondary mixed } age { value } } publicUrl { url } }
+  }
+}"""
+
+
+def pets_petfinder(src):
+    """Petfinder's public search, the one a shelter's own site embeds
+    (Kearney Area Animal Shelter): the shelter's organization_id."""
+    r = requests.post("https://psl.petfinder.com/graphql", timeout=TIMEOUT, headers={**UA, "Content-Type": "application/json"},
+                      json={"query": PETFINDER_QUERY, "variables": {"isConsumer": True, "filters": {
+                          "adoption_status": "adoptable", "organization_id": [src["organization_id"]]},
+                          "pagination": {"fromPage": 0, "pageSize": 100}}})
+    r.raise_for_status()
+    out = []
+    for a in (((r.json().get("data") or {}).get("searchAnimal") or {}).get("animals")) or []:
+        phys = a.get("physical") or {}
+        breed = phys.get("breed") or {}
+        photo = a.get("primaryPhotoId")
+        out.append({"id": f"pf-{a.get('animalId')}", "name": clean(a.get("animalName")), "species": clean(phys.get("species") or a.get("animalType")),
+                    "breed": clean(" / ".join(b for b in (breed.get("primary"), breed.get("secondary")) if b) + (" mix" if breed.get("mixed") else "")),
+                    "sex": clean(phys.get("sex")), "age": clean((phys.get("age") or {}).get("value")),
+                    "photo_url": f"https://dbw3zep4prcju.cloudfront.net/{photo}" if photo else "",
+                    "url": f"https://www.petfinder.com{(a.get('publicUrl') or {}).get('url')}/details" if (a.get("publicUrl") or {}).get("url") else src.get("url", ""),
+                    "since": str((a.get("meta") or {}).get("publishTime") or "")[:10] or None, "bio": ""})
+    out.sort(key=lambda p: p["since"] or "9999")
+    return out
+
+
 PET_READERS = {"petpoint": pets_petpoint, "shelterluv": pets_shelterluv, "24petconnect": pets_24petconnect,
-               "capital_humane": pets_capital_humane, "adopets": pets_adopets}
+               "capital_humane": pets_capital_humane, "adopets": pets_adopets, "petfinder": pets_petfinder}
 
 
 def pick_pet(config, previous, today):
@@ -553,9 +585,12 @@ def new_growthzone_ribbons(src, today):
         for day, cell in re.findall(r'/events/index/(\d{4}-\d{2}-\d{2})"[^>]*>\s*\d+\s*</a>\s*<ul>(.*?)</ul>', page, re.S):
             if day > ahead:
                 continue
-            for href, label in re.findall(r'href="([^"]*/events/details/ribbon-cutting-[^"]+)"[^>]*>(.*?)</a>', cell, re.I | re.S):
-                name = clean(re.sub(r"<[^>]+>", " ", label))
-                name = re.sub(r"^ribbon[- ]cutting\s*(ceremony)?\s*[:\-–—]?\s*(for|at)?\s*", "", name, flags=re.I)
+            # Chambers name them "Ribbon Cutting ..." or, like Kearney's, "RC - ...".
+            slug = src.get("slug") or "ribbon-cutting"
+            for href, label in re.findall(rf'href="([^"]*/events/details/(?:{slug})-[^"]+)"[^>]*>(.*?)</a>', cell, re.I | re.S):
+                name = clean(htmlmod.unescape(re.sub(r"<[^>]+>", " ", label)))
+                name = re.sub(r"^(?:ribbon[- ]cutting(?:\s*ceremony)?|rc)\b(?:\s*(?:&|and)\s*[\w ]+?\s*[-–—:])?\s*[:\-–—]?\s*(?:for|at)?\s*",
+                              "", name, flags=re.I)
                 if not name:
                     continue
                 out.append({"key": f"gz-{href.split('?')[0].rsplit('-', 1)[-1]}", "name": business_name(name), "what": "", "street": "",

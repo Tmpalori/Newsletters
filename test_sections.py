@@ -432,3 +432,34 @@ def test_municode_agendas_kennel_codes_and_chamber_months(monkeypatch):
     monkeypatch.setattr(s, "get", lambda url, **kw: asked.append(url) or R(""))
     s.new_growthzone_ribbons({"base": "https://b.x"}, date(2026, 10, 21))
     assert asked == ["https://b.x/events/calendar/2026-09-01", "https://b.x/events/calendar/2026-10-01", "https://b.x/events/calendar/2026-11-01"]
+
+
+def test_petfinder_and_rc_named_ribbon_cuttings(monkeypatch):
+    sent = {}
+
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": {"searchAnimal": {"animals": [
+                {"animalId": 7, "animalName": "Biscuit", "animalType": "Dog", "primaryPhotoId": "abc.jpg",
+                 "meta": {"publishTime": "2026-08-01T10:00:00Z"},
+                 "physical": {"sex": "Female", "species": "Dog", "breed": {"primary": "Beagle", "secondary": None, "mixed": True}, "age": {"value": "Adult"}},
+                 "publicUrl": {"url": "/dog/biscuit-7/ne/kearney/kaas"}}]}}}
+    monkeypatch.setattr(s.requests, "post", lambda url, **kw: sent.update(url=url, **kw) or R())
+    pets = s.pets_petfinder({"organization_id": "org-1"})
+    assert sent["json"]["variables"]["filters"]["organization_id"] == ["org-1"]
+    assert pets == [{"id": "pf-7", "name": "Biscuit", "species": "Dog", "breed": "Beagle mix", "sex": "Female", "age": "Adult",
+                     "photo_url": "https://dbw3zep4prcju.cloudfront.net/abc.jpg",
+                     "url": "https://www.petfinder.com/dog/biscuit-7/ne/kearney/kaas/details", "since": "2026-08-01", "bio": ""}]
+    page = ('<a href="https://x/events/index/2026-10-23" rel="nofollow">23</a> <ul>'
+            '<li><a href="https://x/events/details/rc-and-open-house-drop-zone-26481?m=1">RC &amp; OPEN HOUSE - Drop Zone</a></li>'
+            '<li><a href="https://x/events/details/rc-first-citizens-bank-26615">RC - First Citizens Bank</a></li>'
+            '<li><a href="https://x/events/details/recital-night-1">Recital Night</a></li></ul>')
+
+    class P:
+        text = page
+    monkeypatch.setattr(s, "get", lambda url, **kw: P())
+    got = s.new_growthzone_ribbons({"base": "https://x", "slug": "ribbon-cutting|rc"}, date(2026, 10, 21))
+    assert [x["name"] for x in got] == ["Drop Zone", "First Citizens Bank"]

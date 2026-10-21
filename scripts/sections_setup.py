@@ -32,6 +32,7 @@ SIGNS = [
     ("shelterluv", r"shelterluv\.com/(?:embed|available_pets)/(\d+)", lambda m: {"pets": [{"source": "shelterluv", "gid": m.group(1)}]}),
     ("shelterluv", r"\bGID\s*[:=]\s*[\"']?(\d+)", lambda m: {"pets": [{"source": "shelterluv", "gid": m.group(1)}]}),
     ("24petconnect", r"24petconnect\.com/([A-Za-z0-9]+)", lambda m: {"pets": [{"source": "24petconnect", "code": m.group(1)}]}),
+    ("petfinder", r"organization_id\s*:\s*\[\s*['\"]([0-9a-f-]{36})", lambda m: {"pets": [{"source": "petfinder", "organization_id": m.group(1)}]}),
     ("adopets", r"adopets\.(?:com|app)", lambda m: {"pets": [{"source": "adopets", "api_key": "<from the iframe's requests>", "shelter_uuid": "<same>"}]}),
     ("growthzone", r"(https?://[a-z0-9.-]+)/(?:events/calendar|events/details/|members/)", lambda m: {"new_in_town": {"source": "growthzone_ribbons", "base": m.group(1)}}),
     ("civicclerk", r"([a-z0-9]+)\.portal\.civicclerk\.com", lambda m: {"good_news": {"sources": [{"source": "civicclerk", "client": m.group(1), "body": "<the body, e.g. City Council>"}]}}),

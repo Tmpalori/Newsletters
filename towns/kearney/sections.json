@@ -1,0 +1,79 @@
+{
+  "enabled": false,
+  "pets": [
+    {
+      "name": "Kearney Area Animal Shelter",
+      "source": "petfinder",
+      "organization_id": "454b61d5-4642-4315-9c9e-846200044d77",
+      "address": "3205 W Hwy 30",
+      "url": "https://www.kearneyanimalshelter.com/adopt"
+    }
+  ],
+  "new_in_town": {
+    "source": "growthzone_ribbons",
+    "base": "https://members.kearneycoc.org",
+    "slug": "ribbon-cutting|rc"
+  },
+  "good_news": {
+    "sources": [
+      {
+        "source": "pdf_url",
+        "url": "https://www.cityofkearney.org/Archive.aspx?AMID=3&Type=Recent",
+        "body": "Kearney City Council"
+      }
+    ]
+  },
+  "questions": [
+    "Where do you take visitors to see the Sandhill cranes?",
+    "Best spot for a walk: Yanney Park, Cottonmill Park or the hike-bike trail?",
+    "Have you been inside the Archway? What stuck with you?",
+    "What's your favorite piece at the Museum of Nebraska Art?",
+    "Best breakfast in Kearney? Tell us where, and what you order.",
+    "Which car at the Classic Car Collection would you take home?",
+    "What's a Kearney restaurant you've loved for years?",
+    "Favorite thing to do downtown on the Bricks?",
+    "Best burger in Kearney? Make your case.",
+    "What's a small business in Kearney more people should know about?",
+    "Where do you take family when they visit Kearney?",
+    "What Kearney tradition do you never miss?"
+  ],
+  "polls": [
+    {
+      "id": "went-to-event",
+      "question": "Have you gone to something you found in The Crane 308?",
+      "choices": [
+        "Yes, more than once",
+        "Yes, once",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "tried-a-place",
+      "question": "Have you tried a place you first saw here?",
+      "choices": [
+        "Yes",
+        "Not yet",
+        "It's on my list"
+      ]
+    },
+    {
+      "id": "crane-season",
+      "question": "Have you watched the Sandhill crane migration up close?",
+      "choices": [
+        "Every spring",
+        "Once or twice",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "best-season",
+      "question": "Best time of year in Kearney?",
+      "choices": [
+        "Spring",
+        "Summer",
+        "Fall",
+        "Winter"
+      ]
+    }
+  ]
+}

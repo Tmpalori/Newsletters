@@ -48,7 +48,7 @@ issue and tick it off.
       (its adoptable-pets page), its chamber's site and its city or county
       agendas page, and run
       `python3 scripts/sections_setup.py detect <those urls>`: it names the
-      system each runs on (PetPoint, Shelterluv, 24PetConnect, Adopets,
+      system each runs on (PetPoint, Shelterluv, 24PetConnect, Adopets, Petfinder,
       GrowthZone, CivicClerk, Granicus, Municode, Cablecast) with the lines to paste
       into `towns/<slug>/sections.json`. New in town: a Texas town uses
       `tx_comptroller` (its county code), an Oregon one `oregon_sos`, a

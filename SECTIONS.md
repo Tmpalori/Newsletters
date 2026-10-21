@@ -83,6 +83,14 @@ the agenda PDFs.
 | The Shoals | Florence-Lauderdale Animal Services (24PetConnect) | Shoals Chamber ribbon cuttings (GrowthZone) | Florence City Council (Granicus RSS + agenda PDF) |
 | Lincoln | Capital Humane Society (its own site, with bios) | Journal Star food and business headlines about openings | LNKTV's caption text of the last council meeting |
 | Virginia Beach | Virginia Beach Animal Care & Adoption Center (Adopets) | Commercial tenant build-out permits that name the business | The council's brief agenda PDF |
+| Tupelo | Tupelo-Lee Humane Society (Shelterluv) | The Community Development Foundation's ribbon cuttings (GrowthZone), with dates | Tupelo City Council (Municode Meetings agenda PDF) |
+| Kearney | Kearney Area Animal Shelter (Petfinder's search, the one its site embeds; not yet read from Railway, see below) | The Kearney Area Chamber's ribbon cuttings (GrowthZone, named "RC - ..."), with dates | Kearney City Council (the city's "most recent agenda" PDF) |
+
+Petfinder answers "403" to some servers (it did from the build machine).
+Before Kearney is turned on, `TOWN=kearney python3 scripts/sections_setup.py
+check` on its jobs service says whether it reads from Railway; if not,
+Petfinder's own API with a free key is the fallback (a small change to
+`pets_petfinder`), or Kearney runs without a pet.
 
 Each source fails on its own: a shelter site that's down means no pet that
 week, and the rest still runs. Undocumented feeds (Adopets, PetPoint's

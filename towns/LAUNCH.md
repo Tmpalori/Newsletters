@@ -13,6 +13,7 @@ version with each town's own values filled in.
 | Paid label | Spotlight | Featured | Spotlight | Headliner |
 | Newsletter from | `Tupelo Current <news@tupelocurrent.com>` | `The Crane 308 <news@thecrane308.com>` | `The Rogue 541 <news@therogue541.com>` | `Shoals Setlist <news@shoalssetlist.com>` |
 | Slack tag | Tupelo | Kearney | Medford | Shoals |
+| Newsletter sections | Set up, off | Set up, off (pet source to confirm from Railway) | Set up, off (no City Hall yet) | Set up, off |
 
 Do one town end to end first (Kearney has the best event feeds), then the
 other three.
