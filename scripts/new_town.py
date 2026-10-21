@@ -62,6 +62,43 @@ def build(values):
     return out
 
 
+def sections_starter(settings):
+    """towns/<slug>/sections.json to start from (SECTIONS.md): off, no
+    sources yet (scripts/sections_setup.py finds them), and questions and
+    polls any town can run until it has its own."""
+    city, site = settings["city"], settings["site_name"]
+    return {
+        "enabled": False,
+        "pets": [],
+        "new_in_town": {},
+        "good_news": {"sources": []},
+        "questions": [
+            f"What's the first place you take friends who are visiting {city}?",
+            f"Where's the best breakfast in {city}, and what do you order?",
+            f"What {city} spot has been around forever and should never close?",
+            f"Favorite park or trail around {city}?",
+            f"Where's the best patio in {city} on a nice evening?",
+            "What local event do you mark on your calendar every year?",
+            f"Where's the best burger in {city}?",
+            f"Which local shop in {city} should more people know about?",
+            f"Where do you go for a sweet treat in {city}?",
+            f"What's your go-to rainy day spot in {city}?",
+            "Favorite local coffee shop, and what do you order?",
+            f"What's one thing about {city} you brag about to out-of-towners?",
+        ],
+        "polls": [
+            {"id": "went-to-event", "question": f"Have you gone to something you found in {site}?",
+             "choices": ["Yes, more than once", "Yes, once", "Not yet"]},
+            {"id": "tried-a-place", "question": f"Have you tried a place you first saw in {site}?",
+             "choices": ["Yes", "It's on my list", "Not yet"]},
+            {"id": "favorite-part", "question": f"What's your favorite part of {site}?",
+             "choices": ["The events", "New in town", "Pet of the week", "Readers' answers"]},
+            {"id": "weekend-plans", "question": "How do you usually plan your weekend?",
+             "choices": ["Last minute", "A few days ahead", "A week or more ahead"]},
+        ],
+    }
+
+
 def create(values, towns_dir):
     """Write the town's files; returns (slug, town settings, paths written)."""
     slug = str(values.get("slug") or "").strip().lower()
@@ -105,6 +142,8 @@ def create(values, towns_dir):
     # No venues yet: the collector skips its venue-based scrapes (with a
     # warning) until discover_venues.py seeds this list.
     write("venues.json", "[]\n")
+    # The newsletter's extra sections, off until the owner's OK.
+    write("sections.json", json.dumps(sections_starter(settings), indent=2, ensure_ascii=False) + "\n")
     write(os.path.join("public", ".gitkeep"), "")
 
     towns = [t for t in index.get("towns", []) if isinstance(t, str)]
@@ -127,6 +166,13 @@ Next, in the repo:
      apple-touch-icon, og-image, skyline day/night, email skyline).
   3. Add its own local calendars to towns/{slug}/town.json "feeds" (check
      each returns events from Railway, not only from your machine).
+  4. The newsletter sections (SECTIONS.md): find the shelter, the
+     chamber and the agendas page, then
+       python3 scripts/sections_setup.py detect <their urls>
+     paste what it finds into towns/{slug}/sections.json (and swap in
+     local questions), and check every source reads:
+       TOWN={slug} python3 scripts/sections_setup.py check
+     It stays "enabled": false until the owner OKs a preview.
   Keep "workflows": false: nothing runs on GitHub. Every town runs its jobs
   on its own Railway jobs service.
 

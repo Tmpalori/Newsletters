@@ -63,6 +63,14 @@ the site (`GET /api/jobs/sections`) and follows it, for the sections job
 and the social posts. Without it, every page and email is exactly what
 it was (the Victoria goldens pin that).
 
+A new town gets a starter `sections.json` from `scripts/new_town.py` (off,
+no sources, questions and polls any town can run). To fill it:
+`python3 scripts/sections_setup.py detect <shelter page> <chamber site>
+<agendas page>` names the system each runs on with the lines to paste, and
+`TOWN=<slug> python3 scripts/sections_setup.py check` reads every source
+live (no AI, nothing written) and says what's missing. The steps are in
+LAUNCH_CHECKLIST.md.
+
 The worker needs `poppler-utils` (`pdftotext`, in `Dockerfile.jobs`) for
 the agenda PDFs.
 

@@ -23,7 +23,8 @@ issue and tick it off.
 ## 2. The town's files (Agent, one PR)
 
 - [ ] `python3 scripts/new_town.py ...`: `towns/<slug>/town.json`, empty
-      collector files, `towns/index.json`. Keep `"workflows": false`.
+      collector files, a starter `sections.json` (off), `towns/index.json`.
+      Keep `"workflows": false`.
 - [ ] Feeds: the town's official calendars (city, county, library, chamber,
       CVB, university, venues) in `town.json` `feeds`; check they return
       events with `TOWN=<slug> python3 -c "import collect_events as c;
@@ -43,6 +44,20 @@ issue and tick it off.
       drawn from photos (courthouse, theater blade sign, signature hotel or
       sign), og-image, email skyline. Check the art at 2x for floating or
       off-center pieces, stray lines and overlaps.
+- [ ] Newsletter sections (SECTIONS.md): find the town's animal shelter
+      (its adoptable-pets page), its chamber's site and its city or county
+      agendas page, and run
+      `python3 scripts/sections_setup.py detect <those urls>`: it names the
+      system each runs on (PetPoint, Shelterluv, 24PetConnect, Adopets,
+      GrowthZone, CivicClerk, Granicus, Cablecast) with the lines to paste
+      into `towns/<slug>/sections.json`. New in town: a Texas town uses
+      `tx_comptroller` (its county code), an Oregon one `oregon_sos`, a
+      GrowthZone chamber `growthzone_ribbons` (with grand-opening dates);
+      otherwise the local paper's business/food RSS (`news_rss`). A system
+      we can't read yet means a small new reader in `scripts/sections.py`.
+      Swap the starter questions for 12 local ones (real places only) and
+      check it: `TOWN=<slug> python3 scripts/sections_setup.py check` (every
+      ✓; no AI, nothing written). Leave `"enabled": false`.
 - [ ] Tests green (`npx vitest run`, `pytest`), merge.
 
 ## 3. Railway, DNS, HQ (Agent; RAILWAY.md "New town, the simple way")
@@ -165,6 +180,11 @@ issue and tick it off.
       emails (render every email with `TOWN=<slug>`), no URL spelling
       reaching `docs/` raw files, health ok, the worker taking jobs.
 - [ ] `python3 scripts/live_check.py`: Victoria unchanged.
+- [ ] Sections: once the town has a few weeks of events, a test run with
+      `SECTIONS=1` (the jobs service's OpenAI key) and a preview of the
+      Monday and Thursday emails and the homepage for the Owner. On the
+      Owner's OK, `"enabled": true` in its `sections.json` (that one switch
+      turns on the web service, the jobs worker and the social posts).
 
 ## Revenue features every town gets (Victoria too)
 
@@ -176,6 +196,11 @@ Built once in the shared code, turned on per town:
 - [ ] **Venue outreach**: each week, the venues with an upcoming listed
       event get an email offering a featured pick for that event, with
       checkout prefilled.
+- [ ] **Newsletter sections** (SECTIONS.md): pet of the week, new in town,
+      question of the week and readers' answers, a monthly poll, From City
+      Hall, their pages and the Tuesday/Wednesday social posts; written by
+      the AI, checked by its editor and fixed rules, off per town until the
+      Owner's OK (section 2 and 8 above).
 
 ## Paused towns
 

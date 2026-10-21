@@ -142,7 +142,7 @@ def test_every_town_with_sections_has_a_complete_file():
         cfg = json.load(open(f))
         assert cfg["enabled"] is False, f"{f}: on only after the owner's OK"
         assert all(p["source"] in s.PET_READERS for p in cfg["pets"]), f
-        assert cfg["new_in_town"]["source"] in s.NEW_READERS, f
+        assert not cfg["new_in_town"] or cfg["new_in_town"]["source"] in s.NEW_READERS, f
         assert all(g["source"] in s.AGENDA_READERS for g in cfg["good_news"]["sources"]), f
         assert len(cfg["questions"]) >= 8 and len(cfg["polls"]) >= 3, f
 
@@ -385,3 +385,24 @@ def test_new_places_carry_their_street_and_when(monkeypatch):
     out = s.build(CFG, {}, [], TODAY, api_key="k")
     assert out["new_in_town"][0] == {"key": "k1", "name": "Chai", "line": "Filipino food.", "status": "open",
                                      "street": "NE Zac Lentz Pkwy", "opened": "2026-10-02"}
+
+
+def test_setup_detects_the_systems_we_read_and_checks_every_source(monkeypatch):
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
+    import sections_setup as su
+
+    class P:
+        def __init__(self, text):
+            self.text = text
+    pages = {"a": '<iframe src="https://ws.petango.com/webservices/adoptablesearch/wsAdoptableAnimals.aspx?species=All&authkey=abcdefghijklmnopqrstuvwxyz0123"></iframe>',
+             "b": '<a href="https://business.kchamber.com/events/calendar">Events</a>',
+             "c": '<a href="https://kearneyne.portal.civicclerk.com/">Agendas</a>', "d": "<p>nothing</p>"}
+    got = su.detect(list(pages), get=lambda url: P(pages[url]))
+    assert [(u, n) for u, n, _ in got] == [("a", "petpoint"), ("b", "growthzone"), ("c", "civicclerk"), ("d", "nothing we read yet")]
+    assert got[0][2] == {"pets": [{"source": "petpoint", "authkey": "abcdefghijklmnopqrstuvwxyz0123"}]}
+    assert got[1][2]["new_in_town"]["base"] == "https://business.kchamber.com"
+    _no_network(monkeypatch)
+    ok, lines = su.check({**CFG, "questions": ["Q?"] * 8, "polls": [{"id": "p", "question": "Q?", "choices": ["a", "b"]}] * 3}, TODAY)
+    assert ok and lines[0].startswith("✓ pets: County Shelter: 1 with a real photo")
+    ok, lines = su.check({"pets": [], "questions": []}, TODAY)
+    assert not ok and "✗ pets: no shelter in sections.json" in lines
