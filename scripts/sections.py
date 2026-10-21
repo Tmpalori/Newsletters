@@ -20,9 +20,10 @@ and Thursday (--before-send) to catch a pet that got adopted. Builds:
                look forward to opening.
   roundup      Thursday's best reader answers to Monday's question (the
                replies the site saved, handed in by the worker).
-  intro        the issue's opening paragraph (the --before-send runs, from
-               the events the issue will show); the site checks it names
-               only events in the issue, or writes a plain one.
+  intro        the issue's one-line greeting, above its "In this issue"
+               list (the --before-send runs, from the events the issue will
+               show); the site checks any event it names is in the issue,
+               or uses a plain one.
 
 Then the editor pass: one AI call reads everything as an editor would
 (positive, accurate to the source, no politics or bad news, no word of
@@ -80,7 +81,8 @@ SOURCE_WORDS = re.compile(
     r"records?|database|data ?set|secretary of state|sales tax|naics|tenant build-?out|build-?out|certificate of occupancy)\b", re.I)
 AI_TELLS = re.compile(
     r"\b(furever|pawsome|purrfect|delve|tapestry|vibrant|bustling|nestled|hidden gem|elevate|embark|"
-    r"look no further|whether you're|in the heart of|culinary journey|a must-visit|unforgettable|treat yourself)\b", re.I)
+    r"look no further|whether you're|in the heart of|culinary journey|a must-visit|unforgettable|treat yourself|"
+    r"something for everyone|jam-packed|don't miss|exciting lineup)\b", re.I)
 # Agenda words that mean it isn't feel-good news, whatever the AI thinks.
 NOT_GOOD_NEWS = re.compile(
     r"\b(tax(es)?|levy|bond election|election|ballot|police|sheriff|arrest|crime|jail|lawsuit|litigation|settlement|"
@@ -955,11 +957,11 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
     return out
 
 
-INTRO_PROMPT = """You write the opening paragraph of <<SITE>>, a free local newsletter for <<PLACE>> that people look forward to opening. It sits right under the title and tells readers what's in this issue.
+INTRO_PROMPT = """You write the one-line greeting at the top of <<SITE>>, a free local newsletter for <<PLACE>> that people look forward to opening. Under it is an "In this issue" list, so don't list what's inside: just say hello to the town in a way that makes people want to read on.
 
 <<VOICE>>
 
-You get JSON: "edition" ("weekly" is Monday's issue about the rest of the week, "weekend" is Thursday's about Friday to Sunday), "total" (how many things to do), "top" (the issue's best events: name, day, venue) and "inside" (the other sections in this issue). Write 2 or 3 sentences, 60 words at most. Name two or three of the "top" events, each with its exact "name" as given, and mention one or two of the "inside" sections so people keep scrolling. Greet the town naturally, in a different way each week. Don't use "Don't miss", "jam-packed", "exciting lineup" or "something for everyone". Mention only what's in the JSON.
+You get JSON: "edition" ("weekly" is Monday's issue about the rest of the week, "weekend" is Thursday's about Friday to Sunday), "total" (how many things to do), "top" (the issue's best events: name, day, venue) and "inside" (the other sections). Write one sentence, 25 words at most. You may name one event from "top", with its exact "name" as given; never any other event. Greet the town naturally and differently each week (the season, the weekend, a nod to one event). Don't use "Don't miss", "jam-packed", "exciting lineup" or "something for everyone".
 
 Return only JSON: {"intro": "..."}"""
 
@@ -993,7 +995,7 @@ def write_intro(api_key, issue, out, config, monday, review):
     verdict, fixed, why = v.get("intro", ("drop", "", ""))
     text = finalize(fixed if verdict == "fix" and fixed else text, "intro")
     names = [e["name"] for e in issue["top"] if e.get("name") and e["name"] in text]
-    probs = rule_problems(text, "intro") + ([] if names else ["names no event"]) + (["too long"] if len(text) > 420 else [])
+    probs = rule_problems(text, "intro") + (["too long"] if len(text) > 220 else [])
     ok = verdict in ("keep", "fix") and not probs
     review.append({"id": "intro", "verdict": "keep" if ok else "drop", "why": "; ".join(probs) or why})
     if not ok:

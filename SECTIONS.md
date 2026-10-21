@@ -35,12 +35,12 @@ from any events list, and look forward to opening the email.
 5. **Monday 7:08 AM and Thursday 6:23 AM**, right before each issue and
    after the event check, the job runs again: it checks the pet is still
    listed (if it was adopted, it picks another, and the editor reads the
-   new blurb), and writes the issue's **opening paragraph** from what the
-   issue will show (`GET /api/jobs/issue`): two or three of its best events
-   by name and one or two sections further down, read by the editor and the
-   rules like everything else. The site uses it only when every event it
-   names is in the issue; otherwise, or without the AI, it writes a plain
-   one from the same facts (`introText` in `server/newsletter.js`).
+   new blurb), and writes the issue's **one-line greeting** from what the issue
+   will show (`GET /api/jobs/issue`), read by the editor and the rules like
+   everything else. It sits above the "In this issue" list (the big three
+   events, the count, the sections), which the site builds from the issue
+   itself (`introText` in `server/newsletter.js`). The greeting is used only
+   when any event it names is in the issue; otherwise a plain one.
 
 ## Turning it on for a town
 
