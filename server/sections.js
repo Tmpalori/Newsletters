@@ -73,7 +73,8 @@ export function sectionsFor({ cfg, file, hidden = [], edition = 'weekly', now = 
   if (!cfg || !cfg.enabled) return null;
   const today = localDateStr(now);
   const monday = mondayOf(today);
-  const fresh = file && typeof file.week === 'string' && daysBetween(file.week, today) >= 0 && daysBetween(file.week, today) <= STALE_DAYS;
+  // Sunday evening's build is already for tomorrow's issue (-1).
+  const fresh = file && typeof file.week === 'string' && daysBetween(file.week, today) >= -1 && daysBetween(file.week, today) <= STALE_DAYS;
   const f = fresh ? file : {};
   const off = new Set(hidden);
   const pet = f.pet && f.pet.photo && !off.has('pet') ? f.pet : null;
@@ -92,7 +93,8 @@ export function sectionsFor({ cfg, file, hidden = [], edition = 'weekly', now = 
   } else {
     out.pet = pet;
     out.places = places;
-    out.question = off.has('question') ? null : questionFor(cfg, monday);
+    // The job's pick (the AI's new questions first), else the town's list.
+    out.question = off.has('question') ? null : (f.week === monday && typeof f.question === 'string' && f.question) || questionFor(cfg, monday);
     out.poll = off.has('poll') ? null : pollFor(cfg, monday);
   }
   return out;
@@ -274,6 +276,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     if ((data.new_in_town || []).length) lines.push(`🏪 New in town: ${data.new_in_town.map(x => x.name).join(', ')}`);
     if (data.good_news) lines.push(`🏛️ City Hall: ${data.good_news.items.map(x => x.title).join(', ')}`);
     if (data.roundup) lines.push(`💬 Readers' answers: ${data.roundup.answers.length}`);
+    if ((data.questions_added || []).length) lines.push(`❓ New questions for the weeks ahead: ${data.questions_added.map(q => `“${q}”`).join(' ')}`);
     const dropped = (data.review || []).filter(r => r.verdict === 'drop').length;
     slack.notify({ title: '🗞️ Newsletter sections ready', channel: 'activity', link: `${siteUrl}/admin.html#tab=newsletter`, linkLabel: 'Take something out',
       text: [lines.join('\n') || 'Nothing new this time.', dropped ? `The editor left out ${dropped} item${dropped === 1 ? '' : 's'}.` : ''].filter(Boolean).join('\n') });
@@ -323,17 +326,28 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       const monday = mondayOf(localDateStr(nowFn()));
       const f = file || {};
       res.json({ ok: true, enabled: cfg.enabled, week: f.week || null, built_at: f.built_at || null, hidden,
-        question: questionFor(cfg, monday), poll: pollFor(cfg, monday),
+        question: f.week === monday && f.question ? f.question : questionFor(cfg, monday), poll: pollFor(cfg, monday),
+        upcoming_questions: (f.question_bank || []).slice(0, 8),
         pet: f.pet ? { ...f.pet, photo: undefined, photo_url: petPhotoUrl('', f.pet) } : null,
         new_in_town: f.new_in_town || [], good_news: f.good_news || null, roundup: f.roundup || null, review: f.review || [] });
     });
 
     app.post('/api/admin/sections/hide', requireAdmin, async (req, res) => {
       const id = String((req.body || {}).id || '');
-      if (!/^(pet|question|poll|good|roundup|place:[\w-]+|good:\d+|reply:\d+)$/.test(id)) return res.status(400).json({ ok: false, error: 'bad-id' });
+      if (!/^(pet|question|poll|good|roundup|place:[\w-]+|good:\d+|reply:\d+|bank:[a-f0-9]{10})$/.test(id)) return res.status(400).json({ ok: false, error: 'bad-id' });
       const { file } = await current();
       const week = file && file.week;
       if (!week) return res.status(404).json({ ok: false, error: 'no-sections' });
+      // A question coming up in the weeks ahead: taken out of the bank for
+      // good (the job reads the bank back from this file).
+      if (id.startsWith('bank:')) {
+        const f = await store.getTownFile('sections');
+        const data = f && f.data ? f.data : {};
+        data.question_bank = (data.question_bank || []).filter(b => `bank:${b.id}` !== id);
+        await store.setTownFile('sections', data, nowFn());
+        cache.at = 0;
+        return res.json({ ok: true, removed: id });
+      }
       const h = await store.getTownFile('sections_hidden');
       const ids = new Set(h && h.data && h.data.week === week ? h.data.ids : []);
       if ((req.body || {}).hidden === false) ids.delete(id); else ids.add(id);

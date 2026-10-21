@@ -41,6 +41,7 @@ the rest still builds.
 """
 import argparse
 import base64
+import hashlib
 import html as htmlmod
 import io
 import json
@@ -86,7 +87,9 @@ AI_TELLS = re.compile(
     r"rest assured|seamless|game-?changer|buckle up|without further ado)\b", re.I)
 # Agenda words that mean it isn't feel-good news, whatever the AI thinks.
 NOT_GOOD_NEWS = re.compile(
-    r"\b(tax(es)?|levy|bond election|election|ballot|police|sheriff|arrest|crime|jail|lawsuit|litigation|settlement|"
+    r"\b(tax(es)?|levy|bond election|elect(ion|ions|ed)?|ballots?|vot(e|es|ed|ing|er|ers)|candidates?|campaign\w*|"
+    r"republican\w*|democrat\w*|conservative|liberal|partisan|president\w*|governor|senator|congress\w*|legislat\w*|"
+    r"abortion|immigra\w*|gun control|protest\w*|police|sheriff|arrest|crime|jail|lawsuit|litigation|settlement|"
     r"rezon\w*|zoning|annex\w*|eminent domain|condemn\w*|executive session|closed session|budget amendment|"
     r"layoffs?|terminat\w*|resign\w*|appeal|violation|fine[sd]?|penalt\w*|fatal\w*|death|died|shooting|fire department|"
     r"contamina\w*|demoli\w*|dilapidated|nuisance|short-term rental|data cent\w*|liquor|alcohol|beer|wine)\b", re.I)
@@ -831,8 +834,10 @@ def rule_problems(text, kind):
         probs.append("mentions where it came from")
     if AI_TELLS.search(t):
         probs.append("sounds like AI")
-    if kind == "good" and NOT_GOOD_NEWS.search(t):
+    if kind in ("good", "question") and NOT_GOOD_NEWS.search(t):
         probs.append("not good news")
+    if kind == "question" and (not t.rstrip().endswith("?") or len(t) > 120):
+        probs.append("not a short question")
     if len(t) > 320:
         probs.append("too long")
     return probs
@@ -867,13 +872,26 @@ def finalize(text, kind):
 
 # ─── Putting it together ─────────────────────────────────────────────────
 
+def issue_monday(today):
+    """The Monday of the issues this build is for: Sunday evening's build
+    is for tomorrow's."""
+    return today + timedelta(days=1) if today.weekday() == 6 else monday_of(today)
+
+
 def build(config, previous, replies, today, api_key, before_send=False, issue=None):
-    monday = monday_of(today)
-    question = question_for(config, monday)
+    monday = issue_monday(today)
     out = {"town": TOWN["id"], "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "week": monday.isoformat(), "pet": None, "new_in_town": [], "good_news": None, "roundup": None,
            "review": [], "pet_history": list(previous.get("pet_history") or [])[-30:],
            "new_shown": dict(previous.get("new_shown") or {})}
+    # The question of the week: the AI's new ones first, the town's own
+    # list when there are none (plan_questions).
+    if previous.get("week") == monday.isoformat() and previous.get("question"):
+        question = previous["question"]
+        out.update({k: previous.get(k) for k in ("question", "question_bank", "questions_asked", "questions_generated")})
+        out["questions_added"] = []
+    else:
+        question = plan_questions(config, previous, monday, api_key if not before_send else "", out)
 
     # Before an issue only the pet is checked again (adopted since Sunday?);
     # everything else is what the editor already passed.
@@ -979,7 +997,7 @@ def write_intro(api_key, issue, out, config, monday, review):
             inside.append(f"pet of the week: {out['pet']['name']}")
         if out.get("new_in_town"):
             inside.append(f"new in town: {', '.join(x['name'] for x in out['new_in_town'])}")
-        q = question_for(config, monday)
+        q = out.get("question") or question_for(config, monday)
         if q:
             inside.append(f"question of the week: {q}")
     else:
@@ -1002,6 +1020,81 @@ def write_intro(api_key, issue, out, config, monday, review):
     if not ok:
         return None
     return {"edition": issue.get("edition"), "week": issue.get("week"), "text": text, "mentions": names}
+
+
+QUESTION_REPEAT_WEEKS = 26
+QUESTION_LOW = 4      # fewer unused than this: write more
+QUESTIONS_PER_BATCH = 6
+
+QUESTION_PROMPT = """You write the "question of the week" for <<SITE>>, a free local newsletter for <<PLACE>>. Readers answer by replying to the email, and the best answers run in Thursday's issue with first names. The point is fun, local, easy-to-answer questions that make people want to hit reply.
+
+<<VOICE>>
+
+You get JSON: "month" (when they'll run), "examples" (questions the owner wrote, for the style), and "recent" (asked lately: never repeat these or ask the same thing in other words). Write <<N>> new questions. Each one: one sentence ending in "?", 15 words at most, about this town and its people: favorite local spots, food, traditions, seasons, memories, small businesses, the outdoors. Make about half fit the month (the season, holidays, local events that happen then). Never about politics, elections, government, schools' policies, crime, religion, money troubles, or anything people argue about. Never ask readers to rank or criticize a business by name. Use real local places only if you're sure they exist (the examples name some).
+
+Return only JSON: {"questions": ["...", "..."]}"""
+
+
+def _qkey(q):
+    return re.sub(r"[^a-z0-9 ]", "", str(q).lower()).strip()
+
+
+def generate_questions(api_key, config, monday, recent):
+    """New questions from the AI, each through the editor and the rules."""
+    got = ai_json(api_key, _fill(QUESTION_PROMPT).replace("<<N>>", str(QUESTIONS_PER_BATCH)),
+                  json.dumps({"month": monday.strftime("%B %Y"), "examples": (config.get("questions") or [])[:8],
+                              "recent": recent[-40:]}, ensure_ascii=False), max_tokens=3000)
+    qs = [str(q).strip() for q in ((got or {}).get("questions") or []) if isinstance(q, str)] if isinstance(got, dict) else []
+    seen = {_qkey(r) for r in recent} | {_qkey(q) for q in config.get("questions") or []}
+    qs = [q for q in qs if q and _qkey(q) not in seen]
+    if not qs:
+        return [], []
+    items = [{"id": f"q:{i}", "kind": "question", "text": q, "source": "a reader question for the newsletter"} for i, q in enumerate(qs)]
+    verdicts = edit(api_key, items)
+    kept, review = [], []
+    for it in items:
+        verdict, fixed, why = verdicts.get(it["id"], ("drop", "", ""))
+        text = finalize(fixed if verdict == "fix" and fixed else it["text"], "question")
+        probs = rule_problems(text, "question")
+        ok = verdict in ("keep", "fix") and not probs
+        review.append({"id": f"new {it['id']}", "verdict": "keep" if ok else "drop", "why": "; ".join(probs) or why})
+        if ok:
+            kept.append(text)
+    return kept, review
+
+
+def plan_questions(config, previous, monday, api_key, out):
+    """This Monday's question, and the bank of the AI's questions for the
+    weeks after. Writes more once a month, or when fewer than QUESTION_LOW
+    are left. → the question (None: the town has none)."""
+    bank = [b for b in previous.get("question_bank") or [] if isinstance(b, dict) and b.get("q")]
+    asked = [a for a in previous.get("questions_asked") or [] if isinstance(a, dict) and a.get("q")][-60:]
+    cutoff = (monday - timedelta(weeks=QUESTION_REPEAT_WEEKS)).isoformat()
+    recent = {_qkey(a["q"]) for a in asked if a.get("week", "") >= cutoff}
+    unused = [b for b in bank if _qkey(b["q"]) not in recent]
+    month = monday.strftime("%Y-%m")
+    generated = previous.get("questions_generated") or ""
+    added = []
+    if api_key and (len(unused) < QUESTION_LOW or generated != month):
+        new, review = generate_questions(api_key, config, monday, [a["q"] for a in asked])
+        out["review"] += review
+        for q in new:
+            b = {"id": hashlib.sha1(q.encode()).hexdigest()[:10], "q": q, "added": monday.isoformat()}
+            bank.append(b)
+            unused.append(b)
+            added.append(q)
+        generated = month
+    pick = unused[0] if unused else None
+    if pick:
+        question = pick["q"]
+        bank = [b for b in bank if b is not pick]
+    else:
+        question = question_for(config, monday)
+    if question:
+        asked.append({"week": monday.isoformat(), "q": question})
+    out.update({"question": question, "question_bank": bank[:24], "questions_asked": asked[-60:],
+                "questions_generated": generated, "questions_added": added})
+    return question
 
 
 def _reviewed_pet(api_key, pet, drafts, out):

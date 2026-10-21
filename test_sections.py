@@ -65,7 +65,7 @@ def test_without_the_ai_only_the_pet_runs_with_its_plain_line(monkeypatch):
     assert out["pet"]["photo"] == "UEhPVE8="
     assert out["pet"]["blurb"] == s.pet_plain_blurb({**PET, "shelter": "County Shelter"})
     assert out["new_in_town"] == [] and out["good_news"] is None and out["roundup"] is None
-    assert out["week"] == "2026-10-12"
+    assert out["week"] == "2026-10-19"   # Sunday evening builds for tomorrow's issue
 
 
 def test_a_pet_with_no_real_photo_or_featured_lately_is_skipped(monkeypatch):
@@ -101,8 +101,8 @@ def test_the_editor_and_the_rules_decide_what_runs(monkeypatch):
     monkeypatch.setattr(s, "build_agendas", lambda cfg, today: [{"body": "City", "items": ["x"], "url": "https://x/agenda"}])
     wed = date(2026, 10, 14)
     out = s.build({**CFG, "good_news": {"sources": []}}, {}, replies, wed, api_key="k")
-    # The writer, then one editor pass for the pet and one for the rest.
-    assert len(calls) == 3
+    # New questions (none in this fake), the writer, then one editor pass for the pet and one for the rest.
+    assert len(calls) == 4
     assert [x["name"] for x in out["new_in_town"]] == ["Chai Filipino Food"]   # k2 the editor, k3 the rules (permit)
     assert out["pet"]["blurb"] == "Chloe loves long walks, and belly rubs!"   # no dashes
     assert [g["title"] for g in out["good_news"]["items"]] == ["Playground"]   # the rezoning never runs
@@ -202,3 +202,42 @@ def test_before_send_writes_the_paragraph_for_this_issue(monkeypatch):
 def test_more_ai_speak_is_caught():
     for t in ("Here it is in plain English.", "Plain-English updates from the council.", "Let's dive in!", "A seamless night out."):
         assert "sounds like AI" in s.rule_problems(t, "good"), t
+
+
+def test_the_ai_writes_new_questions_monthly_and_each_monday_uses_the_next(monkeypatch):
+    calls = []
+
+    def fake_ai(key, system, user, max_tokens=6000):
+        calls.append(system[:30])
+        if "editor" in system:
+            return [{"id": it["id"], "verdict": "keep"} for it in json.loads(user)]
+        return {"questions": ["Best spot for a fall picnic in Victoria?", "Who has the best Halloween decorations in town?",
+                              "Which candidate gets your vote?", "Best kolache or breakfast taco in Victoria? Tell us where, and what you order.",
+                              "What's a hidden gem nestled downtown?"]}
+    monkeypatch.setattr(s, "ai_json", fake_ai)
+    cfg = {"questions": ["Best kolache or breakfast taco in Victoria? Tell us where, and what you order.", "Best burger?"]}
+    out = {"review": []}
+    q = s.plan_questions(cfg, {}, date(2026, 10, 19), "k", out)
+    assert q == "Best spot for a fall picnic in Victoria?"
+    # Politics, the town's own question again and AI-speak never get in.
+    assert [b["q"] for b in out["question_bank"]] == ["Who has the best Halloween decorations in town?"]
+    assert out["questions_added"] == ["Best spot for a fall picnic in Victoria?", "Who has the best Halloween decorations in town?"]
+    assert {r["why"] for r in out["review"] if r["verdict"] == "drop"} == {"not good news", "sounds like AI"}
+    # Next week: same month, but fewer than 4 left, so it writes more; then the bank's next one runs.
+    prev = {k: out[k] for k in ("question_bank", "questions_asked", "questions_generated")}
+    calls.clear()
+    out2 = {"review": []}
+    q2 = s.plan_questions(cfg, prev, date(2026, 10, 26), "k", out2)
+    assert q2 == "Who has the best Halloween decorations in town?" and len(calls) == 2
+    # Without the AI: the town's own list, in order.
+    out3 = {"review": []}
+    assert s.plan_questions(cfg, {}, date(2026, 10, 19), "", out3) == s.question_for(cfg, date(2026, 10, 19))
+    assert out3["questions_added"] == []
+
+
+def test_a_bank_full_enough_this_month_writes_nothing_new(monkeypatch):
+    monkeypatch.setattr(s, "ai_json", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no AI call expected")))
+    bank = [{"id": f"{i:010d}", "q": f"Question {i}?", "added": "2026-10-05"} for i in range(5)]
+    out = {"review": []}
+    q = s.plan_questions({}, {"question_bank": bank, "questions_generated": "2026-10"}, date(2026, 10, 19), "k", out)
+    assert q == "Question 0?" and len(out["question_bank"]) == 4

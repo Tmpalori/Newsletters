@@ -230,6 +230,26 @@ describe('on the site', () => {
     expect((await fetch(t.base + '/api/admin/sections')).status).toBe(401);
   });
 
+  it('uses the job’s question for the week, and lets the owner take a coming-up question out for good', async () => {
+    const t = await start();
+    await t.putFile('sections', { ...FILE, question: 'Best spot for a fall picnic?', question_bank: [{ id: 'abcdef0123', q: 'Best Halloween decorations in town?', added: '2026-10-05' }],
+      questions_added: ['Best spot for a fall picnic?', 'Best Halloween decorations in town?'] });
+    expect(t.slack.notes.some(n => /New questions for the weeks ahead/.test(n.text) && /fall picnic/.test(n.text))).toBe(true);
+    expect(sectionsFor({ cfg: CFG, file: { ...FILE, question: 'Best spot for a fall picnic?' }, edition: 'weekly', now: NOW }).question).toBe('Best spot for a fall picnic?');
+    const auth = await t.login();
+    const list = await (await fetch(t.base + '/api/admin/sections', { headers: auth })).json();
+    expect(list.question).toBe('Best spot for a fall picnic?');
+    expect(list.upcoming_questions.map(q => q.q)).toEqual(['Best Halloween decorations in town?']);
+    const r = await fetch(t.base + '/api/admin/sections/hide', { method: 'POST', headers: auth, body: JSON.stringify({ id: 'bank:abcdef0123' }) });
+    expect(r.status).toBe(200);
+    expect((await t.store.getTownFile('sections')).data.question_bank).toEqual([]);
+  });
+
+  it('shows Sunday evening’s build (already for Monday) on the homepage that night', () => {
+    const sunday = new Date('2026-10-11T23:30:00Z');
+    expect(sectionsFor({ cfg: CFG, file: { ...FILE, week: '2026-10-12' }, edition: 'weekly', now: sunday }).pet.name).toBe('Chloe');
+  });
+
   it('hands the worker readers\' replies (words and a first name, never the address)', async () => {
     const t = await start();
     await t.store.saveReaderReply({ id: 'e1', created_at: '2026-10-05T16:00:00Z', name: 'Maria', email: 'm@x.com', subject: 'Re: This week', text: 'Sausage and cheese!' });
