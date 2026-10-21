@@ -9,7 +9,7 @@ from any events list, and look forward to opening the email.
 | Monday | Pet of the week | The town's shelter listing: the pet who has waited longest, has a real photo and wasn't featured in the last 8 weeks. The photo is copied and resized onto our site (`/sections/pet/<id>.jpg`), credited to the shelter. |
 | Monday | New in town | Public business data (below). Readers see "NEW" or "SOON" and a one-line note, never where we found it. |
 | Monday | Question of the week | New questions the AI writes for the town once a month (or when fewer than 4 are left): about half fit the season, none political, none repeated within 26 weeks, each read by the editor and the rules. The next one runs each Monday; the town's own list in `sections.json` is the fallback (and the AI's style guide). Replaces the "Just hit reply" line. Slack says when new ones are added; admin → Newsletter shows the ones coming up, each with Take out. |
-| First Monday of the month | One-tap poll | The town's list in `sections.json`. Each choice is a link (`/p/<week>/<poll>/<choice>?s=<subscriber id>`) that records the vote and opens the results (`/poll/<week>/<poll>`). One vote per reader; a mail scanner that clicks every choice within 30 seconds is thrown out, and so are bots. |
+| First Monday of the month | One-tap poll | The town's list in `sections.json`. Each choice is a link (`/p/<week>/<poll>/<choice>?s=<subscriber id>`) that records the vote and opens the results (`/poll/<week>/<poll>`). One vote per confirmed reader, for a Monday in the last two months; a mail scanner that clicks more than one choice within 30 seconds voids the vote for good (in one database step, so clicks arriving at once can't slip one through), and bots aren't counted. With sections off, no poll records anything. |
 | Thursday | "<City> says" | The best 2 to 4 answers to Monday's question, from readers' replies (first names only). Skipped with fewer than 2. |
 | Thursday | From City Hall | (No band: set between two thin rules, its label in the top one.) Updates from the city or county agenda, good news only and nothing political: parks, the library, festivals, proclamations. Never taxes, police, elections, zoning, lawsuits, alcohol licenses or anything that could start an argument. |
 
@@ -18,20 +18,30 @@ from any events list, and look forward to opening the email.
 1. **Sunday and Wednesday 6:13 PM** (after the collect), the jobs worker
    runs `scripts/sections.py` (job `sections`): it reads the sources, and
    one AI call drafts the pet's blurb, the new places' lines, the City Hall updates
-   and the roundup in the house voice.
+   and the roundup in the house voice. Wednesday's run is for Thursday: the
+   pet and the new places stay what Monday showed; only City Hall and the
+   readers' answers are built again.
 2. **The editor pass.** A second AI call reads every item the way a human
    editor would (positive, no politics or bad news, accurate to the source,
    no hint of permits or records, doesn't sound like AI, names written
    properly) and keeps, fixes or drops each one. Then fixed rules check its
    work: words that give away the source, AI tells ("nestled", "hidden
    gem"...), anything that isn't good news, dashes, extra exclamation
-   points. Something the editor doesn't answer for is dropped. Without
-   `OPENAI_API_KEY` only the pet runs, with a plain line.
+   points. The pet's blurb, readers' quotes (and their names) and the
+   greeting get a check of their own for politics or sad news ("abandoned",
+   "passed away") and for contact details (a phone number, an email, a
+   link in a reply's signature). Something the editor doesn't answer for is
+   dropped; the AI's pet blurb runs only with the editor's yes, else the
+   plain line. Without `OPENAI_API_KEY` only the pet runs, with a plain
+   line. The job gives the AI 7 minutes in all (2 per call), well inside
+   the worker's 10.
 3. The file goes to the site (`town_files.sections`) and Slack's activity
    channel gets one note: what's in it and how many items the editor left
    out, with a link to admin → Newsletter.
 4. **Admin → Newsletter → This week's sections**: Take out (or Put back)
-   any item. It's gone from the next issue and the homepage.
+   any item. It's gone from the next issue, the homepage and the social
+   posts. City Hall items and readers' quotes are taken out by their own
+   key, so one stays out when Wednesday's run adds or drops others.
 5. **Monday 7:08 AM and Thursday 6:23 AM**, right before each issue and
    after the event check, the job runs again: it checks the pet is still
    listed (if it was adopted, it picks another, and the editor reads the
@@ -48,8 +58,10 @@ from any events list, and look forward to opening the email.
 `towns/<slug>/`) holds the town's sources, questions and polls, with
 `"enabled": false` until the owner OKs it. Set it to `true` (or set
 `SECTIONS=1` on the town's web service to try it without a commit;
-`SECTIONS=0` turns it off). Without it, every page and email is exactly
-what it was (the Victoria goldens pin that).
+`SECTIONS=0` turns it off). That's the only switch: the jobs worker asks
+the site (`GET /api/jobs/sections`) and follows it, for the sections job
+and the social posts. Without it, every page and email is exactly what
+it was (the Victoria goldens pin that).
 
 The worker needs `poppler-utils` (`pdftotext`, in `Dockerfile.jobs`) for
 the agenda PDFs.
@@ -116,9 +128,11 @@ question.
 |---|---|
 | A shelter's site is down or has no pet with a real photo | The next shelter on the town's list; with none, no pet that week (the email and the "In this issue" list just leave it out) |
 | The pet is adopted before the issue | The morning recheck picks another; if that check can't reach the shelter, the pet stays |
-| The AI is down or the editor doesn't answer | The pet runs with a plain line; New in Town, City Hall and the roundup skip that week; the greeting is a plain one |
+| The AI is down, out of time, has no key, or the editor doesn't answer | The pet runs with a plain line; New in Town, City Hall and the roundup skip that week; the greeting is a plain one. Slack's alerts channel says so (once a week), so a dead key doesn't go unnoticed |
 | No new questions from the AI | The town's own list in `sections.json` (it never runs out) |
-| The sections job fails | Slack alerts on the first failure; a file older than 9 days is ignored, so the email goes out with the events, the question and the poll (both from `sections.json`) |
+| The sections job fails | Slack alerts on the first failure; a file that isn't this week's is ignored (last week's pet never runs again), so the email goes out with the events, the question and the poll (both from `sections.json`) |
+| A sections file has a malformed item | That item is skipped; the issue never fails over its sections |
+| The AI's writer or editor sends back something odd | The odd parts are skipped; the rest of the job runs. The editor's single answer (one pet, one greeting) counts like a list |
 | Fewer than 2 good answers | No roundup that Thursday |
 
 ## Readers' answers

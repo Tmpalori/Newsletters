@@ -325,7 +325,7 @@ export async function createApp(opts = {}) {
   // (404, nothing queued) unless JOBS_ON_RAILWAY=1 and JOBS_SECRET are set.
   const jobs = opts.jobs || createJobs({
     store, slack, siteUrl, env: opts.jobsEnv || process.env,
-    listReplies: sections.listReplies, onFile: sections.onFile,
+    listReplies: sections.listReplies, onFile: sections.onFile, sectionsState: sections.forWorker,
     issueFacts: async edition => issueFacts((await shownPayload({})).events, { now: (opts.now || (() => new Date()))(), edition }),
     nowFn: () => (opts.now || (() => new Date()))(),
     // Victoria's social kit was posted from GitHub, which kept what went out

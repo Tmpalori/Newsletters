@@ -141,6 +141,18 @@ class Site:
             return r.json().get("replies") or []
         return _retry(go)
 
+    def get_sections_state(self):
+        """Whether the town's sections are on (the web service's switch is
+        the only one) and this week's pet and places as readers see them;
+        None from a site that doesn't say."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/sections"), headers=self.headers, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("sections")
+        return _retry(go)
+
     def get_issue(self, edition):
         """The next issue's top events and count (its opening paragraph)."""
         def go():
@@ -367,8 +379,13 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
     with tempfile.TemporaryDirectory() as kit_dir:
         cmd = [sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds), "--today", today.isoformat()]
         if any(k in ("pet", "new") for k in kinds):
+            # This week's pet and places as readers see them (fresh, minus
+            # what the owner took out), and the site's switch.
+            state = _sections_state(site)
+            env = _sections_env(site, env, state)
             sections_path = os.path.join(kit_dir, "sections.json")
-            _write_json(sections_path, site.get_file("sections") or {})
+            _write_json(sections_path, state if isinstance(state, dict) and state.get("enabled")
+                        else ({} if isinstance(state, dict) else site.get_file("sections") or {}))
             cmd += ["--sections", sections_path]
         code, tail = run(cmd, TIMEOUTS["social-kit"], env)
         if code != 0:
@@ -547,6 +564,7 @@ def job_sections(site, run=run_script, env=None, today=None):
     pet is still listed (server/scheduler.js JOBS)."""
     today = today or datetime.now(tz()).date()
     monday = today - timedelta(days=today.weekday())
+    env = _sections_env(site, env)
     with tempfile.TemporaryDirectory() as tmp:
         prev, replies, issue, out = (os.path.join(tmp, n) for n in ("previous.json", "replies.json", "issue.json", "sections.json"))
         _write_json(prev, site.get_file("sections") or {})
@@ -565,8 +583,31 @@ def job_sections(site, run=run_script, env=None, today=None):
         if code != 0 or data is None:
             return "failed", {"error": f"The sections job exited with code {code}.", "log_tail": tail}
         site.put_file("sections", data)
-    return "done", {"pet": (data.get("pet") or {}).get("name"), "new_in_town": len(data.get("new_in_town") or []),
-                    "good_news": len((data.get("good_news") or {}).get("items") or []), "log_tail": tail[-8:]}
+    result = {"pet": (data.get("pet") or {}).get("name"), "new_in_town": len(data.get("new_in_town") or []),
+              "good_news": len((data.get("good_news") or {}).get("items") or []), "log_tail": tail[-8:]}
+    if data.get("ai_problems"):
+        result["ai_problems"] = data["ai_problems"]
+    return "done", result
+
+
+def _sections_state(site):
+    get = getattr(site, "get_sections_state", None)
+    try:
+        return get() if get else None
+    except Exception as e:  # noqa: BLE001 - an old site, or one that's down: go by this service's own setting
+        print(f"::warning::couldn't ask the site whether sections are on: {e}")
+        return None
+
+
+def _sections_env(site, env, state=None):
+    """The site says whether the town's sections are on; SECTIONS here
+    follows it, so one switch (on the web service) turns everything on or
+    off. A site that doesn't say leaves this service's own setting."""
+    env = dict(env if env is not None else os.environ)
+    state = state if state is not None else _sections_state(site)
+    if isinstance(state, dict) and "enabled" in state:
+        env["SECTIONS"] = "1" if state["enabled"] else "0"
+    return env
 
 
 def _social_post_main(argv, session=None, on_save=None):

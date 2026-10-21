@@ -252,3 +252,29 @@ describe('the same as the site', () => {
     expect(w.text.indexOf('Tonight')).toBeLessThan(w.text.indexOf('Tuesday Pick'));
   });
 });
+
+describe('the multi-agent review (Oct 2026)', () => {
+  const MON2 = new Date('2026-10-05T12:30:00Z');
+  const base = { siteUrl: 'https://www.thevic361.com', unsubscribeUrl: '#', edition: 'weekly', now: MON2 };
+  const day = (name, i, extra = {}) => ({ date: '2026-10-07', name, time: `${8 + i} AM`, venue: `Place ${i}`, ...extra });
+
+  it('always shows a paid pick, even past the day’s cap', () => {
+    // Four paid picks on a weekday (3 a day): all four run.
+    const evs = [0, 1, 2, 3].map(i => day(`Paid Pick ${i}`, i, { featured: true, sponsor_order: `o${i}` })).concat([day('Other', 5, { appeal: 5 })]);
+    const issue = renderWeekly(withPages(evs), base);
+    for (const i of [0, 1, 2, 3]) expect(issue.html).toContain(`Paid Pick ${i}`);
+    expect(issue.picks.length).toBe(4);
+  });
+
+  it('uses the plain greeting when the AI names an event the issue doesn’t lead with', () => {
+    const evs = [day('Zoo Boo', 0, { appeal: 5 }), day('Haunted Hayride Night', 1, { date: '2026-10-20' })];
+    const sections = { intro: { edition: 'weekly', week: '2026-10-05', text: 'Happy Monday! Catch the Haunted Hayride Night soon.', mentions: [] } };
+    const issue = renderWeekly(withPages(evs), { ...base, sections });
+    expect(issue.html).not.toContain('Haunted Hayride Night soon');
+  });
+
+  it('never fails an issue over a malformed sections object', () => {
+    const sections = { monday: '2026-10-05', places: [null], pet: { name: 'X' }, roundup: { answers: [null] } };
+    expect(() => renderWeekly(withPages([day('Zoo Boo', 0)]), { ...base, sections })).not.toThrow();
+  });
+});

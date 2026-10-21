@@ -49,6 +49,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import tempfile
 from datetime import date, datetime, timedelta, timezone
 
@@ -79,7 +80,8 @@ QUESTION_EPOCH = date(2026, 1, 5)
 # shelter or AI tells. The editor is told; this makes sure.
 SOURCE_WORDS = re.compile(
     r"\b(permits?|permitted|licen[sc]es?d?|licensing|filings?|filed|registrations?|registered|comptroller|"
-    r"records?|database|data ?set|secretary of state|sales tax|naics|tenant build-?out|build-?out|certificate of occupancy)\b", re.I)
+    r"records?|data|database|data ?set|secretary of state|sales tax|naics|tenant build-?out|build-?out|certificate of occupancy|"
+    r"plans? (?:were |was |have been |has been )?(?:approved|submitted|filed))\b", re.I)
 AI_TELLS = re.compile(
     r"\b(furever|pawsome|purrfect|delve|tapestry|vibrant|bustling|nestled|hidden gem|elevate|embark|"
     r"look no further|whether you're|in the heart of|culinary journey|a must-visit|unforgettable|treat yourself|"
@@ -92,7 +94,20 @@ NOT_GOOD_NEWS = re.compile(
     r"abortion|immigra\w*|gun control|protest\w*|police|sheriff|arrest|crime|jail|lawsuit|litigation|settlement|"
     r"rezon\w*|zoning|annex\w*|eminent domain|condemn\w*|executive session|closed session|budget amendment|"
     r"layoffs?|terminat\w*|resign\w*|appeal|violation|fine[sd]?|penalt\w*|fatal\w*|death|died|shooting|fire department|"
-    r"contamina\w*|demoli\w*|dilapidated|nuisance|short-term rental|data cent\w*|liquor|alcohol|beer|wine)\b", re.I)
+    r"contamina\w*|demoli\w*|dilapidated|nuisance|short-term rental|data cent\w*|liquor|alcohol|beer|wine|"
+    r"budget\w*|fees?|rate (?:increase|hike)s?|utility rates?|homeless\w*|encampment\w*|ceasefire|gaza|israel\w*|"
+    r"palestin\w*|ukrain\w*|russia\w*|war|pride (?:month|parade|flag)|lgbt\w*|dei|diversity, equity)\b", re.I)
+# For a pet, a reader's words and the greeting: politics and sad or bad
+# news (narrower than NOT_GOOD_NEWS, which also keeps agenda items about
+# fees or alcohol out: a reader's favorite patio beer is fine).
+HARD_NO = re.compile(
+    r"\b(elect(ion|ions|ed)?|ballots?|vot(e|es|ed|ing|er|ers)|candidates?|campaign\w*|republican\w*|democrat\w*|"
+    r"conservative|liberal|partisan|president\w*|governor|senator|congress\w*|trump|biden|harris|abortion|immigra\w*|"
+    r"gun control|protest\w*|police|sheriff|arrest\w*|crime|jail|lawsuit|shooting|murder\w*|killed|death|died|dead|"
+    r"passed away|funeral|cancer|abandon\w*|neglect\w*|abus\w*|injur\w*|hit by|euthan\w*|surrender\w*|hoard\w*|"
+    r"ceasefire|gaza|israel\w*|palestin\w*|ukrain\w*|war|homeless\w*)\b", re.I)
+# Contact details have no place in print: a reply's signature, a phone.
+CONTACT = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+|https?://|www\.|\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b")
 
 
 # ─── Settings ────────────────────────────────────────────────────────────
@@ -698,7 +713,9 @@ def agenda_granicus(src, today):
         if not link or not re.search(src.get("match", "Council"), title, re.I):
             continue
         r = get(link, allow_redirects=False)
-        while r.is_redirect or r.status_code in (301, 302, 303, 307, 308):
+        hops = 0
+        while (r.is_redirect or r.status_code in (301, 302, 303, 307, 308)) and hops < 5:
+            hops += 1
             nxt = requests.compat.urljoin(link, r.headers.get("Location", ""))
             nxt = re.sub(r"^https://([a-z0-9_]+_[a-z0-9_]+)\.s3\.amazonaws\.com/", r"https://s3.amazonaws.com/\1/", nxt)
             link, r = nxt, get(nxt, allow_redirects=False)
@@ -786,26 +803,50 @@ def _fill(prompt):
             .replace("<<GOOD_MAX>>", str(GOOD_NEWS_MAX)).replace("<<ROUNDUP_MAX>>", str(ROUNDUP_MAX)))
 
 
+AI_TIMEOUT = 120
+AI_BUDGET = 7 * 60     # past this, no new AI call (the worker stops the job at 10 minutes)
+_STARTED = time.monotonic()
+AI_PROBLEMS = []       # what went wrong with the AI this run (the Slack note says so)
+
+
 def ai_json(api_key, system, user, max_tokens=6000):
+    if time.monotonic() - _STARTED > AI_BUDGET:
+        AI_PROBLEMS.append("out of time for the AI")
+        print("AI: out of time this run; skipping the call")
+        return None
     try:
         content = ce._openai_chat(api_key, [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                                  max_tokens=max_tokens, timeout=180)
+                                  max_tokens=max_tokens, timeout=AI_TIMEOUT)
     except Exception as e:  # noqa: BLE001
+        AI_PROBLEMS.append(f"the AI call failed ({type(e).__name__})")
         print(f"AI call failed: {e}")
         return None
     text = content.strip()
     m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if m:
         text = m.group(1)
-    for opener, closer in (("{", "}"), ("[", "]")):
+    # The one that opens first is the outer one: a one-item array
+    # ([{...}]) must come back as a list, not its inner dict.
+    pairs = sorted((("{", "}"), ("[", "]")), key=lambda p: (text.find(p[0]) == -1, text.find(p[0])))
+    for opener, closer in pairs:
         i, j = text.find(opener), text.rfind(closer)
         if i != -1 and j > i:
             try:
                 return json.loads(text[i:j + 1])
             except json.JSONDecodeError:
                 continue
+    AI_PROBLEMS.append("the AI answered with something unreadable")
     print(f"AI: unreadable answer: {content[:300]!r}")
     return None
+
+
+def _dicts(x):
+    """The dict items of a list the AI wrote; anything else is ignored."""
+    return [v for v in x if isinstance(v, dict)] if isinstance(x, list) else []
+
+
+def _key(text):
+    return hashlib.sha1(str(text).encode()).hexdigest()[:8]
 
 
 # The issue's "Send my answer" button sets this subject (server/newsletter.js ANSWER_SUBJECT).
@@ -831,7 +872,10 @@ def draft(api_key, pet, places, agendas, replies, question):
     got = ai_json(api_key, _fill(WRITE_PROMPT), json.dumps(ask, ensure_ascii=False))
     if not isinstance(got, dict):
         return {"pet": {"blurb": pet_plain_blurb(pet)} if pet else None, "new_places": [], "good_news": [], "roundup": []}
-    return got
+    # Whatever shape the AI sent back, only the parts we expect go on.
+    return {"pet": got.get("pet") if isinstance(got.get("pet"), dict) else None,
+            "new_places": _dicts(got.get("new_places")), "good_news": _dicts(got.get("good_news")),
+            "roundup": _dicts(got.get("roundup"))}
 
 
 def rule_problems(text, kind):
@@ -844,6 +888,10 @@ def rule_problems(text, kind):
         probs.append("sounds like AI")
     if kind in ("good", "question") and NOT_GOOD_NEWS.search(t):
         probs.append("not good news")
+    if kind in ("pet", "reply", "intro", "place", "name") and HARD_NO.search(t):
+        probs.append("politics or sad news")
+    if kind in ("reply", "place", "good", "pet", "intro", "question", "name") and CONTACT.search(t):
+        probs.append("contact details")
     if kind == "question" and (not t.rstrip().endswith("?") or len(t) > 120):
         probs.append("not a short question")
     if len(t) > 320:
@@ -859,11 +907,15 @@ def edit(api_key, items):
     if not api_key:
         return {it["id"]: ("keep" if it.get("plain") else "drop", it["text"], "no editor") for it in items}
     got = ai_json(api_key, _fill(EDIT_PROMPT), json.dumps(items, ensure_ascii=False))
+    if isinstance(got, dict):
+        # One verdict on its own, or the list under some key.
+        lists = [v for v in got.values() if isinstance(v, list)]
+        got = [got] if "id" in got else (lists[0] if len(lists) == 1 else None)
     if not isinstance(got, list):
         return {it["id"]: ("keep" if it.get("plain") else "drop", it["text"], "editor unavailable") for it in items}
     out = {}
     for v in got:
-        if isinstance(v, dict) and v.get("id") in {it["id"] for it in items}:
+        if isinstance(v, dict) and isinstance(v.get("id"), str) and v["id"] in {it["id"] for it in items}:
             out[v["id"]] = (str(v.get("verdict") or "drop"), str(v.get("text") or ""), str(v.get("why") or "")[:80])
     # An item the editor skipped is dropped, not waved through.
     for it in items:
@@ -913,7 +965,7 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
             new_pet = pick_pet(config, {"pet_history": out["pet_history"] + [{"id": pet["id"], "date": today.isoformat()}]}, today)
             drafts = draft(api_key, new_pet, [], [], [], None) if new_pet else {}
             if new_pet:
-                out["pet"] = _reviewed_pet(api_key, new_pet, drafts, out)
+                out["pet"] = _reviewed_pet(api_key, new_pet, drafts, out, today)
         else:
             print("before send: the pet is still listed")
         # The opening paragraph, from what this very issue shows (the event
@@ -922,35 +974,50 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
             out["intro"] = write_intro(api_key, issue, out, config, monday, out["review"])
         return out
 
-    pet = pick_pet(config, previous, today)
-    places = build_new_in_town(config, previous, today)
+    # Wednesday's run is for Thursday: the pet and the new places stay what
+    # Monday's issue showed (the pages and the homepage keep them); only
+    # City Hall and the readers' answers are built again.
+    midweek = previous.get("week") == monday.isoformat() and today.weekday() in (1, 2, 3)
+    if midweek:
+        out.update({"pet": previous.get("pet"), "new_in_town": list(previous.get("new_in_town") or [])})
+        out["review"] = [r for r in previous.get("review") or [] if isinstance(r, dict) and str(r.get("id", "")).split(":")[0] in ("pet", "place")]
+        pet, places = None, []
+    else:
+        pet = pick_pet(config, previous, today)
+        places = build_new_in_town(config, previous, today)
     agendas = build_agendas(config, today) if config.get("good_news") else []
     # The roundup is Thursday's: replies since Monday's issue went out.
     use_replies = [r for r in replies if str(r.get("at") or "") >= monday.isoformat()] if today.weekday() >= 2 else []
     drafts = draft(api_key, pet, places, agendas, use_replies, question)
 
     if pet:
-        out["pet"] = _reviewed_pet(api_key, pet, drafts, out)
+        out["pet"] = _reviewed_pet(api_key, pet, drafts, out, today)
 
     by_key = {x["key"]: x for x in places}
     items = []
     for d in drafts.get("new_places") or []:
         x = by_key.get(d.get("key"))
-        if x and d.get("line"):
+        if x and isinstance(d.get("line"), str) and d.get("line"):
             items.append({"id": f"place:{x['key']}", "kind": "place", "text": f"{d.get('name') or x['name']}: {d['line']}",
                           "source": x["raw"], "plain": not api_key})
     for i, g in enumerate(drafts.get("good_news") or []):
-        if g.get("line"):
+        if isinstance(g.get("line"), str) and g.get("line"):
             items.append({"id": f"good:{i}", "kind": "good", "text": f"{g.get('title', '')}: {g['line']}",
                           "source": "the meeting agenda", "plain": False})
+    used = set()
     for r in drafts.get("roundup") or []:
         try:
-            src = use_replies[int(r.get("i"))]
+            n = int(r.get("i"))
+            src = use_replies[n] if n >= 0 and n not in used else None
         except (TypeError, ValueError, IndexError):
+            src = None
+        if src is None or not isinstance(r.get("quote"), str) or not r.get("quote"):
             continue
-        if r.get("quote"):
-            items.append({"id": f"reply:{r.get('i')}", "kind": "reply", "text": r["quote"], "source": src.get("text", ""),
-                          "name": r.get("name", ""), "plain": False})
+        used.add(n)
+        # The name is the reader's own first name from their email, never
+        # one the writer made up.
+        items.append({"id": f"reply:{n}", "kind": "reply", "text": r["quote"], "source": src.get("text", ""),
+                      "name": str(src.get("name") or ""), "plain": False})
     verdicts = edit(api_key, [{k: it[k] for k in ("id", "kind", "text", "source")} | {"plain": it["plain"]} for it in items])
 
     places_out, good_out, quotes = [], [], []
@@ -958,6 +1025,10 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
         verdict, text, why = verdicts.get(it["id"], ("drop", "", ""))
         text = finalize(text if verdict == "fix" and text else it["text"], it["kind"])
         probs = rule_problems(text, it["kind"])
+        if it["kind"] in ("place", "good") and ": " not in text:
+            probs.append("lost its name")
+        if it["kind"] == "reply":
+            probs += rule_problems(it.get("name"), "name")
         kept = verdict in ("keep", "fix") and not probs
         out["review"].append({"id": it["id"], "verdict": "keep" if kept else "drop", "why": "; ".join(probs) or why})
         if not kept:
@@ -969,18 +1040,32 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
             places_out.append({"key": key, "name": clean(name), "line": clean(line), "status": x["status"]})
         elif it["kind"] == "good":
             title, _, line = text.partition(": ")
-            good_out.append({"title": clean(title), "line": clean(line)})
+            good_out.append({"key": _key(text), "title": clean(title), "line": clean(line)})
         else:
-            quotes.append({"quote": text.strip('"“” '), "name": (it.get("name") or "").split(" ")[0][:20]})
+            q = text.strip('"“” ')
+            quotes.append({"key": _key(q), "quote": q, "name": (it.get("name") or "").split(" ")[0][:20]})
 
-    out["new_in_town"] = places_out[:NEW_MAX]
-    for x in out["new_in_town"]:
-        out["new_shown"][x["key"]] = today.isoformat()
+    if not midweek:
+        out["new_in_town"] = places_out[:NEW_MAX]
+        for x in out["new_in_town"]:
+            out["new_shown"][x["key"]] = today.isoformat()
     if good_out:
         meeting = agendas[0] if agendas else {}
         out["good_news"] = {"items": good_out[:GOOD_NEWS_MAX], "url": meeting.get("url", ""), "body": meeting.get("body", "")}
     if len(quotes) >= 2:
         out["roundup"] = {"question": question, "answers": quotes[:ROUNDUP_MAX]}
+    return out
+
+
+def build_safely(config, previous, replies, today, api_key, before_send=False, issue=None):
+    """build(), and what the AI's trouble was this run (the site's Slack
+    note says so, so a dead key or a down AI doesn't go unnoticed)."""
+    del AI_PROBLEMS[:]
+    out = build(config, previous, replies, today, api_key, before_send=before_send, issue=issue)
+    if api_key and AI_PROBLEMS:
+        out["ai_problems"] = sorted(set(AI_PROBLEMS))
+    elif not api_key and (config.get("enabled") is True or os.environ.get("SECTIONS", "").strip() == "1"):
+        out["ai_problems"] = ["no OPENAI_API_KEY on the jobs service: only the pet runs, with a plain line"]
     return out
 
 
@@ -1100,22 +1185,25 @@ def plan_questions(config, previous, monday, api_key, out):
         question = question_for(config, monday)
     if question:
         asked.append({"week": monday.isoformat(), "q": question})
-    out.update({"question": question, "question_bank": bank[:24], "questions_asked": asked[-60:],
+    out.update({"question": question, "question_bank": bank[-24:], "questions_asked": asked[-60:],
                 "questions_generated": generated, "questions_added": added})
     return question
 
 
-def _reviewed_pet(api_key, pet, drafts, out):
-    blurb = ((drafts.get("pet") or {}).get("blurb") or "").strip() or pet_plain_blurb(pet)
+def _reviewed_pet(api_key, pet, drafts, out, today):
+    d = drafts.get("pet") if isinstance(drafts.get("pet"), dict) else {}
+    blurb = str(d.get("blurb") or "").strip() or pet_plain_blurb(pet)
     plain = blurb == pet_plain_blurb(pet)
-    v = edit(api_key, [{"id": "pet", "kind": "pet", "text": blurb, "source": json.dumps({k: pet[k] for k in ("name", "breed", "age", "sex", "bio")}), "plain": True}])
-    verdict, text, why = v.get("pet", ("keep", blurb, ""))
+    # Only the plain line runs without the editor's yes; the AI's blurb
+    # needs it (a missing or unreadable answer means the plain line).
+    v = edit(api_key, [{"id": "pet", "kind": "pet", "text": blurb, "source": json.dumps({k: pet[k] for k in ("name", "breed", "age", "sex", "bio")}), "plain": plain}])
+    verdict, text, why = v.get("pet", ("drop", blurb, ""))
     text = finalize(text if verdict == "fix" and text else blurb, "pet")
     if verdict == "drop" or rule_problems(text, "pet"):
         # The pet still runs, with the plain line: the photo and facts are the point.
         text, why = pet_plain_blurb(pet), (why or "; ".join(rule_problems(text, "pet")))
     out["review"].append({"id": "pet", "verdict": "keep", "why": why or ("plain" if plain else "")})
-    out["pet_history"].append({"id": pet["id"], "date": date.today().isoformat()})
+    out["pet_history"].append({"id": pet["id"], "date": today.isoformat()})
     return {k: pet[k] for k in ("id", "name", "species", "url", "shelter", "shelter_address", "shelter_url", "photo")} | {
         "facts": pet_facts(pet), "blurb": text}
 
@@ -1151,7 +1239,7 @@ def main(argv=None):
     replies = read(args.replies, []) or []
     key = os.environ.get("OPENAI_API_KEY", "").strip()
     issue = read(args.issue, None)
-    out = build(config, previous, replies, today, key, before_send=args.before_send, issue=issue)
+    out = build_safely(config, previous, replies, today, key, before_send=args.before_send, issue=issue)
     with open(args.out, "w") as f:
         json.dump(out, f, ensure_ascii=False)
     pet = out.get("pet")

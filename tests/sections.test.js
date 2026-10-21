@@ -25,7 +25,7 @@ const PHOTO = Buffer.from('ffd8ffe000104a46494600', 'hex').toString('base64');
 const CFG = {
   enabled: true,
   questions: ['Best kolache in town?', 'Best sunset spot?'],
-  polls: [{ id: 'went-to-event', question: 'Have you gone to something you found here?', choices: ['Yes', 'Not yet'] }]
+  polls: [{ id: 'went-to-event', question: 'Have you gone to something you found here?', choices: ['Yes', 'Not yet', 'Maybe'] }]
 };
 const FILE = {
   week: '2026-10-05', built_at: '2026-10-04T23:20:00Z',
@@ -200,13 +200,25 @@ describe('on the site', () => {
     let clock = NOW.getTime();
     const t = await start({ now: () => new Date(clock) });
     const sub = await t.store.addSubscriber({ email: 'reader@example.com', source: 'home' });
-    const id = sub.id || (await t.store.listSubscribers({})).find(x => x.email === 'reader@example.com').id;
+    const row = (await t.store.listSubscribers({})).find(x => x.email === 'reader@example.com');
+    const id = sub.id || row.id;
     const ua = { 'User-Agent': 'Mozilla/5.0 (iPhone)' };
     const vote = (c, s = id, h = ua) => fetch(`${t.base}/p/2026-10-05/went-to-event/${c}?s=${s}`, { redirect: 'manual', headers: h });
-    // A scanner: both choices within seconds → no vote.
+    // Not confirmed yet: no vote.
     await vote(0);
-    clock += 2000;
+    expect(await t.store.countPollVotes('2026-10-05', 'went-to-event')).toEqual({});
+    await t.store.confirmSubscriber(row.token);
+    // A scanner: every choice within seconds (three, so a vote can't come
+    // back on the odd click), even all at once → no vote.
+    clock += 60 * 60 * 1000;
+    await vote(0);
+    clock += 1000;
     await vote(1);
+    clock += 1000;
+    await vote(2);
+    expect(await t.store.countPollVotes('2026-10-05', 'went-to-event')).toEqual({});
+    clock += 60 * 60 * 1000;
+    await Promise.all([vote(0), vote(1), vote(2)]);
     expect(await t.store.countPollVotes('2026-10-05', 'went-to-event')).toEqual({});
     // The reader, later.
     clock += 10 * 60 * 1000;
@@ -218,6 +230,10 @@ describe('on the site', () => {
     await vote(0, id, { 'User-Agent': 'Barracuda Sentinel' });
     await vote(0, 'nobody');
     expect((await fetch(`${t.base}/p/2026-10-12/went-to-event/0?s=${id}`, { redirect: 'manual', headers: ua })).headers.get('location')).toBe('/');
+    // A made-up week that isn't a Monday, or years away: nothing either.
+    for (const w of ['2026-10-01', '2024-10-07']) {
+      expect((await fetch(`${t.base}/p/${w}/went-to-event/0?s=${id}`, { redirect: 'manual', headers: ua })).headers.get('location')).toBe('/');
+    }
     expect(await t.store.countPollVotes('2026-10-05', 'went-to-event')).toEqual({ 1: 1 });
     const page = await (await fetch(`${t.base}/poll/2026-10-05/went-to-event?v=1`)).text();
     expect(page).toContain('Thanks for voting');
@@ -356,5 +372,70 @@ describe('clicks per section', () => {
     expect(html).toContain('/go/x/pet?w=2026-10-05&amp;to=https%3A%2F%2Fws.petango.com%2Fx');
     expect(html).toContain('/go/x/places?w=2026-10-05&amp;to=%2Fnew-in-town');
     expect(html).toContain('See every new place →');
+  });
+});
+
+describe('the multi-agent review (Oct 2026)', () => {
+  it('ignores made-up weeks on clicks, so real weeks are never pushed out', async () => {
+    const t = await start();
+    await t.putFile('sections', FILE);
+    const ua = { 'User-Agent': 'Mozilla/5.0 (iPhone)' };
+    for (let i = 1; i <= 13; i++) await fetch(`${t.base}/go/x/pet?w=9999-01-${String(i).padStart(2, '0')}&to=/`, { redirect: 'manual', headers: ua });
+    await new Promise(r => setTimeout(r, 50));
+    expect(Object.keys((await t.store.getTownFile('section_clicks')).data)).toEqual(['2026-10-05']);
+  });
+
+  it('with sections off, polls record nothing, and the worker is told they are off', async () => {
+    const t = await start({ cfg: { ...CFG, enabled: false } });
+    const sub = await t.store.addSubscriber({ email: 'r@example.com', source: 'home' });
+    const row = (await t.store.listSubscribers({})).find(x => x.email === 'r@example.com');
+    await t.store.confirmSubscriber(row.token);
+    const r = await fetch(`${t.base}/p/2026-10-05/went-to-event/0?s=${sub.id || row.id}`, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0' } });
+    expect(r.headers.get('location')).toBe('/');
+    expect((await fetch(`${t.base}/poll/2026-10-05/went-to-event`)).status).toBe(404);
+    const state = await (await fetch(`${t.base}/api/jobs/sections`, { headers: { Authorization: `Bearer ${SECRET}` } })).json();
+    expect(state.sections).toEqual({ enabled: false });
+  });
+
+  it('gives the worker this week’s pet and places as readers see them', async () => {
+    const t = await start();
+    await t.putFile('sections', FILE);
+    const auth = await t.login();
+    await fetch(t.base + '/api/admin/sections/hide', { method: 'POST', headers: auth, body: JSON.stringify({ id: 'place:tx-1' }) });
+    const got = (await (await fetch(`${t.base}/api/jobs/sections`, { headers: { Authorization: `Bearer ${SECRET}` } })).json()).sections;
+    expect(got.enabled).toBe(true);
+    expect(got.pet.name).toBe('Chloe');
+    expect(got.new_in_town.map(x => x.name)).toEqual(['Bao Bao Bakery']);
+  });
+
+  it('never shows last week’s file, and skips malformed items instead of breaking the email', () => {
+    const lastWeek = { ...FILE, week: '2026-09-28' };
+    const s = sectionsFor({ cfg: CFG, file: lastWeek, edition: 'weekly', now: NOW });
+    expect(s.pet).toBeNull();
+    expect(s.places).toEqual([]);
+    // Sunday evening's build is for tomorrow's issue: shown on Sunday.
+    const sunday = sectionsFor({ cfg: CFG, file: { ...FILE, week: '2026-10-12' }, edition: 'weekly', now: new Date('2026-10-11T23:30:00Z') });
+    expect(sunday.pet.name).toBe('Chloe');
+    const bad = { ...FILE, new_in_town: [null, 5, { key: 'x', name: 'Ok', line: 'Fine.' }],
+      roundup: { answers: [null, { quote: 'One.', name: 'A' }, { quote: 'Two.', name: 'B' }] }, good_news: { items: [null, { title: 'T', line: 'L' }] } };
+    const weekly = sectionsFor({ cfg: CFG, file: bad, edition: 'weekly', now: NOW });
+    expect(weekly.places.map(x => x.name)).toEqual(['Ok']);
+    expect(() => sectionsEmailHtml(weekly, { siteUrl: 'https://x' })).not.toThrow();
+    const weekend = sectionsFor({ cfg: CFG, file: bad, edition: 'weekend', now: new Date('2026-10-08T12:00:00Z') });
+    expect(weekend.roundup.answers.length).toBe(2);
+    expect(() => sectionsEmailHtml(weekend, { siteUrl: 'https://x' })).not.toThrow();
+  });
+
+  it('takes out a City Hall item or a quote by its key, so it stays out when items move', () => {
+    const file = { ...FILE, good_news: { items: [{ key: 'aaaa1111', title: 'New', line: 'x' }, { key: 'bbbb2222', title: 'Park', line: 'y' }] } };
+    const s = sectionsFor({ cfg: CFG, file, hidden: ['good:bbbb2222'], edition: 'weekend', now: new Date('2026-10-08T12:00:00Z') });
+    expect(s.good.items.map(x => x.title)).toEqual(['New']);
+  });
+
+  it('alerts when the AI had trouble, once a week', async () => {
+    const t = await start();
+    await t.putFile('sections', { ...FILE, ai_problems: ['the AI call failed (HTTPError)'] });
+    expect(t.slack.alerts.map(a => a.key)).toEqual(['sections-ai-2026-10-05']);
+    expect(t.slack.alerts[0].text).toContain('the AI call failed');
   });
 });

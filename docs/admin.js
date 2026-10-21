@@ -425,8 +425,8 @@
     if (json.question) rows.push(['question', 'Question of the week', json.question]);
     (json.upcoming_questions || []).forEach(q => rows.push(['bank:' + q.id, 'Coming up (question)', q.q]));
     if (json.poll) rows.push(['poll', 'Poll', json.poll.question]);
-    ((json.good_news && json.good_news.items) || []).forEach((g, i) => rows.push(['good:' + i, 'City Hall', g.title + ': ' + g.line]));
-    ((json.roundup && json.roundup.answers) || []).forEach((a, i) => rows.push(['reply:' + i, 'Readers say', '“' + a.quote + '” ' + (a.name || '')]));
+    ((json.good_news && json.good_news.items) || []).forEach((g, i) => rows.push(['good:' + (g.key || i), 'City Hall', g.title + ': ' + g.line]));
+    ((json.roundup && json.roundup.answers) || []).forEach((a, i) => rows.push(['reply:' + (a.key || i), 'Readers say', '“' + a.quote + '” ' + (a.name || '')]));
     list.textContent = '';
     // What readers did with them: this week and last.
     (json.activity || []).forEach((a, i) => {

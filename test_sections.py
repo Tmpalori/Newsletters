@@ -268,3 +268,87 @@ def test_replies_sent_with_the_answer_button_are_marked_for_the_editor(monkeypat
     s.draft("k", None, [], [], [{"name": "Maria", "subject": "My answer: Best kolache?", "text": "Sausage!"},
                                 {"name": "Dale", "subject": "Re: This week", "text": "You listed the wrong time for trivia"}], "Best kolache?")
     assert [r["answer"] for r in seen["replies"]] == [True, False]
+
+
+# ─── the multi-agent review (Oct 2026) ───────────────────────────────────
+
+def test_a_one_item_answer_comes_back_as_a_list_and_the_editor_can_drop_the_pet(monkeypatch):
+    monkeypatch.setattr(s.ce, "_openai_chat", lambda *a, **k: '[{"id": "pet", "verdict": "drop", "why": "sad"}]')
+    assert s.ai_json("k", "sys", "user") == [{"id": "pet", "verdict": "drop", "why": "sad"}]
+    monkeypatch.setattr(s.ce, "_openai_chat", lambda *a, **k: 'Sure! {"intro": "Hi [there]"}')
+    assert s.ai_json("k", "sys", "user") == {"intro": "Hi [there]"}
+    # The editor's single verdict counts, as a list or as a bare object.
+    for answer in ([{"id": "pet", "verdict": "drop", "why": "sad"}], {"id": "pet", "verdict": "drop", "why": "sad"}):
+        monkeypatch.setattr(s, "ai_json", lambda *a, answer=answer, **k: answer)
+        assert s.edit("k", [{"id": "pet", "kind": "pet", "text": "x", "plain": False}])["pet"][0] == "drop"
+    _no_network(monkeypatch)
+
+    def fake(key, system, user, max_tokens=6000):
+        if "editor" in system:
+            return [{"id": "pet", "verdict": "drop", "why": "sad backstory"}]
+        return {"pet": {"blurb": "Chloe was found after her owner moved away."}}
+    monkeypatch.setattr(s, "ai_json", fake)
+    out = s.build(CFG, {}, [], TODAY, api_key="k")
+    assert out["pet"]["blurb"] == s.pet_plain_blurb({**PET, "shelter": "County Shelter"})
+    # No answer at all: the plain line too, never the AI's blurb unread.
+    monkeypatch.setattr(s, "ai_json", lambda key, system, user, max_tokens=6000:
+                        None if "editor" in system else {"pet": {"blurb": "Chloe's owner died."}})
+    assert s.build(CFG, {}, [], TODAY, api_key="k")["pet"]["blurb"] == s.pet_plain_blurb({**PET, "shelter": "County Shelter"})
+
+
+def test_the_rules_check_pets_quotes_and_the_greeting_too():
+    assert "politics or sad news" in s.rule_problems("Rex was abandoned after his owner died.", "pet")
+    assert "politics or sad news" in s.rule_problems("Vote for Smith!", "reply")
+    assert "contact details" in s.rule_problems("Call me at 361-555-1212.", "reply")
+    assert "contact details" in s.rule_problems("Write bob@x.com", "reply")
+    assert "politics or sad news" in s.rule_problems("Happy Monday! Get out and vote.", "intro")
+    assert s.rule_problems("The patio at Pumphouse, with a cold beer.", "reply") == []   # fine from a reader
+    for line in ("Gaza ceasefire resolution", "Pride Month proclamation", "City budget and new utility fees",
+                 "Homeless camp ordinance"):
+        assert "not good news" in s.rule_problems(line, "good"), line
+    assert "mentions where it came from" in s.rule_problems("Tacos, according to state data.", "place")
+
+
+def test_odd_writer_output_skips_the_odd_parts_instead_of_stopping_the_job(monkeypatch):
+    _no_network(monkeypatch, places=[{"key": "k1", "name": "Chai", "what": "", "street": "", "status": "open", "raw": "a"}])
+    monkeypatch.setattr(s, "build_agendas", lambda cfg, today: [{"body": "City", "items": ["x"], "url": ""}])
+
+    def fake(key, system, user, max_tokens=6000):
+        if "editor" in system:
+            return [{"id": ["bad"], "verdict": "keep"}]
+        return {"pet": "text", "new_places": ["oops", {"key": "k1", "line": 5}], "good_news": {"title": "x"},
+                "roundup": [{"i": -1, "quote": "x"}, {"i": "a", "quote": "y"}]}
+    monkeypatch.setattr(s, "ai_json", fake)
+    out = s.build({**CFG, "good_news": {"sources": []}}, {}, [{"at": "2026-10-19", "name": "A", "text": "t"}],
+                  date(2026, 10, 21), api_key="k")
+    assert out["pet"]["name"] == "Chloe" and out["new_in_town"] == [] and out["good_news"] is None
+
+
+def test_wednesday_keeps_mondays_pet_and_places_and_quotes_carry_the_readers_own_names(monkeypatch):
+    _no_network(monkeypatch, pets=[dict(PET, id="pp-9", name="Rex")],
+                places=[{"key": "k9", "name": "Other", "what": "", "street": "", "status": "open", "raw": "a"}])
+    monkeypatch.setattr(s, "build_agendas", lambda cfg, today: [])
+
+    def fake(key, system, user, max_tokens=6000):
+        if "editor" in system:
+            return [{"id": it["id"], "verdict": "keep"} for it in json.loads(user)]
+        return {"roundup": [{"i": 0, "quote": "Sausage and cheese!", "name": "Kevin"}, {"i": 0, "quote": "again"},
+                            {"i": 1, "quote": "Fruit ones.", "name": "Call 361-555-1212"}]}
+    monkeypatch.setattr(s, "ai_json", fake)
+    prev = {"week": "2026-10-19", "question": "Best kolache?", "pet": {"id": "pp-1", "name": "Chloe"},
+            "new_in_town": [{"key": "k1", "name": "Chai", "line": "Food.", "status": "open"}], "pet_history": [{"id": "pp-1"}]}
+    replies = [{"at": "2026-10-19T15:00:00Z", "name": "Maria", "text": "Sausage and cheese!"},
+               {"at": "2026-10-20T15:00:00Z", "name": "Dale", "text": "Fruit ones."}]
+    out = s.build(CFG, prev, replies, date(2026, 10, 21), api_key="k")
+    assert out["pet"]["name"] == "Chloe" and out["new_in_town"] == prev["new_in_town"]
+    assert [(a["name"], a["quote"]) for a in out["roundup"]["answers"]] == [("Maria", "Sausage and cheese!"), ("Dale", "Fruit ones.")]
+    assert all(len(a["key"]) == 8 for a in out["roundup"]["answers"])
+
+
+def test_ai_trouble_is_reported_with_the_file(monkeypatch):
+    _no_network(monkeypatch)
+    monkeypatch.setattr(s.ce, "_openai_chat", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("401")))
+    out = s.build_safely(CFG, {}, [], TODAY, api_key="k")
+    assert out["ai_problems"] == ["the AI call failed (RuntimeError)"]
+    assert "ai_problems" not in s.build_safely(CFG, {}, [], TODAY, api_key="")      # off: nobody expects the AI
+    assert "OPENAI_API_KEY" in s.build_safely({**CFG, "enabled": True}, {}, [], TODAY, api_key="")["ai_problems"][0]

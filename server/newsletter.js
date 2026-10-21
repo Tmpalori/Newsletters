@@ -646,9 +646,12 @@ export function issueDays(events, days, { weekend = false } = {}) {
   return out.filter(x => x.list.length);
 }
 
-// The day's events to show: the best perDay(d), in time order.
+// The day's events to show: the best perDay(d), in time order. A paid
+// Vic's Pick always shows, even past the cap (a town can sell more picks
+// a day than the email lists).
 function shownOf(list, d) {
-  return list.slice(0, perDay(d)).sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
+  const n = perDay(d);
+  return [...list.slice(0, n), ...list.slice(n).filter(paidPick)].sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
 }
 
 // The issue's top three: best-rated across all its days.
@@ -798,11 +801,16 @@ const OPENERS = {
 };
 const andList = xs => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
-export function introText({ top, total, weekend, sections, key }) {
+export function introText({ top, total, weekend, sections, key, otherNames = [] }) {
   const ai = sections && sections.intro;
   const shown = new Set(top.map(e => e.name));
+  // The AI's greeting, only if every event it names is one of the issue's
+  // top three: one it names but the issue doesn't lead with (or doesn't
+  // show at all) means the plain greeting instead.
+  const lower = typeof (ai && ai.text) === 'string' ? ai.text.toLowerCase() : '';
   const aiOk = ai && typeof ai.text === 'string' && ai.text.length <= 220 && Array.isArray(ai.mentions) &&
-    ai.mentions.every(n => shown.has(n) && ai.text.includes(n));
+    ai.mentions.every(n => shown.has(n) && ai.text.includes(n)) &&
+    !otherNames.some(n => typeof n === 'string' && n.length >= 6 && !shown.has(n) && lower.includes(n.toLowerCase()));
   const greeting = aiOk ? ai.text
     : (OPENERS[weekend ? 'weekend' : 'weekly'])[Math.floor(Date.parse(key + 'T12:00:00Z') / (7 * 86400000)) % 3](town.city);
   const items = [];
@@ -890,7 +898,11 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
   const subject = `${title}: ${count} ${count === 1 ? 'thing' : 'things'} to do (${range})`;
   const preheader = top.map(e => e.name).join(' · ');
   const when = e => [dayShort(e.date), clockOf(e.time)].filter(Boolean).join(' ');
-  const intro = introText({ top, total: total ? count : 0, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today) });
+  const otherNames = (events || []).filter(e => e && typeof e.name === 'string').map(e => e.name);
+  const intro = introText({ top, total: total ? count : 0, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today), otherNames });
+  // The sections never stop an issue: a bad file means an issue without them.
+  const sx = part => { try { return sectionsEmailHtml(sections, { siteUrl, subscriberId, part }); } catch (err) { console.warn('[newsletter] sections left out:', err.message); return ''; } };
+  const sxText = part => { try { return sectionsEmailText(sections, { siteUrl, subscriberId, part }); } catch (err) { console.warn('[newsletter] sections left out:', err.message); return []; } };
 
   // Day colors follow the weekday (Monday yellow ... Sunday coral), like the site.
   const days = byDay.map(({ d, list }) => { const dayColor = DAY_COLORS[(currentWeek(d).indexOf(d) + 7) % 7]; return `
@@ -900,7 +912,7 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
 <span style="display:inline-block;margin-left:6px;font-size:13px;font-weight:bold;background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:0 9px;">${escHtml(formatDay(d, { month: 'long', day: 'numeric' }))}</span></td></tr>
 <tr><td style="padding:4px 8px 10px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list, d).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
-${list.length > perDay(d) ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - perDay(d)} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
+${list.length > shownOf(list, d).length ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - shownOf(list, d).length} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
 </td></tr></table>`; }).join('');
 
   const sponsorBlock = sponsorHtml(sponsor, siteUrl);
@@ -911,7 +923,7 @@ ${list.length > perDay(d) ? `<p style="margin:12px 0 4px;text-align:center;"><a 
 ${introHtml(intro, { siteUrl, listPath })}
 <div style="margin-top:8px;">${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
 ${sponsorBlock}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sectionsEmailHtml(sections, { siteUrl, subscriberId, part: 'poll' })}${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sectionsEmailHtml(sections, { siteUrl, subscriberId, part: 'rest' })}
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sx('poll')}${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sx('rest')}
 ${replyAsk && !(sections && sections.question) ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
@@ -926,7 +938,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     ...introPlain(intro), '',
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list, d).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...sectionsEmailText(sections, { siteUrl, subscriberId, part: 'poll' }), ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId, part: 'rest' }),
+    `Full list: ${siteUrl}${listPath}`, '', ...sxText('poll'), ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sxText('rest'),
     ...(replyAsk && !(sections && sections.question) ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`

@@ -949,32 +949,29 @@ class FileStore {
   }
 
   // One-tap polls: one vote per subscriber per poll; a real subscriber only.
-  async recordPollVote({ week, poll, subscriber_id, choice, at }) {
+  // One vote per active subscriber. A different choice within burstMs of
+  // the last click is a mail scanner opening every link: the vote is void
+  // (choice -1, not counted) and stays void through the rest of the burst.
+  // → { choice } as stored, or null for a reader who can't vote.
+  async recordPollVote({ week, poll, subscriber_id, choice, at, burstMs = 0 }) {
     return this._withWrite(async () => {
       const data = await this._read();
-      if (!data.subscribers.some(x => x.id === subscriber_id)) return null;
+      if (!data.subscribers.some(x => x.id === subscriber_id && x.status === 'active')) return null;
       if (!Array.isArray(data.poll_votes)) data.poll_votes = [];
       const row = data.poll_votes.find(x => x.week === week && x.poll === poll && x.subscriber_id === subscriber_id);
-      const prior = row ? { ...row } : null;
-      if (row) Object.assign(row, { choice, at });
-      else data.poll_votes.push({ week, poll, subscriber_id, choice, at, first_at: at });
+      const burst = row && row.choice !== choice && Math.abs(Date.parse(at) - Date.parse(row.at)) < burstMs;
+      const stored = burst ? -1 : choice;
+      if (row) Object.assign(row, { choice: stored, at });
+      else data.poll_votes.push({ week, poll, subscriber_id, choice: stored, at, first_at: at });
       await this._write(data);
-      return { prior };
-    });
-  }
-
-  async deletePollVote({ week, poll, subscriber_id }) {
-    return this._withWrite(async () => {
-      const data = await this._read();
-      data.poll_votes = (data.poll_votes || []).filter(x => !(x.week === week && x.poll === poll && x.subscriber_id === subscriber_id));
-      await this._write(data);
+      return { choice: stored };
     });
   }
 
   async countPollVotes(week, poll) {
     const data = await this._read();
     const out = {};
-    for (const v of data.poll_votes || []) if (v.week === week && v.poll === poll) out[v.choice] = (out[v.choice] || 0) + 1;
+    for (const v of data.poll_votes || []) if (v.week === week && v.poll === poll && v.choice >= 0) out[v.choice] = (out[v.choice] || 0) + 1;
     return out;
   }
 
@@ -2464,27 +2461,26 @@ class PgStore {
     return q.rows.map(r => ({ ...r, created_at: new Date(r.created_at).toISOString() }));
   }
 
-  async recordPollVote({ week, poll, subscriber_id, choice, at }) {
+  // One statement, so a scanner's clicks arriving at once still void the
+  // vote (the row lock orders them). See FileStore.recordPollVote.
+  async recordPollVote({ week, poll, subscriber_id, choice, at, burstMs = 0 }) {
     await this._sectionTables();
-    const prior = await this.pool.query('SELECT choice, at, first_at FROM poll_votes WHERE week = $1 AND poll = $2 AND subscriber_id = $3', [week, poll, subscriber_id]);
     const q = await this.pool.query(
       `INSERT INTO poll_votes (week, poll, subscriber_id, choice, at, first_at)
-         SELECT $1, $2, id, $4, $5, $5 FROM subscribers WHERE id = $3
-       ON CONFLICT (week, poll, subscriber_id) DO UPDATE SET choice = EXCLUDED.choice, at = EXCLUDED.at`,
-      [week, poll, subscriber_id, choice, at]);
-    if (!q.rowCount) return null;
-    const p = prior.rows[0];
-    return { prior: p ? { choice: p.choice, at: new Date(p.at).toISOString(), first_at: new Date(p.first_at).toISOString() } : null };
-  }
-
-  async deletePollVote({ week, poll, subscriber_id }) {
-    await this._sectionTables();
-    await this.pool.query('DELETE FROM poll_votes WHERE week = $1 AND poll = $2 AND subscriber_id = $3', [week, poll, subscriber_id]);
+         SELECT $1, $2, id, $4, $5, $5 FROM subscribers WHERE id = $3 AND status = 'active'
+       ON CONFLICT (week, poll, subscriber_id) DO UPDATE SET
+         choice = CASE WHEN poll_votes.choice <> EXCLUDED.choice
+                        AND abs(extract(epoch FROM EXCLUDED.at - poll_votes.at)) * 1000 < $6 THEN -1
+                       ELSE EXCLUDED.choice END,
+         at = GREATEST(poll_votes.at, EXCLUDED.at)
+       RETURNING choice`,
+      [week, poll, subscriber_id, choice, at, burstMs]);
+    return q.rowCount ? { choice: q.rows[0].choice } : null;
   }
 
   async countPollVotes(week, poll) {
     await this._sectionTables();
-    const q = await this.pool.query('SELECT choice, COUNT(*)::int AS n FROM poll_votes WHERE week = $1 AND poll = $2 GROUP BY choice', [week, poll]);
+    const q = await this.pool.query('SELECT choice, COUNT(*)::int AS n FROM poll_votes WHERE week = $1 AND poll = $2 AND choice >= 0 GROUP BY choice', [week, poll]);
     return Object.fromEntries(q.rows.map(r => [r.choice, r.n]));
   }
 

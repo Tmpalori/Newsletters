@@ -30,12 +30,11 @@ import { renderSectionCard } from './ogImage.js';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // The week a question or poll belongs to (scripts/sections.py QUESTION_EPOCH).
 const EPOCH = '2026-01-05';
-// A sections file older than this isn't shown (the worker stopped).
-const STALE_DAYS = 9;
 // Mail scanners (Outlook's Safe Links, Mimecast) open every link in an
 // email as it arrives: a "vote" for each choice within seconds. A second,
-// different choice this soon after the first means a scanner, and the
-// vote is thrown out.
+// different choice this soon after the last click means a scanner, and the
+// vote is void for good (the store keeps it void through the burst, however
+// many choices, even clicks arriving at once).
 const SCANNER_BURST_MS = 30 * 1000;
 
 export function sectionsConfig(t = town, { root = ROOT, env = process.env } = {}) {
@@ -46,6 +45,11 @@ export function sectionsConfig(t = town, { root = ROOT, env = process.env } = {}
   const enabled = flag === '1' ? true : flag === '0' ? false : cfg.enabled === true;
   return { ...cfg, enabled };
 }
+
+// An item's id for Take out: its key when the job gave it one (it stays
+// put when the midweek run adds or drops items), else its place.
+const itemId = (kind, x, i) => `${kind}:${x && typeof x.key === 'string' && x.key ? x.key : i}`;
+const isText = v => typeof v === 'string' && v.trim() !== '';
 
 const daysBetween = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000);
 export const mondayOf = ymd => addDays(ymd, -((new Date(ymd + 'T12:00:00Z').getUTCDay() + 6) % 7));
@@ -74,16 +78,19 @@ export function sectionsFor({ cfg, file, hidden = [], edition = 'weekly', now = 
   if (!cfg || !cfg.enabled) return null;
   const today = localDateStr(now);
   const monday = mondayOf(today);
-  // Sunday evening's build is already for tomorrow's issue (-1).
-  const fresh = file && typeof file.week === 'string' && daysBetween(file.week, today) >= -1 && daysBetween(file.week, today) <= STALE_DAYS;
+  // Only this week's file (or, on Sunday, the evening build for tomorrow's
+  // issue): when the job hasn't run, last week's pet and places never
+  // go out again.
+  const fresh = file && typeof file.week === 'string' && (file.week === monday || (file.week === addDays(today, 1) && file.week === addDays(monday, 7)));
   const f = fresh ? file : {};
   const off = new Set(hidden);
-  const pet = f.pet && f.pet.photo && !off.has('pet') ? f.pet : null;
-  const places = (f.new_in_town || []).filter(x => x && x.name && !off.has(`place:${x.key}`));
+  // Only well-formed items: a bad file must never break a send.
+  const pet = f.pet && isText(f.pet.name) && isText(f.pet.photo) && !off.has('pet') ? f.pet : null;
+  const places = (Array.isArray(f.new_in_town) ? f.new_in_town : []).filter(x => x && isText(x.name) && typeof x.line === 'string' && !off.has(`place:${x.key}`));
   const good = f.good_news && Array.isArray(f.good_news.items) && !off.has('good')
-    ? { ...f.good_news, items: f.good_news.items.filter((x, i) => !off.has(`good:${i}`)) } : null;
+    ? { ...f.good_news, items: f.good_news.items.filter((x, i) => x && isText(x.title) && typeof x.line === 'string' && !off.has(itemId('good', x, i))) } : null;
   const roundup = f.roundup && Array.isArray(f.roundup.answers) && !off.has('roundup')
-    ? { ...f.roundup, answers: f.roundup.answers.filter((x, i) => !off.has(`reply:${i}`)) } : null;
+    ? { ...f.roundup, answers: f.roundup.answers.filter((x, i) => x && isText(x.quote) && !off.has(itemId('reply', x, i))) } : null;
   const out = { monday, edition };
   // The AI's opening paragraph for this very issue (server/newsletter.js
   // introText checks it names only events the issue shows).
@@ -231,7 +238,7 @@ export function syncArchive(archive, file, hidden = []) {
   }
   a.hall = a.hall.filter(x => x.week !== week);
   if (file.good_news && !off.has('good')) {
-    const items = (file.good_news.items || []).filter((g, i) => !off.has(`good:${i}`));
+    const items = (file.good_news.items || []).filter((g, i) => g && isText(g.title) && !off.has(itemId('good', g, i)));
     if (items.length) a.hall.unshift({ week, items, url: file.good_news.url || '', body: file.good_news.body || '' });
   }
   const byWeek = (x, y) => (x.week < y.week ? 1 : x.week > y.week ? -1 : 0);
@@ -361,7 +368,7 @@ export function firstName(from) {
 /**
  * The routes, the reply hook for server/inbound.js, the jobs hooks.
  * store: getTownFile/setTownFile, saveReaderReply, listReaderReplies,
- * recordPollVote, deletePollVote, countPollVotes.
+ * recordPollVote, countPollVotes.
  */
 export function createSections({ store, cfg = sectionsConfig(), slack = null, siteUrl = '', nowFn = () => new Date(), log = console }) {
   let cache = { at: 0, file: null, hidden: [] };
@@ -457,6 +464,14 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     if (data.roundup) lines.push(`💬 Readers' answers: ${data.roundup.answers.length}`);
     if ((data.questions_added || []).length) lines.push(`❓ New questions for the weeks ahead: ${data.questions_added.map(q => `“${q}”`).join(' ')}`);
     const dropped = (data.review || []).filter(r => r.verdict === 'drop').length;
+    // The AI was down, out of time or has no key: fewer sections went in.
+    // An alert (once a week), so it doesn't go unnoticed for weeks.
+    const trouble = Array.isArray(data.ai_problems) ? data.ai_problems.filter(isText) : [];
+    if (trouble.length && typeof slack.alert === 'function') {
+      slack.alert(`sections-ai-${data.week || ''}`, 'Newsletter sections: the AI had trouble',
+        `${trouble.join('; ')}. New in town, City Hall and the readers' answers may be missing this week; the pet runs with a plain line.`,
+        `${siteUrl}/admin.html#tab=newsletter`);
+    }
     slack.notify({ title: '🗞️ Newsletter sections ready', channel: 'activity', link: `${siteUrl}/admin.html#tab=newsletter`, linkLabel: 'Take something out',
       text: [lines.join('\n') || 'Nothing new this time.', dropped ? `The editor left out ${dropped} item${dropped === 1 ? '' : 's'}.` : ''].filter(Boolean).join('\n') });
   }
@@ -470,26 +485,33 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
 
   // signupHtml(): the newsletter signup form (server/newsletter.js), for the pages.
   function register(app, { requireAdmin, sendHtml = (res, html) => res.type('html').send(html), signupHtml = () => '' }) {
+    // Every handler's failure goes to Express's error handler, never a
+    // request left hanging (Express 4 doesn't catch a rejected promise).
+    const wrap = h => (req, res, next) => { try { return Promise.resolve(h(req, res, next)).catch(next); } catch (err) { return next(err); } };
+    const on = { get: (p, ...hs) => app.get(p, ...hs.map(wrap)), post: (p, ...hs) => app.post(p, ...hs.map(wrap)) };
+    // A poll's week: a Monday, from the last two months or next week.
+    const pollWeek = week => /^\d{4}-\d{2}-\d{2}$/.test(week) && mondayOf(week) === week &&
+      daysBetween(week, localDateStr(nowFn())) <= 62 && daysBetween(week, localDateStr(nowFn())) >= -7;
     if (cfg.enabled) {
       for (const page of SECTION_PAGES) {
-        app.get(page.path, async (req, res, next) => {
+        on.get(page.path, async (req, res, next) => {
           try { sendHtml(res, renderSectionPage(page.path.slice(1), await readArchive(), { siteUrl, signupHtml: signupHtml(page.path.slice(1)) })); } catch (err) { next(err); }
         });
       }
-      app.get('/sections/cards/new-in-town.png', async (req, res) => {
+      on.get('/sections/cards/new-in-town.png', async (req, res) => {
         const a = await readArchive();
         if (!a.places.length) return res.status(404).end();
         res.set('Content-Type', 'image/png').set('Cache-Control', 'public, max-age=3600');
         res.send(renderSectionCard({ kicker: 'New in town', title: `New in ${town.city}`, lines: a.places.slice(0, 3).map(x => x.name) }));
       });
-      app.get('/sections/cards/pet-:id.png', async (req, res) => {
+      on.get('/sections/cards/pet-:id.png', async (req, res) => {
         const pet = await petPhoto(req.params.id);
         if (!pet) return res.status(404).end();
         res.set('Content-Type', 'image/png').set('Cache-Control', 'public, max-age=604800');
         res.send(renderSectionCard({ kicker: 'Pet of the week', title: `Meet ${pet.name}`, lines: [pet.shelter || ''], photo: pet.photo }));
       });
     }
-    app.get('/sections/pet/:id.jpg', async (req, res) => {
+    on.get('/sections/pet/:id.jpg', async (req, res) => {
       const pet = await petPhoto(req.params.id);
       if (!pet) return res.status(404).end();
       res.set('Content-Type', 'image/jpeg');
@@ -500,10 +522,14 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     // A section's link from the email: counted (not for bots and mail
     // scanners), then on to our own page or a link this week's sections
     // carry (never anywhere else: no open redirect).
-    app.get('/go/x/:section', async (req, res) => {
+    on.get('/go/x/:section', async (req, res) => {
       const section = req.params.section;
       const to = String(req.query.to || '');
-      const week = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.w || '')) ? String(req.query.w) : mondayOf(localDateStr(nowFn()));
+      // The issue's week, if it's a Monday within two weeks of now (anything
+      // else is made up and would push real weeks out of the file).
+      const thisMonday = mondayOf(localDateStr(nowFn()));
+      const w = String(req.query.w || '');
+      const week = /^\d{4}-\d{2}-\d{2}$/.test(w) && mondayOf(w) === w && Math.abs(daysBetween(w, thisMonday)) <= 14 ? w : thisMonday;
       const { file } = await current();
       const known = [file && file.pet && file.pet.url, file && file.good_news && file.good_news.url].filter(Boolean);
       const ours = /^\/(?!\/)[\w\-./?=&%#]*$/.test(to);
@@ -513,27 +539,25 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       res.redirect(302, dest);
     });
 
-    app.get('/p/:week/:poll/:choice', async (req, res) => {
+    on.get('/p/:week/:poll/:choice', async (req, res) => {
       const { week, poll: pollId } = req.params;
       const choice = Number(req.params.choice);
-      const poll = /^\d{4}-\d{2}-\d{2}$/.test(week) ? pollFor(cfg, week) : null;
+      const poll = cfg.enabled && pollWeek(week) ? pollFor(cfg, week) : null;
       if (!poll || poll.id !== pollId || !Number.isInteger(choice) || choice < 0 || choice >= poll.choices.length) return res.redirect(302, '/');
       const sub = String(req.query.s || '').slice(0, 64);
       let voted = null;
       if (sub && req.method === 'GET' && !isBot(req.get('User-Agent')) && typeof store.recordPollVote === 'function') {
         try {
           const at = nowFn().toISOString();
-          const r = await store.recordPollVote({ week, poll: pollId, subscriber_id: sub, choice, at });
-          if (r && r.prior && r.prior.choice !== choice && Date.parse(at) - Date.parse(r.prior.at) < SCANNER_BURST_MS) {
-            await store.deletePollVote({ week, poll: pollId, subscriber_id: sub });
-          } else if (r) voted = choice;
+          const r = await store.recordPollVote({ week, poll: pollId, subscriber_id: sub, choice, at, burstMs: SCANNER_BURST_MS });
+          if (r && r.choice === choice) voted = choice;
         } catch (err) { log.warn('[sections] vote failed:', err.message); }
       }
       res.redirect(302, `/poll/${week}/${encodeURIComponent(pollId)}${voted != null ? `?v=${voted}` : ''}`);
     });
 
-    app.get('/poll/:week/:poll', async (req, res) => {
-      const poll = /^\d{4}-\d{2}-\d{2}$/.test(req.params.week) ? pollFor(cfg, req.params.week) : null;
+    on.get('/poll/:week/:poll', async (req, res) => {
+      const poll = cfg.enabled && pollWeek(req.params.week) ? pollFor(cfg, req.params.week) : null;
       if (!poll || poll.id !== req.params.poll) return res.status(404).send('Not found');
       const counts = typeof store.countPollVotes === 'function' ? await store.countPollVotes(req.params.week, poll.id).catch(() => ({})) : {};
       const v = req.query.v != null ? Number(req.query.v) : null;
@@ -541,7 +565,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       res.type('html').send(renderPollPage(poll, counts, { voted: Number.isInteger(v) ? v : null, siteUrl }));
     });
 
-    app.get('/api/admin/sections', requireAdmin, async (req, res) => {
+    on.get('/api/admin/sections', requireAdmin, async (req, res) => {
       cache.at = 0;
       const { file, hidden } = await current();
       const monday = mondayOf(localDateStr(nowFn()));
@@ -555,9 +579,9 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
         new_in_town: f.new_in_town || [], good_news: f.good_news || null, roundup: f.roundup || null, review: f.review || [] });
     });
 
-    app.post('/api/admin/sections/hide', requireAdmin, async (req, res) => {
+    on.post('/api/admin/sections/hide', requireAdmin, async (req, res) => {
       const id = String((req.body || {}).id || '');
-      if (!/^(pet|question|poll|good|roundup|place:[\w-]+|good:\d+|reply:\d+|bank:[a-f0-9]{10})$/.test(id)) return res.status(400).json({ ok: false, error: 'bad-id' });
+      if (!/^(pet|question|poll|good|roundup|place:\S{1,80}|good:[\w-]{1,20}|reply:[\w-]{1,20}|bank:[a-f0-9]{10})$/.test(id)) return res.status(400).json({ ok: false, error: 'bad-id' });
       const { file } = await current();
       const week = file && file.week;
       if (!week) return res.status(404).json({ ok: false, error: 'no-sections' });
@@ -581,5 +605,16 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     });
   }
 
-  return { enabled: cfg.enabled, cfg, forIssue, forHome, saveReply, listReplies, onFile, register, refreshArchive, activity };
+  // What the jobs worker goes by (GET /api/jobs/sections): whether the
+  // town's sections are on (this service's switch is the only one), and
+  // this week's pet and places as readers see them (fresh, minus what the
+  // owner took out), for the social posts.
+  async function forWorker(now = nowFn()) {
+    if (!cfg.enabled) return { enabled: false };
+    const { file, hidden } = await current();
+    const s = sectionsFor({ cfg, file, hidden, edition: 'weekly', now }) || {};
+    return { enabled: true, week: s.monday, pet: s.pet || null, new_in_town: s.places || [] };
+  }
+
+  return { enabled: cfg.enabled, cfg, forIssue, forHome, forWorker, saveReply, listReplies, onFile, register, refreshArchive, activity };
 }

@@ -333,7 +333,8 @@ def fake_kit_build(kinds_seen, featured=0, sections=False):
             for ext in ("png", "jpg"):
                 with open(os.path.join(out, f"{k}-1.{ext}"), "wb") as f:
                     f.write(b"IMG")
-            kits[k] = {"slides": [f"{k}-1.png"], "slides_jpg": [f"{k}-1.jpg"], "events": 4,
+            # The pet and new-in-town kits have no events, as social_kit.py builds them.
+            kits[k] = {"slides": [f"{k}-1.png"], "slides_jpg": [f"{k}-1.jpg"], "events": 0 if k in ("pet", "new") else 4,
                        "featured": featured if k == "today" else 0,
                        "captions": {"facebook": f"{k} in Medford", "instagram": f"{k} IG"}}
         with open(os.path.join(out, "kit.json"), "w") as f:
@@ -689,3 +690,33 @@ def test_tuesday_posts_today_then_the_pet_on_its_own_and_hands_the_kit_the_secti
     assert result["posted"] == "today + pet"
     # The sections file never goes to the site as a kit file.
     assert not any(name == "sections.json" for _, name in getattr(site, "social_puts", []))
+
+
+def test_the_sites_switch_decides_and_social_gets_the_week_as_readers_see_it(victoria):
+    w, _ = victoria
+    state = {"enabled": True, "week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": []}
+
+    class StateSite(SocialSite):
+        def get_sections_state(self):
+            return state
+
+        def get_replies(self, since):
+            return []
+    site = StateSite(files={"sections": {"week": "2026-09-01", "pet": {"name": "Old"}}})
+    seen_env, sections_in = [], []
+
+    def run(args, timeout, env=None):
+        seen_env.append(env.get("SECTIONS"))
+        if "--sections" in args:
+            sections_in.append(json.load(open(args[args.index("--sections") + 1])))
+        return fake_kit_build([], sections=True)(args, timeout, env)
+    status, result = w.job_social_kit(site, run=run, env={**VIC_POSTING, "SECTIONS": "0"}, today=TUE, session=Meta(site))
+    assert status == "done", result
+    assert seen_env == ["1"] and sections_in[0]["pet"]["name"] == "Chloe"       # not the stale raw file
+    assert set(site.files["social_posted"]) == {"2026-10-15:today", "2026-10-15:pet"}
+    # Off on the site: the job runs sections.py with SECTIONS=0 (it builds nothing).
+    state = {"enabled": False}
+    got = []
+    w.job_sections(StateSite(), run=lambda a, t, e=None: got.append(e.get("SECTIONS")) or (0, ["off"]), env={"SECTIONS": "1"},
+                   today=_date(2026, 10, 18))
+    assert got == ["0"]

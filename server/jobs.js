@@ -13,6 +13,7 @@
  *   PUT  /api/jobs/files/:name        the JSON body is the file
  *   GET  /api/jobs/replies?since=     readers' replies since a date (the sections job)
  *   GET  /api/jobs/issue?edition=     the issue's top events and count (its opening paragraph)
+ *   GET  /api/jobs/sections           sections on or off, this week's pet and places (social posts)
  *   PUT  /api/jobs/social/:build/:name a social kit file (raw body), staged
  *   POST /api/jobs/social/:build/publish  that build becomes /social/latest/
  *
@@ -157,9 +158,11 @@ export function collectStops(stops) {
  * listReplies(since): readers' replies since an ISO date (server/sections.js)
  * onFile(name, data): after a job hands the site a file (the sections ping)
  * issueFacts(edition): what the next issue shows (server/newsletter.js issueFacts)
+ * sectionsState(): whether the town's sections are on, and this week's pet
+ *   and places as readers see them (server/sections.js forWorker)
  */
 export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {},
-  listReplies = null, onFile = null, issueFacts = null }) {
+  listReplies = null, onFile = null, issueFacts = null, sectionsState = null }) {
   const cfg = jobsConfig(env);
   // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
   // job (and doesn't ask), it's alive until that job's time limit.
@@ -403,6 +406,11 @@ export function createJobs({ store, slack = null, publish = async () => null, si
     app.get('/api/jobs/issue', guard, wrap(async (req, res) => {
       if (typeof issueFacts !== 'function') return res.status(404).json({ ok: false, error: 'not-found' });
       res.json({ ok: true, issue: await issueFacts(req.query.edition === 'weekend' ? 'weekend' : 'weekly') });
+    }));
+
+    app.get('/api/jobs/sections', guard, wrap(async (req, res) => {
+      if (typeof sectionsState !== 'function') return res.status(404).json({ ok: false, error: 'not-found' });
+      res.json({ ok: true, sections: await sectionsState() });
     }));
 
     app.put('/api/jobs/files/:name', guard, fileJson, wrap(async (req, res) => {

@@ -288,7 +288,8 @@ def main(argv=None, session=None, on_save=None):
     with open(os.path.join(args.kit_dir, "kit.json")) as f:
         manifest = json.load(f)
     kit = manifest["kits"][args.kind]
-    if not kit.get("events"):
+    # The pet and new-in-town posts have no events, just their slides.
+    if not kit.get("events") and not (args.kind in ("pet", "new") and kit.get("slides")):
         print(f"No events in the {args.kind} kit; not posting an empty list.")
         return 0
     if args.if_featured and not kit.get("featured"):
