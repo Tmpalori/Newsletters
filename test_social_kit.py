@@ -491,6 +491,10 @@ def test_section_posts_are_built_only_with_something_to_show_and_never_name_the_
     assert sk.build_section_kit("pet", {"pet": {"name": "X"}}, str(tmp_path), render=render) is None
     assert sk.build_section_kit("new", {"new_in_town": []}, str(tmp_path), render=render) is None
     assert sk.build_section_kit("pet", sections, str(tmp_path), render=lambda *a: None) is None
+    # The kit's index page lists them under their own titles (it used to
+    # stop the build on a day with a pet or new places).
+    page = sk.render_page({"today": {**new, "slides": ["today-1.png"]}, "pet": pet, "new": new}, "now")
+    assert "<h2>Pet of the Week</h2>" in page and "<h2>New in Victoria</h2>" in page
 
 
 def test_section_posts_follow_the_towns_switch(monkeypatch):

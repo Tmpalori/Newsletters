@@ -58,6 +58,8 @@ TITLES = {
     "week": (f"This week in {TOWN['city_state']}", f"This Week in {TOWN['city']}", "/"),
     "weekend": (f"This weekend in {TOWN['city_state']}", f"This Weekend in {TOWN['city']}", "/this-weekend"),
     "today": (f"Today in {TOWN['city_state']}", f"Today in {TOWN['city']}", "/today"),
+    "pet": (f"Pet of the week in {TOWN['city_state']}", "Pet of the Week", "/pets"),
+    "new": (f"New in {TOWN['city_state']}", f"New in {TOWN['city']}", "/new-in-town"),
 }
 MAX_TAGS = 15  # Instagram allows 20 @mentions per caption
 IG_MAX_CAPTION = 2200  # Instagram rejects longer captions
