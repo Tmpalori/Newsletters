@@ -90,11 +90,15 @@ With a town's sections on:
 
 The daily social kit (`scripts/social_kit.py`) adds two posts for a town
 with its sections on: **Tuesday** the pet of the week (its photo, "Meet
-<name>", the shelter; caption links to `/pets`) and **Wednesday** New in
-Town (up to four places on the slide, six in the caption; links to
-`/new-in-town`). Each is the feature slide plus the subscribe slide. With no
-pet or no new places that week, or sections off, the day posts its usual
-"Today in" instead (`job_social_kit`). The sections job itself does nothing
+<name>", the shelter; caption links to `/pets`), a post of its own after the
+usual "Today in" (`own_posts` in `scripts/jobs_worker.py`), and
+**Wednesday** New in Town (up to four places on the slide, six in the
+caption; links to `/new-in-town`), in place of "Today in". Each is the
+feature slide plus the subscribe slide. With no pet or no new places that
+week, or sections off, the day posts only its usual "Today in"
+(`job_social_kit`). Every post goes to Facebook, and to Instagram too once
+the town's `IG_USER_ID` is set (`scripts/social_post.py`); nothing else
+needs to change to turn Instagram on. The sections job itself does nothing
 for a town with sections off (no AI calls), unless `SECTIONS=1`.
 
 ## What readers do with them

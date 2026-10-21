@@ -334,13 +334,20 @@ def social_plan(today):
     if dow == 4:
         return ["weekend", "today"], "weekend", True
     # The newsletter sections' posts (SECTIONS.md): Tuesday the pet of the
-    # week, Wednesday New in Town. A town without them (or nothing to show)
-    # posts "today" as before (job_social_kit).
+    # week as a post of its own after "today" (own_posts), Wednesday New in
+    # Town. A town without them (or nothing to show) posts "today" as before
+    # (job_social_kit).
     if dow == 2:
-        return ["today", "pet"], "pet", False
+        return ["today", "pet"], "today", False
     if dow == 3:
         return ["today", "new"], "new", False
     return ["today"], "today", False
+
+
+def own_posts(today):
+    """Kits posted on their own, after the day's post, when they have
+    slides: Tuesday the pet of the week (the owner, Oct 2026)."""
+    return ["pet"] if today.isoweekday() == 2 else []
 
 
 SOCIAL_SKIP = {"reel.txt", "posted.json", "sections.json"}
@@ -373,6 +380,7 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
         # usual "today" post instead.
         if post_kind in ("pet", "new") and not ((manifest.get("kits") or {}).get(post_kind) or {}).get("slides"):
             post_kind = "today"
+        extra = [k for k in own_posts(today) if ((manifest.get("kits") or {}).get(k) or {}).get("slides")]
         names = sorted(n for n in os.listdir(kit_dir) if n not in SOCIAL_SKIP and os.path.isfile(os.path.join(kit_dir, n)))
         names.sort(key=lambda n: n == "kit.json")      # the manifest last
         size = 0
@@ -416,6 +424,8 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
                 codes.append(post(["--kind", post_kind, "--kit-dir", kit_dir], session=session, on_save=save))
                 if extra_today:
                     codes.append(post(["--kind", "today", "--if-featured", "--kit-dir", kit_dir], session=session, on_save=save))
+                for k in extra:
+                    codes.append(post(["--kind", k, "--kit-dir", kit_dir], session=session, on_save=save))
         except Exception as e:      # noqa: BLE001 - reported as the job's failure
             codes.append(1)
             tee.write(f"::error::{type(e).__name__}: {e}\n")
@@ -430,7 +440,7 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
             errors = [line.replace("::error::", "") for line in tee.tail if line.startswith("::error::")]
             return "failed", {**result, "error": "Posting failed: " + ("; ".join(errors)[:600] or "see the log."),
                               "log_tail": list(tee.tail)}
-        result["posted"] = post_kind + (" (+ today if it had a paid pick)" if extra_today else "")
+        result["posted"] = post_kind + (" (+ today if it had a paid pick)" if extra_today else "") + "".join(f" + {k}" for k in extra)
         return "done", result
 
 

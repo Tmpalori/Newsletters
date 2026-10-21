@@ -354,7 +354,8 @@ def test_social_plan_follows_the_github_days():
     assert jw.social_plan(MON) == (["week", "weekend", "today"], "week", False)
     assert jw.social_plan(THU) == (["weekend", "today"], "weekend", True)
     # Tuesday and Wednesday: the sections' posts (the pet, New in Town).
-    assert jw.social_plan(TUE) == (["today", "pet"], "pet", False)
+    assert jw.social_plan(TUE) == (["today", "pet"], "today", False)
+    assert jw.own_posts(TUE) == ["pet"] and jw.own_posts(THU) == []
     assert jw.social_plan(_date(2026, 10, 14)) == (["today", "new"], "new", False)
     assert jw.social_plan(_date(2026, 10, 16)) == (["today"], "today", False)
 
@@ -395,6 +396,19 @@ def test_victorias_kit_runs_on_her_worker_and_posts_to_her_pinned_page(victoria)
     assert ("POST", f"{VIC_PAGE}/feed") in meta.calls
     assert not any("media" in p for _, p in meta.calls)                       # no Instagram id pinned: Facebook only
     assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}}
+
+
+def test_the_pets_own_post_goes_to_instagram_too_once_its_id_is_set(victoria):
+    w, _ = victoria
+    site = SocialSite(files={"sections": {"week": "2026-10-12", "pet": {"name": "Chloe"}}})
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([], sections=True), env={**VIC_POSTING, "IG_USER_ID": "777"},
+                                      today=TUE, session=meta)
+    assert status == "done", result
+    posted = site.files["social_posted"]
+    assert set(posted) == {"2026-10-15:today", "2026-10-15:pet"}
+    assert all(set(v) == {"facebook", "instagram"} for v in posted.values())
+    assert ("POST", "777/media_publish") in meta.calls
 
 
 @pytest.mark.parametrize("env", [
@@ -658,7 +672,7 @@ def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_bef
     assert jw.job_sections(Site(), run=lambda a, t, e=None: (1, ["boom"]), env={}, today=date(2026, 10, 14))[0] == "failed"
 
 
-def test_tuesday_posts_the_pet_when_the_town_has_one_and_hands_the_kit_the_sections_file(medford):
+def test_tuesday_posts_today_then_the_pet_on_its_own_and_hands_the_kit_the_sections_file(medford):
     w, _ = medford
     site = SocialSite()
     site.files["sections"] = {"week": "2026-10-12", "pet": {"name": "Chloe"}}
@@ -671,6 +685,7 @@ def test_tuesday_posts_the_pet_when_the_town_has_one_and_hands_the_kit_the_secti
     status, result = w.job_social_kit(site, run=run, env=POSTING, today=TUE, session=Meta(site))
     assert status == "done", result
     assert seen == [["today", "pet"]] and sections_in[0]["pet"]["name"] == "Chloe"
-    assert site.files["social_posted"] == {"2026-10-15:pet": {"facebook": "post1"}}
+    assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}, "2026-10-15:pet": {"facebook": "post1"}}
+    assert result["posted"] == "today + pet"
     # The sections file never goes to the site as a kit file.
     assert not any(name == "sections.json" for _, name in getattr(site, "social_puts", []))
