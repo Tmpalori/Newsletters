@@ -495,7 +495,7 @@ export function partnersEmailHtml(state, siteUrl) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px dashed ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px;">
 <span style="${PILL_LABEL}">FOUNDING PARTNERS WANTED</span>
 <div style="font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.ink};margin:8px 0 4px;">Own a local business? Be the one we recommend.</div>
-<div style="font-size:14px;color:${C.ink};line-height:1.4;">One business per category, in every issue and on the site. Cancel anytime.</div>
+<div style="font-size:14px;color:${C.ink};line-height:1.4;">One business per category, in every issue and on the site.</div>
 <div style="margin:8px 0 10px;">${chips}</div>
 <a href="${escHtml(join)}" style="display:inline-block;font-family:${DISPLAY};font-size:14px;font-weight:bold;color:#fff;background:${C.accent};border:2px solid ${C.ink};border-radius:999px;padding:7px 16px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">Claim your category →</a>
 </td></tr></table>`;
@@ -678,10 +678,19 @@ const sxBtn = (href, label, bg = C.sun) => `<a href="${escHtml(href)}" style="di
 const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;background:${bg};border:2px solid ${C.ink};border-radius:6px;padding:0 6px;font-family:${DISPLAY};font-size:11px;font-weight:bold;vertical-align:middle;transform:rotate(-3deg);">${t}</span>`;
 // Each section below the events sits on its own soft band (no outline, so
 // it doesn't read as another event box), a different color each, so readers
-// can tell where one ends and the next begins (the owner, Oct 2026).
-const SX_BG = { poll: '#ECE9FF', pet: C.sunLight, places: '#E3F6EC', question: C.sky, roundup: '#FFE3EF', good: '#E3F6EC' };
+// can tell where one ends and the next begins (the owner, Oct 2026). From
+// City Hall is the exception: no band, set between two ink rules with its
+// label on the top one, so the last section reads like a page footer.
+const SX_BG = { poll: '#ECE9FF', pet: C.sunLight, places: '#E3F6EC', question: C.sky, roundup: '#FFE3EF' };
 const sxBand = (bg, inner, align = 'left') => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="${align}" style="padding:18px 16px;">${inner}</td></tr></table>`;
+const sxRule = `<div style="height:0;border-top:2px solid ${C.ink};font-size:1px;line-height:0;">&nbsp;</div>`;
+// A rule with a label pill sitting on it.
+const sxRuleLabel = label => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="middle">${sxRule}</td>
+<td width="1" valign="middle" style="padding:0 10px;white-space:nowrap;"><span style="${PILL_LABEL}font-size:12px;padding:3px 12px;background:#FFFFFF;">${escHtml(label)}</span></td>
+<td valign="middle">${sxRule}</td></tr></table>`;
 
 // part: 'poll' is just the poll (right under the events, the owner's call,
 // Oct 2026), 'rest' everything else (further down), 'all' both.
@@ -721,14 +730,15 @@ ${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i
   if (sx.question && want('question')) {
     // A tinted band with the question as a big pull quote. The button opens
     // an email with the subject marked as an answer, so the roundup can
-    // tell answers from other replies; a plain reply works too.
+    // tell answers from other replies. The email asks only for the button
+    // (the owner, Oct 2026); a plain reply still reaches the roundup.
     const to = answerTo();
     const answer = to ? `mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}` : '';
     out.push(sxBand(SX_BG.question, `${sxKicker('Question of the week')}
 <div style="font-family:${DISPLAY};font-size:46px;line-height:0.6;color:${C.accent};margin-top:14px;">“</div>
 <div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;">${escHtml(sx.question)}</div>
 ${answer ? `<div style="margin-top:10px;">${sxBtn(answer, 'Send my answer')}</div>` : ''}
-<div style="font-size:14px;margin-top:10px;">${answer ? 'Or just hit reply.' : 'Hit reply and tell us.'} Some favorites go in Thursday's email (first names only).</div>`, 'center'));
+<div style="font-size:14px;margin-top:10px;">${answer ? '' : 'Hit reply and tell us. '}Some favorites go in Thursday's email (first names only).</div>`, 'center'));
   }
   if (sx.roundup && want('roundup')) {
     // Chat bubbles, alternating sides and colors.
@@ -743,11 +753,14 @@ ${bubbles}
 <div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`));
   }
   if (sx.good && want('good')) {
-    // A plain list set off by a rule, a check per item.
-    out.push(sxBand(SX_BG.good, `${sxKicker('From City Hall', '#1C7C4A')}
-<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda this week</div>
+    // No band: a plain list between two rules, the label on the top one,
+    // a check per item.
+    out.push(`${sxRuleLabel('🏛️ From City Hall')}
+<div style="padding:12px 4px 14px;">
+<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:0 0 8px;text-align:center;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
-${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}`));
+${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}
+</div>${sxRule}`);
   }
   return out.length ? sxGap + out.join(sxGap) : '';
 }
@@ -759,7 +772,12 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all'
   if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
   if (sx.places && sx.places.length && want('places')) out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}`), '');
   if (sx.poll && want('poll')) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
-  if (sx.question && want('question')) out.push(`QUESTION OF THE WEEK: ${sx.question}`, "Hit reply and tell us. We'll share some favorites Thursday (first names only).", '');
+  if (sx.question && want('question')) {
+    const to = answerTo();
+    out.push(`QUESTION OF THE WEEK: ${sx.question}`, to
+      ? `Send your answer: mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}`
+      : 'Hit reply and tell us.', "We'll share some favorites Thursday (first names only).", '');
+  }
   if (sx.roundup && want('roundup')) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
   if (sx.good && want('good')) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
   return out;

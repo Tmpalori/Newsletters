@@ -11,7 +11,7 @@ from any events list, and look forward to opening the email.
 | Monday | Question of the week | New questions the AI writes for the town once a month (or when fewer than 4 are left): about half fit the season, none political, none repeated within 26 weeks, each read by the editor and the rules. The next one runs each Monday; the town's own list in `sections.json` is the fallback (and the AI's style guide). Replaces the "Just hit reply" line. Slack says when new ones are added; admin → Newsletter shows the ones coming up, each with Take out. |
 | First Monday of the month | One-tap poll | The town's list in `sections.json`. Each choice is a link (`/p/<week>/<poll>/<choice>?s=<subscriber id>`) that records the vote and opens the results (`/poll/<week>/<poll>`). One vote per reader; a mail scanner that clicks every choice within 30 seconds is thrown out, and so are bots. |
 | Thursday | "<City> says" | The best 2 to 4 answers to Monday's question, from readers' replies (first names only). Skipped with fewer than 2. |
-| Thursday | From City Hall | Updates from the city or county agenda, good news only and nothing political: parks, the library, festivals, proclamations. Never taxes, police, elections, zoning, lawsuits, alcohol licenses or anything that could start an argument. |
+| Thursday | From City Hall | (No band: set between two rules, its label on the top one.) Updates from the city or county agenda, good news only and nothing political: parks, the library, festivals, proclamations. Never taxes, police, elections, zoning, lawsuits, alcohol licenses or anything that could start an argument. |
 
 ## How it runs
 
