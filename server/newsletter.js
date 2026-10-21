@@ -71,7 +71,7 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
-import { petPhotoUrl, pollVoteUrl, sectionClickUrl } from './sections.js';
+import { petPhotoUrl, pollVoteUrl, sectionClickUrl, placeMapUrl, placeWhen } from './sections.js';
 import { botName } from './analytics.js';
 
 const RESEND_API = 'https://api.resend.com';
@@ -721,9 +721,11 @@ ${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectio
 <div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`));
   }
   if (sx.places && sx.places.length && want('places')) {
-    // An open list: a heading, a line per place, dotted rules between.
-    out.push(sxBand(SX_BG.places, `${sxHeading(`New around ${town.city}`, C.sunset)}
-${sx.places.map((x, i) => `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><strong style="font-size:16px;">${escHtml(x.name)}</strong>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></div>`).join('')}
+    // An open list: a heading, a line per place, dotted rules between. Each
+    // name opens the place on a map; under it, when it opened or opens.
+    const today = sx.today || sx.monday;
+    out.push(sxBand(SX_BG.places, `<a name="new-in-town" id="new-in-town"></a>${sxHeading(`New around ${town.city}`, C.sunset)}
+${sx.places.map((x, i) => { const when = placeWhen(x, today); return `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, placeMapUrl(x)))}" style="font-size:16px;font-weight:bold;color:${C.ink};text-decoration:underline;">${escHtml(x.name)}</a>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span>${when ? `<div style="font-size:13px;font-weight:bold;color:${C.ink};margin-top:3px;">📅 ${escHtml(when)}</div>` : ''}</div>`; }).join('')}
 <div style="margin-top:6px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, '/new-in-town'))}" style="color:${C.accent};font-weight:800;">See every new place →</a></div>
 <div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`));
   }
@@ -774,7 +776,10 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all'
   const out = [];
   const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
   if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
-  if (sx.places && sx.places.length && want('places')) out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}`), '');
+  if (sx.places && sx.places.length && want('places')) {
+    out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => { const when = placeWhen(x, sx.today || sx.monday);
+      return `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}${when ? ` ${when}.` : ''} Map: ${placeMapUrl(x)}`; }), '');
+  }
   if (sx.poll && want('poll')) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
   if (sx.question && want('question')) {
     const to = answerTo();
@@ -836,7 +841,14 @@ export function introText({ top, total, weekend, sections, key, otherNames = [] 
   if (more > 0) items.push({ icon: '📅', text: `${top.length ? 'Plus another ' : ''}${more} ${more === 1 ? 'thing' : 'things'} going on ${span}`, list: true });
   if (sections) {
     if (sections.pet) items.push({ icon: '🐾', text: `Meet ${sections.pet.name}, our pet of the week` });
-    if (sections.places && sections.places.length) items.push({ icon: '🏪', text: sections.places.length === 1 ? 'A new spot around town' : `${sections.places.length} new spots around town` });
+    // The new spots by name, a tap away from the section below.
+    const names = (Array.isArray(sections.places) ? sections.places : []).filter(x => x && typeof x.name === 'string').map(x => x.name);
+    if (names.length) {
+      const text = names.length === 1 ? `New spot: ${names[0]}`
+        : names.length === 2 ? `New spots: ${names[0]} and ${names[1]}`
+        : `New spots: ${names[0]}, ${names[1]} and ${names.length - 2} more`;
+      items.push({ icon: '🏪', text, href: '#new-in-town' });
+    }
     // The poll and the questions by name, so the list says what's asked.
     if (sections.poll && sections.poll.question) items.push({ icon: '📊', text: `Quick poll: ${shortLine(sections.poll.question)}` });
     if (sections.question) items.push({ icon: '💬', text: `Question of the week: ${shortLine(sections.question)}` });
@@ -876,6 +888,8 @@ function introHtml({ greeting, items, names }, { siteUrl, listPath }) {
         `<div style="padding:4px 0 0 14px;text-indent:-12px;">•&nbsp;${link(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl), escHtml(e.name))}${day ? ` <span style="color:${C.muted};">(${escHtml(day)})</span>` : ''}</div>`).join('')}`;
     } else if (it.list) {
       body = link(`${siteUrl}${listPath}`, escHtml(it.text));
+    } else if (it.href) {
+      body = link(it.href, escHtml(it.text));
     } else {
       body = escHtml(it.text);
     }

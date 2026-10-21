@@ -14,7 +14,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { renderWeekly, sectionsEmailHtml } from '../server/newsletter.js';
-import { sectionsFor, questionFor, pollFor, firstName, sectionsConfig, mondayOf, sectionsHomeHtml } from '../server/sections.js';
+import { sectionsFor, questionFor, pollFor, firstName, sectionsConfig, mondayOf, sectionsHomeHtml, placeWhen, placeMapUrl } from '../server/sections.js';
 
 // The first Monday of October: a poll week.
 const NOW = new Date('2026-10-05T15:00:00Z');
@@ -437,5 +437,37 @@ describe('the multi-agent review (Oct 2026)', () => {
     await t.putFile('sections', { ...FILE, ai_problems: ['the AI call failed (HTTPError)'] });
     expect(t.slack.alerts.map(a => a.key)).toEqual(['sections-ai-2026-10-05']);
     expect(t.slack.alerts[0].text).toContain('the AI call failed');
+  });
+});
+
+describe('new places: a map and when', () => {
+  it('says when a place opened or opens, only as sure as its source', () => {
+    expect(placeWhen({ grand_opening: '2026-10-28' }, '2026-10-21')).toBe('Grand opening Oct 28');
+    expect(placeWhen({ opened: '2026-10-18' }, '2026-10-21')).toBe('Just opened');
+    expect(placeWhen({ opened: '2026-10-02' }, '2026-10-21')).toBe('Opened early October');
+    expect(placeWhen({ opened: '2026-09-15' }, '2026-10-21')).toBe('Opened mid September');
+    expect(placeWhen({ opens: '2026-11-25' }, '2026-10-21')).toBe('Expected to open late November');
+    expect(placeWhen({ opens: '2026-10-19' }, '2026-10-21')).toBe('Just opened');
+    expect(placeWhen({ name: 'No date' }, '2026-10-21')).toBe('');
+    expect(placeWhen({ opened: 'soon' }, '2026-10-21')).toBe('');
+  });
+
+  it('links each place to its map, in the email, on the site and through the click counter', async () => {
+    const x = { name: 'Chai Filipino Food', street: 'NE Zac Lentz Pkwy' };
+    expect(placeMapUrl(x)).toBe('https://www.google.com/maps/search/?api=1&query=Chai%20Filipino%20Food%2C%20NE%20Zac%20Lentz%20Pkwy%2C%20Victoria%2C%20TX');
+    const file = { ...FILE, new_in_town: [{ ...FILE.new_in_town[0], street: 'NE Zac Lentz Pkwy', opened: '2026-09-15' }] };
+    const s = sectionsFor({ cfg: CFG, file, edition: 'weekly', now: NOW });
+    const html = sectionsEmailHtml(s, { siteUrl: 'https://www.thevic361.com' });
+    expect(html).toContain(encodeURIComponent(placeMapUrl(file.new_in_town[0])));
+    expect(html).toContain('Opened mid September');
+    expect(html).toContain('id="new-in-town"');
+    const t = await start();
+    await t.putFile('sections', file);
+    const to = placeMapUrl(file.new_in_town[0]);
+    const r = await fetch(`${t.base}/go/x/places?w=2026-10-05&to=${encodeURIComponent(to)}`, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0' } });
+    expect(r.headers.get('location')).toBe(to);
+    const page = await (await fetch(`${t.base}/new-in-town`)).text();
+    expect(page).toContain(`href="${placeMapUrl(file.new_in_town[0]).replace(/&/g, '&amp;')}"`);
+    expect(page).toContain('Opened mid September');
   });
 });

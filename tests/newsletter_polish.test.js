@@ -139,11 +139,11 @@ describe('which events and in what order', () => {
   });
 
   it('lists the sections, and uses the AI’s greeting only when any event it names is in the issue', () => {
-    const sections = { pet: { name: 'Chloe' }, places: [{}, {}], question: 'Q?', monday: '2026-10-05',
+    const sections = { pet: { name: 'Chloe' }, places: [{ name: 'Chai' }, { name: 'Bao Bao Bakery' }], question: 'Q?', monday: '2026-10-05',
       poll: { id: 'p', question: 'Have you gone to something you found here?', choices: ['Yes', 'No'] } };
     const plain = renderWeekly(withPages(SAT), { ...opts, sections });
     // The poll and the question by name, cut at a word to fit one line.
-    expect(plain.text).toContain('- Meet Chloe, our pet of the week\n- 2 new spots around town\n- Quick poll: Have you gone to something you found here?\n- Question of the week: Q?');
+    expect(plain.text).toContain('- Meet Chloe, our pet of the week\n- New spots: Chai and Bao Bao Bakery\n- Quick poll: Have you gone to something you found here?\n- Question of the week: Q?');
     const long = renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, question: 'What is the one local spot you always take visiting family and friends to first?' } });
     expect(long.text).toContain('- Question of the week: What is the one local spot you always take visiting…');
     const good = { text: 'Cooler nights and Pumpkin Patch on Saturday: fall is here.', mentions: ['Pumpkin Patch'] };

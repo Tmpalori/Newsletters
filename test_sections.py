@@ -352,3 +352,36 @@ def test_ai_trouble_is_reported_with_the_file(monkeypatch):
     assert out["ai_problems"] == ["the AI call failed (RuntimeError)"]
     assert "ai_problems" not in s.build_safely(CFG, {}, [], TODAY, api_key="")      # off: nobody expects the AI
     assert "OPENAI_API_KEY" in s.build_safely({**CFG, "enabled": True}, {}, [], TODAY, api_key="")["ai_problems"][0]
+
+
+def test_new_places_carry_their_street_and_when(monkeypatch):
+    rows = [{"outlet_naics_code": "722511", "outlet_name": "CHAI FILIPINO FOOD", "taxpayer_name": "CHAI LLC", "outlet_address": "8106 NE ZAC LENTZ PKWY",
+             "outlet_city": "VICTORIA", "outlet_first_sales_date": "2026-10-02T00:00:00.000", "taxpayer_number": "1", "outlet_number": "1"},
+            {"outlet_naics_code": "722511", "outlet_name": "BAO BAO BAKERY", "taxpayer_name": "BAO LLC", "outlet_address": "1 MAIN ST",
+             "outlet_city": "VICTORIA", "outlet_first_sales_date": "2026-11-25T00:00:00.000", "taxpayer_number": "2", "outlet_number": "1"}]
+
+    class R:
+        def json(self):
+            return rows
+    monkeypatch.setattr(s, "get", lambda url, **kw: R())
+    got = s.new_tx_comptroller({"county_code": "235"}, date(2026, 10, 21))
+    assert got[0]["opened"] == "2026-10-02" and got[0]["status"] == "open"
+    assert got[1]["opens"] == "2026-11-25" and got[1]["status"] == "soon"
+    page = '''<a href="https://x/events/index/2026-10-09" rel="nofollow">9</a> <ul><li><a href="https://x/events/details/ribbon-cutting-magnolia-salt-12582?calendarMonth=2026-10-01">Ribbon Cutting Magnolia Salt</a></li></ul>
+<a href="https://x/events/index/2026-10-28" rel="nofollow">28</a> <ul><li><a href="https://x/events/details/ribbon-cutting-surgery-12575?calendarMonth=2026-10-01">Ribbon Cutting Singing River</a></li></ul>
+<a href="https://x/events/index/2026-12-28" rel="nofollow">28</a> <ul><li><a href="https://x/events/details/ribbon-cutting-later-1?x=1">Ribbon Cutting Later</a></li></ul>'''
+
+    class P:
+        text = page
+    monkeypatch.setattr(s, "get", lambda url, **kw: P())
+    gz = s.new_growthzone_ribbons({"base": "https://x"}, date(2026, 10, 21))
+    assert [(x["key"], x["status"], x["grand_opening"]) for x in gz] == [("gz-12582", "open", "2026-10-09"), ("gz-12575", "soon", "2026-10-28")]
+    # Through the editor, the place keeps them for the site.
+    _no_network(monkeypatch, places=[{"key": "k1", "name": "Chai", "what": "", "street": "NE Zac Lentz Pkwy", "status": "open",
+                                      "opened": "2026-10-02", "raw": "a"}])
+    monkeypatch.setattr(s, "ai_json", lambda key, system, user, max_tokens=6000:
+                        [{"id": it["id"], "verdict": "keep"} for it in json.loads(user)] if "editor" in system
+                        else {"new_places": [{"key": "k1", "name": "Chai", "line": "Filipino food."}]})
+    out = s.build(CFG, {}, [], TODAY, api_key="k")
+    assert out["new_in_town"][0] == {"key": "k1", "name": "Chai", "line": "Filipino food.", "status": "open",
+                                     "street": "NE Zac Lentz Pkwy", "opened": "2026-10-02"}

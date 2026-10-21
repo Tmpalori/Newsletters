@@ -497,8 +497,12 @@ def new_tx_comptroller(src, today):
             continue
         seen.add(key)
         first = str(r.get("outlet_first_sales_date") or "")[:10]
+        opened = first <= today.isoformat()
+        # Its first day of sales: about when it opened (or plans to).
+        when = {"opened": first} if opened else {"opens": first}
         out.append({"key": f"tx-{r.get('taxpayer_number')}-{r.get('outlet_number')}", "name": business_name(name),
-                    "what": what_of(naics), "street": street_of(addr), "status": "open" if first <= today.isoformat() else "soon",
+                    "what": what_of(naics), "street": street_of(addr), "status": "open" if opened else "soon",
+                    **(when if re.match(r"^\d{4}-\d{2}-\d{2}$", first) else {}),
                     "raw": f"{name} at {addr}, {clean(r.get('outlet_city'))}; NAICS {naics}; first sales {first}"})
     return out
 
@@ -530,19 +534,31 @@ def new_arcgis_permits(src, today):
     return out
 
 
+RIBBON_AHEAD_DAYS = 21
+
+
 def new_growthzone_ribbons(src, today):
-    """A chamber's GrowthZone calendar (Shoals): this and last month's ribbon cuttings."""
+    """A chamber's GrowthZone calendar (Shoals): last month's and this
+    month's ribbon cuttings, and the next three weeks' (a grand opening
+    coming up), each with its date."""
     out = []
-    months = {today.replace(day=1), (today.replace(day=1) - timedelta(days=1)).replace(day=1)}
+    first = today.replace(day=1)
+    months = {first, (first - timedelta(days=1)).replace(day=1), (first + timedelta(days=32)).replace(day=1)}
+    ahead = (today + timedelta(days=RIBBON_AHEAD_DAYS)).isoformat()
     for m in sorted(months):
         page = get(f"{src['base']}/events/calendar", params={"calendarMonth": m.isoformat()}).text
-        for href, label in re.findall(r'href="([^"]*/events/details/ribbon-cutting-[^"]+)"[^>]*>(.*?)</a>', page, re.I | re.S):
-            name = clean(re.sub(r"<[^>]+>", " ", label))
-            name = re.sub(r"^ribbon[- ]cutting\s*(ceremony)?\s*[:\-–—]?\s*(for|at)?\s*", "", name, flags=re.I)
-            if not name:
+        # Each day's cell: its date link, then that day's events.
+        for day, cell in re.findall(r'/events/index/(\d{4}-\d{2}-\d{2})"[^>]*>\s*\d+\s*</a>\s*<ul>(.*?)</ul>', page, re.S):
+            if day > ahead:
                 continue
-            out.append({"key": f"gz-{href.rsplit('-', 1)[-1]}", "name": business_name(name), "what": "", "street": "",
-                        "status": "open", "raw": f"ribbon cutting: {name} ({href})"})
+            for href, label in re.findall(r'href="([^"]*/events/details/ribbon-cutting-[^"]+)"[^>]*>(.*?)</a>', cell, re.I | re.S):
+                name = clean(re.sub(r"<[^>]+>", " ", label))
+                name = re.sub(r"^ribbon[- ]cutting\s*(ceremony)?\s*[:\-–—]?\s*(for|at)?\s*", "", name, flags=re.I)
+                if not name:
+                    continue
+                out.append({"key": f"gz-{href.split('?')[0].rsplit('-', 1)[-1]}", "name": business_name(name), "what": "", "street": "",
+                            "status": "open" if day <= today.isoformat() else "soon", "grand_opening": day,
+                            "raw": f"ribbon cutting {day}: {name} ({href})"})
     seen, uniq = set(), []
     for x in out:
         if x["key"] not in seen:
@@ -1037,7 +1053,10 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
             name, _, line = text.partition(": ")
             key = it["id"].split(":", 1)[1]
             x = by_key[key]
-            places_out.append({"key": key, "name": clean(name), "line": clean(line), "status": x["status"]})
+            # Its street (the map link) and when it opened or opens, as
+            # the source has it (server/sections.js placeWhen words it).
+            places_out.append({"key": key, "name": clean(name), "line": clean(line), "status": x["status"],
+                               **{k: x[k] for k in ("street", "opened", "opens", "grand_opening") if x.get(k)}})
         elif it["kind"] == "good":
             title, _, line = text.partition(": ")
             good_out.append({"key": _key(text), "title": clean(title), "line": clean(line)})

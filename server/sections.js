@@ -91,7 +91,7 @@ export function sectionsFor({ cfg, file, hidden = [], edition = 'weekly', now = 
     ? { ...f.good_news, items: f.good_news.items.filter((x, i) => x && isText(x.title) && typeof x.line === 'string' && !off.has(itemId('good', x, i))) } : null;
   const roundup = f.roundup && Array.isArray(f.roundup.answers) && !off.has('roundup')
     ? { ...f.roundup, answers: f.roundup.answers.filter((x, i) => x && isText(x.quote) && !off.has(itemId('reply', x, i))) } : null;
-  const out = { monday, edition };
+  const out = { monday, edition, today };
   // The AI's opening paragraph for this very issue (server/newsletter.js
   // introText checks it names only events the issue shows).
   out.intro = f.intro && f.intro.edition === edition && f.intro.week === (edition === 'weekend' ? addDays(monday, 3) : monday) ? f.intro : null;
@@ -132,6 +132,7 @@ const HOME_CSS = `<style>
 .sx-head p{margin:0}
 .sx-muted{color:var(--color-text-muted);font-size:var(--text-sm)}
 .sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle;transform:rotate(-3deg);background:var(--color-surface-offset)}
+.notable-name a{color:inherit;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}.sx-when{font-size:.85rem;font-weight:700;color:var(--color-text-muted);margin-top:2px}
 .sx-says{background:var(--color-surface-offset);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);margin-block:var(--space-8)}
 .sx-says h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-4);line-height:1.15}
 .sx-bubble{max-width:85%;background:var(--color-surface);border-radius:18px 18px 18px 4px;padding:10px 14px;margin:0 0 10px}
@@ -152,14 +153,20 @@ const HOME_CSS = `<style>
 
 // Each section has its own look, like the email: an open list, a photo
 // feature, a tinted band of chat bubbles, a checklist under a rule.
+// One new place on the site: its name to its map, the tag, the line, when.
+function placeItem(x, today) {
+  const when = placeWhen(x, today || localDateStr(new Date()));
+  return `
+          <li class="notable-entry"><div class="notable-details"><div class="notable-name"><a href="${escHtml(placeMapUrl(x))}" target="_blank" rel="noopener">${escHtml(x.name)}</a><span class="sx-tag">${x.status === 'soon' ? 'SOON' : 'NEW'}</span></div><div class="notable-desc">${escHtml(x.line)}</div>${when ? `<div class="sx-when">${escHtml(when)}</div>` : ''}</div></li>`;
+}
+
 export function sectionsHomeHtml(s, { siteUrl }) {
   if (!s || !(s.pet || (s.places && s.places.length) || s.roundup || s.good || s.question)) return '';
   const parts = [];
   if (s.places && s.places.length) {
     parts.push(`<section id="new-in-town">
         <h2 class="section-heading">New in town</h2>
-        <ul class="notable-list" role="list">${s.places.map(x => `
-          <li class="notable-entry"><div class="notable-details"><div class="notable-name">${escHtml(x.name)}<span class="sx-tag">${x.status === 'soon' ? 'SOON' : 'NEW'}</span></div><div class="notable-desc">${escHtml(x.line)}</div></div></li>`).join('')}
+        <ul class="notable-list" role="list">${s.places.map(x => placeItem(x, s.today)).join('')}
         </ul>
       </section>`);
   }
@@ -228,7 +235,8 @@ export function syncArchive(archive, file, hidden = []) {
     if (!x || !x.name || off.has(`place:${x.key}`)) continue;
     // A place shown before as "soon" that's now open moves up as open.
     a.places = a.places.filter(y => y.key !== x.key);
-    a.places.unshift({ key: x.key, name: x.name, line: x.line, status: x.status, week });
+    a.places.unshift({ key: x.key, name: x.name, line: x.line, status: x.status, week,
+      ...Object.fromEntries(['street', 'opened', 'opens', 'grand_opening'].filter(k => typeof x[k] === 'string' && x[k]).map(k => [k, x[k]])) });
   }
   a.pets = a.pets.filter(x => x.week !== week);
   if (file.pet && file.pet.photo && !off.has('pet')) {
@@ -257,6 +265,7 @@ const PAGE_CSS = `<style>
 .sx-muted{color:var(--color-text-muted)}
 .sx-month{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-8) 0 var(--space-2)}
 .sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle;transform:rotate(-3deg);background:var(--color-surface-offset)}
+.notable-name a{color:inherit;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}.sx-when{font-size:.85rem;font-weight:700;color:var(--color-text-muted);margin-top:2px}
 .sx-join{background:var(--color-surface-offset);border-radius:var(--radius-xl);padding:var(--space-5);margin-block:var(--space-8);display:grid;gap:var(--space-3)}
 .sx-join h2{font-family:var(--font-display);font-size:var(--text-lg);margin:0}.sx-join p{margin:0}
 .sx-feature{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);grid-template-areas:"photo head" "photo body";column-gap:var(--space-6);align-items:start;margin-block:var(--space-6)}
@@ -277,8 +286,9 @@ function joinBox(signupHtml) {
     ${signupHtml}</section>`;
 }
 
-export function renderSectionPage(kind, archive, { siteUrl, signupHtml = '' }) {
+export function renderSectionPage(kind, archive, { siteUrl, signupHtml = '', now = new Date() }) {
   const a = archive || { places: [], pets: [], hall: [] };
+  const today = localDateStr(now);
   let title, description, body, image = null, imageSize = null;
   if (kind === 'new-in-town') {
     title = `New in ${town.city}: places that just opened | ${town.siteName}`;
@@ -291,8 +301,7 @@ export function renderSectionPage(kind, archive, { siteUrl, signupHtml = '' }) {
     }
     body = `<section class="sx-hero"><span class="sx-kicker">Updated every week</span><h1>New in ${escHtml(town.city)}</h1>
       <p class="sx-muted">Restaurants, shops and spots that just opened or are about to, around ${escHtml(town.city)}.</p></section>
-      ${months.length ? months.map(({ m, list }) => `<h2 class="sx-month">${escHtml(m)}</h2><ul class="notable-list" role="list">${list.map(x => `
-        <li class="notable-entry"><div class="notable-details"><div class="notable-name">${escHtml(x.name)}<span class="sx-tag">${x.status === 'soon' ? 'SOON' : 'NEW'}</span></div><div class="notable-desc">${escHtml(x.line)}</div></div></li>`).join('')}</ul>`).join('')
+      ${months.length ? months.map(({ m, list }) => `<h2 class="sx-month">${escHtml(m)}</h2><ul class="notable-list" role="list">${list.map(x => placeItem(x, today)).join('')}</ul>`).join('')
         : '<p class="sx-muted">The first new places show up here soon.</p>'}`;
     if (a.places.length) image = '/sections/cards/new-in-town.png';
   } else if (kind === 'pets') {
@@ -349,6 +358,31 @@ ${rows}<p class="sx-muted">${total} ${total === 1 ? 'vote' : 'votes'}</p></div>
 export function petPhotoUrl(siteUrl, pet) { return `${siteUrl}/sections/pet/${encodeURIComponent(pet.id)}.jpg`; }
 // A section's link from the email, counted (GET /go/x/:section) on its way.
 export const CLICK_SECTIONS = ['pet', 'places', 'hall'];
+// A new place on Google Maps (directions, hours, photos): its name, its
+// street when the source has one, and the town.
+export function placeMapUrl(x) {
+  const q = [x && x.name, x && x.street, town.cityState].filter(v => typeof v === 'string' && v.trim()).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const ymdOk = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const partOf = ymd => { const d = Number(ymd.slice(8, 10)); return `${d <= 10 ? 'early' : d <= 20 ? 'mid' : 'late'} ${MONTH_NAMES[Number(ymd.slice(5, 7)) - 1]}`; };
+const shortDate = ymd => `${MONTH_NAMES[Number(ymd.slice(5, 7)) - 1].slice(0, 3)} ${Number(ymd.slice(8, 10))}`;
+
+// When a new place opened or opens, the way a person would say it, from
+// what its source has: a grand opening's exact date (a chamber's ribbon
+// cutting), or about when it opened or plans to (roughly, never a day we
+// can't be sure of). '' when the source has no date.
+export function placeWhen(x, today) {
+  if (!x) return '';
+  if (ymdOk(x.grand_opening)) return `Grand opening ${shortDate(x.grand_opening)}`;
+  const opened = ymdOk(x.opened) ? x.opened : ymdOk(x.opens) && x.opens <= today ? x.opens : null;
+  if (opened) return daysBetween(opened, today) <= 7 ? 'Just opened' : `Opened ${partOf(opened)}`;
+  if (ymdOk(x.opens)) return `Expected to open ${partOf(x.opens)}`;
+  return '';
+}
+
 export function sectionClickUrl(siteUrl, section, monday, to) {
   return `${siteUrl}/go/x/${section}?w=${encodeURIComponent(monday || '')}&to=${encodeURIComponent(to)}`;
 }
@@ -495,7 +529,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     if (cfg.enabled) {
       for (const page of SECTION_PAGES) {
         on.get(page.path, async (req, res, next) => {
-          try { sendHtml(res, renderSectionPage(page.path.slice(1), await readArchive(), { siteUrl, signupHtml: signupHtml(page.path.slice(1)) })); } catch (err) { next(err); }
+          try { sendHtml(res, renderSectionPage(page.path.slice(1), await readArchive(), { siteUrl, signupHtml: signupHtml(page.path.slice(1)), now: nowFn() })); } catch (err) { next(err); }
         });
       }
       on.get('/sections/cards/new-in-town.png', async (req, res) => {
@@ -531,7 +565,8 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       const w = String(req.query.w || '');
       const week = /^\d{4}-\d{2}-\d{2}$/.test(w) && mondayOf(w) === w && Math.abs(daysBetween(w, thisMonday)) <= 14 ? w : thisMonday;
       const { file } = await current();
-      const known = [file && file.pet && file.pet.url, file && file.good_news && file.good_news.url].filter(Boolean);
+      const known = [file && file.pet && file.pet.url, file && file.good_news && file.good_news.url,
+        ...((file && Array.isArray(file.new_in_town) ? file.new_in_town : []).filter(x => x && x.name).map(placeMapUrl))].filter(Boolean);
       const ours = /^\/(?!\/)[\w\-./?=&%#]*$/.test(to);
       const dest = ours || known.includes(to) ? to : '/';
       // A made-up link (not ours, not this week's) isn't from the email: not counted.
