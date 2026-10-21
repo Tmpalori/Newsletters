@@ -699,7 +699,7 @@ const answerTo = () => (/<([^>]+)>/.exec(town.emailFrom || '') || [, ''])[1];
 export const ANSWER_SUBJECT = 'My answer: ';
 const FEATURED = "Your answer could be featured in Thursday's Newsletter!";
 // The question's big quote marks, inline at either end of it.
-const sxQuote = q => `<span style="font-size:40px;line-height:0;vertical-align:-10px;color:${C.accent};">${q}</span>`;
+const sxQuote = q => `<span style="font-size:40px;line-height:0;vertical-align:-10px;color:${C.accent};margin:0 ${q === '“' ? '4px 0 0' : '0 0 4px'};">${q}</span>`;
 
 export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all' }) {
   if (!sx) return '';
