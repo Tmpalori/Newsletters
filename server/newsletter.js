@@ -828,8 +828,12 @@ export function introText({ top, total, weekend, sections, key, otherNames = [] 
   }
   // "Friday Live Music", not "Friday Live Music (Friday)".
   const dayOf = e => { const day = formatDay(e.date, { weekday: 'short' }); return new RegExp(`\\b${formatDay(e.date, { weekday: 'long' })}\\b`, 'i').test(e.name) ? '' : day; };
-  if (top.length) items.push({ icon: '🎉', label: top.length === 3 ? 'The big three' : 'Top picks', events: top.map(e => ({ e, day: dayOf(e) })) });
-  items.push({ icon: '📅', text: `${total} ${total === 1 ? 'thing' : 'things'} to do ${weekend ? 'this weekend' : 'this week'}, day by day`, list: true });
+  // The issue's best, as their own bullets, then everything else on the
+  // site for those days (the owner, Oct 2026: show how much we found).
+  const span = weekend ? 'this weekend' : 'this week';
+  if (top.length) items.push({ icon: '🎉', label: top.length === 1 ? `The event you don’t want to miss ${span}` : `Top ${top.length} events you don’t want to miss ${span}`, events: top.map(e => ({ e, day: dayOf(e) })) });
+  const more = total - top.length;
+  if (more > 0) items.push({ icon: '📅', text: `${top.length ? 'Plus another ' : ''}${more} ${more === 1 ? 'thing' : 'things'} going on ${span}`, list: true });
   if (sections) {
     if (sections.pet) items.push({ icon: '🐾', text: `Meet ${sections.pet.name}, our pet of the week` });
     if (sections.places && sections.places.length) items.push({ icon: '🏪', text: sections.places.length === 1 ? 'A new spot around town' : `${sections.places.length} new spots around town` });
@@ -868,8 +872,8 @@ function introHtml({ greeting, items, names }, { siteUrl, listPath }) {
   const rows = items.map(it => {
     let body;
     if (it.events) {
-      body = `<strong>${escHtml(it.label)}:</strong> ${it.events.map(({ e, day }) =>
-        `${link(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl), escHtml(e.name))}${day ? ` <span style="color:${C.muted};">(${escHtml(day)})</span>` : ''}`).join(', ')}`;
+      body = `<strong>${escHtml(it.label)}</strong>${it.events.map(({ e, day }) =>
+        `<div style="padding:4px 0 0 14px;text-indent:-12px;">•&nbsp;${link(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl), escHtml(e.name))}${day ? ` <span style="color:${C.muted};">(${escHtml(day)})</span>` : ''}</div>`).join('')}`;
     } else if (it.list) {
       body = link(`${siteUrl}${listPath}`, escHtml(it.text));
     } else {
@@ -884,7 +888,9 @@ function introHtml({ greeting, items, names }, { siteUrl, listPath }) {
 }
 
 function introPlain({ greeting, items }) {
-  return [greeting, '', 'IN THIS ISSUE', ...items.map(it => `- ${it.events ? `${it.label}: ${it.events.map(({ e, day }) => `${e.name}${day ? ` (${day})` : ''}`).join(', ')}` : it.text}`)];
+  return [greeting, '', 'IN THIS ISSUE', ...items.flatMap(it => it.events
+    ? [`- ${it.label}`, ...it.events.map(({ e, day }) => `    • ${e.name}${day ? ` (${day})` : ''}`)]
+    : [`- ${it.text}`])];
 }
 
 export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', clickBase = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false, sections = null, subscriberId = '' }) {

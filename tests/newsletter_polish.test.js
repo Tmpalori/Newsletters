@@ -122,14 +122,15 @@ describe('which events and in what order', () => {
     expect(issue.html).toMatch(/\+5 more on Wednesday/);
   });
 
-  it('opens with a greeting and an "In this issue" list: the big three (linked), the count, the sections', () => {
+  it('opens with a greeting and an "In this issue" list: the top 3 (linked bullets), how many more, the sections', () => {
     const issue = renderWeekly(withPages(SAT), opts);
     expect(dontMiss(issueDays(SAT, WEEKEND, { weekend: true })).map(e => e.name)).toEqual(['Pumpkin Patch', 'Concert in the Park', 'Early Run']);
     expect(issue.html).not.toContain('Don’t miss');
     expect(issue.html).toContain('In this issue');
-    expect(issue.html).toMatch(/The big three:<\/strong> <a href="[^"]*\/events\/[^"]*pumpkin-patch[^"]*"[^>]*>Pumpkin Patch<\/a> <span[^>]*>\(Sat\)<\/span>/);
+    expect(issue.html).toMatch(/Top 3 events you don’t want to miss this weekend<\/strong><div[^>]*>•&nbsp;<a href="[^"]*\/events\/[^"]*pumpkin-patch[^"]*"[^>]*>Pumpkin Patch<\/a> <span[^>]*>\(Sat\)<\/span><\/div>/);
     expect(issue.html).toContain('Pumpkin Patch · Concert in the Park · Early Run');
-    expect(issue.text).toContain('IN THIS ISSUE\n- The big three: Pumpkin Patch (Sat), Concert in the Park (Sat), Early Run (Sat)\n- 8 things to do this weekend, day by day');
+    // The rest: everything else on the site for those days (8 in all).
+    expect(issue.text).toContain('IN THIS ISSUE\n- Top 3 events you don’t want to miss this weekend\n    • Pumpkin Patch (Sat)\n    • Concert in the Park (Sat)\n    • Early Run (Sat)\n- Plus another 5 things going on this weekend');
     // Readers are told everything on the site for those days (8), though the
     // email leaves filler (Bingo, rated 1) out of its own list (7).
     expect(issue.count).toBe(8);
