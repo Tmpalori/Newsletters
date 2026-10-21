@@ -129,9 +129,12 @@ describe('which events and in what order', () => {
     expect(issue.html).toContain('In this issue');
     expect(issue.html).toMatch(/The big three:<\/strong> <a href="[^"]*\/events\/[^"]*pumpkin-patch[^"]*"[^>]*>Pumpkin Patch<\/a> <span[^>]*>\(Sat\)<\/span>/);
     expect(issue.html).toContain('Pumpkin Patch · Concert in the Park · Early Run');
-    expect(issue.text).toContain('IN THIS ISSUE\n- The big three: Pumpkin Patch (Sat), Concert in the Park (Sat), Early Run (Sat)\n- 7 things to do this weekend, day by day');
-    // Filler (Bingo, rated 1) isn't in the weekend count.
+    expect(issue.text).toContain('IN THIS ISSUE\n- The big three: Pumpkin Patch (Sat), Concert in the Park (Sat), Early Run (Sat)\n- 8 things to do this weekend, day by day');
+    // Readers are told everything on the site for those days (8), though the
+    // email leaves filler (Bingo, rated 1) out of its own list (7).
+    expect(issue.count).toBe(8);
     expect(issue.total).toBe(7);
+    expect(issue.subject).toMatch(/^This weekend in Victoria: 8 things to do/);
   });
 
   it('lists the sections, and uses the AI’s greeting only when any event it names is in the issue', () => {

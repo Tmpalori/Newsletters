@@ -758,7 +758,9 @@ export function issueFacts(events, { now, edition = 'weekly' }) {
   const weekend = edition === 'weekend';
   const byDay = issueDays(events, (EDITIONS[edition] || EDITIONS.weekly).days(today), { weekend });
   const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
-  return { edition, week: (EDITIONS[edition] || EDITIONS.weekly).key(today), total: byDay.reduce((n, x) => n + x.list.length, 0),
+  const days = (EDITIONS[edition] || EDITIONS.weekly).days(today);
+  const total = Math.max(byDay.reduce((n, x) => n + x.list.length, 0), (events || []).filter(e => e && days.includes(e.date)).length);
+  return { edition, week: (EDITIONS[edition] || EDITIONS.weekly).key(today), total,
     top: top.map(e => ({ name: e.name, day: formatDay(e.date, { weekday: 'long' }), venue: e.venue || placeText(e) || '' })) };
 }
 
@@ -800,6 +802,10 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
   const byDay = issueDays(events, week, { weekend });
   const total = byDay.reduce((n, x) => n + x.list.length, 0);
+  // What readers are told there is: everything on the site for the issue's
+  // days (repeats and filler included), not just what the email lists
+  // (the owner, Oct 2026: "we want them to feel there's a ton").
+  const count = Math.max(total, (events || []).filter(e => e && week.includes(e.date)).length);
   // The three best the issue actually shows (each day's list is cut to
   // perDay), for the opening paragraph and the inbox preview.
   const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
@@ -807,10 +813,10 @@ export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, u
   const range = week.length ? (week.length === 1 ? short(week[0]) : `${short(week[0])}–${short(week[week.length - 1])}`) : '';
   const title = weekend ? `This weekend in ${town.city}` : `This week in ${town.city}`;
   const listPath = weekend ? '/this-weekend' : '/';
-  const subject = `${title}: ${total} ${total === 1 ? 'thing' : 'things'} to do (${range})`;
+  const subject = `${title}: ${count} ${count === 1 ? 'thing' : 'things'} to do (${range})`;
   const preheader = top.map(e => e.name).join(' · ');
   const when = e => [dayShort(e.date), clockOf(e.time)].filter(Boolean).join(' ');
-  const intro = introText({ top, total, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today) });
+  const intro = introText({ top, total: total ? count : 0, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today) });
 
   // Day colors follow the weekday (Monday yellow ... Sunday coral), like the site.
   const days = byDay.map(({ d, list }) => { const dayColor = DAY_COLORS[(currentWeek(d).indexOf(d) + 7) % 7]; return `
@@ -860,7 +866,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   // recorded with the send for the event reports (server/eventReach.js).
   const shownPages = [...new Set(byDay.flatMap(({ d, list }) => shownOf(list, d)).map(e => e.page).filter(Boolean))];
   return {
-    subject, total, picks, events: shownPages,
+    subject, total, count, picks, events: shownPages,
     html: utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign),
     text: utmTag(text, siteUrl, campaign, '&')
   };
@@ -1469,7 +1475,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (slack) {
       const name = weekend ? 'Weekend newsletter' : 'Newsletter';
       if (failures.length) slack.alert(`newsletter-failed-${key}`, sent ? `${name} send partly failed` : `${name} send failed`, `${sent} sent, ${record.failed} failed.\n${failures[0]}`, `${siteUrl}/admin.html`);
-      else slack.notify({ title: `📧 ${name} sent`, fields: [['Recipients', sent], ['Subject', probe.subject], ['Events', probe.total]] });
+      else slack.notify({ title: `📧 ${name} sent`, fields: [['Recipients', sent], ['Subject', probe.subject], ['Events', probe.count]] });
     }
     // Referral rewards, once Monday's issue is out (never throws).
     if (!weekend) await rewards.run(refs.counts);
