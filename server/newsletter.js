@@ -697,6 +697,9 @@ const sxRuleLabel = label => `
 // The address readers answer the question at (the town's news@).
 const answerTo = () => (/<([^>]+)>/.exec(town.emailFrom || '') || [, ''])[1];
 export const ANSWER_SUBJECT = 'My answer: ';
+const FEATURED = "Your answer could be featured in Thursday's Newsletter!";
+// The question's big quote marks, inline at either end of it.
+const sxQuote = q => `<span style="font-size:40px;line-height:0;vertical-align:-10px;color:${C.accent};">${q}</span>`;
 
 export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all' }) {
   if (!sx) return '';
@@ -735,10 +738,9 @@ ${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i
     const to = answerTo();
     const answer = to ? `mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}` : '';
     out.push(sxBand(SX_BG.question, `${sxKicker('Question of the week')}
-<div style="font-family:${DISPLAY};font-size:46px;line-height:0.6;color:${C.accent};margin-top:14px;">“</div>
-<div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;">${escHtml(sx.question)}</div>
+<div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;margin-top:8px;">${sxQuote('“')}${escHtml(sx.question)}${sxQuote('”')}</div>
 ${answer ? `<div style="margin-top:10px;">${sxBtn(answer, 'Send my answer')}</div>` : ''}
-<div style="font-size:14px;margin-top:10px;">${answer ? '' : 'Hit reply and tell us. '}Some favorites go in Thursday's email (first names only).</div>`, 'center'));
+<div style="font-size:14px;margin-top:10px;">${answer ? '' : 'Hit reply and tell us. '}${FEATURED}</div>`, 'center'));
   }
   if (sx.roundup && want('roundup')) {
     // Chat bubbles, alternating sides and colors.
@@ -776,7 +778,7 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all'
     const to = answerTo();
     out.push(`QUESTION OF THE WEEK: ${sx.question}`, to
       ? `Send your answer: mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}`
-      : 'Hit reply and tell us.', "We'll share some favorites Thursday (first names only).", '');
+      : 'Hit reply and tell us.', FEATURED, '');
   }
   if (sx.roundup && want('roundup')) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
   if (sx.good && want('good')) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
