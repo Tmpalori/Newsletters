@@ -680,16 +680,16 @@ const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;
 // it doesn't read as another event box), a different color each, so readers
 // can tell where one ends and the next begins (the owner, Oct 2026). From
 // City Hall is the exception: no band, set between two ink rules with its
-// label on the top one, so the last section reads like a page footer.
+// label set in the top one, so the last section reads like a page footer.
 const SX_BG = { poll: '#ECE9FF', pet: C.sunLight, places: '#E3F6EC', question: C.sky, roundup: '#FFE3EF' };
 const sxBand = (bg, inner, align = 'left') => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="${align}" style="padding:18px 16px;">${inner}</td></tr></table>`;
-const sxRule = `<div style="height:0;border-top:2px solid ${C.ink};font-size:1px;line-height:0;">&nbsp;</div>`;
-// A rule with a label pill sitting on it.
+const sxRule = `<div style="height:0;border-top:1px solid #CFC8EE;font-size:1px;line-height:0;">&nbsp;</div>`;
+// A thin rule with the label in the middle of it.
 const sxRuleLabel = label => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td valign="middle">${sxRule}</td>
-<td width="1" valign="middle" style="padding:0 10px;white-space:nowrap;"><span style="${PILL_LABEL}font-size:12px;padding:3px 12px;background:#FFFFFF;">${escHtml(label)}</span></td>
+<td width="1" valign="middle" style="padding:0 12px;white-space:nowrap;font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.accent};">${escHtml(label)}</td>
 <td valign="middle">${sxRule}</td></tr></table>`;
 
 // part: 'poll' is just the poll (right under the events, the owner's call,
@@ -753,11 +753,11 @@ ${bubbles}
 <div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`));
   }
   if (sx.good && want('good')) {
-    // No band: a plain list between two rules, the label on the top one,
+    // No band: a plain list between two thin rules, the label in the top one,
     // a check per item.
     out.push(`${sxRuleLabel('🏛️ From City Hall')}
 <div style="padding:12px 4px 14px;">
-<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:0 0 8px;text-align:center;">On the agenda this week</div>
+<div style="font-size:14px;font-weight:800;color:${C.muted};margin:0 0 6px;text-align:center;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
 ${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}
 </div>${sxRule}`);
