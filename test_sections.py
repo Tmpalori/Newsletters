@@ -133,6 +133,11 @@ def test_before_send_only_swaps_an_adopted_pet(monkeypatch):
     assert still["pet"]["name"] == "Rex"
 
 
+# Towns the owner OK'd for sections (2026-10-21: all seven). A town added
+# later stays off until it's added here and its sections.json says so.
+OWNER_OK = {"victoria", "kearney", "lincoln", "medford", "shoals", "tupelo", "virginiabeach"}
+
+
 def test_every_town_with_sections_has_a_complete_file():
     import glob
     root = os.path.dirname(__file__)
@@ -140,7 +145,8 @@ def test_every_town_with_sections_has_a_complete_file():
     assert len(files) >= 5
     for f in files:
         cfg = json.load(open(f))
-        assert cfg["enabled"] is False, f"{f}: on only after the owner's OK"
+        town = os.path.basename(os.path.dirname(f)) if "towns" in f else "victoria"
+        assert cfg["enabled"] is (town in OWNER_OK), f"{f}: on only after the owner's OK (OWNER_OK)"
         assert all(p["source"] in s.PET_READERS for p in cfg["pets"]), f
         assert not cfg["new_in_town"] or cfg["new_in_town"]["source"] in s.NEW_READERS, f
         assert all(g["source"] in s.AGENDA_READERS for g in cfg["good_news"]["sources"]), f

@@ -56,7 +56,8 @@ from any events list, and look forward to opening the email.
 
 `sections.json` (Victoria's at the repo root, another town's in
 `towns/<slug>/`) holds the town's sources, questions and polls, with
-`"enabled": false` until the owner OKs it. Set it to `true` (or set
+`"enabled": false` until the owner OKs it (all seven towns since
+2026-10-21; `OWNER_OK` in `test_sections.py` lists them). Set it to `true` (or set
 `SECTIONS=1` on the town's web service to try it without a commit;
 `SECTIONS=0` turns it off). That's the only switch: the jobs worker asks
 the site (`GET /api/jobs/sections`) and follows it, for the sections job

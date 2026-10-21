@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "pets": [
     {"name": "Victoria County Animal Services", "source": "petpoint", "authkey": "msptli3aiqutkj3v1peitefu735ylqksug7udkdp1rw02q8xpn",
      "address": "513 Profit St", "url": "https://www.victoriacountytx.gov/182/Pet-Adoptions"}

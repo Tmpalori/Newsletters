@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "pets": [
     {"name": "Tupelo-Lee Humane Society", "source": "shelterluv", "gid": "11747",
      "address": "2795 Cliff Gookin Blvd", "url": "https://tupeloleehumane.org/adopt/"}
