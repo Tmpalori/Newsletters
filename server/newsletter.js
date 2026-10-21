@@ -801,6 +801,14 @@ const OPENERS = {
 };
 const andList = xs => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
+// A question cut to fit one line of the "In this issue" list, at a word.
+function shortLine(t, max = 52) {
+  const s = String(t).trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max + 1).replace(/\s+\S*$/, '').replace(/[\s,;:]+$/, '');
+  return `${cut}…`;
+}
+
 export function introText({ top, total, weekend, sections, key, otherNames = [] }) {
   const ai = sections && sections.intro;
   const shown = new Set(top.map(e => e.name));
@@ -825,9 +833,10 @@ export function introText({ top, total, weekend, sections, key, otherNames = [] 
   if (sections) {
     if (sections.pet) items.push({ icon: '🐾', text: `Meet ${sections.pet.name}, our pet of the week` });
     if (sections.places && sections.places.length) items.push({ icon: '🏪', text: sections.places.length === 1 ? 'A new spot around town' : `${sections.places.length} new spots around town` });
-    if (sections.poll) items.push({ icon: '📊', text: 'A one-tap poll' });
-    if (sections.question) items.push({ icon: '💬', text: "This week's question" });
-    if (sections.roundup) items.push({ icon: '💬', text: "What you told us about Monday's question" });
+    // The poll and the questions by name, so the list says what's asked.
+    if (sections.poll && sections.poll.question) items.push({ icon: '📊', text: `Quick poll: ${shortLine(sections.poll.question)}` });
+    if (sections.question) items.push({ icon: '💬', text: `Question of the week: ${shortLine(sections.question)}` });
+    if (sections.roundup) items.push({ icon: '💬', text: sections.roundup.question ? `Your answers: ${shortLine(sections.roundup.question)}` : "What you told us about Monday's question" });
     if (sections.good) items.push({ icon: '🏛️', text: 'Updates from City Hall' });
   }
   return { greeting, items, names: aiOk ? ai.mentions : [] };
