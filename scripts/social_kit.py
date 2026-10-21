@@ -50,6 +50,10 @@ PER_DAY_CAPTION = 2
 HASHTAGS = TOWN["hashtags"]
 VENUES_FILE = os.path.join(os.path.dirname(__file__), "..", *town_paths()["venues"].split("/"))
 KINDS = ("week", "weekend", "today")
+# The newsletter sections' posts (SECTIONS.md): Tuesday's pet of the week,
+# Wednesday's New in Town, from the site's sections file, when the town has
+# its sections on.
+SECTION_KINDS = ("pet", "new")
 TITLES = {
     "week": (f"This week in {TOWN['city_state']}", f"This Week in {TOWN['city']}", "/"),
     "weekend": (f"This weekend in {TOWN['city_state']}", f"This Weekend in {TOWN['city']}", "/this-weekend"),
@@ -679,6 +683,62 @@ def live_partners(data):
     return [x for x in active if isinstance(x, dict)] if isinstance(active, list) else []
 
 
+def sections_on():
+    """The town's sections are on: its sections.json says so, or SECTIONS=1
+    (SECTIONS=0 turns them off), like server/sections.js."""
+    flag = os.environ.get("SECTIONS", "").strip()
+    if flag in ("0", "1"):
+        return flag == "1"
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "..", town_paths()["dir"], "sections.json")) as f:
+            return json.load(f).get("enabled") is True
+    except (OSError, ValueError):
+        return False
+
+
+def section_captions(kind, data):
+    """Facebook and Instagram captions for a sections post. Instagram links
+    don't click, so it points at the site by name."""
+    domain = TOWN["domain"]
+    if kind == "pet":
+        where = ", ".join(x for x in (data.get("shelter"), data.get("shelter_address")) if x)
+        body = [f"🐾 Meet {data['name']}, our pet of the week!", "", data.get("blurb") or "",
+                "", " · ".join(x for x in (data.get("facts"), f"At {where}" if where else "") if x)]
+        tail = f"Every week we feature a pet from a {TOWN['city']} shelter."
+        # Our own page (with the shelter's link on it), not the shelter's long URL.
+        fb = "\n".join(body + ["", tail, f"Meet {data['name']}: {SITE}/pets", "", HASHTAGS + " #AdoptDontShop"])
+        ig = "\n".join(body + ["", tail, f"More at {domain}/pets", "", HASHTAGS + " #AdoptDontShop"])
+    else:
+        # Each line already says "now open" or "coming soon".
+        lines = [f"• {x['name']}: {x.get('line') or ''}".rstrip(": ") for x in data[:6]]
+        head = [f"🏪 New in {TOWN['city']}", ""] + lines
+        fb = "\n".join(head + ["", f"Every new spot, month by month: {SITE}/new-in-town", "", HASHTAGS])
+        ig = "\n".join(head + ["", f"Every new spot at {domain}/new-in-town", "", HASHTAGS])
+    return {"facebook": fb.strip(), "instagram": ig.strip()[:IG_MAX_CAPTION]}
+
+
+def build_section_kit(kind, sections, out_dir, render=None):
+    """A sections post's kit, or None when there's nothing to post (no pet
+    with a photo, no new places) or the slides can't be drawn."""
+    if kind == "pet":
+        data = (sections or {}).get("pet")
+        if not data or not data.get("photo") or not data.get("name"):
+            return None
+    else:
+        data = [x for x in (sections or {}).get("new_in_town") or [] if x.get("name")]
+        if not data:
+            return None
+    if render is None:
+        import social_slides
+        render = social_slides.render_section
+    slides = render(kind, data, out_dir)
+    if not slides:
+        print(f"{kind}: slides couldn't be drawn; no {kind} post")
+        return None
+    return {"slides": slides, "slides_jpg": jpeg_copies(out_dir, slides), "captions": section_captions(kind, data),
+            "events": 0, "featured": 0, "pages": []}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--events-url", default=f"{SITE}/events.json")
@@ -687,8 +747,11 @@ def main(argv=None):
     ap.add_argument("--today", help="YYYY-MM-DD (for testing)")
     ap.add_argument("--kinds", default=",".join(KINDS),
                     help="Comma list of kits to rebuild; others keep their last build")
+    ap.add_argument("--sections", help="the site's sections file (the pet and new-in-town posts)")
     args = ap.parse_args(argv)
-    kinds = [k for k in args.kinds.split(",") if k in KINDS]
+    asked = args.kinds.split(",")
+    kinds = [k for k in asked if k in KINDS]
+    section_kinds = [k for k in asked if k in SECTION_KINDS] if sections_on() else []
 
     if args.events_file:
         with open(args.events_file) as f:
@@ -708,7 +771,7 @@ def main(argv=None):
     manifest_path = os.path.join(args.out, "kit.json")
     try:
         with open(manifest_path) as f:
-            kits = {k: v for k, v in json.load(f).get("kits", {}).items() if k in KINDS}
+            kits = {k: v for k, v in json.load(f).get("kits", {}).items() if k in KINDS + SECTION_KINDS}
     except (OSError, ValueError):
         kits = {}
     handles = load_venue_handles()
@@ -742,6 +805,23 @@ def main(argv=None):
         kits[kind] = kit
         print(f"{kind}: {kit['events']} events, {len(slides)} slides" + (", reel" if kit.get("reel") else ""))
 
+    if section_kinds:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        try:
+            with open(args.sections) as f:
+                sections = json.load(f)
+        except (TypeError, OSError, ValueError):
+            sections = {}
+        for kind in section_kinds:
+            for old in os.listdir(args.out):
+                if old.startswith(f"{kind}-") and old.endswith((".png", ".jpg")):
+                    os.remove(os.path.join(args.out, old))
+            kit = build_section_kit(kind, sections, args.out)
+            kits.pop(kind, None)
+            if kit:
+                kits[kind] = kit
+                print(f"{kind}: {len(kit['slides'])} slides")
+
     # Manifest for scripts/social_post.py (auto-posting).
     with open(manifest_path, "w") as f:
         # `build` changes every run, so the poster can tell this deploy from an
@@ -757,7 +837,7 @@ def main(argv=None):
         with open(os.path.join(args.out, "outreach-slack.txt"), "w") as f:
             f.write(outreach_slack(week_groups))
 
-    kits = {k: kits[k] for k in KINDS if k in kits}
+    kits = {k: kits[k] for k in KINDS + SECTION_KINDS if k in kits}
     with open(os.path.join(args.out, "captions.txt"), "w") as f:
         for kind, kit in kits.items():
             f.write(f"===== {kind.upper()} · FACEBOOK =====\n{kit['captions']['facebook']}\n")

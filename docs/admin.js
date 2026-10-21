@@ -428,6 +428,20 @@
     ((json.good_news && json.good_news.items) || []).forEach((g, i) => rows.push(['good:' + i, 'City Hall', g.title + ': ' + g.line]));
     ((json.roundup && json.roundup.answers) || []).forEach((a, i) => rows.push(['reply:' + i, 'Readers say', '“' + a.quote + '” ' + (a.name || '')]));
     list.textContent = '';
+    // What readers did with them: this week and last.
+    (json.activity || []).forEach((a, i) => {
+      const p = document.createElement('p');
+      p.className = 'card__meta';
+      const bits = [
+        'Pet ' + a.clicks.pet + ' click' + (a.clicks.pet === 1 ? '' : 's'),
+        'New in town ' + a.clicks.places,
+        'City Hall ' + a.clicks.hall,
+        a.votes == null ? null : 'Poll ' + a.votes + ' vote' + (a.votes === 1 ? '' : 's'),
+        a.replies == null ? null : 'Question ' + a.replies + ' repl' + (a.replies === 1 ? 'y' : 'ies')
+      ].filter(Boolean);
+      p.textContent = (i === 0 ? 'This week: ' : 'Last week: ') + bits.join(' · ');
+      list.appendChild(p);
+    });
     if (!rows.length) {
       const p = document.createElement('p');
       p.className = 'card__meta';

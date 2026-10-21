@@ -273,8 +273,18 @@ def render(groups, start, end, kind, out_dir, chrome=None, batch=10):
     if not chrome:
         print("Branded slides skipped: Chrome not found; using plain slides.")
         return None
-    from PIL import Image
     names, doc = slides_html(groups, start, end, kind)
+    return render_doc(names, doc, out_dir, chrome)
+
+
+def render_doc(names, doc, out_dir, chrome=None, batch=10):
+    """Screenshot a slides document (one <section class="slide"> per name)
+    into out_dir. → names, or None when Chrome is missing or fails."""
+    chrome = chrome or find_chrome()
+    if not chrome:
+        print("Branded slides skipped: Chrome not found.")
+        return None
+    from PIL import Image
     sections = re.findall(r'<section class="slide".*?</section>', doc, flags=re.S)
     head, tail = doc.split("<section", 1)[0], "</body></html>"
     try:
@@ -304,3 +314,57 @@ def render(groups, start, end, kind, out_dir, chrome=None, batch=10):
     except (subprocess.SubprocessError, OSError, RuntimeError) as e:
         print(f"Branded slides failed ({e}); using plain slides.")
         return None
+
+
+# ─── The newsletter sections' posts (scripts/sections.py, SECTIONS.md) ──
+# Tuesday's pet of the week and Wednesday's New in Town: two slides each,
+# the feature and the subscribe slide.
+
+def _doc(parts):
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800;900&display=block" rel="stylesheet">
+<style>{CSS}</style></head><body>{''.join(parts)}</body></html>"""
+
+
+def pet_html(pet):
+    photo = f'data:image/jpeg;base64,{pet["photo"]}'
+    facts = esc(pet.get("facts") or "")
+    where = esc(pet.get("shelter") or "")
+    return f"""<section class="slide"><div class="dots"></div><div class="sky"></div>
+<div style="position:absolute;left:64px;right:64px;top:56px">
+  {_brand()}
+  <div class="pill" style="background:{KICKER_BG};{"" if _VIC else f"color:{KICKER_FG};"}font-size:34px;margin-top:34px;transform:rotate(-2deg)">PET OF THE WEEK</div>
+  <div class="card" style="margin-top:30px;width:540px;height:540px;transform:rotate(-1.5deg)"><img src="{photo}" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+  <div class="disp" style="font-size:100px;margin-top:34px">Meet <span class="hl">{esc(pet["name"])}</span></div>
+  <div style="font-size:36px;font-weight:800;color:{MUTED};margin-top:14px">{facts}</div>
+  <div style="font-size:34px;font-weight:800;margin-top:10px">At {where}</div>
+</div>
+</section>"""
+
+
+def new_html(places):
+    rows = "".join(
+        f'<div class="card" style="padding:20px 30px;border-radius:30px;box-shadow:10px 10px 0 {INK};transform:rotate({r}deg)">'
+        f'<div class="one disp" style="font-size:44px">{esc(x["name"])}<span class="tag" style="background:{SUN if x.get("status") != "soon" else "#fff"}">{"SOON" if x.get("status") == "soon" else "NEW"}</span></div>'
+        f'<div class="clamp2" style="font-size:30px;font-weight:800;color:{MUTED};margin-top:6px">{esc(x.get("line") or "")}</div></div>'
+        for x, r in zip(places[:4], (-1.2, 0.8, -0.6, 1.0)))   # four fit above the skyline
+    return f"""<section class="slide"><div class="dots"></div><div class="sky"></div>
+<div style="position:absolute;left:64px;right:64px;top:56px">
+  {_brand()}
+  <div class="pill" style="background:{KICKER_BG};{"" if _VIC else f"color:{KICKER_FG};"}font-size:34px;margin-top:34px;transform:rotate(-2deg)">NEW IN TOWN</div>
+  <div class="disp" style="font-size:104px;margin-top:20px">New in<br><span class="hl">{esc(TOWN["city"])}</span></div>
+  <div style="display:grid;gap:24px;margin-top:36px">{rows}</div>
+</div>
+</section>"""
+
+
+def section_slides_html(kind, data):
+    """(file names, document) for a sections post: the feature, then the
+    subscribe slide."""
+    parts = [pet_html(data) if kind == "pet" else new_html(data), cta_html(0)]
+    return [f"{kind}-{n}.png" for n in range(1, len(parts) + 1)], _doc(parts)
+
+
+def render_section(kind, data, out_dir, chrome=None):
+    names, doc = section_slides_html(kind, data)
+    return render_doc(names, doc, out_dir, chrome)

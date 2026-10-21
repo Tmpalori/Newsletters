@@ -85,3 +85,23 @@ With a town's sections on:
 - **Share cards** (1200x630, same look as the event cards): the pet's photo
   and "Meet <name>" (`/sections/cards/pet-<id>.png`, the Pets page's
   og:image) and the newest three places (`/sections/cards/new-in-town.png`).
+
+## On social
+
+The daily social kit (`scripts/social_kit.py`) adds two posts for a town
+with its sections on: **Tuesday** the pet of the week (its photo, "Meet
+<name>", the shelter; caption links to `/pets`) and **Wednesday** New in
+Town (up to four places on the slide, six in the caption; links to
+`/new-in-town`). Each is the feature slide plus the subscribe slide. With no
+pet or no new places that week, or sections off, the day posts its usual
+"Today in" instead (`job_social_kit`). The sections job itself does nothing
+for a town with sections off (no AI calls), unless `SECTIONS=1`.
+
+## What readers do with them
+
+The email's section links go through `/go/x/<pet|places|hall>` (counted,
+then on to our own page or a link that week's sections carry; anything else
+goes home, and a bot's or mail scanner's click isn't counted), kept per week
+in the `section_clicks` town file. Admin → Newsletter → This week's sections
+shows this week and last: clicks per section, poll votes and replies to the
+question.

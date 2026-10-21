@@ -241,3 +241,14 @@ def test_a_bank_full_enough_this_month_writes_nothing_new(monkeypatch):
     out = {"review": []}
     q = s.plan_questions({}, {"question_bank": bank, "questions_generated": "2026-10"}, date(2026, 10, 19), "k", out)
     assert q == "Question 0?" and len(out["question_bank"]) == 4
+
+
+def test_a_town_with_sections_off_builds_nothing_and_calls_no_ai(tmp_path, monkeypatch):
+    monkeypatch.delenv("SECTIONS", raising=False)
+    monkeypatch.setattr(s, "load_config", lambda: {"enabled": False, "questions": ["Q?"]})
+    monkeypatch.setattr(s, "build", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not build")))
+    out = tmp_path / "out.json"
+    assert s.main(["--out", str(out)]) == 0 and not out.exists()
+    monkeypatch.setenv("SECTIONS", "1")
+    monkeypatch.setattr(s, "build", lambda *a, **k: {"review": [], "new_in_town": [], "pet": None})
+    assert s.main(["--out", str(out)]) == 0 and out.exists()

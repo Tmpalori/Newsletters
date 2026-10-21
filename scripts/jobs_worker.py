@@ -324,10 +324,17 @@ def social_plan(today):
         return ["week", "weekend", "today"], "week", False
     if dow == 4:
         return ["weekend", "today"], "weekend", True
+    # The newsletter sections' posts (SECTIONS.md): Tuesday the pet of the
+    # week, Wednesday New in Town. A town without them (or nothing to show)
+    # posts "today" as before (job_social_kit).
+    if dow == 2:
+        return ["today", "pet"], "pet", False
+    if dow == 3:
+        return ["today", "new"], "new", False
     return ["today"], "today", False
 
 
-SOCIAL_SKIP = {"reel.txt", "posted.json"}
+SOCIAL_SKIP = {"reel.txt", "posted.json", "sections.json"}
 
 
 def job_social_kit(site, run=run_script, env=None, post=None, today=None, session=None):
@@ -342,13 +349,21 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
     build = f"w{int(time.time())}-{os.getpid()}"
     env["SOCIAL_BUILD"] = build
     with tempfile.TemporaryDirectory() as kit_dir:
-        code, tail = run([sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds),
-                          "--today", today.isoformat()], TIMEOUTS["social-kit"], env)
+        cmd = [sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds), "--today", today.isoformat()]
+        if any(k in ("pet", "new") for k in kinds):
+            sections_path = os.path.join(kit_dir, "sections.json")
+            _write_json(sections_path, site.get_file("sections") or {})
+            cmd += ["--sections", sections_path]
+        code, tail = run(cmd, TIMEOUTS["social-kit"], env)
         if code != 0:
             return "failed", {"error": f"The social kit build exited with code {code}.", "log_tail": tail}
         manifest = _read_json(os.path.join(kit_dir, "kit.json"))
         if not manifest or manifest.get("build") != build:
             return "failed", {"error": "The social kit build wrote no kit.json for this run.", "log_tail": tail}
+        # No pet or new places to post (or the town's sections are off): the
+        # usual "today" post instead.
+        if post_kind in ("pet", "new") and not ((manifest.get("kits") or {}).get(post_kind) or {}).get("slides"):
+            post_kind = "today"
         names = sorted(n for n in os.listdir(kit_dir) if n not in SOCIAL_SKIP and os.path.isfile(os.path.join(kit_dir, n)))
         names.sort(key=lambda n: n == "kit.json")      # the manifest last
         size = 0

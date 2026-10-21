@@ -339,6 +339,11 @@ ${rows}<p class="sx-muted">${total} ${total === 1 ? 'vote' : 'votes'}</p></div>
 // ─── The email side's helpers (server/newsletter.js renders the blocks) ─
 
 export function petPhotoUrl(siteUrl, pet) { return `${siteUrl}/sections/pet/${encodeURIComponent(pet.id)}.jpg`; }
+// A section's link from the email, counted (GET /go/x/:section) on its way.
+export const CLICK_SECTIONS = ['pet', 'places', 'hall'];
+export function sectionClickUrl(siteUrl, section, monday, to) {
+  return `${siteUrl}/go/x/${section}?w=${encodeURIComponent(monday || '')}&to=${encodeURIComponent(to)}`;
+}
 export function pollVoteUrl(siteUrl, monday, poll, choice, subscriberId) {
   return `${siteUrl}/p/${monday}/${encodeURIComponent(poll.id)}/${choice}${subscriberId ? `?s=${encodeURIComponent(subscriberId)}` : ''}`;
 }
@@ -401,6 +406,33 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       return f && f.data ? f.data : { places: [], pets: [], hall: [] };
     } catch (err) { log.warn('[sections] archive read failed:', err.message); return { places: [], pets: [], hall: [] }; }
   }
+  // Clicks per section and week (town file section_clicks), one write at a
+  // time so two clicks at once both count.
+  let clickChain = Promise.resolve();
+  function countClick(section, week) {
+    clickChain = clickChain.then(async () => {
+      const f = await store.getTownFile('section_clicks');
+      const data = f && f.data && typeof f.data === 'object' ? f.data : {};
+      data[week] = data[week] || {};
+      data[week][section] = (data[week][section] || 0) + 1;
+      const keep = Object.keys(data).sort().slice(-12);
+      await store.setTownFile('section_clicks', Object.fromEntries(keep.map(k => [k, data[k]])), nowFn());
+    }).catch(err => log.warn('[sections] click not counted:', err.message));
+    return clickChain;
+  }
+
+  // What readers did with a week's sections: clicks, poll votes, replies.
+  async function activity(week) {
+    const f = typeof store.getTownFile === 'function' ? await store.getTownFile('section_clicks').catch(() => null) : null;
+    const clicks = (f && f.data && f.data[week]) || {};
+    const poll = pollFor(cfg, week);
+    const votes = poll && typeof store.countPollVotes === 'function'
+      ? Object.values(await store.countPollVotes(week, poll.id).catch(() => ({}))).reduce((n, x) => n + x, 0) : null;
+    const replies = typeof store.listReaderReplies === 'function'
+      ? (await store.listReaderReplies(week).catch(() => [])).filter(r => r.created_at < addDays(week, 7)).length : null;
+    return { week, clicks: { pet: clicks.pet || 0, places: clicks.places || 0, hall: clicks.hall || 0 }, votes, replies };
+  }
+
   // This week's items into the archive (the pages), minus what's taken out.
   async function refreshArchive() {
     if (!cfg.enabled || typeof store.setTownFile !== 'function') return;
@@ -464,6 +496,22 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       res.send(Buffer.from(pet.photo, 'base64'));
     });
 
+    // A section's link from the email: counted (not for bots and mail
+    // scanners), then on to our own page or a link this week's sections
+    // carry (never anywhere else: no open redirect).
+    app.get('/go/x/:section', async (req, res) => {
+      const section = req.params.section;
+      const to = String(req.query.to || '');
+      const week = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.w || '')) ? String(req.query.w) : mondayOf(localDateStr(nowFn()));
+      const { file } = await current();
+      const known = [file && file.pet && file.pet.url, file && file.good_news && file.good_news.url].filter(Boolean);
+      const ours = /^\/(?!\/)[\w\-./?=&%#]*$/.test(to);
+      const dest = ours || known.includes(to) ? to : '/';
+      // A made-up link (not ours, not this week's) isn't from the email: not counted.
+      if (dest === to && CLICK_SECTIONS.includes(section) && req.method === 'GET' && !isBot(req.get('User-Agent')) && cfg.enabled) countClick(section, week);
+      res.redirect(302, dest);
+    });
+
     app.get('/p/:week/:poll/:choice', async (req, res) => {
       const { week, poll: pollId } = req.params;
       const choice = Number(req.params.choice);
@@ -497,7 +545,9 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       const { file, hidden } = await current();
       const monday = mondayOf(localDateStr(nowFn()));
       const f = file || {};
+      const lastWeek = addDays(monday, -7);
       res.json({ ok: true, enabled: cfg.enabled, week: f.week || null, built_at: f.built_at || null, hidden,
+        activity: [await activity(monday), await activity(lastWeek)],
         question: f.week === monday && f.question ? f.question : questionFor(cfg, monday), poll: pollFor(cfg, monday),
         upcoming_questions: (f.question_bank || []).slice(0, 8),
         pet: f.pet ? { ...f.pet, photo: undefined, photo_url: petPhotoUrl('', f.pet) } : null,
@@ -530,5 +580,5 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     });
   }
 
-  return { enabled: cfg.enabled, cfg, forIssue, forHome, saveReply, listReplies, onFile, register, refreshArchive };
+  return { enabled: cfg.enabled, cfg, forIssue, forHome, saveReply, listReplies, onFile, register, refreshArchive, activity };
 }

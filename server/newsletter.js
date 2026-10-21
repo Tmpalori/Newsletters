@@ -66,7 +66,7 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
-import { petPhotoUrl, pollVoteUrl } from './sections.js';
+import { petPhotoUrl, pollVoteUrl, sectionClickUrl } from './sections.js';
 
 const RESEND_API = 'https://api.resend.com';
 // Strict enough that Resend accepts every address we keep: no empty dot
@@ -654,14 +654,15 @@ export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '' }) {
 <td valign="top"><div style="font-family:${DISPLAY};font-size:28px;font-weight:bold;line-height:1.1;">${escHtml(p.name)}</div>
 ${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
 <p style="margin:6px 0 0;font-size:15px;">${escHtml(p.blurb)}</p></td></tr></table>
-${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(p.url, `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
+${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectionClickUrl(siteUrl, 'pet', sx.monday, p.url), `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
 <div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`);
   }
   if (sx.places && sx.places.length) {
     // An open list: a heading, a line per place, dotted rules between.
     out.push(`${sxHeading(`New around ${town.city}`, C.sunset)}
 ${sx.places.map((x, i) => `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><strong style="font-size:16px;">${escHtml(x.name)}</strong>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></div>`).join('')}
-<div style="font-size:13px;color:${C.muted};margin-top:4px;">Know a place that just opened? Hit reply and tell us.</div>`);
+<div style="margin-top:6px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, '/new-in-town'))}" style="color:${C.accent};font-weight:800;">See every new place →</a></div>
+<div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`);
   }
   if (sx.poll) {
     // Centered buttons on the page itself.
@@ -693,7 +694,7 @@ ${bubbles}
     out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('From City Hall', '#1C7C4A')}
 <div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
-${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sx.good.url)}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}</div>`);
+${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}</div>`);
   }
   return out.length ? sxGap + out.join(sxGap) : '';
 }

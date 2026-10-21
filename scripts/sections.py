@@ -1125,6 +1125,12 @@ def main(argv=None):
     if not config:
         print(f"{TOWN['id']}: no sections.json; nothing to build.")
         return 0
+    # Off for the town (its sections.json, or SECTIONS=0): no AI calls, no
+    # file. SECTIONS=1 builds anyway (a test run before turning it on).
+    flag = os.environ.get("SECTIONS", "").strip()
+    if not (flag == "1" or (flag != "0" and config.get("enabled") is True)):
+        print(f"{TOWN['id']}: sections are off; nothing to build.")
+        return 0
     today = date.fromisoformat(args.today) if args.today else datetime.now(timezone.utc).date()
 
     def read(path, default):

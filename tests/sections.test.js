@@ -316,3 +316,33 @@ describe('the sections’ own pages', () => {
     expect(await (await fetch(t.base + '/sitemap.xml')).text()).not.toContain('/new-in-town');
   });
 });
+
+describe('clicks per section', () => {
+  it('counts a reader’s click, not a bot’s, and only sends people to our pages or this week’s links', async () => {
+    const t = await start();
+    await t.putFile('sections', FILE);
+    const ua = { 'User-Agent': 'Mozilla/5.0 (iPhone)' };
+    const go = (section, to, h = ua) => fetch(`${t.base}/go/x/${section}?w=2026-10-05&to=${encodeURIComponent(to)}`, { redirect: 'manual', headers: h });
+    expect((await go('pet', 'https://ws.petango.com/x')).headers.get('location')).toBe('https://ws.petango.com/x');
+    expect((await go('places', '/new-in-town')).headers.get('location')).toBe('/new-in-town');
+    expect((await go('hall', 'https://example.gov/agenda')).headers.get('location')).toBe('https://example.gov/agenda');
+    await go('pet', 'https://ws.petango.com/x', { 'User-Agent': 'Mimecast scanner' });
+    // Anywhere else: home, never the given address.
+    expect((await go('pet', 'https://evil.example/phish')).headers.get('location')).toBe('/');
+    expect((await go('pet', '//evil.example')).headers.get('location')).toBe('/');
+    await new Promise(r => setTimeout(r, 50));
+    const clicks = (await t.store.getTownFile('section_clicks')).data['2026-10-05'];
+    expect(clicks).toEqual({ pet: 1, places: 1, hall: 1 });
+    const auth = await t.login();
+    const list = await (await fetch(t.base + '/api/admin/sections', { headers: auth })).json();
+    expect(list.activity[0]).toMatchObject({ week: '2026-10-05', clicks: { pet: 1, places: 1, hall: 1 }, votes: 0 });
+  });
+
+  it('puts the counted links in the email', () => {
+    const sx = sectionsFor({ cfg: CFG, file: FILE, edition: 'weekly', now: NOW });
+    const html = renderWeekly([], { siteUrl: 'https://www.thevic361.com', now: NOW, unsubscribeUrl: 'u', sections: sx }).html;
+    expect(html).toContain('/go/x/pet?w=2026-10-05&amp;to=https%3A%2F%2Fws.petango.com%2Fx');
+    expect(html).toContain('/go/x/places?w=2026-10-05&amp;to=%2Fnew-in-town');
+    expect(html).toContain('See every new place →');
+  });
+});

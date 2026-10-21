@@ -267,7 +267,7 @@ def main(argv=None, session=None, on_save=None):
     town's site, so a retried or restarted job never posts twice; when it
     raises, the post that was about to go out doesn't."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("--kind", choices=["week", "weekend", "today"], required=True)
+    ap.add_argument("--kind", choices=["week", "weekend", "today", "pet", "new"], required=True)
     ap.add_argument("--kit-dir", default=KIT_DIR)
     ap.add_argument("--no-wait", action="store_true", help="Skip waiting for the deploy (testing)")
     ap.add_argument("--if-featured", action="store_true",
