@@ -115,6 +115,14 @@
       "sparse": true
     }
   ],
+  "facebookGroups": [
+    {
+      "url": "https://www.facebook.com/groups/460734291718994/"
+    },
+    {
+      "url": "https://www.facebook.com/groups/209659323725369/"
+    }
+  ],
   "limits": {
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15

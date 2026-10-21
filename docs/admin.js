@@ -60,6 +60,7 @@
     apify_facebook: 'Facebook events',
     apify_eventbrite: 'Eventbrite',
     apify_facebook_posts: 'Facebook posts',
+    apify_facebook_groups: 'Facebook groups',
     apify_instagram_posts: 'Instagram posts'
   };
   function inferSource(ev) {
@@ -3115,6 +3116,20 @@
         ? 'Facebook pages with no posts lately (skipped, tried again every 4th collect; check their links in venues.json): ' +
           quiet.map(q => '<a href="' + escapeHtml(q.url) + '" target="_blank" rel="noopener">' + escapeHtml(q.name || q.url) + '</a>').join(', ')
         : '';
+    }
+    // Facebook groups: dead ends (private or nothing readable) flagged.
+    const groupsEl = document.getElementById('sources-groups');
+    const groups = Array.isArray(payload.facebook_groups) ? payload.facebook_groups : [];
+    if (groupsEl) {
+      const link = g => '<a href="' + escapeHtml(g.url) + '" target="_blank" rel="noopener">' + escapeHtml(g.name || g.url) + '</a>';
+      const dead = groups.filter(g => g.dead);
+      const live = groups.filter(g => !g.dead);
+      groupsEl.hidden = !groups.length;
+      groupsEl.innerHTML = !groups.length ? '' :
+        (dead.length ? '<span class="is-warn">Facebook groups the collector can\'t read (private, or no public posts; tried again every 4th collect; drop or replace them): ' +
+          dead.map(g => link(g) + ' (' + escapeHtml(g.status === 'private' ? 'private' : 'no readable posts') + ')').join(', ') + '</span>' : '') +
+        (live.length ? (dead.length ? '<br>' : '') + 'Facebook groups read: ' +
+          live.map(g => link(g) + ' (' + (g.status === 'ok' ? g.posts + ' posts, ' + g.events + ' events' : escapeHtml(g.status)) + ')').join(', ') : '');
     }
     const triggerBtn = document.getElementById('sources-trigger');
     const triggerHelp = document.getElementById('sources-trigger-help');

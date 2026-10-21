@@ -36,6 +36,7 @@ const KNOWN_SOURCES = [
   { name: 'allevents',             label: 'AllEvents.in',         category: 'web' },
   { name: 'apify_facebook',        label: 'Apify · Facebook events', category: 'apify' },
   { name: 'apify_eventbrite',      label: 'Apify · Eventbrite',   category: 'apify' },
+  { name: 'apify_facebook_groups', label: 'Apify · Facebook groups → OpenAI', category: 'apify' },
   { name: 'apify_facebook_posts',  label: 'Apify · Facebook posts → OpenAI', category: 'apify' },
   { name: 'apify_instagram_posts', label: 'Apify · Instagram posts → OpenAI', category: 'apify' },
   { name: 'gemini_search', label: 'Gemini · Google Search', category: 'ai' },
@@ -97,6 +98,23 @@ function quietPages(q) {
       since: /^\d{4}-\d{2}-\d{2}$/.test(String(r.since || '')) ? r.since : null }))
     .filter(r => r.misses >= 2)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The town's Facebook groups (collect_events.py "facebook_groups"): each
+// one's last outcome, dead ends (private, login-walled or no readable posts
+// lately; the scraper reads public groups only) first, for the owner to drop
+// or replace them.
+const GROUP_STATUSES = new Set(['ok', 'empty', 'private', 'error']);
+function facebookGroups(g) {
+  if (!g || typeof g !== 'object') return [];
+  const n = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const day = v => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : null);
+  return Object.entries(g)
+    .filter(([url, r]) => /^https:\/\/(www\.)?facebook\.com\/groups\/[A-Za-z0-9._-]+\/?$/.test(url) && r && typeof r === 'object')
+    .map(([url, r]) => ({ url, name: String(r.name || '').slice(0, 120), status: GROUP_STATUSES.has(r.status) ? r.status : 'unknown',
+      dead: r.dead === true, reason: String(r.reason || '').slice(0, 200), posts: n(r.posts), events: n(r.events),
+      checked: day(r.checked), dead_since: day(r.dead_since) }))
+    .sort((a, b) => (b.dead - a.dead) || a.name.localeCompare(b.name));
 }
 
 // Builds the response payload the /api/admin/sources route returns. Pure
@@ -173,6 +191,7 @@ export function buildSourcesPayload({ metadata, mtime, now, githubConfigured, ac
     save_publish_unaffected: true,
     apify: apifySpend(metadata && metadata.apify),
     quiet_pages: quietPages(metadata && metadata.quiet_pages),
+    facebook_groups: facebookGroups(metadata && metadata.facebook_groups),
     sources: rows,
   };
 }

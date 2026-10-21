@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Try candidate Apify actors against Victoria, TX and report what they return.
+"""Try candidate Apify actors against Victoria, TX and report what they return,
+and check every town's Facebook groups (town.json "facebookGroups") with the
+collector's groups scraper: public and readable, or a dead end (private,
+login-walled, nothing readable). PROBE_ACTORS=groups runs only that check.
 
 Manual-only (see .github/workflows/apify-probe.yml). Nothing is committed:
 the report goes to the job log and a JSON artifact. Each actor runs with a
@@ -110,11 +113,73 @@ def run_actor(actor, inp):
             "usd": run.get("usageTotalUsd")}, None
 
 
+GROUPS_ACTOR = "apify/facebook-groups-scraper"
+GROUP_POSTS = 5
+DEAD_RE = re.compile(r"private|log ?in|sign ?in|join|members? only|not available|isn'?t available|"
+                     r"no access|permission|restricted", re.I)
+
+
+def town_groups():
+    """[(town, group url)] for Victoria and every towns/*/town.json."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, root)
+    from town import VICTORIA
+    out = [("victoria", g["url"]) for g in VICTORIA.get("facebook_groups") or []]
+    towns = os.path.join(root, "towns")
+    for slug in sorted(os.listdir(towns)):
+        try:
+            with open(os.path.join(towns, slug, "town.json")) as f:
+                out += [(slug, g["url"]) for g in json.load(f).get("facebookGroups") or []]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return out
+
+
+def probe_groups():
+    """Each town's groups: readable (posts come back) or a dead end."""
+    print(f"\n━━━ {GROUPS_ACTOR} (every town's facebookGroups)")
+    schema, err = actor_schema(GROUPS_ACTOR)
+    if err:
+        print(f"  ✗ {err}")
+        return {"error": err}
+    print("  input fields:", ", ".join(f"{k}:{v.get('type')}" for k, v in (schema or {}).get("properties", {}).items())[:600])
+    rows = []
+    for town, url in town_groups():
+        inp = {"startUrls": [{"url": url}], "resultsLimit": GROUP_POSTS, "viewOption": "CHRONOLOGICAL"}
+        res, err = run_actor(GROUPS_ACTOR, inp)
+        if err:
+            rows.append({"town": town, "url": url, "verdict": "error", "why": err})
+            print(f"  {town:14} {url}  ERROR {err[:120]}")
+            continue
+        items = [i for i in res["items"] if isinstance(i, dict)]
+        errors = [f"{i.get('error')} {i.get('errorDescription') or ''}".strip() for i in items if i.get("error")]
+        posts = [i for i in items if not i.get("error") and (i.get("text") or i.get("attachments") or i.get("media"))]
+        title = next((str(i.get("groupTitle") or "") for i in items if i.get("groupTitle")), "")
+        if posts:
+            verdict, why = "public", f"{len(posts)} posts read"
+        elif errors and DEAD_RE.search(errors[0]):
+            verdict, why = "private", errors[0][:200]
+        else:
+            verdict, why = "dead end", (errors[0][:200] if errors else f"no posts (run {res['status']})")
+        rows.append({"town": town, "url": url, "title": title, "verdict": verdict, "why": why, "usd": res["usd"],
+                     "fields": sorted({k for i in items for k in i})[:40]})
+        print(f"  {town:14} {url}  {verdict.upper()}  {title[:50]!r}  {why[:100]}  ${res['usd']}")
+        if posts:
+            print("    sample:", json.dumps(posts[0], ensure_ascii=False)[:400])
+    print("\nGROUPS: dead ends")
+    for r in rows:
+        if r["verdict"] != "public":
+            print(f"  {r['town']}: {r['url']} ({r['verdict']}: {r['why'][:120]})")
+    return {"groups": rows}
+
+
 def main():
     if not TOKEN:
         sys.exit("APIFY_TOKEN not set")
     only = [a.strip() for a in os.environ.get("PROBE_ACTORS", "").split(",") if a.strip()]
     report = {}
+    if not only or "groups" in only:
+        report[GROUPS_ACTOR] = probe_groups()
     for actor, overrides in ACTORS.items():
         if only and actor not in only:
             continue
@@ -147,6 +212,9 @@ def main():
         json.dump(report, f, indent=2, ensure_ascii=False)
     print("\nSUMMARY")
     for a, r in report.items():
+        if "groups" in r:
+            print(f"  {a}: " + ", ".join(f"{g['town']} {g['url'].rstrip('/').rsplit('/', 1)[-1]} {g['verdict']}" for g in r["groups"]))
+            continue
         print(f"  {a}: " + (r.get("error") or f"{r['items']} items, {r['victoria']} Victoria, ${r['usd']}"))
 
 

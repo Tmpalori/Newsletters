@@ -170,6 +170,14 @@
       "address": "350 N Wood Ave, Florence, AL 35630"
     }
   ],
+  "facebookGroups": [
+    {
+      "url": "https://www.facebook.com/groups/223951663752782/"
+    },
+    {
+      "url": "https://www.facebook.com/groups/295665737132458/"
+    }
+  ],
   "limits": {
     "FB_POSTS_MAX_VENUES": 30,
     "IG_POSTS_MAX_VENUES": 15

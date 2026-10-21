@@ -116,7 +116,7 @@ def test_candidates_only_does_not_overwrite_events_json(tmp_path, monkeypatch):
         "fetch_library_events", "fetch_moonshine_events", "fetch_vtx_artwalk",
         "fetch_jwelch_events", "fetch_theatre_victoria_events",
         "fetch_generals_events", "fetch_allevents_events",
-        "fetch_apify_facebook_events", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
+        "fetch_apify_facebook_events", "fetch_apify_facebook_groups", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
         "fetch_apify_instagram_posts",
     ]:
         if hasattr(collect_events, fn_name):
@@ -196,7 +196,7 @@ def test_main_writes_collection_metadata_json(tmp_path, monkeypatch):
         "fetch_library_events", "fetch_moonshine_events", "fetch_vtx_artwalk",
         "fetch_jwelch_events", "fetch_theatre_victoria_events",
         "fetch_generals_events", "fetch_allevents_events",
-        "fetch_apify_facebook_events", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
+        "fetch_apify_facebook_events", "fetch_apify_facebook_groups", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
         "fetch_apify_instagram_posts",
     ]:
         if hasattr(collect_events, fn_name):
@@ -242,7 +242,7 @@ def test_default_mode_still_writes_events_json(tmp_path, monkeypatch):
         "fetch_library_events", "fetch_moonshine_events", "fetch_vtx_artwalk",
         "fetch_jwelch_events", "fetch_theatre_victoria_events",
         "fetch_generals_events", "fetch_allevents_events",
-        "fetch_apify_facebook_events", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
+        "fetch_apify_facebook_events", "fetch_apify_facebook_groups", "fetch_apify_facebook_posts", "fetch_apify_eventbrite_events",
         "fetch_apify_instagram_posts",
     ]:
         if hasattr(collect_events, fn_name):

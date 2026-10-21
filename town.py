@@ -74,7 +74,15 @@ VICTORIA = {
     # without a list gets every source but those local scrapers.
     "enabled_sources": ["city_calendar", "chamber", "library", "moonshine", "vtx_artwalk", "jwelch",
                         "theatre_victoria", "generals", "allevents", "gemini_search", "apify_facebook",
-                        "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts"],
+                        "apify_eventbrite", "apify_facebook_groups", "apify_facebook_posts", "apify_instagram_posts"],
+    # Public Facebook groups whose members post local events
+    # (collect_events.py fetch_apify_facebook_groups). Tristen is a member of
+    # the first; the scraper reads them logged out either way.
+    "facebook_groups": [
+        {"url": "https://www.facebook.com/groups/3741886445840328/"},
+        {"url": "https://www.facebook.com/groups/465382903645231/"},
+        {"url": "https://www.facebook.com/groups/1153152211435077/"},
+    ],
     "google_sheet_id": "1S42hYlrPM516LDTcy3W_8afCkCqc-ZrUfN2J-SmP23I",
     "eventbrite_search": {"searchQuery": "events in Victoria, TX", "location": "Victoria, TX"},
     "fb_search_queries": {"primary": ["Victoria Texas"], "alt": ["Victoria, Texas"]},
@@ -103,6 +111,7 @@ DEFAULT_LIMITS = {"EVENTBRITE_MAX": 20, "FB_EVENTS_MAX": 20, "FB_POSTS_MAX_VENUE
 
 REQUIRED = ("site_name", "domain", "city", "state", "state_name", "timezone")
 _SAFE = re.compile(r'^[^<>&"]+$')
+FACEBOOK_GROUP_URL = re.compile(r"^https://(www\.)?facebook\.com/groups/[A-Za-z0-9._-]+/?$")
 
 # town.json uses server/town.js's names (siteName, cityState…); these map
 # them to this module's. Unknown keys are kept as they are.
@@ -113,6 +122,7 @@ _FROM_JSON = {
     "areaName": "area_name", "areaZips": "area_zips", "otherTowns": "other_towns", "nearbyExamples": "nearby_examples",
     "cityTokensExtra": "city_tokens_extra", "allEventsSlug": "allevents_slug", "googleSheetId": "google_sheet_id",
     "eventbriteSearch": "eventbrite_search", "enabledSources": "enabled_sources", "fbSearchQueries": "fb_search_queries", "geminiCategories": "gemini_categories",
+    "facebookGroups": "facebook_groups",
 }
 
 
@@ -144,6 +154,7 @@ def _complete(town_id, raw):
         "eventbrite_search": {"searchQuery": f"events in {city}, {raw['state']}", "location": f"{city}, {raw['state']}"},
         "fb_search_queries": {"primary": [f"{city} {raw['state_name']}"], "alt": [f"{city}, {raw['state_name']}"]},
         "gemini_categories": list(SHARED_GEMINI_CATEGORIES),
+        "facebook_groups": [],
         # Two place tags plus the site's own name, e.g. "#BayCityTX #BayCityTexas #TheBay979".
         "hashtags": " ".join("#" + re.sub(r"[^A-Za-z0-9]", "", s) for s in (f"{city}{raw['state']}", f"{city}{raw['state_name']}", name)),
         **raw,
@@ -168,6 +179,10 @@ def _check(town):
     limits = town.get("limits") or {}
     if not isinstance(limits, dict) or any(not isinstance(v, int) or isinstance(v, bool) or v <= 0 for v in limits.values()):
         raise ValueError(f"TOWN={tid}: limits must map names to positive whole numbers")
+    groups = town.get("facebook_groups")
+    if not isinstance(groups, list) or any(
+            not isinstance(g, dict) or not FACEBOOK_GROUP_URL.match(str(g.get("url") or "")) for g in groups):
+        raise ValueError(f"TOWN={tid}: facebook_groups must be a list of {{\"url\": \"https://www.facebook.com/groups/<id>/\"}}")
     if town.get("area_code") and not re.match(r"^\d{3}$", str(town["area_code"])):
         raise ValueError(f"TOWN={tid}: area_code must be 3 digits or empty")
     if ZoneInfo:

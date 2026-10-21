@@ -88,6 +88,24 @@ describe('buildSourcesPayload', () => {
     expect(none.quiet_pages).toEqual([]);
   });
 
+  it('passes on Facebook groups with dead ends first and group links only', () => {
+    const payload = buildSourcesPayload({ now: new Date(), githubConfigured: false, actionsUrl: '', mtime: null, metadata: {
+      sources: [],
+      facebook_groups: {
+        'https://www.facebook.com/groups/111/': { name: 'Tupelo Events', status: 'ok', posts: 40, events: 7, misses: 0, checked: '2026-10-21', dead: false },
+        'https://www.facebook.com/groups/222/': { name: 'Tupelo Moms', status: 'private', reason: 'This group is private', misses: 1, checked: '2026-10-21', dead_since: '2026-10-18', dead: true },
+        'https://www.facebook.com/somepage': { name: 'Not a group', status: 'ok' },
+        'https://www.facebook.com/groups/333/': { name: '<b>x</b>', status: 'weird', dead: 'yes' }
+      }
+    } });
+    expect(payload.facebook_groups).toEqual([
+      { url: 'https://www.facebook.com/groups/222/', name: 'Tupelo Moms', status: 'private', dead: true, reason: 'This group is private', posts: 0, events: 0, checked: '2026-10-21', dead_since: '2026-10-18' },
+      { url: 'https://www.facebook.com/groups/333/', name: '<b>x</b>', status: 'unknown', dead: false, reason: '', posts: 0, events: 0, checked: null, dead_since: null },
+      { url: 'https://www.facebook.com/groups/111/', name: 'Tupelo Events', status: 'ok', dead: false, reason: '', posts: 40, events: 7, checked: '2026-10-21', dead_since: null }
+    ]);
+    expect(buildSourcesPayload({ metadata: null, mtime: null, now: new Date(), githubConfigured: false, actionsUrl: '' }).facebook_groups).toEqual([]);
+  });
+
   it('renders placeholder rows for every known source when metadata is missing', () => {
     const payload = buildSourcesPayload({
       metadata: null,

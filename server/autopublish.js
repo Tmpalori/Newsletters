@@ -43,7 +43,7 @@ import { town } from './town.js';
 // least one loosely worded name (AI-written from a post or Gemini, typed by
 // a person, or generic), and a shared distinctive word or a generic name
 // for the night's act. Two hand-entered events are never folded.
-const AI_NAMED = new Set(['apify_facebook_posts', 'apify_instagram_posts', 'gemini_search']);
+const AI_NAMED = new Set(['apify_facebook_posts', 'apify_instagram_posts', 'apify_facebook_groups', 'gemini_search']);
 const HAND = new Set(['local_events', 'google_sheet']);
 const NAME_STOP = new Set(['the', 'a', 'an', 'at', 'in', 'of', 'and', 'with', 'for', 'on', 'annual', 'presents']);
 const WEEKDAYS = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].flatMap(d => [d, d + 's']));
@@ -160,13 +160,13 @@ function sortKey(ev) {
 //    collector (its window starts Monday), so the week view isn't empty.
 export const AUTO_PUBLISH_RULES = 8;
 
-// Sources whose events can't be retired for going missing. FB/IG posts are
+// Sources whose events can't be retired for going missing. FB/IG and group posts are
 // read back only a couple of weeks, so a post announcing an event weeks out
 // drops out of the window before the event happens. Gemini search used to
 // be here too (it finds a different set each run), but an event only it
 // found has no page behind it but its own answer, so one it stops finding
 // comes down like any other source's: after two misses with the source ok.
-export const NEVER_RETIRE_SOURCES = new Set(['apify_facebook_posts', 'apify_instagram_posts']);
+export const NEVER_RETIRE_SOURCES = new Set(['apify_facebook_posts', 'apify_instagram_posts', 'apify_facebook_groups']);
 // Consecutive collector runs an event must be missing from before it's
 // taken down: one run's flicker (a slow page, a scraper's cap) isn't enough.
 const RETIRE_AFTER_MISSES = 2;

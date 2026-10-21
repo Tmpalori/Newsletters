@@ -3079,7 +3079,7 @@ def _same_spot(a, b):
 
 
 _NIGHT_TOKENS = {"night", "nite", "nights"}
-_POST_SOURCES = {"apify_facebook_posts", "apify_instagram_posts"}
+_POST_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "apify_facebook_groups"}
 
 
 def _stem_tokens(tokens):
@@ -3098,7 +3098,7 @@ SOURCE_RANK = {
     "town_feeds": 8,
     "apify_eventbrite": 5,
     "moonshine": 6, "vtx_artwalk": 6, "allevents": 4, "apify_facebook": 4,
-    "apify_facebook_posts": 3, "apify_instagram_posts": 3,
+    "apify_facebook_posts": 3, "apify_instagram_posts": 3, "apify_facebook_groups": 3,
     "gemini_search": 2,
 }
 
@@ -3360,7 +3360,7 @@ _MEMBERS_ONLY_RE = re.compile(
 _DANGLING_WORDS = {"a", "an", "the", "and", "or", "for", "with", "of", "at", "&", "from"}
 # Sources whose event names the AI writes from free text. Official
 # calendars and the submissions sheet keep their own names untouched.
-AI_NAMED_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "gemini_search"}
+AI_NAMED_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "apify_facebook_groups", "gemini_search"}
 
 
 def cut_off_name_reason(name):
@@ -5110,7 +5110,7 @@ def _post_image_urls(p):
 
     Instagram: displayUrl, images[], childPosts[].displayUrl (carousels).
     Facebook: media[].photo_image.uri, else media[].thumbnail (a video's
-    still). The IG fetcher normalizes posts with images[] already.
+    still); groups give the same under attachments[]. The IG fetcher normalizes posts with images[] already.
     """
     urls = []
 
@@ -5126,7 +5126,8 @@ def _post_image_urls(p):
     for c in p.get("childPosts") or []:
         if isinstance(c, dict):
             add(c.get("displayUrl"))
-    for m in p.get("media") or []:
+    # Group posts (apify~facebook-groups-scraper) carry theirs as attachments.
+    for m in [*(p.get("media") or []), *(p.get("attachments") or [])]:
         if not isinstance(m, dict):
             continue
         photo = m.get("photo_image")
@@ -5233,12 +5234,13 @@ Rules:
 - Return [] if no events found. No prose, no markdown fences."""
 
 
-def _extract_events_from_posts_via_ai(venue_name, posts):
+def _extract_events_from_posts_via_ai(venue_name, posts, prompt_fn=None):
     """Send a venue's recent posts (text and flyer images) to OpenAI and
     parse out events.
 
     Returns a list of event dicts (date/name/time/description/url) — venue is
-    filled in by the caller.
+    filled in by the caller. prompt_fn builds the prompt (default
+    _post_events_prompt; Facebook groups pass _group_events_prompt).
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key or not posts or _OPENAI_DEAD:
@@ -5272,7 +5274,7 @@ def _extract_events_from_posts_via_ai(venue_name, posts):
         return []
     posts_blob = "\n".join(lines)
 
-    prompt = _post_events_prompt(venue_name, posts_blob, today_str, end_str)
+    prompt = (prompt_fn or _post_events_prompt)(venue_name, posts_blob, today_str, end_str)
 
     text_prompt = prompt
     if flyers:
@@ -5636,6 +5638,299 @@ def fetch_apify_facebook_posts(days_ahead=14):
         _note_source("apify_facebook_posts", f"{prior}; {note}" if prior else note)
     print(f"  [Apify FB Posts] Extracted {len(events)} events across {len(high_conf)} venues")
     for s in venue_stats:
+        print(f"    • {s}")
+    return events
+
+
+# ─── FACEBOOK GROUPS → OPENAI ────────────────────────────────────────────────
+#
+# A town's biggest event communities are Facebook groups (the town's
+# "what's happening" groups), not pages: members post flyers for shows,
+# markets and fundraisers that no page or calendar lists. town.json
+# "facebookGroups" names them; each is read with Apify's groups scraper and
+# its posts go through the same OpenAI extraction, weekday date check
+# (_post_event_dates) and merge_events dedupe as page posts.
+#
+# The scraper reads logged out, so it sees PUBLIC groups only: joining a
+# private group from Tristen's account doesn't open it to the collector.
+# Every group's outcome is kept in collection_metadata.json
+# "facebook_groups" (shown in the admin Sources tab and HQ's Towns tab): a
+# private or login-walled group is flagged a dead end at once, a group with
+# no readable posts QUIET_AFTER runs in a row likewise; dead ends are tried
+# again every QUIET_RETRY_EVERY-th run, so one made public comes back.
+# FB_GROUPS_ENABLED=0 turns the source off.
+APIFY_FB_GROUPS_ACTOR = "apify~facebook-groups-scraper"
+_GROUP_POSTS_PER_GROUP = 50
+# Groups post far more than pages; two weeks reaches every flyer for an
+# event inside the collection window.
+_GROUP_POSTS_LOOKBACK_DAYS = 14
+FB_GROUPS_MAX = 6
+_GROUP_DEAD_RE = re.compile(r"private|log ?in|sign ?in|join|members? only|not available|isn'?t available|"
+                            r"no access|permission|restricted", re.IGNORECASE)
+_GROUP_STATUS = {}
+
+
+def _group_id(url):
+    m = re.search(r"/groups/([^/?#]+)", url or "")
+    return m.group(1) if m else url
+
+
+def load_group_status(metadata_path):
+    """The last run's group outcomes, from its collection_metadata.json."""
+    _GROUP_STATUS.clear()
+    try:
+        with open(metadata_path) as f:
+            saved = json.load(f).get("facebook_groups") or {}
+    except (OSError, ValueError, AttributeError):
+        return
+    if isinstance(saved, dict):
+        for url, row in saved.items():
+            if isinstance(url, str) and isinstance(row, dict):
+                _GROUP_STATUS[url] = {
+                    "name": str(row.get("name") or "")[:120], "status": str(row.get("status") or "")[:20],
+                    "reason": str(row.get("reason") or "")[:200], "posts": int(row.get("posts") or 0),
+                    "events": int(row.get("events") or 0), "misses": int(row.get("misses") or 0),
+                    "skips": int(row.get("skips") or 0), "checked": str(row.get("checked") or "")[:10],
+                    "dead_since": str(row.get("dead_since") or "")[:10]}
+
+
+def group_dead(row):
+    """A group the collector can't read: private, or no posts QUIET_AFTER runs."""
+    return bool(row) and (row.get("status") == "private" or row.get("misses", 0) >= QUIET_AFTER)
+
+
+def _group_skip(url):
+    """True to skip a dead-end group this run (and count the skip)."""
+    row = _GROUP_STATUS.get(url)
+    if not group_dead(row):
+        return False
+    if row["skips"] >= QUIET_RETRY_EVERY - 1:
+        row["skips"] = 0       # its turn to be tried again
+        return False
+    row["skips"] += 1
+    return True
+
+
+def _group_result(url, name, status, reason="", posts=0, events=0):
+    """Record one group's outcome; warn the first time it turns a dead end.
+
+    status: ok (posts read), empty (no readable posts), private (Facebook or
+    the scraper says it's private or needs a login), error (HTTP or the
+    scraper failed; not counted against the group)."""
+    prev = _GROUP_STATUS.get(url) or {}
+    was_dead = group_dead(prev)
+    today = now_central().date().isoformat()
+    misses = 0 if status == "ok" else prev.get("misses", 0) + (status in ("empty", "private"))
+    row = {"name": name or prev.get("name") or f"Facebook group {_group_id(url)}", "status": status,
+           "reason": str(reason or "")[:200], "posts": posts, "events": events, "misses": misses,
+           "skips": prev.get("skips", 0) if status != "ok" else 0, "checked": today, "dead_since": ""}
+    row["dead_since"] = (prev.get("dead_since") or today) if group_dead(row) else ""
+    _GROUP_STATUS[url] = row
+    if group_dead(row) and not was_dead:
+        why = ("is private or needs a login" if status == "private"
+               else f"had no readable posts {QUIET_AFTER} collects in a row")
+        label = row["name"] if row["name"].lower().startswith("facebook group") else f"Facebook group {row['name']}"
+        _warn(f"{label} {why}: a dead end for the collector (it reads public groups only); "
+              f"tried again every {QUIET_RETRY_EVERY}th run", group=url)
+
+
+def _group_events_prompt(group_name, posts_blob, today_str, end_str):
+    """The AI prompt for pulling events out of a Facebook group's posts.
+
+    Unlike a page, a group's posts come from many members, most of them not
+    about an event at all, and the poster is never the place."""
+    return f"""You are extracting future public events from recent posts in the Facebook group "{group_name}", a community group for {TOWN['city_state']}. Posts are written by many different members.
+
+Posts:
+{posts_blob}
+
+Return ONLY a JSON array of upcoming events mentioned in these posts. Each object:
+{{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"The place the post names for the event, or empty string","description":"One short sentence or empty string","details":"Everything the post or flyer says about this event, or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}}
+
+Rules:
+- Only public events anyone can attend: concerts, shows, markets, festivals, fundraisers, classes, games, church or school events open to the public. Skip everything else, which is most of a group: buy/sell/trade, yard and garage sales, lost and found pets, job posts, recommendations or questions ("where can I find…", "anyone know…"), complaints, news, road closures, private parties, and business ads with no dated event.
+- "venue" is only the place the post names (a business, park, church, street address). Never the person who posted, never the group. Empty when the post names no place.
+- "weekday" is the day of the week the post gives for the event (e.g. "Thursday"). Copy it from the post; don't work it out from a date.
+- Recurring events the post says happen EVERY week ("every Wednesday", "Trivia Tuesdays"): emit ONE object per weekday with "recurring": true and that "weekday". Leave "date" empty; dates are filled in later.
+- "starts" and "ends" are only for recurring events with a stated first or last date. Leave them empty otherwise, and on one-time events.
+- Everything else is a one-time event: "recurring": false, with its ACTUAL "date" between {today_str} and {end_str}, regardless of when the post was made.
+- For relative dates ("this Friday", "tomorrow", "next Saturday"), resolve them against the post's own posted-on date — then check the resolved date is in the window. A post with no date for its event is skipped.
+- The same event is often posted by several members, or shared again: emit it ONCE, using the post with the most detail as source_post_index.
+- "name" is the event's own name as the post or flyer gives it ("Fall Festival", "Trivia Night at Blue Canoe"). Never build a name from a cut-off or partial phrase, never use the poster's name, and never end a name with "a", "the", "and", "for" or "...".
+- "description" says only what the post says. Don't add performers, live music, food or other details the post doesn't mention.
+- "details" keeps every fact the post or flyer gives about THIS event (performers, schedule, prices and tickets, age limits, how to sign up, who's hosting), in plain sentences. Empty when the post says no more than "description".
+- A post ending in "[post continues]" was cut short; use only what you can read and don't guess the rest.
+- Skip events that already happened (post-date BEFORE today's date with no recurring signal).
+- Only include events held in {TOWN['city_state']} or elsewhere in {TOWN['area_name']}. Skip events in other towns ({TOWN['nearby_examples']}, etc.).
+- Return [] if no events found. No prose, no markdown fences."""
+
+
+def _group_post_url(post, group_url):
+    return (post.get("url") or post.get("postUrl") or post.get("link") or group_url) if isinstance(post, dict) else group_url
+
+
+def fetch_apify_facebook_groups(days_ahead=14):
+    """Pull recent posts from the town's public Facebook groups (town.json
+    "facebookGroups") and ask OpenAI for the events in them. On whenever the
+    town names groups and APIFY_TOKEN and OPENAI_API_KEY are set;
+    FB_GROUPS_ENABLED=0 turns it off.
+
+    Pipeline per group:
+      Apify groups scraper → newest posts (≤ 14 days old) → OpenAI event
+      extraction (_group_events_prompt) → weekday-checked dates
+      (_post_event_dates) → normalized event dicts, one per event across
+      every group (merge_events then folds them into the other sources).
+    """
+    global _APIFY_LIMIT_TRIPPED
+    events = []
+    source = "apify_facebook_groups"
+    groups = [g for g in (TOWN.get("facebook_groups") or []) if isinstance(g, dict) and g.get("url")]
+    if not groups:
+        print("  [Apify FB Groups] No facebookGroups in town.json")
+        _source_off(source)
+        return events
+    if os.environ.get("FB_GROUPS_ENABLED", "").strip().lower() in ("0", "false", "no", "off"):
+        print("  [Apify FB Groups] Disabled (FB_GROUPS_ENABLED=0)")
+        _source_off(source)
+        return events
+    token = os.environ.get("APIFY_TOKEN", "").strip()
+    if not token:
+        print("  [Apify FB Groups] No APIFY_TOKEN — skipping")
+        _source_off(source)
+        return events
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("  [Apify FB Groups] No OPENAI_API_KEY — cannot extract events from posts")
+        return events
+    if _APIFY_LIMIT_TRIPPED:
+        print("  [Apify FB Groups] Monthly hard limit already tripped this run — skipping")
+        _scrape_stop(source, "apify-limit")
+        return events
+
+    key = lambda g: g.get("url")
+    groups = _rotated(groups, source, key)
+    cap = _resolve_int_env("FB_GROUPS_MAX", FB_GROUPS_MAX)
+    if len(groups) > cap:
+        left = groups[cap:]
+        _scrape_stop(source, "cap", len(left), len(groups), [g.get("name") or g["url"] for g in left])
+        _next_start(source, left, key)
+        groups = groups[:cap]
+
+    newer_than = (datetime.now().date() - timedelta(days=_GROUP_POSTS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    print(f"  [Apify FB Groups] Pulling posts from {len(groups)} groups (since {newer_than})")
+    actor_run_url = _apify_run_url(APIFY_FB_GROUPS_ACTOR)
+    stats, dead_skipped = [], []
+    seen = set()   # (date, name) across every group: members cross-post
+    for i, group in enumerate(groups):
+        stop = ("apify-limit" if _APIFY_LIMIT_TRIPPED else "openai" if _OPENAI_DEAD
+                else "time" if _minutes_in() > fb_posts_budget_min() else None)
+        if stop:
+            rest = groups[i:]
+            _scrape_stop(source, stop, len(rest), len(groups), [g.get("name") or g["url"] for g in rest])
+            _next_start(source, rest, key)
+            break
+
+        url = group["url"]
+        known = (_GROUP_STATUS.get(url) or {}).get("name")
+        name = str(group.get("name") or known or f"Facebook group {_group_id(url)}")[:120]
+        if _group_skip(url):
+            dead_skipped.append(name)
+            stats.append(f"{name}: SKIP (dead end: {_GROUP_STATUS[url]['status']}; tried again every {QUIET_RETRY_EVERY}th run)")
+            continue
+
+        payload = {
+            "startUrls": [{"url": url}],
+            "resultsLimit": _GROUP_POSTS_PER_GROUP,
+            "viewOption": "CHRONOLOGICAL",
+            "onlyPostsNewerThan": newer_than,
+        }
+        try:
+            resp = _apify_posts_run(actor_run_url, payload, token)
+        except Exception as e:
+            stats.append(f"{name}: ERROR ({type(e).__name__})")
+            _group_result(url, name, "error", type(e).__name__)
+            _warn("FB groups actor exception", group=url, error=str(e)[:200])
+            continue
+        if resp.status_code >= 400:
+            stats.append(f"{name}: HTTP {resp.status_code}")
+            _group_result(url, name, "error", f"HTTP {resp.status_code}")
+            if resp.status_code == 403 and _apify_hard_limit_tripped(resp.text):
+                _APIFY_LIMIT_TRIPPED = True
+                _warn("Apify monthly hard limit tripped", actor=APIFY_FB_GROUPS_ACTOR, status=403)
+            else:
+                _warn("FB groups actor HTTP error", group=url, status=resp.status_code, body=resp.text[:200])
+            continue
+        try:
+            items = resp.json()
+        except Exception:
+            items = None
+        if not isinstance(items, list):
+            stats.append(f"{name}: unexpected response")
+            _group_result(url, name, "error", "unexpected response from the scraper")
+            continue
+
+        # The scraper answers a private or login-walled group with an
+        # {"error": ...} item (or nothing at all).
+        errors = [str(p.get("error") or "") + " " + str(p.get("errorDescription") or "")
+                  for p in items if isinstance(p, dict) and p.get("error")]
+        posts = [p for p in items if isinstance(p, dict) and not p.get("error")
+                 and (p.get("text") or _post_image_urls(p))]
+        title = next((str(p.get("groupTitle") or "").strip() for p in items
+                      if isinstance(p, dict) and str(p.get("groupTitle") or "").strip()), "")
+        if title and not group.get("name"):
+            name = title[:120]
+        if not posts:
+            reason = errors[0].strip() if errors else "no posts with text or images"
+            status = "private" if errors and _GROUP_DEAD_RE.search(reason) else "empty"
+            _group_result(url, name, status, reason)
+            stats.append(f"{name}: 0 posts ({reason[:60]})")
+            continue
+
+        raw = _extract_events_from_posts_via_ai(name, posts, prompt_fn=_group_events_prompt)
+        kept = 0
+        for r in raw:
+            if not isinstance(r, dict):
+                continue
+            ev_name = re.sub(r"\s+", " ", str(r.get("name") or "")).strip()
+            dates = _post_event_dates(r, _WINDOW_START, _WINDOW_END) if ev_name else []
+            if not dates:
+                continue
+            idx = r.get("source_post_index")
+            source_url = _group_post_url(posts[idx - 1], url) if isinstance(idx, int) and 1 <= idx <= len(posts) else url
+            description = str(r.get("description") or "").strip()[:280]
+            details = _details_src(r.get("details"), description)
+            time_str = str(r.get("time") or "").strip()
+            venue = str(r.get("venue") or "").strip()
+            # The group is never the place (organizer=True: no venue unless named).
+            ev_venue, address = _post_event_venue(r, name, "", organizer=True) if venue else ("", "")
+            for d_obj in dates:
+                k = (d_obj, ev_name.lower())
+                if k in seen:
+                    continue
+                seen.add(k)
+                events.append({
+                    "date": d_obj.strftime("%Y-%m-%d"),
+                    "name": ev_name,
+                    "time": time_str,
+                    "venue": ev_venue,
+                    "address": address,
+                    "description": description,
+                    "icons": classify_icons(ev_name, description, ev_venue),
+                    "free": bool(r.get("free", False)) or guess_free(ev_name, description, ev_venue),
+                    "url": source_url,
+                    **details,
+                    **({"recurring": True} if r.get("recurring") is True else {}),
+                })
+                kept += 1
+        _group_result(url, name, "ok", "", posts=len(posts), events=kept)
+        stats.append(f"{name}: {len(posts)} posts → {kept} events")
+
+    dead = [r["name"] for u, r in _GROUP_STATUS.items() if group_dead(r) and u in {g["url"] for g in groups}]
+    if dead:
+        prior = _SOURCE_NOTES.get(source)
+        note = f"dead ends (private or no readable posts; the scraper reads public groups only): {', '.join(dead)}"
+        _note_source(source, f"{prior}; {note}" if prior else note)
+    print(f"  [Apify FB Groups] Extracted {len(events)} events across {len(groups)} groups")
+    for s in stats:
         print(f"    • {s}")
     return events
 
@@ -6059,6 +6354,9 @@ WEB_SOURCES = [
     ("gemini_search", "fetch_gemini_events", True),          # only with GEMINI_API_KEY
     ("apify_facebook", "fetch_apify_facebook_events", True),  # only with APIFY_TOKEN
     ("apify_eventbrite", "fetch_apify_eventbrite_events", True),
+    # A town's public Facebook groups (town.json "facebookGroups") → OpenAI,
+    # before page posts so the few groups always get read.
+    ("apify_facebook_groups", "fetch_apify_facebook_groups", True),
     # Posts → OpenAI event extraction, off unless FB_POSTS_ENABLED /
     # IG_POSTS_ENABLED; they pull from venues.json's pages and handles.
     ("apify_facebook_posts", "fetch_apify_facebook_posts", True),
@@ -6135,6 +6433,7 @@ def main():
     _prev_meta = os.path.join(os.path.dirname(os.path.abspath(args.candidates)) or ".", "collection_metadata.json")
     load_quiet_pages(_prev_meta)
     load_post_rotation(_prev_meta)
+    load_group_status(_prev_meta)
     all_events = []
 
     # 1. Local YAML (backbone)
@@ -6313,6 +6612,9 @@ def main():
             "warnings": {"count": len(_WARNINGS), "first": _WARNINGS[:5], "summary": warning_summary()},
             **({"apify": spend} if spend else {}),
             "quiet_pages": dict(sorted(_QUIET_PAGES.items())),
+            # Each Facebook group's last outcome; dead ends flagged.
+            "facebook_groups": {u: {**r, "dead": group_dead(r)} for u, r in sorted(_GROUP_STATUS.items())
+                                if u in {g.get("url") for g in TOWN.get("facebook_groups") or [] if isinstance(g, dict)}},
             # What the Apify scrapers didn't read this run, and where the
             # post scrapers start next run.
             "scrape_stops": list(_SCRAPE_STOPS),
