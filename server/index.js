@@ -43,7 +43,7 @@ import { registerHq, buildSummary, keyOk, jobsSummary, hypeBlocks, morningBlocks
 import { hqPaths } from './hqAdmin.js';
 import { registerOpsReport } from './opsReport.js';
 import { createJobs, canRunOnWorker } from './jobs.js';
-import { createSections, sectionsConfig } from './sections.js';
+import { createSections, sectionsConfig, SECTION_PAGES } from './sections.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS, issueFacts } from './newsletter.js';
@@ -65,7 +65,7 @@ import { verifyPass, MIN_SSO_SECRET } from './sso.js';
 import {
   HUB_PAGES, localDateStr, renderHome, renderHubPage, renderEventPage,
   renderAboutPage, renderAdvertisePage, advertiseStats, renderNotFoundPage, renderSitemap, renderLlmsTxt
-  , fillSeasonalNav, fillReach, setReach, reachNumbers, currentWeek, addDays, shiftToWeek
+  , fillSeasonalNav, setSectionNav, fillReach, setReach, reachNumbers, currentWeek, addDays, shiftToWeek
 } from './seo.js';
 import {
   businessConfig, useBusiness, hasLegalName, hasContactEmail, mailingAddress,
@@ -311,6 +311,8 @@ export async function createApp(opts = {}) {
   // unless the town's sections.json says "enabled" (or SECTIONS=1).
   const sections = createSections({ store, cfg: opts.sectionsConfig || sectionsConfig(town, { env: opts.sectionsEnv || process.env }),
     slack, siteUrl, nowFn: () => (opts.now || (() => new Date()))() });
+  // Their pages join the menu only when they're on (server/seo.js navHtml).
+  setSectionNav(sections.enabled ? SECTION_PAGES : []);
   // The town's jobs on Railway (server/jobs.js, JOBS_ON_RAILWAY.md): off
   // (404, nothing queued) unless JOBS_ON_RAILWAY=1 and JOBS_SECRET are set.
   const jobs = opts.jobs || createJobs({
@@ -1956,7 +1958,7 @@ export async function createApp(opts = {}) {
   });
 
   // Pet photo, poll votes and results, the admin's sections list (server/sections.js).
-  sections.register(app, { requireAdmin });
+  sections.register(app, { requireAdmin, sendHtml, signupHtml: () => signupFormHtml({ source: 'sections' }) });
 
   const newsletterApi = registerNewsletter(app, {
     store, requireAdmin, adminOrHq, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
@@ -2387,6 +2389,7 @@ export async function createApp(opts = {}) {
     const extraPaths = [
       '/venues', '/subscribe', '/privacy', '/terms', '/advertising-terms', '/accessibility', '/referral-rules',
       ...(ctx.partners ? ['/partners'] : []),
+      ...(sections.enabled ? SECTION_PAGES.map(p => p.path) : []),
       ...activeSeasons(payload.events, ctx.archived, ctx.now).map(s => s.path),
       ...venuesWithEvents(venues, payload.events, ctx.archived, ctx.now).map(v => v.path)
     ];

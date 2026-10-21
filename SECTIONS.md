@@ -67,3 +67,21 @@ the agenda PDFs.
 Each source fails on its own: a shelter site that's down means no pet that
 week, and the rest still runs. Undocumented feeds (Adopets, PetPoint's
 embed key) can change without notice; the job's log says which one failed.
+
+## On the website
+
+With a town's sections on:
+
+- **Homepage**, under the events: New in town, the pet, the readers' answers,
+  the question of the week (with a "Count me in" button to the footer's
+  signup form) and From City Hall.
+- **Pages** `/new-in-town` (by month), `/pets` (this week's and the 12
+  before, photos kept) and `/city-hall` (by week), from `sections_archive`,
+  a town file the site adds to whenever the worker hands in a sections file;
+  what the owner takes out comes off them too. Each ends with a signup form
+  (source `sections`) and is in the sitemap.
+- **Menu**: New in Town, Pets and City Hall right after This Weekend
+  (`setSectionNav` in `server/seo.js`; nothing for a town without them).
+- **Share cards** (1200x630, same look as the event cards): the pet's photo
+  and "Meet <name>" (`/sections/cards/pet-<id>.png`, the Pets page's
+  og:image) and the newest three places (`/sections/cards/new-in-town.png`).

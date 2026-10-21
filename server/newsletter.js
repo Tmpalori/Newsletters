@@ -1042,7 +1042,8 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : `<p style="margin:22px 0 0
 
 // Where a signup came from. Forms send one of these; ":ad" means the visitor
 // first landed from a paid ad (docs/track.js). Anything else is "site".
-const SIGNUP_SOURCES = new Set(['footer', 'list-card', 'subscribe-page']);
+// sections: the New in Town, Pets and City Hall pages (server/sections.js).
+const SIGNUP_SOURCES = new Set(['footer', 'list-card', 'subscribe-page', 'sections']);
 export function signupSource(raw) {
   const [base, tag] = String(raw || '').split(':');
   if (!SIGNUP_SOURCES.has(base)) return 'site';

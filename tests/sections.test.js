@@ -258,3 +258,61 @@ describe('on the site', () => {
     expect(r.replies).toEqual([{ at: '2026-10-05T16:00:00Z', name: 'Maria', subject: 'Re: This week', text: 'Sausage and cheese!' }]);
   });
 });
+
+describe('the sections’ own pages', () => {
+  it('builds New in Town, Pets and City Hall from what the issues showed, in the menu and the sitemap', async () => {
+    const t = await start();
+    await t.putFile('sections', FILE);
+    const nit = await (await fetch(t.base + '/new-in-town')).text();
+    expect(nit).toContain('New in Victoria');
+    expect(nit).toContain('Chai Filipino Food');
+    expect(nit).toContain('October 2026');
+    expect(nit).toContain('data-source="sections"');
+    expect(nit).toContain('/sections/cards/new-in-town.png');
+    expect(nit).toMatch(/<a href="\/this-weekend"[^>]*>This Weekend<\/a><a href="\/new-in-town" aria-current="page">New in Town<\/a><a href="\/pets">Pets<\/a><a href="\/city-hall">City Hall<\/a>/);
+    const pets = await (await fetch(t.base + '/pets')).text();
+    expect(pets).toContain('Meet Chloe, our pet of the week');
+    expect(pets).toContain('/sections/pet/pp-57380521.jpg');
+    const hall = await (await fetch(t.base + '/city-hall')).text();
+    expect(hall).toContain('MLK Jr. Park');
+    expect(hall).toContain('Week of Oct 5');
+    const map = await (await fetch(t.base + '/sitemap.xml')).text();
+    expect(map).toContain('/new-in-town</loc>');
+    expect(map).toContain('/city-hall</loc>');
+    const card = await fetch(t.base + '/sections/cards/new-in-town.png');
+    expect(card.status).toBe(200);
+    expect(card.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('keeps past pets (and their photos) and every week’s places; taking one out takes it off the page', async () => {
+    const t = await start();
+    await t.putFile('sections', { ...FILE, week: '2026-09-28', pet: { ...FILE.pet, id: 'pp-1', name: 'Rex' }, new_in_town: [{ key: 'old', name: 'Old Spot', line: 'x', status: 'open' }] });
+    await t.putFile('sections', FILE);
+    const pets = await (await fetch(t.base + '/pets')).text();
+    expect(pets).toContain('Recently featured');
+    expect(pets).toContain('Rex');
+    expect((await fetch(t.base + '/sections/pet/pp-1.jpg')).status).toBe(200);
+    expect(await (await fetch(t.base + '/new-in-town')).text()).toContain('Old Spot');
+    const auth = await t.login();
+    await fetch(t.base + '/api/admin/sections/hide', { method: 'POST', headers: auth, body: JSON.stringify({ id: 'place:tx-1' }) });
+    expect(await (await fetch(t.base + '/new-in-town')).text()).not.toContain('Chai Filipino Food');
+  });
+
+  it('has the question of the week on the homepage, with a button to the signup form', async () => {
+    const t = await start();
+    await t.putFile('sections', { ...FILE, question: 'Best spot for a fall picnic?' });
+    const home = await (await fetch(t.base + '/')).text();
+    expect(home).toContain('id="question-of-the-week"');
+    expect(home).toContain('Best spot for a fall picnic?');
+    expect(home).toContain('href="#subscribe">Count me in</a>');
+  });
+
+  it('none of it exists when the town has sections off', async () => {
+    const t = await start({ cfg: { ...CFG, enabled: false } });
+    await t.putFile('sections', FILE);
+    expect((await fetch(t.base + '/new-in-town')).status).toBe(404);
+    const home = await (await fetch(t.base + '/')).text();
+    expect(home).not.toContain('href="/new-in-town"');
+    expect(await (await fetch(t.base + '/sitemap.xml')).text()).not.toContain('/new-in-town');
+  });
+});
