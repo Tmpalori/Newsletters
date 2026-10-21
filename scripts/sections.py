@@ -273,7 +273,8 @@ def pets_shelterluv(src):
         except (TypeError, ValueError):
             pass
         group = (a.get("age_group") or {}).get("name") or ""
-        out.append({"id": f"sl-{a.get('uniqueId') or a.get('nid')}", "name": clean(a.get("name")), "species": clean(a.get("species")),
+        # "Bre - 042101U": a kennel code after the name isn't part of it.
+        out.append({"id": f"sl-{a.get('uniqueId') or a.get('nid')}", "name": re.sub(r"\s+-\s+\w*\d\w*$", "", clean(a.get("name"))), "species": clean(a.get("species")),
                     "breed": clean(a.get("breed")), "sex": clean(a.get("sex")), "age": clean(group),
                     "photo_url": photos[0] if photos else "", "url": a.get("public_url") or src.get("url", ""),
                     "since": since, "bio": ""})
@@ -546,7 +547,8 @@ def new_growthzone_ribbons(src, today):
     months = {first, (first - timedelta(days=1)).replace(day=1), (first + timedelta(days=32)).replace(day=1)}
     ahead = (today + timedelta(days=RIBBON_AHEAD_DAYS)).isoformat()
     for m in sorted(months):
-        page = get(f"{src['base']}/events/calendar", params={"calendarMonth": m.isoformat()}).text
+        # The month goes in the path (?calendarMonth= is ignored: always this month).
+        page = get(f"{src['base']}/events/calendar/{m.isoformat()}").text
         # Each day's cell: its date link, then that day's events.
         for day, cell in re.findall(r'/events/index/(\d{4}-\d{2}-\d{2})"[^>]*>\s*\d+\s*</a>\s*<ul>(.*?)</ul>', page, re.S):
             if day > ahead:
@@ -741,6 +743,29 @@ def agenda_granicus(src, today):
     return out
 
 
+def agenda_municode(src, today):
+    """Municode Meetings (Tupelo): the newest council agenda PDF on the
+    city's publish page, from the last week or ahead."""
+    page = get("https://meetings.municode.com/PublishPage/index", params={"cid": src["cid"], "ppid": src["ppid"], "p": 1}).text
+    best = None
+    for url, title, when in re.findall(r'u=(https://[^&"]+/MEET-Agenda-[^&"]+\.pdf)&n=Agenda-([^"]*?)-([A-Z][a-z]+ \d{1,2}, \d{4})', page):
+        title = clean(htmlmod.unescape(requests.utils.unquote(title)))
+        if not re.search(src.get("match", "City Council"), title, re.I):
+            continue
+        try:
+            day = datetime.strptime(when, "%B %d, %Y").date()
+        except ValueError:
+            continue
+        if day >= today - timedelta(days=7) and (best is None or day > best[0]):
+            best = (day, url, title)
+    if not best:
+        return []
+    day, url, title = best
+    r = get(url)
+    text = pdf_text(r.content) if r.content[:4] == b"%PDF" else ""
+    return [{"body": src.get("body", "City Council"), "date": day.isoformat(), "title": title, "text": text[:12000], "url": url}] if text else []
+
+
 def agenda_cablecast(src, today):
     """LNKTV's caption text of the last council meeting (Lincoln)."""
     shows = get(f"{src['api']}/shows", params={"search": src.get("search", "council"), "page_size": 3, "include": "vod"}).json()
@@ -768,7 +793,7 @@ def agenda_cablecast(src, today):
 
 
 AGENDA_READERS = {"civicclerk": agenda_civicclerk, "pdf_url": agenda_pdf_url, "granicus": agenda_granicus,
-                  "cablecast": agenda_cablecast}
+                  "cablecast": agenda_cablecast, "municode": agenda_municode}
 
 
 def build_agendas(config, today):

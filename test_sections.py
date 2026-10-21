@@ -406,3 +406,29 @@ def test_setup_detects_the_systems_we_read_and_checks_every_source(monkeypatch):
     assert ok and lines[0].startswith("✓ pets: County Shelter: 1 with a real photo")
     ok, lines = su.check({"pets": [], "questions": []}, TODAY)
     assert not ok and "✗ pets: no shelter in sections.json" in lines
+
+
+def test_municode_agendas_kennel_codes_and_chamber_months(monkeypatch):
+    page = ('<a href="https://meetings.municode.com/d/f?u=https://mcc.blob/tupeloms-pubu/MEET-Agenda-aaa.pdf&n=Agenda-Regular%20City%20Council%20Meeting-October 20, 2026 6.00 PM.pdf">'
+            '<a href="https://meetings.municode.com/d/f?u=https://mcc.blob/tupeloms-pubu/MEET-Agenda-bbb.pdf&n=Agenda-Regular%20City%20Council%20Meeting-October 6, 2026 6.00 PM.pdf">'
+            '<a href="https://meetings.municode.com/d/f?u=https://mcc.blob/tupeloms-pubu/MEET-Agenda-ccc.pdf&n=Agenda-Planning%20Committee-October 21, 2026 6.00 PM.pdf">')
+    asked = []
+
+    class R:
+        def __init__(self, text="", content=b""):
+            self.text, self.content = text, content
+
+    def get(url, **kw):
+        asked.append(url)
+        return R(page) if "PublishPage" in url else R(content=b"%PDF fake")
+    monkeypatch.setattr(s, "get", get)
+    monkeypatch.setattr(s, "pdf_text", lambda b: "Proclamation: Library Week")
+    got = s.agenda_municode({"cid": "TUPELOMS", "ppid": "x", "body": "Tupelo City Council"}, date(2026, 10, 21))
+    assert got == [{"body": "Tupelo City Council", "date": "2026-10-20", "title": "Regular City Council Meeting",
+                    "text": "Proclamation: Library Week", "url": "https://mcc.blob/tupeloms-pubu/MEET-Agenda-aaa.pdf"}]
+    assert s.agenda_municode({"cid": "T", "ppid": "x"}, date(2026, 11, 30)) == []          # nothing recent
+    # GrowthZone: the month in the path (its ?calendarMonth= is ignored).
+    asked.clear()
+    monkeypatch.setattr(s, "get", lambda url, **kw: asked.append(url) or R(""))
+    s.new_growthzone_ribbons({"base": "https://b.x"}, date(2026, 10, 21))
+    assert asked == ["https://b.x/events/calendar/2026-09-01", "https://b.x/events/calendar/2026-10-01", "https://b.x/events/calendar/2026-11-01"]

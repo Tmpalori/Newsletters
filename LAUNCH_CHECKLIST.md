@@ -49,7 +49,7 @@ issue and tick it off.
       agendas page, and run
       `python3 scripts/sections_setup.py detect <those urls>`: it names the
       system each runs on (PetPoint, Shelterluv, 24PetConnect, Adopets,
-      GrowthZone, CivicClerk, Granicus, Cablecast) with the lines to paste
+      GrowthZone, CivicClerk, Granicus, Municode, Cablecast) with the lines to paste
       into `towns/<slug>/sections.json`. New in town: a Texas town uses
       `tx_comptroller` (its county code), an Oregon one `oregon_sos`, a
       GrowthZone chamber `growthzone_ribbons` (with grand-opening dates);

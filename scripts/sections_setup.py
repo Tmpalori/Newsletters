@@ -36,6 +36,7 @@ SIGNS = [
     ("growthzone", r"(https?://[a-z0-9.-]+)/(?:events/calendar|events/details/|members/)", lambda m: {"new_in_town": {"source": "growthzone_ribbons", "base": m.group(1)}}),
     ("civicclerk", r"([a-z0-9]+)\.portal\.civicclerk\.com", lambda m: {"good_news": {"sources": [{"source": "civicclerk", "client": m.group(1), "body": "<the body, e.g. City Council>"}]}}),
     ("granicus", r"([a-z0-9]+)\.granicus\.com", lambda m: {"good_news": {"sources": [{"source": "granicus", "client": m.group(1), "view_id": 1, "match": "Council", "body": "City Council"}]}}),
+    ("municode", r"meetings\.municode\.com/PublishPage/index\?cid=([A-Za-z0-9]+)&(?:amp;)?ppid=([0-9a-f-]{36})", lambda m: {"good_news": {"sources": [{"source": "municode", "cid": m.group(1), "ppid": m.group(2), "body": "City Council"}]}}),
     ("cablecast", r"(https?://[a-z0-9.-]+)/CablecastAPI", lambda m: {"good_news": {"sources": [{"source": "cablecast", "api": m.group(1) + "/CablecastAPI/v1"}]}}),
 ]
 
