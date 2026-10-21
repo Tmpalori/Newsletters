@@ -14,7 +14,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { renderWeekly, sectionsEmailHtml } from '../server/newsletter.js';
-import { sectionsFor, questionFor, pollFor, firstName, sectionsConfig, mondayOf, sectionsHomeHtml, placeWhen, placeMapUrl } from '../server/sections.js';
+import { createSections, sectionPages, sectionsFor, questionFor, pollFor, firstName, sectionsConfig, mondayOf, sectionsHomeHtml, placeWhen, placeMapUrl } from '../server/sections.js';
 
 // The first Monday of October: a poll week.
 const NOW = new Date('2026-10-05T15:00:00Z');
@@ -25,7 +25,9 @@ const PHOTO = Buffer.from('ffd8ffe000104a46494600', 'hex').toString('base64');
 const CFG = {
   enabled: true,
   questions: ['Best kolache in town?', 'Best sunset spot?'],
-  polls: [{ id: 'went-to-event', question: 'Have you gone to something you found here?', choices: ['Yes', 'Not yet', 'Maybe'] }]
+  polls: [{ id: 'went-to-event', question: 'Have you gone to something you found here?', choices: ['Yes', 'Not yet', 'Maybe'] }],
+  // Sources for every section (the pages show only what a source can fill).
+  pets: [{ name: 'County Shelter', source: 'petpoint' }], new_in_town: { source: 'growthzone_ribbons' }, good_news: { sources: [{ source: 'civicclerk' }] }
 };
 const FILE = {
   week: '2026-10-05', built_at: '2026-10-04T23:20:00Z',
@@ -332,7 +334,7 @@ describe('the sections’ own pages', () => {
     const home = await (await fetch(t.base + '/')).text();
     expect(home).toContain('id="question-of-the-week"');
     expect(home).toContain('Best spot for a fall picnic?');
-    expect(home).toContain('href="#subscribe">Count me in</a>');
+    expect(home).toContain('href="/subscribe">Count me in</a>');
   });
 
   it('none of it exists when the town has sections off', async () => {
@@ -438,6 +440,21 @@ describe('the multi-agent review (Oct 2026)', () => {
     expect(t.slack.alerts.map(a => a.key)).toEqual(['sections-ai-2026-10-05']);
     expect(t.slack.alerts[0].text).toContain('the AI call failed');
   });
+
+  it('tells Slack once a week, not on every run (builds and the before-send checks)', async () => {
+    const t = await start();
+    const file = { ...FILE, ai_problems: ['the AI call failed (HTTPError 429)'], source_problems: ["pets: County Shelter didn't answer (HTTPError 403)"] };
+    for (let i = 0; i < 4; i++) await t.putFile('sections', file);
+    expect(t.slack.alerts.map(a => a.key)).toEqual(['sections-ai-2026-10-05', 'sections-sources-2026-10-05']);
+    expect(t.slack.alerts[1].text).toContain('County Shelter');
+    expect(t.slack.notes.filter(n => /sections ready/.test(n.title)).length).toBe(1);
+    // What readers will see changed (the pet was adopted): one more note.
+    await t.putFile('sections', { ...file, pet: { ...FILE.pet, name: 'Biscuit' } });
+    expect(t.slack.notes.filter(n => /sections ready/.test(n.title)).map(n => /Biscuit/.test(n.text))).toEqual([false, true]);
+    // The next week alerts again.
+    await t.putFile('sections', { ...file, week: '2026-10-12' });
+    expect(t.slack.alerts.length).toBe(4);
+  });
 });
 
 describe('new places: a map and when', () => {
@@ -469,5 +486,55 @@ describe('new places: a map and when', () => {
     const page = await (await fetch(`${t.base}/new-in-town`)).text();
     expect(page).toContain(`href="${placeMapUrl(file.new_in_town[0]).replace(/&/g, '&amp;')}"`);
     expect(page).toContain('Opened mid September');
+  });
+});
+
+describe('readers’ replies and poll votes: privacy', () => {
+  it('a “forget me” deletes them, and the purge keeps replies 30 days and votes a year', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sx-privacy-'));
+    const store = new FileStore(path.join(dir, 's.json'));
+    const now = Date.now();
+    const iso = days => new Date(now - days * 86400000).toISOString();
+    await store.saveReaderReply({ id: 'r1', created_at: iso(1), name: 'Pat', email: 'pat@example.com', subject: 'My answer: x', text: 'Tacos' });
+    await store.saveReaderReply({ id: 'r2', created_at: iso(2), name: 'Lee', email: 'lee@example.com', subject: 'My answer: x', text: 'Pie' });
+    const data = JSON.parse(await fs.readFile(store.file, 'utf8'));
+    data.subscribers.push({ id: 'sub-pat', email: 'pat@example.com', status: 'active' });
+    data.reader_replies.push({ id: 'old', created_at: iso(40), name: 'Old', email: 'old@example.com', subject: '', text: 'old' });
+    data.poll_votes = [{ week: '2026-10-05', poll: 'p', subscriber_id: 'sub-pat', choice: 0, at: iso(1), first_at: iso(1) },
+      { week: '2024-10-07', poll: 'p', subscriber_id: 'sub-x', choice: 1, at: iso(400), first_at: iso(400) },
+      { week: '2026-10-05', poll: 'p', subscriber_id: 'sub-y', choice: 1, at: iso(1), first_at: iso(1) }];
+    await fs.writeFile(store.file, JSON.stringify(data));
+    await store.purgePersonalData({ submissionsBefore: iso(9999), contactBefore: iso(9999) });
+    const out = await store.forgetEmail('pat@example.com', 'p•••@example.com');
+    expect(out).toMatchObject({ reader_replies: 1, poll_votes: 1 });
+    const after = JSON.parse(await fs.readFile(store.file, 'utf8'));
+    expect(after.reader_replies.map(r => r.id)).toEqual(['r2']);
+    expect(after.poll_votes.map(v => v.subscriber_id)).toEqual(['sub-y']);
+  });
+});
+
+describe('readers’ replies: what is kept for the roundup', () => {
+  it('keeps answers and replies to an issue, not a new email to news@', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sx-replies-'));
+    const store = new FileStore(path.join(dir, 's.json'));
+    const sx = createSections({ store, cfg: CFG, log: { warn() {} } });
+    const at = new Date().toISOString();
+    const save = (id, subject) => sx.saveReply({ id, from: 'Pat Doe <pat@example.com>', email: 'pat@example.com', subject, text: 'Tacos at Rosita', at });
+    expect(await save('a', 'My answer: Best tacos?')).toBe(true);
+    expect(await save('b', 'Re: This week in Victoria')).toBe(true);
+    expect(await save('c', 'Question about your newsletter')).toBe(false);
+    expect(await save('d', 'Re: Sponsor order')).toBe(false);
+    expect((await sx.listReplies('2000-01-01')).map(r => r.subject)).toEqual(['My answer: Best tacos?', 'Re: This week in Victoria']);
+  });
+});
+
+describe('which towns and pages show the sections', () => {
+  it('a paused town shows none, and a page shows only when a source can fill it', () => {
+    expect(sectionsConfig({ id: 'kearney', dormant: true }, { env: {} }).enabled).toBe(false);
+    expect(sectionsConfig({ id: 'kearney', dormant: true }, { env: { SECTIONS: '1' } }).enabled).toBe(false);
+    expect(sectionsConfig({ id: 'kearney' }, { env: {} }).enabled).toBe(true);
+    expect(sectionPages(sectionsConfig({ id: 'medford' }, { env: {} })).map(p => p.path)).toEqual(['/new-in-town', '/pets']);
+    expect(sectionPages(sectionsConfig({ id: 'victoria' }, { env: {} })).map(p => p.path)).toEqual(['/new-in-town', '/pets', '/city-hall']);
+    expect(sectionPages({ enabled: false, pets: [{}] })).toEqual([]);
   });
 });

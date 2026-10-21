@@ -1434,7 +1434,12 @@ class FileStore {
       if (contact) data.contact_messages = keep;
       const inboxBefore = Array.isArray(data.inbox_events) ? data.inbox_events.length : 0;
       if (inboxBefore) data.inbox_events = data.inbox_events.filter(e => !(String(e.created_at || '') < contactBefore));
-      if (submissions || contact || (inboxBefore && inboxBefore !== data.inbox_events.length)) await this._write(data);
+      // Readers' replies (the roundup) keep 30 days; poll votes a year.
+      const n = { replies: (data.reader_replies || []).length, votes: (data.poll_votes || []).length };
+      if (n.replies) data.reader_replies = data.reader_replies.filter(x => !(String(x.created_at || '') < replyCutoff()));
+      if (n.votes) data.poll_votes = data.poll_votes.filter(x => !(String(x.at || '') < voteCutoff()));
+      const sxGone = n.replies - (data.reader_replies || []).length + n.votes - (data.poll_votes || []).length;
+      if (submissions || contact || sxGone || (inboxBefore && inboxBefore !== data.inbox_events.length)) await this._write(data);
       return { submissions, contact_messages: contact };
     });
   }
@@ -1451,6 +1456,16 @@ class FileStore {
       const out = { subscribers: 0, email_opens: 0, submissions: 0, contact_messages: 0, sponsor_orders: 0, referral_rewards: 0, newsletter_sends: 0 };
       const gone = new Set(data.subscribers.filter(x => same(x.email)).map(x => x.id));
       out.subscribers = gone.size;
+      if (Array.isArray(data.poll_votes)) {
+        const before = data.poll_votes.length;
+        data.poll_votes = data.poll_votes.filter(x => !gone.has(x.subscriber_id));
+        if (before !== data.poll_votes.length) out.poll_votes = before - data.poll_votes.length;
+      }
+      if (Array.isArray(data.reader_replies)) {
+        const before = data.reader_replies.length;
+        data.reader_replies = data.reader_replies.filter(x => !same(x.email));
+        if (before !== data.reader_replies.length) out.reader_replies = before - data.reader_replies.length;
+      }
       data.subscribers = data.subscribers.filter(x => !gone.has(x.id));
       const opens = data.email_opens.length;
       data.email_opens = data.email_opens.filter(x => !gone.has(x.subscriber_id));
@@ -1506,6 +1521,10 @@ class FileStore {
 // shape normalizePayload gives), and the rewards that hadn't gone out.
 const BLANK_SUBMITTER = { submitter_first_name: '', submitter_last_name: '', submitter_phone: '' };
 const OPEN_REWARD = new Set(['pending', 'held', 'failed', 'manual']);
+// The newsletter sections' personal data (purgePersonalData): readers' replies
+// keep 30 days (Thursday's roundup needs a week), poll votes a year.
+const replyCutoff = () => new Date(Date.now() - 30 * 86400000).toISOString();
+const voteCutoff = () => new Date(Date.now() - 365 * 86400000).toISOString();
 const FORGOTTEN = 'Skipped: the person asked us to delete their data.';
 
 // A job_queue row as the rest of the code sees it (ISO dates, numeric id).
@@ -2975,6 +2994,10 @@ class PgStore {
        WHERE created_at < $1::timestamptz AND (submitter_ip IS NOT NULL OR user_agent IS NOT NULL)`, [submissionsBefore]);
     const msgs = await this.pool.query('DELETE FROM contact_messages WHERE created_at < $1::timestamptz', [contactBefore]);
     await this.pool.query('DELETE FROM inbox_events WHERE created_at < $1::timestamptz', [contactBefore]);
+    // The sections' tables exist only once a town has used them.
+    const t = await this.pool.query("SELECT to_regclass('reader_replies') AS r, to_regclass('poll_votes') AS v");
+    if (t.rows[0] && t.rows[0].r) await this.pool.query('DELETE FROM reader_replies WHERE created_at < $1::timestamptz', [replyCutoff()]);
+    if (t.rows[0] && t.rows[0].v) await this.pool.query('DELETE FROM poll_votes WHERE at < $1::timestamptz', [voteCutoff()]);
     return { submissions: subs.rowCount || 0, contact_messages: msgs.rowCount || 0 };
   }
 
@@ -2989,6 +3012,15 @@ class PgStore {
     try {
       if (client) await db.query('BEGIN');
       const out = {};
+      const sx = (await db.query("SELECT to_regclass('reader_replies') AS r, to_regclass('poll_votes') AS v")).rows[0] || {};
+      if (sx.v) {
+        const votes = n(await db.query('DELETE FROM poll_votes WHERE subscriber_id IN (SELECT id::text FROM subscribers WHERE lower(email) = $1)', [email]));
+        if (votes) out.poll_votes = votes;
+      }
+      if (sx.r) {
+        const replies = n(await db.query('DELETE FROM reader_replies WHERE lower(email) = $1', [email]));
+        if (replies) out.reader_replies = replies;
+      }
       out.email_opens = n(await db.query(
         'DELETE FROM email_opens WHERE subscriber_id IN (SELECT id FROM subscribers WHERE lower(email) = $1)', [email]));
       const clicksGone = n(await db.query(

@@ -143,6 +143,24 @@ def get(url, **kw):
     return r
 
 
+PHOTO_BYTES = 10 * 1024 * 1024
+
+
+def get_photo(url):
+    """A pet's photo: https only, at most PHOTO_BYTES (the shelter's host is
+    someone else's; nothing big or internal comes in)."""
+    if not str(url).startswith("https://"):
+        raise requests.RequestException(f"not https: {str(url)[:80]}")
+    with requests.get(url, headers=UA, timeout=TIMEOUT, stream=True) as r:
+        r.raise_for_status()
+        body = b""
+        for chunk in r.iter_content(64 * 1024):
+            body += chunk
+            if len(body) > PHOTO_BYTES:
+                raise requests.RequestException("photo too big")
+        return body
+
+
 def clean(text):
     return re.sub(r"\s+", " ", htmlmod.unescape(str(text or ""))).strip()
 
@@ -438,15 +456,20 @@ def pick_pet(config, previous, today):
             pets = PET_READERS[shelter["source"]](shelter)
         except Exception as e:  # noqa: BLE001 - the next shelter, or no pet this week
             print(f"pets: {shelter.get('name')}: {e}")
+            SOURCE_PROBLEMS.append(f"pets: {shelter.get('name')} didn't answer ({_why(e)})")
             continue
         print(f"pets: {shelter.get('name')}: {len(pets)} listed")
+        tries = 0
         for p in pets:
             if p["id"] in recent or not p["name"] or not p["photo_url"] or PLACEHOLDER_PHOTO.search(p["photo_url"]):
                 continue
             if re.search(r"\b(pending|adopted|on hold|hold)\b", p["name"], re.I):
                 continue
+            if tries >= PHOTO_TRIES:
+                break
+            tries += 1
             try:
-                photo = resize_photo(get(p["photo_url"]).content)
+                photo = resize_photo(get_photo(p["photo_url"]))
             except requests.RequestException:
                 photo = None
             if not photo:
@@ -640,6 +663,7 @@ def new_news_rss(src, today):
             xml = get(feed).text
         except requests.RequestException as e:
             print(f"new in town: feed failed: {e}")
+            SOURCE_PROBLEMS.append(f"new in town: a feed didn't answer ({_why(e)})")
             continue
         for item in re.findall(r"<item>(.*?)</item>", xml, re.S):
             title = clean(re.sub(r"<!\[CDATA\[|\]\]>", "", (re.search(r"<title>(.*?)</title>", item, re.S) or [None, ""])[1]))
@@ -697,6 +721,7 @@ def build_new_in_town(config, previous, today):
         items = reader(src, today)
     except Exception as e:  # noqa: BLE001
         print(f"new in town: {e}")
+        SOURCE_PROBLEMS.append(f"new in town: {src.get('source')} didn't answer ({_why(e)})")
         return []
     # Shown before: not again for NEW_DAYS (a place is only "new" once).
     shown = {k for k, d in (previous.get("new_shown") or {}).items() if d >= (today - timedelta(days=NEW_DAYS)).isoformat()}
@@ -717,6 +742,7 @@ def pdf_text(raw, pages=6):
                                   text=True, timeout=60).stdout
         except (OSError, subprocess.TimeoutExpired) as e:
             print(f"pdftotext: {e}")
+            SOURCE_PROBLEMS.append(f"City Hall: couldn't read an agenda PDF ({type(e).__name__})")
             return ""
 
 
@@ -845,6 +871,7 @@ def build_agendas(config, today):
             out += got
         except Exception as e:  # noqa: BLE001
             print(f"good news: {src.get('body')}: {e}")
+            SOURCE_PROBLEMS.append(f"City Hall: {src.get('body')} didn't answer ({_why(e)})")
     return out
 
 
@@ -881,10 +908,19 @@ def _fill(prompt):
             .replace("<<GOOD_MAX>>", str(GOOD_NEWS_MAX)).replace("<<ROUNDUP_MAX>>", str(ROUNDUP_MAX)))
 
 
+def _why(e):
+    """An error, short: its type and the HTTP status when there is one
+    (401 a bad key, 429 no quota or too fast, 5xx the other side is down)."""
+    code = getattr(getattr(e, "response", None), "status_code", None)
+    return f"{type(e).__name__} {code}" if code else type(e).__name__
+
+
 AI_TIMEOUT = 120
 AI_BUDGET = 7 * 60     # past this, no new AI call (the worker stops the job at 10 minutes)
 _STARTED = time.monotonic()
 AI_PROBLEMS = []       # what went wrong with the AI this run (the Slack note says so)
+SOURCE_PROBLEMS = []   # a shelter, chamber or agendas source that failed this run (same)
+PHOTO_TRIES = 5        # pets whose photo we try per shelter (each a download, up to TIMEOUT)
 
 
 def ai_json(api_key, system, user, max_tokens=6000):
@@ -896,7 +932,7 @@ def ai_json(api_key, system, user, max_tokens=6000):
         content = ce._openai_chat(api_key, [{"role": "system", "content": system}, {"role": "user", "content": user}],
                                   max_tokens=max_tokens, timeout=AI_TIMEOUT)
     except Exception as e:  # noqa: BLE001
-        AI_PROBLEMS.append(f"the AI call failed ({type(e).__name__})")
+        AI_PROBLEMS.append(f"the AI call failed ({_why(e)})")
         print(f"AI call failed: {e}")
         return None
     text = content.strip()
@@ -1128,11 +1164,17 @@ def build(config, previous, replies, today, api_key, before_send=False, issue=No
 
     if not midweek:
         out["new_in_town"] = places_out[:NEW_MAX]
-        for x in out["new_in_town"]:
-            out["new_shown"][x["key"]] = today.isoformat()
+        # A first build midweek (no file yet, e.g. the day sections went
+        # on) fills the homepage but no issue: Monday's still gets them.
+        if today.weekday() not in (1, 2, 3):
+            for x in out["new_in_town"]:
+                out["new_shown"][x["key"]] = today.isoformat()
     if good_out:
         meeting = agendas[0] if agendas else {}
         out["good_news"] = {"items": good_out[:GOOD_NEWS_MAX], "url": meeting.get("url", ""), "body": meeting.get("body", "")}
+    elif midweek and AI_PROBLEMS and previous.get("good_news"):
+        # The AI failed on Wednesday: Thursday keeps what Sunday's editor passed.
+        out["good_news"] = previous["good_news"]
     if len(quotes) >= 2:
         out["roundup"] = {"question": question, "answers": quotes[:ROUNDUP_MAX]}
     return out
@@ -1142,7 +1184,14 @@ def build_safely(config, previous, replies, today, api_key, before_send=False, i
     """build(), and what the AI's trouble was this run (the site's Slack
     note says so, so a dead key or a down AI doesn't go unnoticed)."""
     del AI_PROBLEMS[:]
+    del SOURCE_PROBLEMS[:]
     out = build(config, previous, replies, today, api_key, before_send=before_send, issue=issue)
+    # A shelter is set up but no pet came of it on a full build: say so
+    # (every listed pet's photo failing, or nothing listed).
+    if not before_send and not out.get("pet") and (config.get("pets") or []) and not SOURCE_PROBLEMS:
+        SOURCE_PROBLEMS.append("pets: no pet with a usable photo this week")
+    if SOURCE_PROBLEMS:
+        out["source_problems"] = sorted(set(SOURCE_PROBLEMS))
     if api_key and AI_PROBLEMS:
         out["ai_problems"] = sorted(set(AI_PROBLEMS))
     elif not api_key and (config.get("enabled") is True or os.environ.get("SECTIONS", "").strip() == "1"):
@@ -1328,6 +1377,8 @@ def main(argv=None):
           f"good news: {len((out.get('good_news') or {}).get('items') or [])} · roundup: {len((out.get('roundup') or {}).get('answers') or [])}")
     for r in out["review"]:
         print(f"  editor: {r['id']} → {r['verdict']} {r['why']}")
+    for p in out.get("ai_problems", []) + out.get("source_problems", []):
+        print(f"  problem: {p}")
     return 0
 
 

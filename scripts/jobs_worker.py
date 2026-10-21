@@ -384,8 +384,9 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
             state = _sections_state(site)
             env = _sections_env(site, env, state)
             sections_path = os.path.join(kit_dir, "sections.json")
-            _write_json(sections_path, state if isinstance(state, dict) and state.get("enabled")
-                        else ({} if isinstance(state, dict) else site.get_file("sections") or {}))
+            # The site didn't answer: no pet or places post (the raw file
+            # may be last week's, or have something the owner took out).
+            _write_json(sections_path, state if isinstance(state, dict) and state.get("enabled") else {})
             cmd += ["--sections", sections_path]
         code, tail = run(cmd, TIMEOUTS["social-kit"], env)
         if code != 0:
@@ -579,7 +580,7 @@ def job_sections(site, run=run_script, env=None, today=None):
         code, tail = run(cmd, TIMEOUTS["sections"], env)
         data = _read_json(out)
         if code == 0 and data is None:
-            return "done", {"skipped": "the town has no sections.json", "log_tail": tail[-3:]}
+            return "done", {"skipped": "no sections file came out (no sections.json, or sections are off)", "log_tail": tail[-3:]}
         if code != 0 or data is None:
             return "failed", {"error": f"The sections job exited with code {code}.", "log_tail": tail}
         site.put_file("sections", data)
@@ -587,6 +588,8 @@ def job_sections(site, run=run_script, env=None, today=None):
               "good_news": len((data.get("good_news") or {}).get("items") or []), "log_tail": tail[-8:]}
     if data.get("ai_problems"):
         result["ai_problems"] = data["ai_problems"]
+    if data.get("source_problems"):
+        result["source_problems"] = data["source_problems"]
     return "done", result
 
 

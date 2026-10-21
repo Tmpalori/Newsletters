@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { town } from './town.js';
 import { escHtml, safeUrl, localDateStr, addDays, layout } from './seo.js';
 import { renderSectionCard } from './ogImage.js';
+import { createRateLimiter } from './rateLimit.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // The week a question or poll belongs to (scripts/sections.py QUESTION_EPOCH).
@@ -42,8 +43,20 @@ export function sectionsConfig(t = town, { root = ROOT, env = process.env } = {}
   let cfg = {};
   try { cfg = JSON.parse(fs.readFileSync(path.join(dir, 'sections.json'), 'utf8')); } catch (_) { cfg = {}; }
   const flag = String(env.SECTIONS || '').trim();
-  const enabled = flag === '1' ? true : flag === '0' ? false : cfg.enabled === true;
+  // A paused town (TOWN_DORMANT=1) shows no sections: its scheduler runs no
+  // sections jobs, and its homepage would ask people to sign up for an
+  // email that isn't going out.
+  const enabled = t.dormant ? false : flag === '1' ? true : flag === '0' ? false : cfg.enabled === true;
   return { ...cfg, enabled };
+}
+
+// The section pages a town's sources can fill (Medford has no City Hall
+// source: no City Hall page or menu link).
+export function sectionPages(cfg) {
+  const has = { '/new-in-town': Boolean(cfg && cfg.new_in_town && cfg.new_in_town.source),
+    '/pets': Array.isArray(cfg && cfg.pets) && cfg.pets.length > 0,
+    '/city-hall': Array.isArray(cfg && cfg.good_news && cfg.good_news.sources) && cfg.good_news.sources.length > 0 };
+  return cfg && cfg.enabled ? SECTION_PAGES.filter(p => has[p.path]) : [];
 }
 
 // An item's id for Take out: its key when the job gave it one (it stays
@@ -191,11 +204,11 @@ export function sectionsHomeHtml(s, { siteUrl }) {
   }
   if (s.question) {
     // The signup hook: answering means getting Monday's email. The button
-    // goes to the footer's signup form.
+    // goes to the signup page (/subscribe, like every Subscribe button).
     parts.push(`<section class="sx-ask" id="question-of-the-week"><span class="sx-kicker">Question of the week</span>
         <h3><span class="sx-q sx-q--open" aria-hidden="true">“</span>${escHtml(s.question)}<span class="sx-q sx-q--close" aria-hidden="true">”</span></h3>
         <p class="sx-muted">Get Monday's email to send your answer. It could be featured in Thursday's Newsletter!</p>
-        <a class="btn btn--primary" href="#subscribe">Count me in</a>
+        <a class="btn btn--primary" href="/subscribe">Count me in</a>
       </section>`);
   }
   if (s.good) {
@@ -430,9 +443,12 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     return sectionsHomeHtml(homeSections({ cfg, file, hidden, now }), { siteUrl });
   }
 
-  // A reply to any issue (server/inbound.js): kept for Thursday's roundup.
+  // A reply to an issue (server/inbound.js): kept for Thursday's roundup.
+  // Only an answer ("My answer: ...", the issue's button) or a reply ("Re:");
+  // a new email to news@ (a question, a tip, a partner) isn't kept here.
   async function saveReply({ id, from, email, subject, text, at }) {
     if (!cfg.enabled || typeof store.saveReaderReply !== 'function' || !text || /^(re:\s*)?(sponsor|pick|order|advertis|refund|invoice)/i.test(subject || '')) return false;
+    if (!/^\s*((re|fwd?|aw):\s*)*my answer:|^\s*re:/i.test(subject || '')) return false;
     return store.saveReaderReply({ id, created_at: at || nowFn().toISOString(), name: firstName(from), email, subject, text: String(text).slice(0, 2000) });
   }
 
@@ -442,10 +458,15 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     return (await store.listReaderReplies(since)).map(r => ({ at: r.created_at, name: r.name, subject: r.subject, text: r.text }));
   }
 
+  // The archive holds a dozen pet photos (a couple of MB): read once a
+  // minute at most, not on every page view and photo (refreshArchive resets it).
+  let archive = { at: 0, data: null };
   async function readArchive() {
+    if (archive.data && Date.now() - archive.at < 60 * 1000) return archive.data;
     try {
       const f = typeof store.getTownFile === 'function' ? await store.getTownFile('sections_archive') : null;
-      return f && f.data ? f.data : { places: [], pets: [], hall: [] };
+      archive = { at: Date.now(), data: f && f.data ? f.data : { places: [], pets: [], hall: [] } };
+      return archive.data;
     } catch (err) { log.warn('[sections] archive read failed:', err.message); return { places: [], pets: [], hall: [] }; }
   }
   // Clicks per section and week (town file section_clicks), one write at a
@@ -481,7 +502,9 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     cache.at = 0;
     const { file, hidden } = await current();
     if (!file) return;
+    archive = { at: 0, data: null };
     await store.setTownFile('sections_archive', syncArchive(await readArchive(), file, hidden), nowFn());
+    archive = { at: 0, data: null };
   }
 
   // After the worker hands in a new file: the archive, and one Slack note
@@ -498,16 +521,43 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     if (data.roundup) lines.push(`💬 Readers' answers: ${data.roundup.answers.length}`);
     if ((data.questions_added || []).length) lines.push(`❓ New questions for the weeks ahead: ${data.questions_added.map(q => `“${q}”`).join(' ')}`);
     const dropped = (data.review || []).filter(r => r.verdict === 'drop').length;
+    // The job hands in a file up to four times a week (Sunday and Wednesday
+    // builds, the Monday and Thursday checks): each alert goes once a week
+    // and the "ready" note only when what readers will see changed.
+    const sent = await readNotes();
+    const week = String(data.week || '');
+    const notes = { ...sent };
+    const alertOnce = (kind, title, problems, after) => {
+      if (!problems.length || typeof slack.alert !== 'function' || sent[kind] === week) return;
+      slack.alert(`sections-${kind}-${week}`, title, `${problems.join('; ')}. ${after}`, `${siteUrl}/admin.html#tab=newsletter`);
+      notes[kind] = week;
+    };
     // The AI was down, out of time or has no key: fewer sections went in.
-    // An alert (once a week), so it doesn't go unnoticed for weeks.
-    const trouble = Array.isArray(data.ai_problems) ? data.ai_problems.filter(isText) : [];
-    if (trouble.length && typeof slack.alert === 'function') {
-      slack.alert(`sections-ai-${data.week || ''}`, 'Newsletter sections: the AI had trouble',
-        `${trouble.join('; ')}. New in town, City Hall and the readers' answers may be missing this week; the pet runs with a plain line.`,
-        `${siteUrl}/admin.html#tab=newsletter`);
+    alertOnce('ai', 'Newsletter sections: the AI had trouble', Array.isArray(data.ai_problems) ? data.ai_problems.filter(isText) : [],
+      "New in town, City Hall and the readers' answers may be missing this week; the pet runs with a plain line.");
+    // A shelter, chamber or agendas site didn't answer: that section is
+    // missing or thin this week (the rest went in).
+    alertOnce('sources', 'Newsletter sections: a source didn\'t answer', Array.isArray(data.source_problems) ? data.source_problems.filter(isText) : [],
+      'That section may be missing this week; the rest went in.');
+    const text = [lines.join('\n') || 'Nothing new this time.', dropped ? `The editor left out ${dropped} item${dropped === 1 ? '' : 's'}.` : ''].filter(Boolean).join('\n');
+    const ready = `${week}|${text}`;
+    if (sent.ready !== ready) {
+      slack.notify({ title: '🗞️ Newsletter sections ready', channel: 'activity', link: `${siteUrl}/admin.html#tab=newsletter`, linkLabel: 'Take something out', text });
+      notes.ready = ready;
     }
-    slack.notify({ title: '🗞️ Newsletter sections ready', channel: 'activity', link: `${siteUrl}/admin.html#tab=newsletter`, linkLabel: 'Take something out',
-      text: [lines.join('\n') || 'Nothing new this time.', dropped ? `The editor left out ${dropped} item${dropped === 1 ? '' : 's'}.` : ''].filter(Boolean).join('\n') });
+    if (typeof store.setTownFile === 'function' && JSON.stringify(notes) !== JSON.stringify(sent)) {
+      await store.setTownFile('sections_notes', notes, nowFn()).catch(err => log.warn('[sections] notes:', err.message));
+    }
+  }
+
+  // What Slack was already told about this week's sections (onFile).
+  async function readNotes() {
+    try {
+      const f = typeof store.getTownFile === 'function' ? await store.getTownFile('sections_notes') : null;
+      return f && f.data && typeof f.data === 'object' ? f.data : {};
+    } catch {
+      return {};
+    }
   }
 
   // The pet's photo: this week's, or one on the Pets page.
@@ -523,11 +573,15 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     // request left hanging (Express 4 doesn't catch a rejected promise).
     const wrap = h => (req, res, next) => { try { return Promise.resolve(h(req, res, next)).catch(next); } catch (err) { return next(err); } };
     const on = { get: (p, ...hs) => app.get(p, ...hs.map(wrap)), post: (p, ...hs) => app.post(p, ...hs.map(wrap)) };
+    // Clicks and votes counted per address per hour (like the email's own
+    // click links): past it, the link still works but nothing is counted.
+    const countLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 600 });
+    const countable = req => countLimiter.check(req.ip || '').ok;
     // A poll's week: a Monday, from the last two months or next week.
     const pollWeek = week => /^\d{4}-\d{2}-\d{2}$/.test(week) && mondayOf(week) === week &&
       daysBetween(week, localDateStr(nowFn())) <= 62 && daysBetween(week, localDateStr(nowFn())) >= -7;
     if (cfg.enabled) {
-      for (const page of SECTION_PAGES) {
+      for (const page of sectionPages(cfg)) {
         on.get(page.path, async (req, res, next) => {
           try { sendHtml(res, renderSectionPage(page.path.slice(1), await readArchive(), { siteUrl, signupHtml: signupHtml(page.path.slice(1)), now: nowFn() })); } catch (err) { next(err); }
         });
@@ -570,7 +624,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       const ours = /^\/(?!\/)[\w\-./?=&%#]*$/.test(to);
       const dest = ours || known.includes(to) ? to : '/';
       // A made-up link (not ours, not this week's) isn't from the email: not counted.
-      if (dest === to && CLICK_SECTIONS.includes(section) && req.method === 'GET' && !isBot(req.get('User-Agent')) && cfg.enabled) countClick(section, week);
+      if (dest === to && CLICK_SECTIONS.includes(section) && req.method === 'GET' && !isBot(req.get('User-Agent')) && cfg.enabled && countable(req)) countClick(section, week);
       res.redirect(302, dest);
     });
 
@@ -581,7 +635,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
       if (!poll || poll.id !== pollId || !Number.isInteger(choice) || choice < 0 || choice >= poll.choices.length) return res.redirect(302, '/');
       const sub = String(req.query.s || '').slice(0, 64);
       let voted = null;
-      if (sub && req.method === 'GET' && !isBot(req.get('User-Agent')) && typeof store.recordPollVote === 'function') {
+      if (sub && req.method === 'GET' && !isBot(req.get('User-Agent')) && typeof store.recordPollVote === 'function' && countable(req)) {
         try {
           const at = nowFn().toISOString();
           const r = await store.recordPollVote({ week, poll: pollId, subscriber_id: sub, choice, at, burstMs: SCANNER_BURST_MS });

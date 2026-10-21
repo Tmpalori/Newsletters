@@ -186,6 +186,8 @@ export function renderEventCard(ev) {
 // week with its photo, or New in Town with its newest places. Same look as
 // the event cards; `photo` is the pet's JPEG as base64.
 export function sectionCardSvg({ kicker, title, lines = [], photo = null }) {
+  // Only base64 goes into the SVG attribute (it comes from the worker's file).
+  if (photo && !/^[A-Za-z0-9+/]+={0,2}$/.test(photo)) photo = null;
   const { logo, skyline } = getAssets();
   const left = 64;
   const textLeft = photo ? 560 : left;

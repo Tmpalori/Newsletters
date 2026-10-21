@@ -52,6 +52,7 @@ def _no_network(monkeypatch, pets=(PET,), places=()):
     class R:
         content = b"jpeg"
     monkeypatch.setattr(s, "get", lambda url, **kw: R())
+    monkeypatch.setattr(s, "get_photo", lambda url: b"jpeg")
 
 
 CFG = {"pets": [{"name": "County Shelter", "source": "fake", "address": "1 Main"}],
@@ -66,6 +67,31 @@ def test_without_the_ai_only_the_pet_runs_with_its_plain_line(monkeypatch):
     assert out["pet"]["blurb"] == s.pet_plain_blurb({**PET, "shelter": "County Shelter"})
     assert out["new_in_town"] == [] and out["good_news"] is None and out["roundup"] is None
     assert out["week"] == "2026-10-19"   # Sunday evening builds for tomorrow's issue
+
+
+def test_a_source_that_fails_is_reported_not_just_printed(monkeypatch):
+    _no_network(monkeypatch)
+
+    def shelter(src):
+        raise s.requests.HTTPError("403 Forbidden", response=type("R", (), {"status_code": 403})())
+    monkeypatch.setitem(s.PET_READERS, "fake", shelter)
+    out = s.build_safely(CFG, {}, [], TODAY, api_key="")
+    assert out["pet"] is None
+    assert out["source_problems"] == ["pets: County Shelter didn't answer (HTTPError 403)"]
+    # Every source fine: nothing to report.
+    _no_network(monkeypatch)
+    assert "source_problems" not in s.build_safely(CFG, {}, [], TODAY, api_key="")
+
+
+def test_no_usable_photo_is_reported_and_photo_tries_are_capped(monkeypatch):
+    pets = [dict(PET, id=f"pp-{i}", name=f"Pet {i}") for i in range(20)]
+    _no_network(monkeypatch, pets=pets)
+    tried = []
+    monkeypatch.setattr(s, "get_photo", lambda url: tried.append(url) or b"jpeg")
+    monkeypatch.setattr(s, "resize_photo", lambda raw: None)
+    out = s.build_safely(CFG, {}, [], TODAY, api_key="")
+    assert len(tried) == s.PHOTO_TRIES
+    assert out["source_problems"] == ["pets: no pet with a usable photo this week"]
 
 
 def test_a_pet_with_no_real_photo_or_featured_lately_is_skipped(monkeypatch):
@@ -109,7 +135,7 @@ def test_the_editor_and_the_rules_decide_what_runs(monkeypatch):
     assert [a["name"] for a in out["roundup"]["answers"]] == ["Maria", "Dale"]
     dropped = {r["id"] for r in out["review"] if r["verdict"] == "drop"}
     assert {"place:k2", "place:k3", "good:1"} <= dropped
-    assert out["new_shown"] == {"k1": "2026-10-14"}
+    assert out["new_shown"] == {}   # a first build on a Wednesday: Monday's issue still gets Chai
 
 
 def test_an_editor_that_doesnt_answer_publishes_nothing_it_wrote(monkeypatch):
@@ -469,3 +495,30 @@ def test_petfinder_and_rc_named_ribbon_cuttings(monkeypatch):
     monkeypatch.setattr(s, "get", lambda url, **kw: P())
     got = s.new_growthzone_ribbons({"base": "https://x", "slug": "ribbon-cutting|rc"}, date(2026, 10, 21))
     assert [x["name"] for x in got] == ["Drop Zone", "First Citizens Bank"]
+
+
+def test_a_photo_is_https_only_and_capped(monkeypatch):
+    import pytest
+    with pytest.raises(s.requests.RequestException):
+        s.get_photo("http://10.0.0.1/x.jpg")
+
+    class Big:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def raise_for_status(self): pass
+        def iter_content(self, n): return iter([b"x" * (6 * 1024 * 1024)] * 2)
+    monkeypatch.setattr(s.requests, "get", lambda *a, **kw: Big())
+    with pytest.raises(s.requests.RequestException, match="too big"):
+        s.get_photo("https://example.org/huge.jpg")
+
+
+def test_a_first_build_midweek_leaves_its_places_for_monday(monkeypatch):
+    place = {"key": "k1", "name": "Chai", "what": "restaurant", "street": "Main St", "status": "open", "raw": "x"}
+    _no_network(monkeypatch, places=[place])
+    monkeypatch.setattr(s, "draft", lambda *a, **kw: {"new_places": [{"key": "k1", "name": "Chai", "line": "Filipino food, now open on Main St."}]})
+    monkeypatch.setattr(s, "edit", lambda key, items: {it["id"]: ("keep", "", "") for it in items})
+    monkeypatch.setattr(s, "ai_json", lambda *a, **kw: None)
+    wed = s.build(CFG, {}, [], date(2026, 10, 21), api_key="k")
+    assert [x["name"] for x in wed["new_in_town"]] == ["Chai"] and wed["new_shown"] == {}
+    sun = s.build(CFG, wed, [], date(2026, 10, 25), api_key="k")
+    assert [x["name"] for x in sun["new_in_town"]] == ["Chai"] and "k1" in sun["new_shown"]

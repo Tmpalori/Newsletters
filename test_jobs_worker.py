@@ -675,7 +675,11 @@ def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_bef
 
 def test_tuesday_posts_today_then_the_pet_on_its_own_and_hands_the_kit_the_sections_file(medford):
     w, _ = medford
-    site = SocialSite()
+
+    class StateSite(SocialSite):
+        def get_sections_state(self):
+            return {"enabled": True, "week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": []}
+    site = StateSite()
     site.files["sections"] = {"week": "2026-10-12", "pet": {"name": "Chloe"}}
     seen, sections_in = [], []
 
@@ -690,6 +694,21 @@ def test_tuesday_posts_today_then_the_pet_on_its_own_and_hands_the_kit_the_secti
     assert result["posted"] == "today + pet"
     # The sections file never goes to the site as a kit file.
     assert not any(name == "sections.json" for _, name in getattr(site, "social_puts", []))
+
+
+def test_no_answer_from_the_site_means_no_pet_post_from_the_raw_file(medford):
+    # The raw file may be last week's or hold a pet the owner took out.
+    w, _ = medford
+    site = SocialSite()
+    site.files["sections"] = {"week": "2026-10-12", "pet": {"name": "Chloe"}}
+    sections_in = []
+
+    def run(args, timeout, env=None):
+        if "--sections" in args:
+            sections_in.append(json.load(open(args[args.index("--sections") + 1])))
+        return fake_kit_build([], sections=False)(args, timeout, env)
+    w.job_social_kit(site, run=run, env=POSTING, today=TUE, session=Meta(site))
+    assert sections_in == [{}]
 
 
 def test_the_sites_switch_decides_and_social_gets_the_week_as_readers_see_it(victoria):

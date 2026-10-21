@@ -45,12 +45,21 @@ const MIN = 60 * 1000;
 
 // Wall-clock parts of an instant in the town's timezone (Central for
 // Victoria; the job times below are in it).
+// One formatter per timezone (building one costs more than using it; the
+// scheduler asks for every job on every tick).
+const formatters = new Map();
+function formatterFor(tz) {
+  if (!formatters.has(tz)) {
+    formatters.set(tz, new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', weekday: 'short'
+    }));
+  }
+  return formatters.get(tz);
+}
 export function localParts(now) {
   const parts = {};
-  for (const p of new Intl.DateTimeFormat('en-US', {
-    timeZone: town.timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', weekday: 'short'
-  }).formatToParts(now)) parts[p.type] = p.value;
+  for (const p of formatterFor(town.timezone).formatToParts(now)) parts[p.type] = p.value;
   const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday);
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,

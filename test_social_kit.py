@@ -3,6 +3,7 @@
 Rendering needs Pillow and runs in the workflow; these tests cover the pure
 helpers that decide what gets posted.
 """
+import json
 import os
 import re
 import sys
@@ -504,4 +505,6 @@ def test_section_posts_follow_the_towns_switch(monkeypatch):
     monkeypatch.setenv("SECTIONS", "0")
     assert sk.sections_on() is False
     monkeypatch.delenv("SECTIONS")
-    assert sk.sections_on() is False   # Victoria's sections.json ships with "enabled": false
+    # Unset: Victoria's sections.json decides.
+    with open(os.path.join(os.path.dirname(__file__), "sections.json")) as f:
+        assert sk.sections_on() is json.load(f)["enabled"]

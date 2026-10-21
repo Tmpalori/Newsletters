@@ -718,7 +718,7 @@ export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all'
 ${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
 <p style="margin:6px 0 0;font-size:15px;">${escHtml(p.blurb)}</p></td></tr></table>
 ${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectionClickUrl(siteUrl, 'pet', sx.monday, p.url), `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
-<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`));
+${p.shelter ? `<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>` : ''}`));
   }
   if (sx.places && sx.places.length && want('places')) {
     // An open list: a heading, a line per place, dotted rules between. Each
@@ -775,7 +775,7 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all'
   if (!sx) return [];
   const out = [];
   const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
-  if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
+  if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, ...(sx.pet.blurb ? [sx.pet.blurb] : []), ...(sx.pet.shelter || safeUrl(sx.pet.url) ? [`${sx.pet.shelter ? `At ${sx.pet.shelter}` : 'Meet them'}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`] : []), '');
   if (sx.places && sx.places.length && want('places')) {
     out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => { const when = placeWhen(x, sx.today || sx.monday);
       return `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}${when ? ` ${when}.` : ''} Map: ${placeMapUrl(x)}`; }), '');
@@ -1264,7 +1264,14 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
-export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, getSections = async () => null, analyticsSecret = '', mailDomainOk = null }) {
+export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, getSections: getSectionsRaw = async () => null, analyticsSecret = '', mailDomainOk = null }) {
+  // The question of the week asks readers to email their answer: only when
+  // email to news@ reaches us (server/inbound.js); otherwise the issue keeps
+  // its plain reply ask and no question.
+  const getSections = async (edition, now) => {
+    const sx = await getSectionsRaw(edition, now);
+    return sx && !config.inbound ? { ...sx, question: null } : sx;
+  };
   const rewards = createReferralRewards({ store, slack, tremendous, nowFn, localDate: localDateStr });
   const subscribeLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
   const confirmLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
