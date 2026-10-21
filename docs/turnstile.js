@@ -55,7 +55,23 @@
             appearance: 'interaction-only',
             callback: function (t) { state.token = t; state.waiters.splice(0).forEach(function (w) { w(t); }); },
             'expired-callback': function () { state.token = ''; },
-            'error-callback': function () { state.token = ''; }
+            // Cloudflare's error code (110200: this site's hostname isn't on
+            // the widget) goes back with the form as ts_err, so the owner's
+            // alert says why; whoever waits for a token gets '' now.
+            'error-callback': function (code) {
+              state.token = '';
+              state.error = String(code || 'error').slice(0, 12);
+              var f = form.querySelector('input[name=ts_err]');
+              if (!f) {
+                f = document.createElement('input');
+                f.type = 'hidden';
+                f.name = 'ts_err';
+                form.appendChild(f);
+              }
+              f.value = state.error;
+              state.waiters.splice(0).forEach(function (w) { w(''); });
+              return true;
+            }
           });
         } catch (err) { return null; }
         return state;
@@ -110,5 +126,12 @@
     } catch (e) { /* nothing more to do */ }
   }
 
-  window.vicTurnstile = { token: token, reset: reset, report: report };
+  // The widget's last error code for this form ('' when none), for
+  // fetch-based forms to send as ts_err.
+  function error(form) {
+    var f = form.querySelector && form.querySelector('input[name=ts_err]');
+    return f ? f.value : '';
+  }
+
+  window.vicTurnstile = { token: token, reset: reset, report: report, error: error };
 })();

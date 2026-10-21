@@ -57,8 +57,11 @@ export function botName(ua) {
   return null;
 }
 
-// Group referrers into sources people recognize.
+// Group referrers into sources people recognize. Webmail comes first: Gmail
+// on the web is mail.google.com and its app com.google.android.gm, which
+// the Google rule would otherwise take for search.
 const SOURCES = [
+  ['Newsletter', /(^|\.)(beehiiv\.com|mail\.google\.com|com\.google\.android\.gm|outlook\.live\.com|outlook\.office(365)?\.com|mail\.yahoo\.com)$/],
   ['Gemini', /^(gemini|bard)\.google\.com$/],
   ['Google', /(^|\.)google\./],
   ['Bing', /(^|\.)bing\.com$/],
@@ -72,8 +75,7 @@ const SOURCES = [
   ['Instagram', /(^|\.)instagram\.com$/],
   ['X / Twitter', /(^|\.)(t\.co|twitter\.com|x\.com)$/],
   ['Reddit', /(^|\.)reddit\.com$/],
-  ['Nextdoor', /(^|\.)nextdoor\.com$/],
-  ['Newsletter', /(^|\.)(beehiiv\.com|mail\.google\.com|outlook\.live\.com)$/]
+  ['Nextdoor', /(^|\.)nextdoor\.com$/]
 ];
 
 export const AI_SOURCES = new Set(['ChatGPT', 'Perplexity', 'Claude', 'Copilot', 'Gemini', 'Meta AI']);
@@ -118,17 +120,38 @@ export function visitorHash(ip, ua, day, secret) {
   return crypto.createHash('sha256').update(`${secret}|${day}|${ip}|${ua}`).digest('hex').slice(0, 16);
 }
 
+// Which email a newsletter visit came from: the link's utm_campaign
+// (server/newsletter.js utmTag: weekly-<Monday>, weekend-<Thursday>,
+// welcome). Kept in the view's ref_host, so the issue report can credit
+// the right issue; anything else isn't kept.
+export const EMAIL_CAMPAIGN = /^(?:(?:weekly|weekend)-\d{4}-\d{2}-\d{2}|welcome)$/;
+
+// event_click is a tap out to an event's own link (its venue's or
+// organizer's page); event_open is a tap from a list to the event's page
+// on this site (docs/track.js). Before October 2026 both were event_click;
+// isOutbound tells the old rows apart.
 export const CLICK_TYPES = new Set([
-  'event_click', 'sponsor_click', 'subscribe_click', 'advertise_click',
+  'event_click', 'event_open', 'sponsor_click', 'subscribe_click', 'advertise_click',
   'add_to_calendar', 'share_native', 'share_from_list', 'share_facebook', 'share_x', 'share_text', 'filter'
 ]);
 
 export const CLICK_LABELS = {
-  event_click: 'Event links', sponsor_click: 'Sponsor clicks', subscribe_click: 'Subscribe clicks',
+  event_click: 'Event links (out to the event)', event_open: 'Event pages opened from a list', sponsor_click: 'Sponsor clicks', subscribe_click: 'Subscribe clicks',
   advertise_click: 'Advertise page clicks', add_to_calendar: 'Added to calendar',
   share_native: 'Shares (sent or copied)', share_from_list: 'Shares from the event list', share_facebook: 'Shares to Facebook',
   share_x: 'Shares to X', share_text: 'Shares by text', filter: 'Filter taps'
 };
+
+// A clicked link that leaves the site: an absolute URL to another host.
+// Paths ("/events/x") and links to this site are not outbound.
+export function isOutbound(url, siteHost = '') {
+  const s = String(url || '');
+  if (!s || s.startsWith('/') || s.startsWith('#') || s.startsWith('?')) return false;
+  let host = '';
+  try { host = new URL(s).hostname.toLowerCase(); } catch { return false; }
+  const bare = h => String(h || '').toLowerCase().replace(/^www\./, '');
+  return Boolean(host) && (!siteHost || bare(host) !== bare(siteHost));
+}
 
 function cleanPath(p) {
   const s = String(p || '/').split('?')[0].split('#')[0].slice(0, 200);
@@ -188,8 +211,16 @@ export function beaconRow(body, { ip, ua, secret, siteHost, now }) {
   const base = { day, path: cleanPath(body.path), visitor: visitorHash(ip, ua, day, secret) };
   if (body.kind === 'view') {
     let { source, host } = referrerSource(String(body.ref || '').slice(0, 500), siteHost);
-    const tagged = paidSource(body.utm, body.utm_medium, source) || (source === 'Direct' ? utmSource(body.utm) : null);
+    // Our own email links are tagged utm_source=newsletter, and that tag
+    // wins over the referrer: Gmail's link redirect sends google.com,
+    // webmail sends its own host, and both read as the newsletter.
+    const fromEmail = utmSource(body.utm) === 'Newsletter';
+    const tagged = paidSource(body.utm, body.utm_medium, source) || (source === 'Direct' || fromEmail ? utmSource(body.utm) : null);
     if (tagged) source = tagged;
+    if (source === 'Newsletter') {
+      const campaign = String(body.utm_campaign || '').toLowerCase().trim();
+      if (EMAIL_CAMPAIGN.test(campaign)) host = campaign;
+    }
     // A link someone shared with a share button (?s=sh, docs/track.js),
     // whatever app it was opened from.
     if (body.via === 'share') source = SHARED_LINK;
@@ -246,6 +277,27 @@ function countBy(rows, keyFn, limit) {
   return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([key, count]) => ({ key, count }));
 }
 
+// Where visitors came from, one source per visitor per day: the outside
+// source that brought them (a page reached by moving around the site reads
+// "Direct" and never beats one), else Direct. With two outside sources in
+// a day, the first counts (rows carry first_at from the store; without it,
+// the order the rows came in).
+export function visitorSources(views, limit) {
+  const first = new Map();
+  for (const r of views) {
+    const k = `${r.day}|${r.visitor}`;
+    const src = r.ref_source || 'Direct';
+    const at = r.first_at || r.ts;
+    const t = at instanceof Date ? at.toISOString() : String(at || '');
+    const cur = first.get(k);
+    if (!cur || (cur.src === 'Direct' && src !== 'Direct') ||
+      (src !== 'Direct' && cur.src !== 'Direct' && t && cur.t && t < cur.t)) first.set(k, { src, t });
+  }
+  const m = new Map();
+  for (const { src } of first.values()) m.set(src, (m.get(src) || 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([key, count]) => ({ key, count }));
+}
+
 function uniqueVisitors(rows) {
   // One visitor per (day, visitor hash); multi-day ranges sum daily uniques.
   return new Set(rows.map(r => `${r.day}|${r.visitor}`)).size;
@@ -269,12 +321,15 @@ function aiSummary(views, crawls) {
 }
 
 // Build the admin Traffic payload from raw rows.
-export function summarize(rows, { now, days = 30 }) {
+export function summarize(rows, { now, days = 30, siteHost = '' }) {
   const today = localDateStr(now);
   const start = addDays(today, -(days - 1));
   const inRange = rows.filter(r => r.day >= start && r.day <= today);
   const views = inRange.filter(r => r.kind === 'view');
-  const clicks = inRange.filter(r => r.kind === 'click');
+  // An old event_click to one of our own pages was a list tap: it counts
+  // as event_open, like the beacon sends now.
+  const clicks = inRange.filter(r => r.kind === 'click')
+    .map(r => (r.click_type === 'event_click' && !isOutbound(r.click_url, siteHost) ? { ...r, click_type: 'event_open' } : r));
   const crawls = inRange.filter(r => r.kind === 'crawl');
 
   const window = (n) => {
@@ -304,10 +359,13 @@ export function summarize(rows, { now, days = 30 }) {
     totals: { today: window(1), week: window(7), range: window(days) },
     daily,
     top_pages: countBy(views, r => r.path, 15),
-    sources: countBy(views, r => r.ref_source || 'Direct', 12),
+    // Visitors by the source that brought them (per visitor-day), and the
+    // page views each source's visits added up to.
+    sources: visitorSources(views, 12),
+    source_views: countBy(views, r => r.ref_source || 'Direct', 12),
     referrer_sites: countBy(views.filter(r => r.ref_source === 'Other sites'), r => r.ref_host, 10),
     clicks: countBy(clicks, r => r.click_type, 20).map(c => ({ ...c, label: CLICK_LABELS[c.key] || c.key })),
-    top_clicked: countBy(clicks.filter(r => r.click_type === 'event_click' || r.click_type === 'sponsor_click'),
+    top_clicked: countBy(clicks.filter(r => (r.click_type === 'event_click' && isOutbound(r.click_url, siteHost)) || r.click_type === 'sponsor_click'),
       r => r.click_url, 10),
     ai: aiSummary(views, crawls),
     crawlers: countBy(crawls, r => r.bot, 12),

@@ -73,6 +73,24 @@ def test_collect_hands_over_its_files_candidates_last(town_dir):
     assert result["sources"] == {"town_feeds": 120}
 
 
+def test_collect_starts_from_the_sites_last_metadata_and_reports_its_stops(town_dir):
+    # The collector's state between runs (quiet pages, post rotation) lives in
+    # the site's last metadata, not the image's stale copy.
+    last = {"post_rotation": {"apify_instagram_posts": "v3"}, "quiet_pages": {}}
+    site = FakeSite(files={"enrichment_cache": {"seen": 1}, "collection_metadata": last})
+    stops = [{"source": "apify_facebook_posts", "reason": "time", "skipped": 12, "of": 30, "names": ["A"]}]
+    meta = {"sources": [], "scrape_stops": stops, "apify": {"month_usd": 67.52, "limit_usd": 200, "run_usd": 2.45}}
+    run = fake_collector(town_dir, {"events": []}, meta)
+
+    def checked(args, timeout, env=None):
+        assert json.load(open(town_dir["collection_metadata"])) == last
+        return run(args, timeout, env)
+    status, result = jw.job_collect(site, run=checked)
+    assert status == "done"
+    assert result["scrape_stops"] == stops
+    assert result["apify"] == {"month_usd": 67.52, "limit_usd": 200, "run_usd": 2.45}
+
+
 def test_a_failed_collect_hands_over_nothing(town_dir):
     site = FakeSite(files={"enrichment_cache": {"seen": 1}})
     status, result = jw.job_collect(site, run=fake_collector(town_dir, {}, {}, code=1))

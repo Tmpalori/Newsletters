@@ -119,6 +119,20 @@ describe('seo helpers', () => {
     const [winter] = withPages([{ date: '2026-12-05', name: 'X', time: '6 PM' }]);
     expect(eventJsonLd(winter, 'https://www.thevic361.com').startDate).toBe('2026-12-05T18:00:00-06:00');
   });
+
+  it("gives the organizer the venue's own site when the event has no link", () => {
+    const [ev] = withPages([{ date: '2026-10-09', name: 'Trivia', venue: 'The Hall', url: '' }]);
+    const SITE = 'https://www.thevic361.com';
+    expect(eventJsonLd(ev, SITE).organizer.url).toBeUndefined();
+    expect(eventJsonLd(ev, SITE, { website: 'https://thehall.com' }).organizer.url).toBe('https://thehall.com');
+    expect(eventJsonLd(ev, SITE, { website: '', facebook_page: 'https://facebook.com/thehall' }).organizer.url)
+      .toBe('https://facebook.com/thehall');
+    expect(eventJsonLd(ev, SITE, { instagrams: ['the.hall'] }).organizer.url).toBe('https://www.instagram.com/the.hall/');
+    expect(eventJsonLd(ev, SITE, { website: 'javascript:alert(1)' }).organizer.url).toBeUndefined();
+    // The event's own link still comes first.
+    const [linked] = withPages([{ date: '2026-10-09', name: 'Trivia', venue: 'The Hall', url: 'https://tix.com/trivia' }]);
+    expect(eventJsonLd(linked, SITE, { website: 'https://thehall.com' }).organizer.url).toBe('https://tix.com/trivia');
+  });
 });
 
 describe('server-rendered pages', () => {

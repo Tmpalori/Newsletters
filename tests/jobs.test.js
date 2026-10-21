@@ -13,7 +13,7 @@ import { promises as fs } from 'node:fs';
 import { createApp } from '../server/index.js';
 import { FileStore } from '../server/db.js';
 import { createScheduler } from '../server/scheduler.js';
-import { createJobs, upcomingCount, canRunOnWorker, collectWarnings } from '../server/jobs.js';
+import { createJobs, upcomingCount, canRunOnWorker, collectWarnings, collectStops } from '../server/jobs.js';
 import { townConfig, useTown, VICTORIA } from '../server/town.js';
 
 const NOW = new Date('2026-10-07T15:00:00Z');
@@ -102,6 +102,21 @@ describe('jobs API', () => {
     const next = await (await t.call('POST', '/api/jobs/claim')).json();
     expect(next.job).toMatchObject({ kind: 'event-check', slot: `after-collect-${claim.job.id}` });
     expect((await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done' })).status).toBe(404);  // once
+  });
+
+  it('a collect the Apify scrapers cut short says what they skipped', async () => {
+    const t = await start();
+    await t.store.enqueueJob('collect', '2026-10-07', {}, NOW);
+    const claim = await (await t.call('POST', '/api/jobs/claim')).json();
+    const scrape_stops = [
+      { source: 'apify_instagram_posts', reason: 'cap', skipped: 46, of: 61, names: ['A'] },
+      { source: 'apify_facebook_posts', reason: 'time', skipped: 12, of: 30, names: ['B'] }
+    ];
+    await t.call('POST', `/api/jobs/${claim.job.id}/finish`, { status: 'done', result: { upcoming: 2, scrape_stops } });
+    const note = t.slack.notes.find(n => n.title === '🗓️ Collect done, cut short');
+    expect(note.text).toContain('Not scraped: Facebook posts: skipped 12 of 30 (out of time).');
+    expect(note.text).toContain('Capped: Instagram posts: skipped 46 of 61 (over its venue cap).');
+    expect(note.text).toContain('The skipped ones go first next collect.');
   });
 
   it('a failed collect or check alerts every time; the 15-minute review once its failures reach an hour; then says it works again', async () => {
@@ -316,7 +331,9 @@ describe('HQ sees the jobs', () => {
     const old = new Date('2026-10-04T20:00:00Z');
     await t.store.enqueueJob('collect', 'sun', {}, old);
     const c = await t.store.claimJob(old);
-    await t.store.finishJob(c.id, { status: 'done', result: { upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 }, seconds: 1800 } }, old);
+    await t.store.finishJob(c.id, { status: 'done', result: { upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 }, seconds: 1800,
+      scrape_stops: [{ source: 'apify_facebook_posts', reason: 'time', skipped: 3, of: 30, names: ['A', 'B', 'C'], extra: 'x' }],
+      apify: { month_usd: 67.52, limit_usd: 200, run_usd: 2.45, cycle_end: '2026-10-31' } } }, old);
     for (let i = 0; i < 300; i++) {          // a busy week of reviews doesn't push the collect out
       await t.store.enqueueJob('submission-review', `s${i}`, {}, now);
       const j = await t.store.claimJob(now);
@@ -330,7 +347,9 @@ describe('HQ sees the jobs', () => {
       worker_last_seen: '2026-10-08T11:59:30Z', worker_since: '2026-10-08T09:00:00Z', queued: 0, failed_24h: 1, running: [],
       last: {
         'event-check': { status: 'failed', seconds: 4, error: 'exited 1' },
-        collect: { status: 'done', seconds: 1800, upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 } },
+        collect: { status: 'done', seconds: 1800, upcoming: 206, events: 250, warnings: '1 warning', sources: { town_feeds: 120 },
+          scrape_stops: [{ source: 'apify_facebook_posts', reason: 'time', skipped: 3, of: 30, names: ['A', 'B', 'C'] }],
+          apify: { month_usd: 67.52, limit_usd: 200, this_collect_usd: 2.45, cycle_end: '2026-10-31' } },
         'submission-review': { status: 'done', seconds: 2 }
       }
     });
@@ -499,5 +518,13 @@ describe('collect warnings in Slack', () => {
     });
     expect(collectWarnings('1 warning: x').title).toBe('⚠️ Collect: 1 warning');
     expect(collectWarnings('mona returned 0 events')).toEqual({ title: '⚠️ Collect warnings', text: 'mona returned 0 events' });
+  });
+
+  it('scrape stops: a venue cap is by design, the rest cut the collect short', () => {
+    expect(collectStops([{ source: 'apify_instagram_posts', reason: 'cap', skipped: 2, of: 17 }]))
+      .toEqual({ cutShort: false, cut: [], capped: ['Instagram posts: skipped 2 of 17 (over its venue cap)'] });
+    expect(collectStops([{ source: 'apify_eventbrite', reason: 'apify-limit', skipped: null, of: null }, 'junk']))
+      .toEqual({ cutShort: true, cut: ['Eventbrite: skipped (Apify monthly limit)'], capped: [] });
+    expect(collectStops(undefined)).toEqual({ cutShort: false, cut: [], capped: [] });
   });
 });

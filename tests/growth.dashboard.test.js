@@ -65,11 +65,49 @@ describe('growth numbers', () => {
     const subs = [sub('u', '2026-09-01', { status: 'unsubscribed', unsubscribed_at: at('2026-10-06') })];
     const out = issueReport(sends, { '2026-10-05': 20 }, subs, rows, [{ name: 'Trivia', page }]);
     expect(out.map(x => x.week)).toEqual(['2026-10-12', '2026-10-05']);
-    // Clicked that day: only the send day's readers (visitor ids are per day).
-    expect(out[1]).toMatchObject({ sent: 40, opens: 20, open_rate: 50, clickers: 1, click_rate: 2.5, reader_days: 3, visits: 4,
+    // On the site that day: only the send day's readers (visitor ids are
+    // per day). Sent before clicks were counted: no click rate, not 0%.
+    expect(out[1]).toMatchObject({ sent: 40, opens: 20, open_rate: 50, clicks_tracked: false, clickers: null, click_rate: null,
+      site_visitors: 1, site_visit_rate: 2.5, readers_7_days: 3, reader_days: 3, visits: 4,
       top_events: [{ name: 'Trivia', views: 3 }], unsubscribed: 1 });
     // The second issue's week starts the day it went out.
-    expect(out[0]).toMatchObject({ clickers: 1, opens: 0, unsubscribed: 0 });
+    expect(out[0]).toMatchObject({ site_visitors: 1, opens: 0, unsubscribed: 0 });
+  });
+
+  it("counts an issue's real email clicks, and leaves out link scanners", () => {
+    const page = '/events/2026-10-08-trivia';
+    const sends = [{ week_key: '2026-10-12', subject: 'Next', recipients: 50, sent_at: at('2026-10-12'), clicks_tracked: true }];
+    const c = (sid, url, first_at, clicks = 1) => ({ week_key: '2026-10-12', subscriber_id: sid, url, clicks, first_at });
+    const clicks = [
+      c('a', page, '2026-10-12T14:00:00Z', 2), c('a', '/', '2026-10-12T14:05:00Z'),
+      c('b', page, '2026-10-12T16:00:00Z'),
+      // A scanner: every link within a couple of seconds.
+      ...['/', page, '/this-weekend', '/free-things-to-do'].map((u, i) => c('scan', u, `2026-10-12T12:44:0${i}Z`)),
+      c('other-issue', page, '2026-10-12T15:00:00Z')
+    ];
+    clicks.at(-1).week_key = '2026-10-08';
+    const [out] = issueReport(sends, {}, [], [], [{ name: 'Trivia', page }], clicks);
+    expect(out).toMatchObject({ clicks_tracked: true, clickers: 2, click_rate: 4, clicks: 4, scanner_clicks_left_out: 1 });
+    expect(out.top_links).toEqual([{ url: page, clickers: 2, clicks: 3, name: 'Trivia' }, { url: '/', clickers: 1, clicks: 1 }]);
+    // Tracked but nobody clicked yet reads 0, not "no data".
+    expect(issueReport(sends, {}, [], [], [], [])[0]).toMatchObject({ clickers: 0, click_rate: 0 });
+  });
+
+  it("matches a tagged visit to its own issue, and the welcome email's to none", () => {
+    const sends = [
+      { week_key: '2026-10-12', recipients: 50, sent_at: at('2026-10-12') },
+      { week_key: '2026-10-15', recipients: 40, sent_at: at('2026-10-15') }
+    ];
+    const v = (day, visitor, ref_host = '') => ({ day, kind: 'view', path: '/', visitor, ref_source: 'Newsletter', ref_host });
+    const rows = [
+      v('2026-10-16', 'late-monday-reader', 'weekly-2026-10-12'),   // after Thursday's went out, but from Monday's
+      v('2026-10-15', 'thursday', 'weekend-2026-10-15'),
+      v('2026-10-15', 'new-subscriber', 'welcome'),
+      v('2026-10-16', 'untagged', 'mail.google.com')                 // older row: goes by date
+    ];
+    const [thu, mon] = issueReport(sends, {}, [], rows, []);
+    expect(mon.readers_7_days).toBe(1);
+    expect(thu).toMatchObject({ site_visitors: 1, readers_7_days: 2 });
   });
 
   it('follows each signup week: still subscribed, opened lately', () => {
@@ -173,6 +211,13 @@ describe('growth endpoints', () => {
       { nope: true }] });
     const f = await store.getTownFile('ad_campaigns');
     expect(f.data.campaigns).toEqual([{ name: 'Vic Newsletter Leads - Copy', status: 'ACTIVE', daily_budget: 40, spend_7_days: 26.14, leads_7_days: 15, clicks_7_days: 91 }]);
+    // The budget detail and the shared account's unclaimed campaigns.
+    await postSpend({ days: [], limit: 50, unclaimed: [{ id: 'c9', name: 'Rogue 541 Boost', daily_budget: 25 }, 'junk'],
+      campaigns: [{ name: 'The Rogue 541 Newsletter Leads', status: 'ACTIVE', daily_budget: 55, budget_level: 'ad_sets',
+        lifetime_budget: null, spend_yesterday: '62.17', over_limit: true, spend_7_days: 300, leads_7_days: 400, clicks_7_days: 900 }] });
+    expect((await store.getTownFile('ad_campaigns')).data).toEqual({ limit: 50, unclaimed: [{ name: 'Rogue 541 Boost', daily_budget: 25 }],
+      campaigns: [{ name: 'The Rogue 541 Newsletter Leads', status: 'ACTIVE', daily_budget: 55, budget_level: 'ad_sets', lifetime_budget: null,
+        spend_yesterday: 62.17, over_limit: true, spend_7_days: 300, leads_7_days: 400, clicks_7_days: 900 }] });
     // A post without campaigns leaves the last ones.
     await postSpend({ days: [{ day: '2026-10-13', spend: 1 }] });
     expect((await store.getTownFile('ad_campaigns')).data.campaigns).toHaveLength(1);

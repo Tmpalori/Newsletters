@@ -195,7 +195,9 @@ copy a value from Victoria's project, or from another town's: a copied
    and send cards by hand from the admin.
 8. **Forms (Turnstile).** Add `www.<domain>` to a Turnstile widget (Managed
    mode); `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`. A site key without
-   the town's hostname fails every form.
+   the town's hostname fails every form (error 110200, alerted as "the bot
+   check fails for everyone"); a free widget holds 10 hostnames, so see
+   `towns/LAUNCH.md` step 4 for the list.
 9. **GitHub.** Nothing: no `GITHUB_TOKEN` (its jobs run on Railway).
 10. **Slack.** `SLACK_WEBHOOK_URL` (and the optional `SLACK_*_WEBHOOK_URL`
     channels, shared with Victoria is fine) and `SLACK_TOWN_TAG` (the city,

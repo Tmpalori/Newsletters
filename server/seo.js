@@ -706,7 +706,16 @@ export function eventsBetween(events, start, end, filter) {
     ev.date >= start && ev.date <= end && (!filter || filter(ev))));
 }
 
-export function eventJsonLd(ev, siteUrl) {
+// A directory venue's own page: its website, else its Facebook or
+// Instagram (the links its venue page shows, server/guides.js).
+export function venueUrl(venue) {
+  if (!venue) return '';
+  return safeUrl(venue.website) || safeUrl(venue.facebook_page) || safeUrl(venue.instagram_url) ||
+    (venue.instagrams && venue.instagrams[0] ? `https://www.instagram.com/${encodeURIComponent(venue.instagrams[0])}/` : '');
+}
+
+// venue: the event's directory venue (server/guides.js venueFor), if any.
+export function eventJsonLd(ev, siteUrl, venue = null) {
   const times = parseTimes(ev.time);
   const offset = utcOffset(ev.date);
   const startDate = times[0] ? `${ev.date}T${times[0]}:00${offset}` : ev.date;
@@ -741,10 +750,12 @@ export function eventJsonLd(ev, siteUrl) {
   // We don't track organizers or performers; the venue is who hosts it.
   // Without a venue there's nothing honest to name, so it stays off. No
   // performer: the venue isn't the band playing there, and we don't know
-  // who is.
+  // who is. Its url is the event's link, else the venue's own site:
+  // Search Console flagged organizers with no url.
   if (ev.venue) {
     const host = { '@type': 'Organization', name: ev.venue };
-    if (safeUrl(ev.url)) host.url = safeUrl(ev.url);
+    const hostUrl = safeUrl(ev.url) || venueUrl(venue);
+    if (hostUrl) host.url = hostUrl;
     obj.organizer = host;
   }
   // Every event gets an offer pointing at its details link. Price only when
@@ -1198,7 +1209,7 @@ function including(list) {
 // partnerBox: the category partner box or invite for this page
 // (server/partners.js partnerBoxHtml), shown at the bottom, after the
 // week's sponsor (the sponsor keeps the top spot).
-export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox = '' }) {
+export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox = '', venueOf = () => null }) {
   const today = localDateStr(now);
   const [start, end] = dateRange(page.range, today);
   const list = eventsBetween(events, start, end, page.filter);
@@ -1216,7 +1227,7 @@ export function renderHubPage(page, events, { siteUrl, now, sponsor, partnerBox 
     ${ctaHtml()}`;
   const ld = [
     breadcrumbLd(siteUrl, [{ name: town.siteName, path: '/' }, { name: page.nav, path: page.path }]),
-    ...list.map(ev => eventJsonLd(ev, siteUrl))
+    ...list.map(ev => eventJsonLd(ev, siteUrl, venueOf(ev)))
   ];
   return layout({ siteUrl, path: page.path, title: `${page.title} | ${town.siteName}`, description: page.description, body, ld });
 }
@@ -1235,7 +1246,7 @@ function aboutHtml(ev) {
 
 // image: the event's own link-preview card (server/ogImage.js), passed in
 // by the route; falls back to the site-wide image.
-export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = '', venuePath = null, image = null }) {
+export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = '', venuePath = null, dirVenue = null, image = null }) {
   const today = localDateStr(now);
   const src = safeUrl(ev.url);
   const when = formatDay(ev.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -1283,7 +1294,7 @@ export function renderEventPage(ev, events, { siteUrl, now, sponsor, extras = ''
     ${sponsorHtml(sponsor)}
     ${ctaHtml()}`;
   const ld = [
-    eventJsonLd(ev, siteUrl),
+    eventJsonLd(ev, siteUrl, dirVenue),
     breadcrumbLd(siteUrl, [{ name: town.siteName, path: '/' }, { name: ev.name, path: ev.page }])
   ];
   return layout({
@@ -1630,7 +1641,7 @@ export function renderComingUp(events, today) {
       </section>`;
 }
 
-export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null, sectionsHtml = '' }) {
+export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null, sectionsHtml = '', venueOf = () => null }) {
   const today = localDateStr(now);
   const week = currentWeek(today);
   const weekEvents = events.filter(ev => ev.date >= week[0] && ev.date <= week[6]);
@@ -1642,7 +1653,7 @@ export function renderHome(template, events, { siteUrl, now, sponsor = null, sig
       url: siteUrl + '/',
       description: `Events and things to do in ${town.cityState}, updated every week.`
     },
-    ...sortEvents(weekEvents).map(ev => eventJsonLd(ev, siteUrl))
+    ...sortEvents(weekEvents).map(ev => eventJsonLd(ev, siteUrl, venueOf(ev)))
   ];
   let page = template;
   // The newsletter signup form (server/newsletter.js) fills the footer slot.

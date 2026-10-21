@@ -253,6 +253,28 @@ def meta_allowed(town=None, env=None, use="post"):
     return not got("IG_USER_ID") or got("IG_USER_ID") == pin("ig_user_id")
 
 
+def campaign_prefixes(towns_dir=None):
+    """Every town's Meta campaign_prefix (Victoria's and each towns/*/town.json
+    that names one), for spotting a live campaign in the shared ad account
+    that no town reports. An unreadable town.json is skipped."""
+    out = [VICTORIA["meta"]["campaign_prefix"]]
+    base = towns_dir or os.path.join(ROOT, "towns")
+    try:
+        slugs = sorted(os.listdir(base))
+    except OSError:
+        return out
+    for slug in slugs:
+        try:
+            with open(os.path.join(base, slug, "town.json"), encoding="utf-8") as f:
+                meta = json.load(f).get("meta")
+        except (OSError, ValueError, AttributeError):
+            continue
+        p = str((meta or {}).get("campaign_prefix") or "").strip() if isinstance(meta, dict) else ""
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
 def tz(town=None):
     """The town's timezone (None without zoneinfo)."""
     return ZoneInfo((town or TOWN)["timezone"]) if ZoneInfo else None

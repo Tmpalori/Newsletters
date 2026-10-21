@@ -14,7 +14,7 @@
  */
 
 import crypto from 'node:crypto';
-import { dailyGrowth, sumDays, issueReport, monthRevenue, goals } from './growth.js';
+import { dailyGrowth, sumDays, issueReport, monthRevenue, goals, activeByDay } from './growth.js';
 import { localDateStr, addDays, currentWeek } from './seo.js';
 import { partnerSummary } from './partners.js';
 import { HOLD_MS } from './sponsors.js';
@@ -79,19 +79,29 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   };
   const subs = await safe(() => store.listSubscriberStats(), [], 'subscribers');
   const orders = await safe(getOrders, [], 'revenue');
-  const spend = typeof store.listAdSpend === 'function' ? await safe(() => store.listAdSpend(addDays(today, -31)), [], 'ads') : [];
+  // From the 1st of last month (or 31 days back, if earlier): the 30-day
+  // window, this month and last month all come from the same rows.
+  const lastMonthStart = addDays(today.slice(0, 7) + '-01', -1).slice(0, 7) + '-01';
+  const spendSince = lastMonthStart < addDays(today, -31) ? lastMonthStart : addDays(today, -31);
+  const spend = typeof store.listAdSpend === 'function' ? await safe(() => store.listAdSpend(spendSince), [], 'ads') : [];
+  const spendAll = typeof store.sumAdSpend === 'function' ? await safe(() => store.sumAdSpend(), null, 'ads') : null;
   const daily = dailyGrowth(subs, spend, { today, days: 31 });
   const done = daily.filter(d => d.day < today);
   const month30 = sumDays(done.slice(-30));
   const active = subs.filter(x => x.status === 'active').length;
   const sends = await safe(() => store.listNewsletterSends(4), [], 'issues');
+  // How far back the database goes, so HQ can tell one replaced or restored.
+  const span = typeof store.databaseSpan === 'function' ? await safe(() => store.databaseSpan(), null) : null;
   const weekKeys = sends.map(s => s.week_key);
   const opens = weekKeys.length ? await safe(() => store.countEmailOpens(weekKeys), {}, 'issues') : {};
+  const emailClicks = weekKeys.length && typeof store.listEmailClicks === 'function'
+    ? await safe(() => store.listEmailClicks(weekKeys), [], 'issues') : [];
   // Postgres returns sent_at as a Date (String() of one reads "Fri Oct 09
   // ..."), the file store as an ISO string: both to the town's YYYY-MM-DD.
   const dayOf = v => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? localDateStr(d) : null; };
   const oldest = sends.map(s => dayOf(s.sent_at)).filter(Boolean).sort()[0] || today;
-  const rows = await safe(() => store.listTraffic(oldest), [], 'issues');
+  // Back to the oldest issue, and at least 30 days for the signup outcomes.
+  const rows = await safe(() => store.listTraffic([oldest, addDays(today, -30)].sort()[0]), [], 'issues');
   const events = await safe(getEvents, [], 'events');
   const lastMonthDay = addDays(today.slice(0, 7) + '-01', -1);
   const byStatus = {};
@@ -114,13 +124,33 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
   const bad = part => failed.includes(part);
   const healthOut = h && typeof h === 'object' ? (({ database_configured: _c, ...rest }) => rest)(h) : h;
   const missing = level => s.checks.filter(c => c.level === level && c.ok === false).map(c => c.key);
-  // Active subscribers at the end of each day, worked back from today's count.
-  let after = 0;
-  const history = [];
-  for (let i = daily.length - 1; i >= 0; i--) {
-    history.unshift({ day: daily[i].day, active: active - after, joined: daily[i].joined, left: daily[i].unsubscribed });
-    after += daily[i].net;
+  // Active subscribers at the end of each day, counted from the rows (it
+  // was worked back from today's count, and every bounce pushed the early
+  // days below zero). left = unsubscribed + bounced.
+  const counts = activeByDay(subs, daily.map(d => d.day));
+  const history = daily.map((d, i) => ({ day: d.day, active: counts[i], joined: d.joined, left: d.unsubscribed + d.bounced,
+    unsubscribed: d.unsubscribed, bounced: d.bounced, complaints: d.complaints }));
+  // Today's counts, kept once a day in the town's own database (a record,
+  // not worked out again later), and a drop against the last one: a
+  // restore from an old backup, a wipe or a wave of bounces.
+  const statusCount = st => subs.filter(x => x.status === st).length;
+  let recorded = null;
+  let drop = null;
+  if (!bad('subscribers') && typeof store.saveSubscriberCounts === 'function') {
+    await safe(() => store.saveSubscriberCounts(today, { active, pending: statusCount('pending'), bounced: statusCount('bounced'), unsubscribed: statusCount('unsubscribed') }));
+    recorded = await safe(() => store.listSubscriberCounts(31), null);
+    const prev = (recorded || []).filter(r => r.day < today).at(-1);
+    if (prev && prev.active >= 20 && active < prev.active * 0.8) drop = { from_day: prev.day, from: prev.active, to: active };
   }
+  // What each signup on the form came to (server/newsletter.js
+  // signupOutcome) over the last 30 full days, and confirmations.
+  const signupOutcomes = {};
+  for (const r of rows) {
+    if (r.kind !== 'signup' || r.day < addDays(today, -30) || r.day >= today) continue;
+    signupOutcomes[r.click_type] = (signupOutcomes[r.click_type] || 0) + (Number(r.n) > 0 ? Number(r.n) : 1);
+  }
+  const weekAgo = now.getTime() - 7 * 864e5;
+  const stalePending = subs.filter(x => x.status === 'pending' && Date.parse(x.pending_since || x.created_at || '') < weekAgo).length;
   // The last six months' revenue, oldest first (this month so far last).
   const months = [];
   for (let m = today.slice(0, 7) + '-01', i = 0; i < 6; i++, m = addDays(m, -1).slice(0, 7) + '-01') {
@@ -135,17 +165,37 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     subscribers: bad('subscribers') ? null : {
       active,
       pending: subs.filter(x => x.status === 'pending').length,
+      // The last issue's recipients, next to active, for HQ's loss check.
+      last_send_recipients: sends[0] && Number.isFinite(Number(sends[0].recipients)) ? Number(sends[0].recipients) : null,
       net_7_days: sumDays(done.slice(-7)).net,
       net_30_days: month30.net,
       joined_30_days: month30.joined,
-      left_30_days: month30.unsubscribed,
+      // left = unsubscribed + bounced (a bounce takes someone off the list
+      // too); complaints are the unsubscribes that were spam reports.
+      left_30_days: month30.unsubscribed + month30.bounced,
+      unsubscribed_30_days: month30.unsubscribed,
+      bounced_30_days: month30.bounced,
+      complaints_30_days: month30.complaints,
+      // Signups that never tapped Confirm, a week or more on.
+      pending_older_than_7_days: stalePending,
+      signup_outcomes_30_days: signupOutcomes,
       sources_30_days: month30.by_source,
       daily: history,
+      // The counts as recorded each day (oldest first, up to 31), and a
+      // drop of a fifth or more since the last one (null when none).
+      recorded_daily: recorded,
+      drop_since_last_snapshot: drop,
       goals: goals(subs, daily, monthRevenue(orders, today), today)
     },
-    issues: bad('issues') ? null : issueReport(sends, opens, subs, rows, events).slice(0, 4)
+    // Each issue's numbers (growth.js issueReport): click_rate is unique
+    // email clickers over recipients (null before clicks were counted);
+    // site_visit_rate is the send day's readers on the site, what
+    // click_rate measured before October 2026.
+    issues: bad('issues') ? null : issueReport(sends, opens, subs, rows, events, emailClicks).slice(0, 4)
       .map(i => ({ week: i.week, edition: i.edition, sent_at: i.sent_at, sent: i.sent, opens: i.opens, open_rate: i.open_rate,
-        clickers: i.clickers, click_rate: i.click_rate })),
+        clicks_tracked: i.clicks_tracked, clickers: i.clickers, click_rate: i.click_rate, clicks: i.clicks, top_links: i.top_links,
+        scanner_clicks_left_out: i.scanner_clicks_left_out, site_visitors: i.site_visitors, site_visit_rate: i.site_visit_rate,
+        readers_7_days: i.readers_7_days, unsubscribed: i.unsubscribed })),
     revenue: bad('revenue') ? null : {
       month_to_date: monthRevenue(orders, today),
       last_month: monthRevenue(orders, lastMonthDay),
@@ -154,12 +204,31 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
       months
     },
     ads: bad('ads') || bad('subscribers') ? null : {
+      // A rolling window (the last 30 full days), not a running total: it
+      // names its days. The month's and all-time spend only ever grow
+      // (unless Meta restates a day, listed in restated_30_days).
       spend_30_days: month30.spend, cost_per_sub_30_days: month30.cost_per_sub,
+      spend_30_days_window: { from: addDays(today, -30), to: addDays(today, -1) },
+      spend_month_to_date: (metaTotals(spend, today.slice(0, 7) + '-01', addDays(today, 1)) || { spend: 0 }).spend,
+      spend_last_month: (metaTotals(spend, lastMonthStart, today.slice(0, 7) + '-01') || { spend: 0 }).spend,
+      spend_all_time: spendAll ? spendAll.spend : null,
+      first_spend_day: spendAll ? spendAll.first_spend_day : null,
+      // Meta's days, oldest first, for a chart: the 31-day window.
+      daily: spend.filter(r => r.day >= addDays(today, -31))
+        .map(r => ({ day: r.day, spend: r.spend, impressions: r.impressions, clicks: r.clicks, leads: r.leads })),
+      // Past days Meta changed by more than $1 after they settled, latest first.
+      restated_30_days: spend.filter(r => r.restated_at && Date.parse(r.restated_at) >= now.getTime() - 30 * 864e5)
+        .map(r => ({ day: r.day, from: r.restated_from, to: r.spend, at: r.restated_at }))
+        .sort((a, b) => (a.at < b.at ? 1 : -1)),
       // Meta's own counts (its Lead is a signup on the site): the last 7
       // and 30 full days, and the town's campaigns as of the last ads report.
       meta_7_days: metaTotals(spend, addDays(today, -7), today),
       meta_30_days: metaTotals(spend, addDays(today, -30), today),
       ...(campaigns ? { campaigns: campaigns.campaigns || [], campaigns_updated_at: campaigns.updated_at || null } : {}),
+      // Live campaigns in the shared ad account no town's prefix claims
+      // (Victoria's report checks), and the budget command's limit (meta_ads.py).
+      ...(campaigns && campaigns.unclaimed ? { unclaimed_campaigns: campaigns.unclaimed } : {}),
+      ...(campaigns && campaigns.limit ? { budget_command_limit: campaigns.limit } : {}),
       ...(adsReport ? { report: adsReport } : {})
     },
     sponsors: bad('revenue') ? null : sponsorCounts(orders, today),
@@ -170,6 +239,7 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
     submissions_waiting: s.status.pending_submissions ?? null,
     events: bad('setup') ? null : { upcoming: s.status.upcoming_events ?? null, last_collect: s.status.collected_at ?? null, published_at: s.status.published_at ?? null },
     health: healthOut,
+    database: span,
     setup: bad('setup') ? null : { required_missing: missing('required'), recommended_missing: missing('recommended') },
     ...(getJobs ? { jobs: jobsOut } : {}),
     ...(getNewsletterRuns ? { newsletter_runs: runsOut } : {}),
@@ -184,13 +254,30 @@ export async function buildSummary({ store, nowFn, town, siteUrl, commit, getEve
 // asked for work (worker_since: this process's start, so HQ can tell a
 // worker silent since a redeploy). No personal data: counts, source names
 // and the collector's own warnings.
+// A collect's scrape stops (what Apify didn't read: source, reason cap /
+// time / apify-limit / openai, skipped of, the first names) and the Apify
+// account's month: numbers and venue names only.
+const numOrNull = v => (Number.isFinite(v) ? v : null);
+function scrapeStops(list) {
+  return (Array.isArray(list) ? list : []).filter(x => x && typeof x === 'object').slice(0, 20).map(x => ({
+    source: String(x.source || ''), reason: String(x.reason || ''), skipped: numOrNull(x.skipped), of: numOrNull(x.of),
+    names: (Array.isArray(x.names) ? x.names : []).slice(0, 10).map(n => String(n).slice(0, 120))
+  }));
+}
+function apifySpend(a) {
+  if (!a || typeof a !== 'object') return null;
+  return { month_usd: numOrNull(a.month_usd), limit_usd: numOrNull(a.limit_usd), this_collect_usd: numOrNull(a.run_usd),
+    cycle_end: typeof a.cycle_end === 'string' ? a.cycle_end.slice(0, 10) : null };
+}
+
 export function jobsSummary(st) {
   const last = {};
   for (const [kind, j] of Object.entries((st && st.last) || {})) {
     const r = j.result || {};
     last[kind] = {
       status: j.status, finished_at: j.finished_at, seconds: Number.isFinite(r.seconds) ? r.seconds : null,
-      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {} } : {}),
+      ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {},
+        scrape_stops: scrapeStops(r.scrape_stops), apify: apifySpend(r.apify) } : {}),
       ...(j.status === 'failed' ? { error: String(r.error || '').slice(0, 300) } : {})
     };
   }

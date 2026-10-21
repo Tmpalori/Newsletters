@@ -47,6 +47,7 @@ import { createSections, sectionsConfig, SECTION_PAGES } from './sections.js';
 import { withInbox } from './inbox.js';
 import { townStyleCss, townSubmitCss } from './palette.js';
 import { newsletterConfig, createResend, registerNewsletter, signupFormHtml, normalizeEmail, sampleEmailPreviews, EDITIONS, issueFacts } from './newsletter.js';
+import { createMailDomainCheck } from './mailDomain.js';
 import { createTremendous, tremendousConfig } from './referralRewards.js';
 import { createMailer, renderSubmissionReceived, renderSubmissionLive, setWeekendIssue } from './notify.js';
 import { registerSubmissionReview, isPaidPick } from './submissionReview.js';
@@ -85,6 +86,10 @@ const MIN_UPCOMING = 10;
 const STALE_COLLECT_DAYS = 8;
 // The hourly check says so when a collect hasn't landed this long after its slot.
 const COLLECT_LATE_HOURS = 3;
+// The health check's subscriber-loss check: active below this share of the
+// last issue's recipients (on a list of at least LOSS_MIN_SENT) is a loss.
+const LOSS_SHARE = 0.6;
+const LOSS_MIN_SENT = 20;
 
 const BASE_CSP = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'";
 
@@ -291,7 +296,10 @@ export async function createApp(opts = {}) {
   // or volume), and the list, orders, approvals and edits are gone unless
   // restored from a backup (AGENTS.md, Backups). PR environments and local
   // runs start empty on purpose.
+  // When this process found its database new (HQ's summary carries it).
+  let databaseCreated = null;
   const onTablesCreated = tables => {
+    databaseCreated = { at: new Date().toISOString(), tables };
     if (railwayEnv !== 'production') return;
     console.error('[db] production database had no', tables.join(', '), 'table: created empty');
     slack.alert('db-fresh', 'Production database looks new and empty',
@@ -393,6 +401,8 @@ export async function createApp(opts = {}) {
     slack, verifyTurnstile, clientKey,
     turnstileOpts: () => ({ secret: turnstileSecret, fetch: opts.fetch, hostnames: turnstileHosts })
   });
+  const botCheckStats = () => (typeof formGuard.stats === 'function' ? formGuard.stats() : null);
+  const botCheckBroken = () => Object.entries((botCheckStats() || {}).forms || {}).filter(([, t]) => t.broken).map(([f]) => f);
 
   // ─── Sponsor checkout (Stripe; see server/sponsors.js) ───
   // Created here because the Stripe webhook needs the raw body and so must
@@ -1610,7 +1620,7 @@ export async function createApp(opts = {}) {
       const since = new Date(now.getTime() - (days + 1) * 86400000).toISOString().slice(0, 10);
       const rows = await store.listTraffic(since);
       res.set('Cache-Control', 'no-store');
-      res.json(summarize(rows, { now, days }));
+      res.json(summarize(rows, { now, days, siteHost: new URL(siteUrl).host }));
     } catch (err) {
       console.error('[traffic] summary failed:', err.message);
       res.status(500).json({ ok: false, error: 'traffic-failed', message: err.message });
@@ -1676,9 +1686,11 @@ export async function createApp(opts = {}) {
       // A failed read leaves the opens off, not the report.
       const opens = sends.length && typeof store.countEmailOpens === 'function'
         ? await store.countEmailOpens(sends.map(s => s.week_key)).catch(() => ({})) : {};
+      const emailClicks = sends.length && typeof store.listEmailClicks === 'function'
+        ? await store.listEmailClicks(sends.map(s => s.week_key)).catch(() => []) : [];
       const events = [...((payload && payload.events) || []), ...(archived || [])];
       res.set('Cache-Control', 'no-store');
-      res.json(activitySummary(rows, { now, days, events, sends, opens }));
+      res.json(activitySummary(rows, { now, days, events, sends, opens, emailClicks, siteHost: new URL(siteUrl).host }));
     } catch (err) {
       console.error('[activity] summary failed:', err.message);
       res.status(500).json({ ok: false, error: 'activity-failed', message: err.message });
@@ -1964,6 +1976,12 @@ export async function createApp(opts = {}) {
     store, requireAdmin, adminOrHq, siteUrl, nowFn: () => (opts.now || (() => new Date()))(),
     // The newsletter is a day-by-day list: only events that made their day.
     getPublicPayload: shownPayload, createRateLimiter, config: newsletter, resend: nlResend, slack, verifyHuman, tremendous,
+    // Signup outcomes are counted per daily visitor hash, like page views.
+    analyticsSecret,
+    // A signup's domain must take mail (server/mailDomain.js). Off under
+    // tests (no DNS from the suite) and with SIGNUP_DOMAIN_CHECK=0.
+    mailDomainOk: opts.mailDomainOk !== undefined ? opts.mailDomainOk
+      : (process.env.VITEST || process.env.SIGNUP_DOMAIN_CHECK === '0' ? null : createMailDomainCheck()),
     // No secret, no check: signups then confirm by email (newsletter.js).
     turnstileConfigured: Boolean(turnstileSecret),
     // The send itself must carry the paid placements (see sponsors.apply).
@@ -2082,7 +2100,9 @@ export async function createApp(opts = {}) {
       res.locals.seasons = activeSeasons(payload.events, archived, now);
       // partners: live category partners and open categories (null in a
       // paused town: nothing about partners shows).
-      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues });
+      // venueOf: an event's directory venue, for its JSON-LD organizer url.
+      await render(req, res, payload, { siteUrl, now, sponsor: payload.sponsor || null, partners: partnerState(payload), archived, venues,
+        venueOf: ev => venueFor(ev, venues) });
     } catch (err) {
       next(err);
     }
@@ -2218,7 +2238,7 @@ export async function createApp(opts = {}) {
     if (!ev) return sendHtml(res, renderNotFoundPage({ ...ctx, kind: 'event' }), gone ? 410 : 404);
     const venue = venueFor(ev, venues);
     sendHtml(res, renderEventPage(ev, payload.events, {
-      ...ctx, extras: eventActionsHtml(ev, siteUrl), venuePath: venue ? venue.path : null,
+      ...ctx, extras: eventActionsHtml(ev, siteUrl), venuePath: venue ? venue.path : null, dirVenue: venue,
       image: `${ev.page}.png?v=${eventCardVersion(ev)}`
     }));
   }));
@@ -2720,16 +2740,20 @@ export async function createApp(opts = {}) {
             : `Start it by hand: GitHub → Actions → Weekly Collect → Run workflow (town ${town.id}), or Pull Now in admin. If a run is there and red, open it to see why.`);
       }
     }
-    // A list that sent to people last time and now has nobody active: the
-    // database was replaced or wiped (Monday's issue would quietly go to 0
-    // recipients). Mass unsubscribes don't get to 0 in a week.
+    // A list that sent to people last time and now has far fewer active:
+    // the database was replaced, wiped or restored from an old backup (the
+    // next issue would quietly go to the few left). Unsubscribes and
+    // bounces don't take 40% of a list in a few days.
     if (pub && typeof store.countSubscribers === 'function' && typeof store.listNewsletterSends === 'function') {
       try {
         const [counts, sends] = await Promise.all([store.countSubscribers(), store.listNewsletterSends(1)]);
         const last = sends && sends[0];
-        if (!(Number(counts && counts.active) > 0) && last && Number(last.recipients) > 0) {
-          problems.subscribers = `The newsletter has 0 active subscribers, but the last issue (${last.week_key}) went to ${last.recipients}. ` +
-            'The database may have been replaced or wiped: restore the latest Railway backup (AGENTS.md, Backups).';
+        const act = Number(counts && counts.active) || 0;
+        const sent = Number(last && last.recipients) || 0;
+        if (last && ((act === 0 && sent > 0) || (sent >= LOSS_MIN_SENT && act < sent * LOSS_SHARE))) {
+          problems.subscribers = `The newsletter has ${act} active subscriber${act === 1 ? '' : 's'}, but the last issue (${last.week_key}) went to ${sent}. ` +
+            'The database may have been replaced, wiped or restored from an old backup: compare with the last subscriber CSV export, ' +
+            'then restore the latest Railway backup (AGENTS.md, Backups) before the next issue.';
         }
       } catch (err) {
         console.warn('[health] subscriber check failed:', err.message);
@@ -2858,8 +2882,11 @@ export async function createApp(opts = {}) {
         fix: 'NEWSLETTER_CRON_SECRET, EVENT_CHECK_SECRET and SUBMISSION_REVIEW_SECRET share a value (or one is unset and borrows another), so one leak could send the newsletter, hide events and publish submissions. Give each its own long random string in Railway (the jobs service references them).' },
       // Required: without it every newsletter signup must confirm by email
       // (newsletter.js), and the forms have no bot check at all.
-      { key: 'spam', label: 'Spam protection on forms (Turnstile)', ok: Boolean(turnstileSecret && turnstileSiteKey), level: 'required',
-        fix: `In Cloudflare Turnstile, add a widget (or add www.${town.domain} to an existing one) in Managed mode, then set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in Railway. Protects Submit, Contact, newsletter signup and sponsor checkout; until then every newsletter signup has to confirm by email.` },
+      // Set but failing for everyone today (formGuard's tally) isn't working.
+      { key: 'spam', label: 'Spam protection on forms (Turnstile)', ok: Boolean(turnstileSecret && turnstileSiteKey) && !botCheckBroken().length, level: 'required',
+        fix: botCheckBroken().length
+          ? `The keys are set but the bot check failed for everyone today on: ${botCheckBroken().join(', ')}. In Cloudflare Turnstile, check that www.${town.domain} is on the widget's hostnames (a free widget holds 10) and that TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY come from the same widget.`
+          : `In Cloudflare Turnstile, add a widget (or add www.${town.domain} to an existing one) in Managed mode, then set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in Railway. Protects Submit, Contact, newsletter signup and sponsor checkout; until then every newsletter signup has to confirm by email.` },
       { key: 'social', label: 'Auto-post to Facebook + Instagram', ok: null, level: 'recommended',
         fix: 'On the jobs service in Railway: META_TOWN, META_PAGE_ID (the page the town\'s settings pin), META_PAGE_TOKEN and SOCIAL_AUTOPOST = 1.' },
       { key: 'collector_keys', label: 'Event collector keys (OpenAI, Apify, Gemini)', ok: null, level: 'recommended',
@@ -2933,7 +2960,9 @@ export async function createApp(opts = {}) {
       getNewsletterRuns: async () => ({ weekly: await scheduler.ran('newsletter'), weekend: await scheduler.ran('newsletter-weekend') }),
       getAdCampaigns: typeof store.getTownFile === 'function' ? async () => {
         const f = await store.getTownFile('ad_campaigns');
-        return f ? { campaigns: (f.data && f.data.campaigns) || [], updated_at: f.updated_at } : null;
+        const d = f && f.data ? f.data : {};
+        return f ? { campaigns: d.campaigns || [], updated_at: f.updated_at,
+          ...(Array.isArray(d.unclaimed) ? { unclaimed: d.unclaimed } : {}), ...(d.limit ? { limit: d.limit } : {}) } : null;
       } : null,
       getAdsReport: typeof store.getTownFile === 'function' ? async () => {
         const f = await store.getTownFile('ads_report');
@@ -2946,7 +2975,7 @@ export async function createApp(opts = {}) {
         const configured = storeBundle.kind === 'postgres';
         const database = configured && storeBundle.pool ? await pingDatabase(3000).then(() => true, () => false) : configured;
         return { database, database_configured: configured, scheduler_blocked: !jobs.enabled && schedulerEnabled(),
-          slack_refused: Boolean(slackRefusedText()) };
+          slack_refused: Boolean(slackRefusedText()), bot_check: botCheckStats(), database_created: databaseCreated };
       }
     })
   });

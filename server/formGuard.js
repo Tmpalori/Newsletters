@@ -51,6 +51,18 @@ export function tooFast(body, nowMs) {
 }
 
 const STUCK_AFTER = 3;
+// The day's bot-check results per form: this many failures and not one pass
+// means the check itself is broken for everyone (a town's hostname missing
+// from the Turnstile widget, a key pair from two widgets), not a few VPNs.
+export const BROKEN_AFTER = 5;
+const TALLY_MS = 24 * 60 * 60 * 1000;
+// What Cloudflare's codes mean, in the alert.
+const CODE_HINT = {
+  110200: "this site's hostname isn't on the Turnstile widget (Cloudflare → Turnstile → the widget → Hostname management)",
+  'invalid-input-response': 'the site key and secret are from different widgets, or the token was forged',
+  'missing-token': "the widget never gave the page a token (its script blocked, or the widget erroring before it could)",
+  'hostname-mismatch': 'a token solved on another site'
+};
 const STUCK_WINDOW_MS = 30 * 60 * 1000;
 const MAX_TRACKED = 2000;
 
@@ -80,6 +92,14 @@ export function passiveGuard(verifyHuman = async () => true) {
 export function createFormGuard({ slack, verifyTurnstile, turnstileOpts = () => ({}), clientKey = req => req.ip, nowFn = () => Date.now() }) {
   const streaks = new Map();
   const label = form => FORMS[form] || form;
+  // Per form since `since`: passes, failures (people let through, labeled),
+  // bots (failed and too fast: dropped) and each failure's codes.
+  let tally = { since: nowFn(), forms: {} };
+  const roll = () => { if (nowFn() - tally.since > TALLY_MS) tally = { since: nowFn(), forms: {} }; };
+  const count = (form) => {
+    roll();
+    return (tally.forms[form] ||= { passes: 0, failures: 0, bots: 0, codes: {}, alerted: false });
+  };
 
   // The Turnstile result for this request ({ ok, error, disabled }). When it
   // fails the caller still lets the visitor through (except a token solved
@@ -94,19 +114,35 @@ export function createFormGuard({ slack, verifyTurnstile, turnstileOpts = () => 
     } catch (err) {
       r = { ok: false, error: 'network-error', detail: err.message };
     }
-    if (!r.ok) {
-      const ua = req.get ? req.get('user-agent') : '';
-      const why = [r.error, ...(r.codes || [])].filter(Boolean).join(', ');
-      if (fast && r.error !== 'hostname-mismatch') {
-        console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua), '· dropped as a bot (too fast)');
-        return { ...r, bot: true };
-      }
-      console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua));
-      if (r.error !== 'hostname-mismatch') {
-        slack.alert(`form-bot:${form}`, `Bot check didn't pass on the ${label(form)}`,
-          `${browserLabel(ua)} (${why}). They were let through and it's labeled so you can check it. ` +
-          'One now and then is a blocked script or a VPN; many in a row means the check itself is broken.');
-      }
+    if (r.disabled) return r;
+    const t = count(form);
+    if (r.ok) { t.passes++; return r; }
+    // The widget's own error code, sent back by docs/turnstile.js.
+    const client = String(((req.body || {}).ts_err) || '').replace(/[^\w-]/g, '').slice(0, 12);
+    const ua = req.get ? req.get('user-agent') : '';
+    const why = [r.error, ...(r.codes || []), client && `widget ${client}`].filter(Boolean).join(', ');
+    if (fast && r.error !== 'hostname-mismatch') {
+      t.bots++;
+      console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua), '· dropped as a bot (too fast)');
+      return { ...r, bot: true };
+    }
+    t.failures++;
+    for (const c of [client || r.error, ...(r.codes || [])].filter(Boolean)) t.codes[c] = (t.codes[c] || 0) + 1;
+    console.warn('[turnstile] did not pass:', req.path, why, '·', browserLabel(ua));
+    const hint = [client, ...(r.codes || []), r.error].find(k => CODE_HINT[k]);
+    if (r.error !== 'hostname-mismatch') {
+      slack.alert(`form-bot:${form}`, `Bot check didn't pass on the ${label(form)}`,
+        `${browserLabel(ua)} (${why}). They were let through and it's labeled so you can check it. ` +
+        (hint ? `${hint} means ${CODE_HINT[hint]}. ` : '') +
+        'One now and then is a blocked script or a VPN; many in a row means the check itself is broken.');
+    }
+    if (t.failures >= BROKEN_AFTER && t.passes === 0 && !t.alerted) {
+      t.alerted = true;
+      const codes = Object.entries(t.codes).map(([k, n]) => `${k}×${n}`).join(', ');
+      slack.alert(`turnstile-broken:${form}`, `The bot check fails for everyone on the ${label(form)}`,
+        `${t.failures} failures and no passes today (${codes}). ` +
+        Object.keys(t.codes).filter(k => CODE_HINT[k]).map(k => `${k}: ${CODE_HINT[k]}.`).join(' ') +
+        ' Messages still come through, labeled; fix the widget in Cloudflare.');
     }
     return r;
   }
@@ -160,5 +196,16 @@ export function createFormGuard({ slack, verifyTurnstile, turnstileOpts = () => 
     });
   }
 
-  return { botCheck, rejected, ok, registerRoutes, streaks };
+  // The day's tally for the setup report and HQ: per form, passes,
+  // failures, bots dropped and the failures' codes.
+  function stats() {
+    roll();
+    const forms = {};
+    for (const [form, t] of Object.entries(tally.forms)) {
+      forms[form] = { passes: t.passes, failures: t.failures, bots: t.bots, codes: { ...t.codes }, broken: t.failures >= BROKEN_AFTER && t.passes === 0 };
+    }
+    return { since: new Date(tally.since).toISOString(), forms };
+  }
+
+  return { botCheck, rejected, ok, registerRoutes, streaks, stats };
 }
