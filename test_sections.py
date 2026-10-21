@@ -197,3 +197,8 @@ def test_before_send_writes_the_paragraph_for_this_issue(monkeypatch):
     out = s.build(CFG, prev, [], date(2026, 10, 15), api_key="k", before_send=True, issue=ISSUE)
     assert out["intro"] == {"text": "Hi", "edition": "weekend"}
     assert out["pet"]["name"] == "Chloe"
+
+
+def test_more_ai_speak_is_caught():
+    for t in ("Here it is in plain English.", "Plain-English updates from the council.", "Let's dive in!", "A seamless night out."):
+        assert "sounds like AI" in s.rule_problems(t, "good"), t

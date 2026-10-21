@@ -61,7 +61,7 @@
   <div class="container container--narrow">
 
     <h1 class="page-title">Terms of use</h1>
-    <p class="page-lead">The rules for using The Vic 361, its newsletter and its forms, in plain English.</p>
+    <p class="page-lead">The rules for using The Vic 361, its newsletter and its forms.</p>
     <p class="legal-version">Last updated October 10, 2026 · Version 2026-10-10</p>
     <h2 class="section-heading" id="intro">Who we are</h2>
 <p>The Vic 361 runs thevic361.com and its newsletter. "We" and "us" mean The Vic 361. By using the site or subscribing, you agree to these terms and to our <a href="/privacy">privacy policy</a>. Buying an ad or a Vic’s Pick is covered by our separate <a href="/advertising-terms">advertising terms</a>.</p>

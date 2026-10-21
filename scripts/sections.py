@@ -82,7 +82,8 @@ SOURCE_WORDS = re.compile(
 AI_TELLS = re.compile(
     r"\b(furever|pawsome|purrfect|delve|tapestry|vibrant|bustling|nestled|hidden gem|elevate|embark|"
     r"look no further|whether you're|in the heart of|culinary journey|a must-visit|unforgettable|treat yourself|"
-    r"something for everyone|jam-packed|don't miss|exciting lineup)\b", re.I)
+    r"something for everyone|jam-packed|don't miss|exciting lineup|plain[- ]english|in a nutshell|dive in|dive into|"
+    r"rest assured|seamless|game-?changer|buckle up|without further ado)\b", re.I)
 # Agenda words that mean it isn't feel-good news, whatever the AI thinks.
 NOT_GOOD_NEWS = re.compile(
     r"\b(tax(es)?|levy|bond election|election|ballot|police|sheriff|arrest|crime|jail|lawsuit|litigation|settlement|"
@@ -751,7 +752,7 @@ def build_agendas(config, today):
 
 # ─── The AI writer and editor ────────────────────────────────────────────
 
-VOICE = """House voice: a friendly local who knows the town, writing a short note to neighbors. Plain words, short sentences, warm but not gushing. No em dashes or en dashes (use commas or periods). At most one exclamation point in a whole section. Never use: furever, pawsome, purrfect, delve, tapestry, vibrant, bustling, nestled, hidden gem, elevate, embark, look no further, whether you're, in the heart of, culinary journey, must-visit, unforgettable, treat yourself. Don't start with "Meet". Don't invent anything that isn't in the facts given (no personality traits, menus, hours or prices that aren't there)."""
+VOICE = """House voice: a friendly local who knows the town, writing a short note to neighbors. Plain words, short sentences, warm but not gushing. No em dashes or en dashes (use commas or periods). At most one exclamation point in a whole section. Never use: furever, pawsome, purrfect, delve, tapestry, vibrant, bustling, nestled, hidden gem, elevate, embark, look no further, whether you're, in the heart of, culinary journey, must-visit, unforgettable, treat yourself, plain English, in a nutshell, dive in, rest assured, seamless, game changer, buckle up. Don't start with "Meet". Don't invent anything that isn't in the facts given (no personality traits, menus, hours or prices that aren't there)."""
 
 WRITE_PROMPT = """You write three small sections of <<SITE>>, a free local newsletter for <<PLACE>> that people look forward to opening. Everything you write must make readers feel good about their town.
 
