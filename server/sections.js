@@ -3,8 +3,8 @@
  * Under the events in each issue and on the homepage:
  *   Monday     pet of the week, new in town, the question of the week, and
  *              on the first Monday of the month a one-tap poll
- *   Thursday   the readers' answers to Monday's question, good news from
- *              city hall
+ *   Thursday   the readers' answers to Monday's question, updates from
+ *              city hall (good news only, nothing political)
  *
  * What's in them comes from the town's jobs worker (scripts/sections.py,
  * job "sections"), which hands the site a `sections` file after its AI
@@ -167,8 +167,8 @@ export function sectionsHomeHtml(s, { siteUrl }) {
       </section>`);
   }
   if (s.good) {
-    parts.push(`<section class="sx-good" id="good-news"><span class="sx-kicker">Good news from City Hall</span>
-        <h3>On the agenda</h3>
+    parts.push(`<section class="sx-good" id="good-news"><span class="sx-kicker">From City Hall</span>
+        <h3>On the agenda this week</h3>
         <ul>${s.good.items.map(g => `<li><b>${escHtml(g.title)}.</b> ${escHtml(g.line)}</li>`).join('')}</ul>
         ${safeUrl(s.good.url) ? `<p class="sx-muted"><a href="${escHtml(s.good.url)}" rel="noopener">The full agenda</a></p>` : ''}
       </section>`);
@@ -272,7 +272,7 @@ export function createSections({ store, cfg = sectionsConfig(), slack = null, si
     const lines = [];
     if (data.pet) lines.push(`🐾 Pet: ${data.pet.name} (${data.pet.shelter})`);
     if ((data.new_in_town || []).length) lines.push(`🏪 New in town: ${data.new_in_town.map(x => x.name).join(', ')}`);
-    if (data.good_news) lines.push(`🏛️ Good news: ${data.good_news.items.map(x => x.title).join(', ')}`);
+    if (data.good_news) lines.push(`🏛️ City Hall: ${data.good_news.items.map(x => x.title).join(', ')}`);
     if (data.roundup) lines.push(`💬 Readers' answers: ${data.roundup.answers.length}`);
     const dropped = (data.review || []).filter(r => r.verdict === 'drop').length;
     slack.notify({ title: '🗞️ Newsletter sections ready', channel: 'activity', link: `${siteUrl}/admin.html#tab=newsletter`, linkLabel: 'Take something out',

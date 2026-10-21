@@ -690,8 +690,8 @@ ${bubbles}
   }
   if (sx.good) {
     // A plain list set off by a rule, a check per item.
-    out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('Good news from City Hall', '#1C7C4A')}
-<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda</div>
+    out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('From City Hall', '#1C7C4A')}
+<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
 ${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sx.good.url)}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}</div>`);
   }
@@ -706,7 +706,7 @@ export function sectionsEmailText(sx, { siteUrl, subscriberId = '' }) {
   if (sx.poll) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
   if (sx.question) out.push(`QUESTION OF THE WEEK: ${sx.question}`, "Hit reply and tell us. We'll share some favorites Thursday (first names only).", '');
   if (sx.roundup) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
-  if (sx.good) out.push('GOOD NEWS FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
+  if (sx.good) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
   return out;
 }
 
@@ -746,7 +746,7 @@ export function introText({ top, total, weekend, sections, key }) {
     if (sections.poll) items.push({ icon: '📊', text: 'A one-tap poll' });
     if (sections.question) items.push({ icon: '💬', text: "This week's question" });
     if (sections.roundup) items.push({ icon: '💬', text: "What you told us about Monday's question" });
-    if (sections.good) items.push({ icon: '🏛️', text: 'Good news from City Hall' });
+    if (sections.good) items.push({ icon: '🏛️', text: 'Updates from City Hall' });
   }
   return { greeting, items, names: aiOk ? ai.mentions : [] };
 }

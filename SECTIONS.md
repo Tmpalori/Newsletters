@@ -11,13 +11,13 @@ from any events list, and look forward to opening the email.
 | Monday | Question of the week | The town's list in `sections.json`, one a week in order. Replaces the "Just hit reply" line. |
 | First Monday of the month | One-tap poll | The town's list in `sections.json`. Each choice is a link (`/p/<week>/<poll>/<choice>?s=<subscriber id>`) that records the vote and opens the results (`/poll/<week>/<poll>`). One vote per reader; a mail scanner that clicks every choice within 30 seconds is thrown out, and so are bots. |
 | Thursday | "<City> says" | The best 2 to 4 answers to Monday's question, from readers' replies (first names only). Skipped with fewer than 2. |
-| Thursday | Good news from City Hall | Feel-good items from the city or county agenda: parks, the library, festivals, proclamations. Never taxes, police, elections, zoning, lawsuits, alcohol licenses or anything that could start an argument. |
+| Thursday | From City Hall | Updates from the city or county agenda, good news only and nothing political: parks, the library, festivals, proclamations. Never taxes, police, elections, zoning, lawsuits, alcohol licenses or anything that could start an argument. |
 
 ## How it runs
 
 1. **Sunday and Wednesday 6:13 PM** (after the collect), the jobs worker
    runs `scripts/sections.py` (job `sections`): it reads the sources, and
-   one AI call drafts the pet's blurb, the new places' lines, the good news
+   one AI call drafts the pet's blurb, the new places' lines, the City Hall updates
    and the roundup in the house voice.
 2. **The editor pass.** A second AI call reads every item the way a human
    editor would (positive, no politics or bad news, accurate to the source,
@@ -56,7 +56,7 @@ the agenda PDFs.
 
 ## Sources by town (checked October 2026)
 
-| Town | Pets | New in town | Good news |
+| Town | Pets | New in town | From City Hall |
 |---|---|---|---|
 | Victoria | Victoria County Animal Services (PetPoint) | Texas Comptroller sales-tax outlets, open in the last 60 days, storefront NAICS codes only | Victoria County Commissioners Court (CivicClerk API) |
 | Medford | Southern Oregon Humane Society (Shelterluv) and Jackson County Animal Services (24PetConnect), rotating | Oregon Secretary of State new registrations (the city's own list is behind a bot wall) | Not yet: the city site blocks us; Jackson County's agenda PDFs are the next step |
