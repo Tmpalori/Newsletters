@@ -150,6 +150,18 @@ describe('the issue', () => {
     expect(issue.text).toContain('QUESTION OF THE WEEK');
   });
 
+  it('puts the poll right under the events, and the question has an answer button', () => {
+    const sx = sectionsFor({ cfg: CFG, file: FILE, edition: 'weekly', now: NOW });
+    const { html, text } = renderWeekly([], { ...opts, sections: sx, subscriberId: 'sub-9' });
+    const at = s => html.indexOf(s);
+    expect(at('Quick poll')).toBeGreaterThan(at('See the full list'));
+    expect(at('Quick poll')).toBeLessThan(at('Pet of the week'));
+    expect(at('Quick poll')).toBeLessThan(at('Question of the week'));
+    expect(html).toContain('mailto:news@thevic361.com?subject=My%20answer%3A%20');
+    expect(html).toContain('Send my answer');
+    expect(text.indexOf('QUICK POLL')).toBeLessThan(text.indexOf('PET OF THE WEEK'));
+  });
+
   it('never says where New in town came from', () => {
     const html = sectionsEmailHtml(sectionsFor({ cfg: CFG, file: FILE, edition: 'weekly', now: NOW }), { siteUrl: '' });
     expect(html).not.toMatch(/permit|licen[cs]e|record|comptroller|filing/i);

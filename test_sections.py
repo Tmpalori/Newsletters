@@ -252,3 +252,19 @@ def test_a_town_with_sections_off_builds_nothing_and_calls_no_ai(tmp_path, monke
     monkeypatch.setenv("SECTIONS", "1")
     monkeypatch.setattr(s, "build", lambda *a, **k: {"review": [], "new_in_town": [], "pet": None})
     assert s.main(["--out", str(out)]) == 0 and out.exists()
+
+
+def test_replies_sent_with_the_answer_button_are_marked_for_the_editor(monkeypatch):
+    assert s.is_answer({"subject": "My answer: Best kolache in Victoria?"})
+    assert s.is_answer({"subject": "Re: My answer: Best kolache?"})
+    assert not s.is_answer({"subject": "Re: This week in Victoria: 47 things to do"})
+    seen = {}
+
+    def fake(key, system, user, max_tokens=6000):
+        if "three small sections" in system:
+            seen["replies"] = json.loads(user)["replies"]
+        return {} if "three small" in system else []
+    monkeypatch.setattr(s, "ai_json", fake)
+    s.draft("k", None, [], [], [{"name": "Maria", "subject": "My answer: Best kolache?", "text": "Sausage!"},
+                                {"name": "Dale", "subject": "Re: This week", "text": "You listed the wrong time for trivia"}], "Best kolache?")
+    assert [r["answer"] for r in seen["replies"]] == [True, False]

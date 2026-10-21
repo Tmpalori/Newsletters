@@ -105,3 +105,25 @@ goes home, and a bot's or mail scanner's click isn't counted), kept per week
 in the `section_clicks` town file. Admin → Newsletter → This week's sections
 shows this week and last: clicks per section, poll votes and replies to the
 question.
+
+## When something goes wrong
+
+| What fails | What readers get |
+|---|---|
+| A shelter's site is down or has no pet with a real photo | The next shelter on the town's list; with none, no pet that week (the email and the "In this issue" list just leave it out) |
+| The pet is adopted before the issue | The morning recheck picks another; if that check can't reach the shelter, the pet stays |
+| The AI is down or the editor doesn't answer | The pet runs with a plain line; New in Town, City Hall and the roundup skip that week; the greeting is a plain one |
+| No new questions from the AI | The town's own list in `sections.json` (it never runs out) |
+| The sections job fails | Slack alerts on the first failure; a file older than 9 days is ignored, so the email goes out with the events, the question and the poll (both from `sections.json`) |
+| Fewer than 2 good answers | No roundup that Thursday |
+
+## Readers' answers
+
+Every reply to an issue (not sponsor, pick or order mail) is saved in
+`reader_replies`, kept 30 days: the email id, time, first name, address and
+subject, and the text without the quoted issue. It still goes to Slack's
+inbox as before. The question's "Send my answer" button opens an email to
+news@ with the subject "My answer: <question>"; the job marks those, and
+its AI uses only replies that actually answer the question (an event tip or
+a correction never ends up in the roundup). The worker sees words and first
+names, never addresses.

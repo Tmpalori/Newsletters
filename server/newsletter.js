@@ -680,10 +680,17 @@ const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;
 const sxBand = (bg, inner) => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="center" style="padding:22px 16px;">${inner}</td></tr></table>`;
 
-export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '' }) {
+// part: 'poll' is just the poll (right under the events, the owner's call,
+// Oct 2026), 'rest' everything else (further down), 'all' both.
+// The address readers answer the question at (the town's news@).
+const answerTo = () => (/<([^>]+)>/.exec(town.emailFrom || '') || [, ''])[1];
+export const ANSWER_SUBJECT = 'My answer: ';
+
+export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all' }) {
   if (!sx) return '';
   const out = [];
-  if (sx.pet) {
+  const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
+  if (sx.pet && want('pet')) {
     // A feature: a square photo beside the name in display type. No box.
     const p = sx.pet;
     out.push(`${sxKicker('Pet of the week', C.sunset)}
@@ -695,27 +702,32 @@ ${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin
 ${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectionClickUrl(siteUrl, 'pet', sx.monday, p.url), `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
 <div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`);
   }
-  if (sx.places && sx.places.length) {
+  if (sx.places && sx.places.length && want('places')) {
     // An open list: a heading, a line per place, dotted rules between.
     out.push(`${sxHeading(`New around ${town.city}`, C.sunset)}
 ${sx.places.map((x, i) => `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><strong style="font-size:16px;">${escHtml(x.name)}</strong>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></div>`).join('')}
 <div style="margin-top:6px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, '/new-in-town'))}" style="color:${C.accent};font-weight:800;">See every new place →</a></div>
 <div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`);
   }
-  if (sx.poll) {
+  if (sx.poll && want('poll')) {
     // Centered buttons on the page itself.
     out.push(`<div style="text-align:center;">${sxKicker('Quick poll · one tap')}
 <div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.25;margin:6px 0 6px;">${escHtml(sx.poll.question)}</div>
 ${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c, [C.sun, C.sky, C.sunLight, '#FFD6E8'][i % 4])).join('')}</div>`);
   }
-  if (sx.question) {
-    // A tinted band with the question as a big pull quote.
+  if (sx.question && want('question')) {
+    // A tinted band with the question as a big pull quote. The button opens
+    // an email with the subject marked as an answer, so the roundup can
+    // tell answers from other replies; a plain reply works too.
+    const to = answerTo();
+    const answer = to ? `mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}` : '';
     out.push(sxBand(C.sky, `${sxKicker('Question of the week')}
 <div style="font-family:${DISPLAY};font-size:46px;line-height:0.6;color:${C.accent};margin-top:14px;">“</div>
 <div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;">${escHtml(sx.question)}</div>
-<div style="font-size:14px;margin-top:10px;">Hit reply and tell us. Some favorites go in Thursday's email (first names only).</div>`));
+${answer ? `<div style="margin-top:10px;">${sxBtn(answer, 'Send my answer')}</div>` : ''}
+<div style="font-size:14px;margin-top:10px;">${answer ? 'Or just hit reply.' : 'Hit reply and tell us.'} Some favorites go in Thursday's email (first names only).</div>`));
   }
-  if (sx.roundup) {
+  if (sx.roundup && want('roundup')) {
     // Chat bubbles, alternating sides and colors.
     const bubbles = sx.roundup.answers.map((a, i) => {
       const right = i % 2 === 1;
@@ -727,7 +739,7 @@ ${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i
 ${bubbles}
 <div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`);
   }
-  if (sx.good) {
+  if (sx.good && want('good')) {
     // A plain list set off by a rule, a check per item.
     out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('From City Hall', '#1C7C4A')}
 <div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda this week</div>
@@ -737,15 +749,16 @@ ${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="$
   return out.length ? sxGap + out.join(sxGap) : '';
 }
 
-export function sectionsEmailText(sx, { siteUrl, subscriberId = '' }) {
+export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all' }) {
   if (!sx) return [];
   const out = [];
-  if (sx.pet) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
-  if (sx.places && sx.places.length) out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}`), '');
-  if (sx.poll) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
-  if (sx.question) out.push(`QUESTION OF THE WEEK: ${sx.question}`, "Hit reply and tell us. We'll share some favorites Thursday (first names only).", '');
-  if (sx.roundup) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
-  if (sx.good) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
+  const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
+  if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, sx.pet.blurb, `At ${sx.pet.shelter}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`, '');
+  if (sx.places && sx.places.length && want('places')) out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}`), '');
+  if (sx.poll && want('poll')) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
+  if (sx.question && want('question')) out.push(`QUESTION OF THE WEEK: ${sx.question}`, "Hit reply and tell us. We'll share some favorites Thursday (first names only).", '');
+  if (sx.roundup && want('roundup')) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
+  if (sx.good && want('good')) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
   return out;
 }
 
@@ -876,7 +889,7 @@ ${list.length > perDay(d) ? `<p style="margin:12px 0 4px;text-align:center;"><a 
 ${introHtml(intro, { siteUrl, listPath })}
 <div style="margin-top:8px;">${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
 ${sponsorBlock}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sectionsEmailHtml(sections, { siteUrl, subscriberId })}
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sectionsEmailHtml(sections, { siteUrl, subscriberId, part: 'poll' })}${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sectionsEmailHtml(sections, { siteUrl, subscriberId, part: 'rest' })}
 ${replyAsk && !(sections && sections.question) ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
@@ -891,7 +904,7 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
     ...introPlain(intro), '',
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
       ...shownOf(list, d).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId }),
+    `Full list: ${siteUrl}${listPath}`, '', ...sectionsEmailText(sections, { siteUrl, subscriberId, part: 'poll' }), ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sectionsEmailText(sections, { siteUrl, subscriberId, part: 'rest' }),
     ...(replyAsk && !(sections && sections.question) ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`

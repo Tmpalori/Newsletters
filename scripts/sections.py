@@ -765,7 +765,7 @@ You get JSON with:
 - "pet": a shelter animal (facts and maybe the shelter's own bio). Write "blurb": two short sentences, 30 words at most. Use only the facts and the bio. If the bio has a real detail (loves fetch, shy at first), use it in your own words. Never say how long the pet has waited.
 - "new_places": candidate businesses that just opened or are coming soon, with raw notes. For each one that is a real place a local would walk into (a restaurant, cafe, shop, salon, gym, fun spot), return {"key", "name" (the business name as people would say it, proper capitalization, no LLC/Inc), "line" (one short sentence, 14 words at most, about what it is and roughly where, e.g. "Filipino food, now open on Zac Lentz Parkway.")}. Skip anything that looks like a home business, an office, a contractor, a holding company, a gas station, a chain store's ordinary new register, a liquor or vape shop, a person's name, or anything you can't tell. The raw notes are private: NEVER mention permits, licenses, filings, registrations, records, data, taxes, build-outs or where the information came from. Use "now open" or "coming soon" only as the notes support (status "open" or "soon"; a headline that says it opened means open).
 - "agendas": the city or county's upcoming meeting agendas. Pick at most <<GOOD_MAX>> items that are plainly good news for residents: a park, trail, pool, playground or library improvement, a festival or event the city is backing, a grant for something people will enjoy, a proclamation honoring someone or celebrating a week or group, a new public amenity. NEVER pick anything about taxes, budgets, fees, police, sheriff, jail, courts, elections, voting, zoning, rezoning, annexation, apartments or housing fights, short-term rentals, data centers, lawsuits, settlements, personnel, contracts for routine services, utilities rates, alcohol licenses, or anything that could start an argument. Each item is {"title" (2 to 4 words), "line" (one sentence, 22 words at most: what is on the agenda and what it means for residents, in plain words, as a neutral update; don't call it good news or great news; say "is on the agenda" or "would", never claim it passed)}. Return an empty list when nothing qualifies; that's fine and common.
-- "replies": readers' email replies to this week's question, "question". Pick at most <<ROUNDUP_MAX>> answers that are fun, kind and specific. Skip anything negative about a business or person, anything political, rude, a sales pitch, or that shares private details. Lightly trim each to 25 words at most, keep the reader's own words and voice, fix only obvious typos, never add words. Return {"i" (the reply's index), "quote", "name" (their first name only, or "" if unknown)}.
+- "replies": every email readers sent us this week; "question" is this week's question. Readers reply for all kinds of reasons (event tips, corrections, questions for us, thanks), so use only replies that actually answer the question. One with "answer": true was sent with the issue's answer button, so it is meant as an answer; a plain reply counts only if its words clearly answer the question. Pick at most <<ROUNDUP_MAX>> answers that are fun, kind and specific. Skip anything negative about a business or person, anything political, rude, a sales pitch, or that shares private details. Lightly trim each to 25 words at most, keep the reader's own words and voice, fix only obvious typos, never add words. Return {"i" (the reply's index), "quote", "name" (their first name only, or "" if unknown)}.
 
 Return only JSON: {"pet": {"blurb": "..."} or null, "new_places": [...], "good_news": [...], "roundup": [...]}"""
 
@@ -808,6 +808,14 @@ def ai_json(api_key, system, user, max_tokens=6000):
     return None
 
 
+# The issue's "Send my answer" button sets this subject (server/newsletter.js ANSWER_SUBJECT).
+ANSWER_SUBJECT = re.compile(r"^\s*((re|fwd?):\s*)*my answer:", re.I)
+
+
+def is_answer(reply):
+    return bool(ANSWER_SUBJECT.match(str(reply.get("subject") or "")))
+
+
 def draft(api_key, pet, places, agendas, replies, question):
     """The AI's drafts, or the plain templates without a key."""
     ask = {
@@ -815,7 +823,7 @@ def draft(api_key, pet, places, agendas, replies, question):
         "new_places": [{k: x[k] for k in ("key", "name", "what", "street", "status", "raw")} for x in places],
         "agendas": [{"body": a["body"], "date": a.get("date", ""), "items": a.get("items"), "text": (a.get("text") or "")[:9000]} for a in agendas],
         "question": question or "",
-        "replies": [{"i": i, "from": r.get("name", ""), "text": (r.get("text") or "")[:600]} for i, r in enumerate(replies)],
+        "replies": [{"i": i, "from": r.get("name", ""), "answer": is_answer(r), "text": (r.get("text") or "")[:600]} for i, r in enumerate(replies)],
     }
     if not api_key:
         return {"pet": {"blurb": pet_plain_blurb(pet)} if pet else None,
