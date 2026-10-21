@@ -132,8 +132,11 @@ const HOME_CSS = `<style>
 .sx-bubble b{display:block;font-size:var(--text-xs);color:var(--color-text-muted)}
 .sx-ask{background:var(--color-primary-light);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);text-align:center;display:grid;gap:var(--space-3);justify-items:center;margin-block:var(--space-8)}
 .sx-ask h3{font-family:var(--font-display);font-size:var(--text-xl);line-height:1.2;margin:0;max-width:24ch}
-.sx-ask p{margin:0;max-width:44ch}.sx-quote-mark{font-family:var(--font-display);font-size:56px;line-height:.5;margin-top:var(--space-3);color:var(--color-primary)}
-.sx-good{border-top:3px solid var(--color-border);padding-top:var(--space-5);margin-block:var(--space-8)}
+.sx-ask p{margin:0;max-width:44ch}.sx-q{font-size:1.6em;line-height:0;vertical-align:-.3em;color:var(--color-primary)}.sx-q--open{margin-right:4px}.sx-q--close{margin-left:4px}
+.sx-good{border-bottom:1px solid #CFC8EE;padding-bottom:var(--space-5);margin-block:var(--space-8)}
+.sx-rule{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-weight:700;font-size:var(--text-xl);color:var(--color-primary);margin-bottom:var(--space-4)}
+.sx-rule::before,.sx-rule::after{content:"";flex:1;border-top:1px solid #CFC8EE}
+.sx-rule .ico{width:30px;height:30px;margin-right:6px;vertical-align:-6px}
 .sx-good h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-3)}
 .sx-good ul{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3)}
 .sx-good li{padding-left:28px;position:relative}
@@ -176,14 +179,13 @@ export function sectionsHomeHtml(s, { siteUrl }) {
     // The signup hook: answering means getting Monday's email. The button
     // goes to the footer's signup form.
     parts.push(`<section class="sx-ask" id="question-of-the-week"><span class="sx-kicker">Question of the week</span>
-        <div class="sx-quote-mark" aria-hidden="true">“</div>
-        <h3>${escHtml(s.question)}</h3>
-        <p class="sx-muted">Get Monday's email and hit reply with your answer. We share favorites on Thursday.</p>
+        <h3><span class="sx-q sx-q--open" aria-hidden="true">“</span>${escHtml(s.question)}<span class="sx-q sx-q--close" aria-hidden="true">”</span></h3>
+        <p class="sx-muted">Get Monday's email to send your answer. It could be featured in Thursday's Newsletter!</p>
         <a class="btn btn--primary" href="#subscribe">Count me in</a>
       </section>`);
   }
   if (s.good) {
-    parts.push(`<section class="sx-good" id="good-news"><span class="sx-kicker">From City Hall</span>
+    parts.push(`<section class="sx-good" id="good-news"><div class="sx-rule"><span><svg class="ico" aria-hidden="true" focusable="false"><use href="/icons.svg#i-cityhall"></use></svg>From City Hall</span></div>
         <ul>${s.good.items.map(g => `<li><b>${escHtml(g.title)}.</b> ${escHtml(g.line)}</li>`).join('')}</ul>
         ${safeUrl(s.good.url) ? `<p class="sx-muted"><a href="${escHtml(s.good.url)}" rel="noopener">The full agenda</a></p>` : ''}
       </section>`);
