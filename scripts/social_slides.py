@@ -334,7 +334,7 @@ def pet_html(pet):
 <div style="position:absolute;left:64px;right:64px;top:56px">
   {_brand()}
   <div class="pill" style="background:{KICKER_BG};{"" if _VIC else f"color:{KICKER_FG};"}font-size:34px;margin-top:34px;transform:rotate(-2deg)">PET OF THE WEEK</div>
-  <div class="card" style="margin-top:30px;width:540px;height:540px;transform:rotate(-1.5deg)"><img src="{photo}" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+  <div class="card" style="margin-top:30px;width:760px;height:570px;transform:rotate(-1.5deg)"><img src="{photo}" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block"></div>
   <div class="disp" style="font-size:100px;margin-top:34px">Meet <span class="hl">{esc(pet["name"])}</span></div>
   <div style="font-size:36px;font-weight:800;color:{MUTED};margin-top:14px">{facts}</div>
   <div style="font-size:34px;font-weight:800;margin-top:10px">At {where}</div>
