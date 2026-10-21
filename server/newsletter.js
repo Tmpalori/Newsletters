@@ -668,7 +668,7 @@ export function dontMiss(byDay, n = 3) {
 // Each section has its own look so the email doesn't read as one long
 // stack of boxes (the owner, Oct 2026): the days and events keep their
 // outlined boxes; these are open, banded or bubbled instead.
-const sxGap = '<div style="height:30px;line-height:30px;font-size:1px;">&nbsp;</div>';
+const sxGap = '<div style="height:20px;line-height:20px;font-size:1px;">&nbsp;</div>';
 const sxKicker = (t, color = C.accent) => `<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${color};">${escHtml(t)}</div>`;
 // A heading with a short, thick underline in the given color, like the
 // site's squiggle headings.
@@ -676,9 +676,12 @@ const sxHeading = (t, color) => `<div style="font-family:${DISPLAY};font-size:23
 <div style="width:56px;height:5px;background:${color};border-radius:3px;margin:6px 0 12px;font-size:1px;line-height:5px;">&nbsp;</div>`;
 const sxBtn = (href, label, bg = C.sun) => `<a href="${escHtml(href)}" style="display:inline-block;margin:6px 4px 0;background:${bg};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:8px 16px;font-family:${DISPLAY};font-weight:bold;font-size:15px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">${escHtml(label)}</a>`;
 const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;background:${bg};border:2px solid ${C.ink};border-radius:6px;padding:0 6px;font-family:${DISPLAY};font-size:11px;font-weight:bold;vertical-align:middle;transform:rotate(-3deg);">${t}</span>`;
-// A full-width band (no outline), for the question.
-const sxBand = (bg, inner) => `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="center" style="padding:22px 16px;">${inner}</td></tr></table>`;
+// Each section below the events sits on its own soft band (no outline, so
+// it doesn't read as another event box), a different color each, so readers
+// can tell where one ends and the next begins (the owner, Oct 2026).
+const SX_BG = { poll: '#ECE9FF', pet: C.sunLight, places: '#E3F6EC', question: C.sky, roundup: '#FFE3EF', good: '#E3F6EC' };
+const sxBand = (bg, inner, align = 'left') => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="${align}" style="padding:18px 16px;">${inner}</td></tr></table>`;
 
 // part: 'poll' is just the poll (right under the events, the owner's call,
 // Oct 2026), 'rest' everything else (further down), 'all' both.
@@ -693,27 +696,27 @@ export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all'
   if (sx.pet && want('pet')) {
     // A feature: a square photo beside the name in display type. No box.
     const p = sx.pet;
-    out.push(`${sxKicker('Pet of the week', C.sunset)}
+    out.push(sxBand(SX_BG.pet, `${sxKicker('Pet of the week', C.sunset)}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>
 <td width="162" valign="top" style="padding-right:12px;"><img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="150" height="150" alt="${escHtml(p.name)}" style="display:block;width:150px;height:150px;object-fit:cover;border:3px solid ${C.ink};border-radius:16px;"></td>
 <td valign="top"><div style="font-family:${DISPLAY};font-size:28px;font-weight:bold;line-height:1.1;">${escHtml(p.name)}</div>
 ${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
 <p style="margin:6px 0 0;font-size:15px;">${escHtml(p.blurb)}</p></td></tr></table>
 ${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectionClickUrl(siteUrl, 'pet', sx.monday, p.url), `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
-<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`);
+<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>`));
   }
   if (sx.places && sx.places.length && want('places')) {
     // An open list: a heading, a line per place, dotted rules between.
-    out.push(`${sxHeading(`New around ${town.city}`, C.sunset)}
+    out.push(sxBand(SX_BG.places, `${sxHeading(`New around ${town.city}`, C.sunset)}
 ${sx.places.map((x, i) => `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><strong style="font-size:16px;">${escHtml(x.name)}</strong>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span></div>`).join('')}
 <div style="margin-top:6px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, '/new-in-town'))}" style="color:${C.accent};font-weight:800;">See every new place →</a></div>
-<div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`);
+<div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`));
   }
   if (sx.poll && want('poll')) {
     // Centered buttons on the page itself.
-    out.push(`<div style="text-align:center;">${sxKicker('Quick poll · one tap')}
+    out.push(sxBand(SX_BG.poll, `${sxKicker('Quick poll · one tap')}
 <div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.25;margin:6px 0 6px;">${escHtml(sx.poll.question)}</div>
-${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c, [C.sun, C.sky, C.sunLight, '#FFD6E8'][i % 4])).join('')}</div>`);
+${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c, [C.sun, '#FFFFFF', C.sunLight, '#FFD6E8'][i % 4])).join('')}`, 'center'));
   }
   if (sx.question && want('question')) {
     // A tinted band with the question as a big pull quote. The button opens
@@ -721,30 +724,30 @@ ${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i
     // tell answers from other replies; a plain reply works too.
     const to = answerTo();
     const answer = to ? `mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}` : '';
-    out.push(sxBand(C.sky, `${sxKicker('Question of the week')}
+    out.push(sxBand(SX_BG.question, `${sxKicker('Question of the week')}
 <div style="font-family:${DISPLAY};font-size:46px;line-height:0.6;color:${C.accent};margin-top:14px;">“</div>
 <div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;">${escHtml(sx.question)}</div>
 ${answer ? `<div style="margin-top:10px;">${sxBtn(answer, 'Send my answer')}</div>` : ''}
-<div style="font-size:14px;margin-top:10px;">${answer ? 'Or just hit reply.' : 'Hit reply and tell us.'} Some favorites go in Thursday's email (first names only).</div>`));
+<div style="font-size:14px;margin-top:10px;">${answer ? 'Or just hit reply.' : 'Hit reply and tell us.'} Some favorites go in Thursday's email (first names only).</div>`, 'center'));
   }
   if (sx.roundup && want('roundup')) {
     // Chat bubbles, alternating sides and colors.
     const bubbles = sx.roundup.answers.map((a, i) => {
       const right = i % 2 === 1;
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr><td align="${right ? 'right' : 'left'}">
-<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:86%;border-collapse:separate;"><tr><td style="background:${right ? C.sunLight : C.sky};border-radius:${right ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};padding:10px 14px;font-size:15px;">${escHtml(a.quote)}${a.name ? `<div style="font-size:12px;font-weight:bold;color:${C.muted};margin-top:2px;">${escHtml(a.name)}</div>` : ''}</td></tr></table></td></tr></table>`;
+<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:86%;border-collapse:separate;"><tr><td style="background:${right ? C.sunLight : '#FFFFFF'};border-radius:${right ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};padding:10px 14px;font-size:15px;">${escHtml(a.quote)}${a.name ? `<div style="font-size:12px;font-weight:bold;color:${C.muted};margin-top:2px;">${escHtml(a.name)}</div>` : ''}</td></tr></table></td></tr></table>`;
     }).join('');
-    out.push(`${sxKicker(`${town.city} says`)}
+    out.push(sxBand(SX_BG.roundup, `${sxKicker(`${town.city} says`)}
 <div style="font-family:${DISPLAY};font-size:22px;font-weight:bold;line-height:1.25;margin:4px 0 4px;">${escHtml(sx.roundup.question || 'You answered')}</div>
 ${bubbles}
-<div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`);
+<div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`));
   }
   if (sx.good && want('good')) {
     // A plain list set off by a rule, a check per item.
-    out.push(`<div style="border-top:3px solid ${C.ink};padding-top:14px;">${sxKicker('From City Hall', '#1C7C4A')}
+    out.push(sxBand(SX_BG.good, `${sxKicker('From City Hall', '#1C7C4A')}
 <div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;margin:4px 0 8px;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
-${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}</div>`);
+${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}`));
   }
   return out.length ? sxGap + out.join(sxGap) : '';
 }
