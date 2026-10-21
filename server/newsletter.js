@@ -686,10 +686,10 @@ const sxBand = (bg, inner, align = 'left') => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="${align}" style="padding:18px 16px;">${inner}</td></tr></table>`;
 const sxRule = `<div style="height:0;border-top:1px solid #CFC8EE;font-size:1px;line-height:0;">&nbsp;</div>`;
 // A thin rule with the label in the middle of it.
-const sxRuleLabel = label => `
+const sxRuleLabel = (label, icon = '') => `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td valign="middle">${sxRule}</td>
-<td width="1" valign="middle" style="padding:0 12px;white-space:nowrap;font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.accent};">${escHtml(label)}</td>
+<td width="1" valign="middle" style="padding:0 12px;white-space:nowrap;font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.accent};">${icon ? `<img src="${escHtml(icon)}" width="28" height="28" alt="" style="vertical-align:-6px;border:0;margin-right:6px;">` : ''}${escHtml(label)}</td>
 <td valign="middle">${sxRule}</td></tr></table>`;
 
 // part: 'poll' is just the poll (right under the events, the owner's call,
@@ -757,9 +757,8 @@ ${bubbles}
   if (sx.good && want('good')) {
     // No band: a plain list between two thin rules, the label in the top one,
     // a check per item.
-    out.push(`${sxRuleLabel('🏛️ From City Hall')}
+    out.push(`${sxRuleLabel('From City Hall', `${siteUrl}/email/cityhall.png`)}
 <div style="padding:12px 4px 14px;">
-<div style="font-size:14px;font-weight:800;color:${C.muted};margin:0 0 6px;text-align:center;">On the agenda this week</div>
 ${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
 ${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}
 </div>${sxRule}`);

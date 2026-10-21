@@ -184,7 +184,6 @@ export function sectionsHomeHtml(s, { siteUrl }) {
   }
   if (s.good) {
     parts.push(`<section class="sx-good" id="good-news"><span class="sx-kicker">From City Hall</span>
-        <h3>On the agenda this week</h3>
         <ul>${s.good.items.map(g => `<li><b>${escHtml(g.title)}.</b> ${escHtml(g.line)}</li>`).join('')}</ul>
         ${safeUrl(s.good.url) ? `<p class="sx-muted"><a href="${escHtml(s.good.url)}" rel="noopener">The full agenda</a></p>` : ''}
       </section>`);
