@@ -621,7 +621,8 @@ def new_city_pdf(src, today):
         name, addr, city, kind = (clean(x) for x in m.groups())
         if src.get("cities") and city.upper() not in src["cities"]:
             continue
-        out.append({"key": f"md-{re.sub(r'\W', '', name.lower())[:40]}", "name": business_name(name),
+        slug = re.sub(r"\W", "", name.lower())[:40]
+        out.append({"key": f"md-{slug}", "name": business_name(name),
                     "what": "restaurant" if kind == "FOOD VENDOR" else "", "street": street_of(addr), "status": "open",
                     "raw": line.strip()})
     return out
@@ -653,7 +654,8 @@ def new_news_rss(src, today):
                 continue
             if re.search(r"\b(clos(e|es|ed|ing)|shut|layoffs?|bankrupt|fire|crash|police|arrest)\b", title, re.I):
                 continue
-            out.append({"key": f"rss-{re.sub(r'\W', '', title.lower())[:50]}", "name": "", "what": "", "street": "",
+            slug = re.sub(r"\W", "", title.lower())[:50]
+            out.append({"key": f"rss-{slug}", "name": "", "what": "", "street": "",
                         "status": "", "raw": f"headline: {title} | {descr[:300]}"})
     return out
 
