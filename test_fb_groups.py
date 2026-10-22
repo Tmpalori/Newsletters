@@ -196,3 +196,12 @@ def test_a_group_prompt_carries_up_to_twelve_flyers_and_flyer_only_posts(monkeyp
     assert len(images) == 12
     assert text.count("(no caption) [flyer image attached]") == 12   # picture-only posts still go in
     assert "Flyer images:" in parts[0]["text"] and "Flyer images:" not in text
+
+
+def test_every_group_picture_shape_and_facebooks_picture_text_are_read():
+    p = {"attachments": [{"image": {"uri": "https://cdn/a.jpg"}}, {"flexible_height_image": {"uri": "https://cdn/b.jpg"}},
+                         {"photo_image": {"uri": "https://cdn/c.jpg"}, "ocrText": "FALL FEST\nSAT OCT 24  10AM"}]}
+    assert ce._post_image_urls(p) == ["https://cdn/a.jpg", "https://cdn/b.jpg", "https://cdn/c.jpg"]
+    assert ce._picture_text(p) == "FALL FEST SAT OCT 24 10AM"
+    text, parts = ce._posts_prompt("G", [{"text": "", "attachments": [{"ocrText": "BOO & STEW OCT 27"}]}], ce._group_events_prompt, 0)
+    assert "(no caption) [picture text: BOO & STEW OCT 27]" in text and parts is None

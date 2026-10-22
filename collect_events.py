@@ -5113,7 +5113,8 @@ def _post_image_urls(p):
 
     Instagram: displayUrl, images[], childPosts[].displayUrl (carousels).
     Facebook: media[].photo_image.uri, else media[].thumbnail (a video's
-    still); groups give the same under attachments[]. The IG fetcher normalizes posts with images[] already.
+    still); groups give the same under attachments[], or image /
+    flexible_height_image instead of photo_image. The IG fetcher normalizes posts with images[] already.
     """
     urls = []
 
@@ -5133,8 +5134,10 @@ def _post_image_urls(p):
     for m in [*(p.get("media") or []), *(p.get("attachments") or [])]:
         if not isinstance(m, dict):
             continue
-        photo = m.get("photo_image")
-        add(photo.get("uri") if isinstance(photo, dict) else None)
+        # Group posts give one of three shapes (Oct 2026 groups trial).
+        for k in ("photo_image", "image", "flexible_height_image"):
+            photo = m.get(k)
+            add(photo.get("uri") if isinstance(photo, dict) else None)
         add(m.get("thumbnail"))
     return urls
 
@@ -5180,6 +5183,17 @@ def _post_posted_on(p):
         # No offset: can't say what local time it was, only the day.
         return dt.strftime("%a %Y-%m-%d")
     return _to_central(dt).strftime("%a %Y-%m-%d %-I:%M %p")
+
+
+def _picture_text(p, limit=600):
+    """Facebook's own text read off a post's pictures (attachments[].ocrText,
+    group posts), so a flyer past the image limit still gets its words read."""
+    texts = []
+    for m in p.get("attachments") or [] if isinstance(p, dict) else []:
+        t = re.sub(r"\s+", " ", str(m.get("ocrText") or "") if isinstance(m, dict) else "").strip()
+        if t and t not in texts:
+            texts.append(t)
+    return " / ".join(texts)[:limit]
 
 
 def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
@@ -5260,9 +5274,12 @@ def _posts_prompt(venue_name, posts, prompt_fn=None, flyer_limit=FLYER_IMAGES_PE
     lines = []
     for i, p in enumerate(posts, start=1):
         text = (p.get("text") or p.get("caption") or "").strip()
-        if not text and i not in with_flyer:
+        ocr = _picture_text(p)
+        if not text and not ocr and i not in with_flyer:
             continue
         text = _trim_post_text(re.sub(r"\s+", " ", text)) if text else "(no caption)"
+        if ocr:
+            text += f" [picture text: {ocr}]"
         if i in with_flyer:
             text += " [flyer image attached]"
         lines.append(f"[{i}] (posted {_post_posted_on(p)}) {text}")
@@ -5771,6 +5788,7 @@ Rules:
 - "description" says only what the post says. Don't add performers, live music, food or other details the post doesn't mention.
 - "details" keeps every fact the post or flyer gives about THIS event (performers, schedule, prices and tickets, age limits, how to sign up, who's hosting), in plain sentences. Empty when the post says no more than "description".
 - A post ending in "[post continues]" was cut short; use only what you can read and don't guess the rest.
+- "[picture text: …]" is the text Facebook read off the post's pictures (often a flyer): read it as part of the post. It can be garbled; use only what's clear.
 - Skip events that already happened (post-date BEFORE today's date with no recurring signal).
 - Only include events held in {TOWN['city_state']} or elsewhere in {TOWN['area_name']}. Skip events in other towns ({TOWN['nearby_examples']}, etc.).
 - Return [] if no events found. No prose, no markdown fences."""
