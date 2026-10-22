@@ -1,4 +1,4 @@
-# Apify Probe — manual, or on a push to a claude/* branch that edits the probe. Tries candidate Apify actors against Victoria,
+# Apify Probe — manual, or on a push to a claude/* branch that edits the probe or the groups trial. Tries candidate Apify actors against Victoria,
 # TX and reports item counts, Victoria matches, fields and cost in the log
 # plus a JSON artifact. Commits nothing and touches no site data.
 
@@ -9,6 +9,7 @@ on:
     branches: ['claude/**']
     paths:
       - scripts/apify_probe.py
+      - scripts/groups_trial.py
       - .github/workflows/apify-probe.yml
   workflow_dispatch:
     inputs:
@@ -20,6 +21,10 @@ on:
         description: 'Item cap per actor'
         required: false
         default: '40'
+      groups_trial:
+        description: 'Also dry-run every town''s Facebook groups (scripts/groups_trial.py: events found, with and without pictures, vs the live site)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,23 +32,37 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: pip install requests
+      - run: pip install -r requirements.txt
       - name: Run probe
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          PROBE_ACTORS: ${{ inputs.actors }}
+          # A push (editing the probe or the groups trial) checks only the groups.
+          PROBE_ACTORS: ${{ github.event_name == 'push' && 'groups' || inputs.actors }}
           PROBE_MAX_ITEMS: ${{ inputs.max_items }}
           PYTHONUNBUFFERED: 1
         run: python scripts/apify_probe.py
+      - name: Facebook groups trial
+        if: github.event_name == 'push' || inputs.groups_trial
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          PYTHONUNBUFFERED: 1
+        run: |
+          for t in victoria tupelo lincoln shoals virginiabeach medford; do
+            TOWN=$t python scripts/groups_trial.py || echo "::warning::groups trial failed for $t"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: apify-probe-report
-          path: apify_probe_report.json
+          path: |
+            apify_probe_report.json
+            groups_trial_*.json
           if-no-files-found: ignore

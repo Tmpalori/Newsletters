@@ -91,7 +91,7 @@ def test_off_without_groups_token_or_switch(monkeypatch, env, groups):
 def test_events_use_the_group_prompt_post_url_and_weekday_check():
     posts = [{"text": "Fall fest Saturday!", "url": "https://www.facebook.com/groups/111/posts/9", "groupTitle": "Tupelo Events",
               "time": "2026-10-20T15:00:00.000Z"}]
-    ai = lambda name, p, prompt_fn=None: [
+    ai = lambda name, p, **kw: [
         {"date": "2026-10-24", "weekday": "Saturday", "name": "Fall Fest", "venue": "Fairpark", "time": "10 AM", "source_post_index": 1},
         {"date": "2026-10-24", "weekday": "Friday", "name": "Wrong Day", "source_post_index": 1},      # weekday mismatch
         {"date": "2027-01-01", "weekday": "Friday", "name": "Out Of Window"},
@@ -99,6 +99,7 @@ def test_events_use_the_group_prompt_post_url_and_weekday_check():
     ]
     out, p, x = _run({G1: _resp(posts), G2: _resp([])}, ai)
     assert x.call_args.kwargs["prompt_fn"] is ce._group_events_prompt
+    assert x.call_args.kwargs["flyer_limit"] == ce.FLYER_IMAGES_PER_GROUP
     assert x.call_args.args[0] == "Tupelo Events"
     fest = [e for e in out if e["name"] == "Fall Fest"]
     assert fest == [{**fest[0], "date": "2026-10-24", "venue": "Fairpark", "address": "",
@@ -182,3 +183,16 @@ def test_group_events_merge_with_page_copies():
     page = {"date": "2026-10-24", "name": "Fall Market", "venue": "Fairpark", "time": "9:00 AM", "_source": "apify_facebook_posts"}
     group = {"date": "2026-10-24", "name": "Fall Market at Fairpark", "venue": "Fairpark", "time": "9 AM", "_source": "apify_facebook_groups"}
     assert ce.is_same_event(page, group)
+
+
+def test_a_group_prompt_carries_up_to_twelve_flyers_and_flyer_only_posts(monkeypatch):
+    monkeypatch.setenv("FLYER_IMAGES", "1")
+    posts = [{"text": "", "attachments": [{"photo_image": {"uri": f"https://cdn/{i}.jpg"}}], "time": f"2026-10-{10 + i:02d}T12:00:00Z"}
+             for i in range(15)]
+    fetch = lambda url: "data:image/jpeg;base64,AAAA"
+    monkeypatch.setattr(ce, "_fetch_image_data_url", fetch)
+    text, parts = ce._posts_prompt("Tupelo Events", posts, ce._group_events_prompt, ce.FLYER_IMAGES_PER_GROUP)
+    images = [p for p in parts if p["type"] == "image_url"]
+    assert len(images) == 12
+    assert text.count("(no caption) [flyer image attached]") == 12   # picture-only posts still go in
+    assert "Flyer images:" in parts[0]["text"] and "Flyer images:" not in text

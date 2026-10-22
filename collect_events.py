@@ -5008,6 +5008,9 @@ def _trim_post_text(text, limit=POST_TEXT_LIMIT):
 # signed and short-lived, and one the API can't fetch fails the whole call.
 # FLYER_IMAGES=0 turns it off.
 FLYER_IMAGES_PER_ACCOUNT = 4
+# A group's posts are mostly flyers from many posters, not one venue's
+# month in a picture or two: read more of them.
+FLYER_IMAGES_PER_GROUP = 12
 FLYER_IMAGE_MAX_BYTES = 4_000_000
 # No GIF: the API rejects animated ones, which would lose the whole call.
 _FLYER_TYPES = ("image/jpeg", "image/png", "image/webp")
@@ -5234,29 +5237,22 @@ Rules:
 - Return [] if no events found. No prose, no markdown fences."""
 
 
-def _extract_events_from_posts_via_ai(venue_name, posts, prompt_fn=None):
-    """Send a venue's recent posts (text and flyer images) to OpenAI and
-    parse out events.
+def _posts_prompt(venue_name, posts, prompt_fn=None, flyer_limit=FLYER_IMAGES_PER_ACCOUNT):
+    """The extraction request for an account's posts: (text-only prompt,
+    content parts with the flyer images, or None when there are none).
 
-    Returns a list of event dicts (date/name/time/description/url) — venue is
-    filled in by the caller. prompt_fn builds the prompt (default
-    _post_events_prompt; Facebook groups pass _group_events_prompt).
-    """
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key or not posts or _OPENAI_DEAD:
-        return []
-
-    today = _WINDOW_START
-    end_date = _WINDOW_END
-    today_str = today.strftime("%Y-%m-%d")
-    end_str = end_date.strftime("%Y-%m-%d")
+    prompt_fn builds the prompt (default _post_events_prompt; Facebook
+    groups pass _group_events_prompt). Also used by scripts/groups_trial.py,
+    so a trial asks exactly what the collector asks."""
+    today_str = _WINDOW_START.strftime("%Y-%m-%d")
+    end_str = _WINDOW_END.strftime("%Y-%m-%d")
 
     # Build the post digest. Each post is cut at POST_TEXT_LIMIT characters
     # on a word boundary and marked, so the model never sees half a phrase:
     # the old 400-character cut turned "…for a Plant and Sip!!" into an event
     # named "Scenic Root — Plant a" (2026-10-08).
     try:
-        flyers = _flyers_for(posts)
+        flyers = _flyers_for(posts, limit=flyer_limit)
     except Exception as e:  # a flyer problem must not cost the post text
         _warn("flyer images failed", venue=venue_name, error=str(e)[:200])
         flyers = []
@@ -5271,20 +5267,35 @@ def _extract_events_from_posts_via_ai(venue_name, posts, prompt_fn=None):
             text += " [flyer image attached]"
         lines.append(f"[{i}] (posted {_post_posted_on(p)}) {text}")
     if not lines:
-        return []
+        return None, None
     posts_blob = "\n".join(lines)
 
     prompt = (prompt_fn or _post_events_prompt)(venue_name, posts_blob, today_str, end_str)
+    if not flyers:
+        return prompt, None
+    content_parts = [{"type": "text", "text": prompt + """
 
-    text_prompt = prompt
-    if flyers:
-        prompt += """
+Flyer images: posts marked [flyer image attached] have their image after this text, labeled with the post number. Read the flyers as part of the post: dates, times, names, performers and prices are often only in the picture. A schedule flyer (a month of live music, "Upcoming Events") lists one-time events: emit one object per row whose date is in the window, with the performer or event as the name, and use that post's number as source_post_index. A flyer date with no year is the next time that date comes around."""}]
+    for i, data_url in flyers:
+        content_parts.append({"type": "text", "text": f"Flyer for post [{i}]:"})
+        content_parts.append({"type": "image_url", "image_url": {"url": data_url, "detail": "auto"}})
+    return prompt, content_parts
 
-Flyer images: posts marked [flyer image attached] have their image after this text, labeled with the post number. Read the flyers as part of the post: dates, times, names, performers and prices are often only in the picture. A schedule flyer (a month of live music, "Upcoming Events") lists one-time events: emit one object per row whose date is in the window, with the performer or event as the name, and use that post's number as source_post_index. A flyer date with no year is the next time that date comes around."""
-        content_parts = [{"type": "text", "text": prompt}]
-        for i, data_url in flyers:
-            content_parts.append({"type": "text", "text": f"Flyer for post [{i}]:"})
-            content_parts.append({"type": "image_url", "image_url": {"url": data_url, "detail": "auto"}})
+
+def _extract_events_from_posts_via_ai(venue_name, posts, prompt_fn=None, flyer_limit=FLYER_IMAGES_PER_ACCOUNT):
+    """Send a venue's recent posts (text and flyer images) to OpenAI and
+    parse out events.
+
+    Returns a list of event dicts (date/name/time/description/url) — venue is
+    filled in by the caller. prompt_fn and flyer_limit: see _posts_prompt.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key or not posts or _OPENAI_DEAD:
+        return []
+    text_prompt, content_parts = _posts_prompt(venue_name, posts, prompt_fn, flyer_limit)
+    if text_prompt is None:
+        return []
+    if content_parts:
         raw = _posts_ai_call(api_key, venue_name, {"role": "user", "content": content_parts}, timeout=90)
         if raw is not None:
             return raw
@@ -5885,7 +5896,8 @@ def fetch_apify_facebook_groups(days_ahead=14):
             stats.append(f"{name}: 0 posts ({reason[:60]})")
             continue
 
-        raw = _extract_events_from_posts_via_ai(name, posts, prompt_fn=_group_events_prompt)
+        raw = _extract_events_from_posts_via_ai(name, posts, prompt_fn=_group_events_prompt,
+                                                flyer_limit=FLYER_IMAGES_PER_GROUP)
         kept = 0
         for r in raw:
             if not isinstance(r, dict):
