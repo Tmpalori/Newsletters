@@ -11,6 +11,9 @@
  *   POST /api/jobs/:id/finish         { status: 'done'|'failed', result }
  *   GET  /api/jobs/files/:name        → { data, updated_at } or 404
  *   PUT  /api/jobs/files/:name        the JSON body is the file
+ *   GET  /api/jobs/replies?since=     readers' replies since a date (the sections job)
+ *   GET  /api/jobs/issue?edition=     the issue's top events and count (its opening paragraph)
+ *   GET  /api/jobs/sections           sections on or off, this week's pet and places (social posts)
  *   PUT  /api/jobs/social/:build/:name a social kit file (raw body), staged
  *   POST /api/jobs/social/:build/publish  that build becomes /social/latest/
  *
@@ -44,14 +47,18 @@ export const JOB_KINDS = {
   'meta-ads': { label: 'Meta ads report', limitMs: 10 * 60 * 1000 },
   // Sunday night's digest email of what's collected (send_digest.py), to
   // the owner. A town without SMTP settings on its jobs service does nothing.
-  digest: { label: 'Weekly digest email', limitMs: 10 * 60 * 1000 }
+  digest: { label: 'Weekly digest email', limitMs: 10 * 60 * 1000 },
+  // The pet of the week, new in town, good news and the readers' answers
+  // (scripts/sections.py, SECTIONS.md), checked by its AI editor.
+  sections: { label: 'Newsletter sections', limitMs: 15 * 60 * 1000 }
 };
 
 // Files a job may hand the site: the collect's outputs and the submission
 // review's small state (when it last alerted, attempts per submission).
 // social_posted: what the social kit posted per day and kind (posted.json
 // on GitHub), so a retried or restarted job never posts twice.
-export const JOB_FILES = ['candidates', 'collection_metadata', 'enrichment_cache', 'review_ai_alert', 'review_attempts', 'social_posted'];
+// sections: the newsletter's extra sections (server/sections.js).
+export const JOB_FILES = ['candidates', 'collection_metadata', 'enrichment_cache', 'review_ai_alert', 'review_attempts', 'social_posted', 'sections'];
 
 // Whether the scheduler hands this job to the town's jobs worker (when
 // jobs are on): any kind the worker runs, for every town.
@@ -147,7 +154,15 @@ export function collectStops(stops) {
   return { cutShort: cut.length > 0, cut: cut.map(line), capped: list.filter(x => x.reason === 'cap').map(line) };
 }
 
-export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {} }) {
+/**
+ * listReplies(since): readers' replies since an ISO date (server/sections.js)
+ * onFile(name, data): after a job hands the site a file (the sections ping)
+ * issueFacts(edition): what the next issue shows (server/newsletter.js issueFacts)
+ * sectionsState(): whether the town's sections are on, and this week's pet
+ *   and places as readers see them (server/sections.js forWorker)
+ */
+export function createJobs({ store, slack = null, publish = async () => null, siteUrl = '', nowFn = () => new Date(), env = process.env, log = console, seeds = {},
+  listReplies = null, onFile = null, issueFacts = null, sectionsState = null }) {
   const cfg = jobsConfig(env);
   // lastPollAt: the worker's last ask for work. busyUntil: while it runs a
   // job (and doesn't ask), it's alive until that job's time limit.
@@ -382,6 +397,22 @@ export function createJobs({ store, slack = null, publish = async () => null, si
       res.json({ ok: true, data, updated_at: f ? f.updated_at : null });
     }));
 
+    app.get('/api/jobs/replies', guard, wrap(async (req, res) => {
+      if (typeof listReplies !== 'function') return res.status(404).json({ ok: false, error: 'not-found' });
+      const since = /^\d{4}-\d{2}-\d{2}/.test(String(req.query.since || '')) ? String(req.query.since) : addDays(localDateStr(nowFn()), -7);
+      res.json({ ok: true, replies: await listReplies(since) });
+    }));
+
+    app.get('/api/jobs/issue', guard, wrap(async (req, res) => {
+      if (typeof issueFacts !== 'function') return res.status(404).json({ ok: false, error: 'not-found' });
+      res.json({ ok: true, issue: await issueFacts(req.query.edition === 'weekend' ? 'weekend' : 'weekly') });
+    }));
+
+    app.get('/api/jobs/sections', guard, wrap(async (req, res) => {
+      if (typeof sectionsState !== 'function') return res.status(404).json({ ok: false, error: 'not-found' });
+      res.json({ ok: true, sections: await sectionsState() });
+    }));
+
     app.put('/api/jobs/files/:name', guard, fileJson, wrap(async (req, res) => {
       const name = req.params.name;
       if (!JOB_FILES.includes(name)) return res.status(404).json({ ok: false, error: 'unknown-file' });
@@ -400,6 +431,9 @@ export function createJobs({ store, slack = null, publish = async () => null, si
           log.warn('[jobs] publish after upload failed:', err.message);
           published = { ok: false, error: 'publish-failed', message: err.message };
         }
+      }
+      if (typeof onFile === 'function') {
+        try { await onFile(name, body); } catch (err) { log.warn('[jobs] after', name, err.message); }
       }
       res.json({ ok: true, ...(published ? { published } : {}) });
     }));

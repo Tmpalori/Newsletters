@@ -29,6 +29,9 @@
   <url><loc>https://www.thevic361.com/accessibility</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.thevic361.com/referral-rules</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.thevic361.com/partners</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.thevic361.com/new-in-town</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.thevic361.com/pets</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.thevic361.com/city-hall</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.thevic361.com/halloween-events</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.thevic361.com/venues/aero-crafters</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://www.thevic361.com/venues/de-leon-plaza</loc><lastmod>2026-10-07</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>

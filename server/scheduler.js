@@ -45,12 +45,21 @@ const MIN = 60 * 1000;
 
 // Wall-clock parts of an instant in the town's timezone (Central for
 // Victoria; the job times below are in it).
+// One formatter per timezone (building one costs more than using it; the
+// scheduler asks for every job on every tick).
+const formatters = new Map();
+function formatterFor(tz) {
+  if (!formatters.has(tz)) {
+    formatters.set(tz, new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', weekday: 'short'
+    }));
+  }
+  return formatters.get(tz);
+}
 export function localParts(now) {
   const parts = {};
-  for (const p of new Intl.DateTimeFormat('en-US', {
-    timeZone: town.timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', weekday: 'short'
-  }).formatToParts(now)) parts[p.type] = p.value;
+  for (const p of formatterFor(town.timezone).formatToParts(now)) parts[p.type] = p.value;
   const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday);
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
@@ -84,6 +93,14 @@ export const JOBS = [
   // Until noon: a "Today in..." post caught up after a missed slot (a
   // failed deploy) is still useful in the morning, not at 5 PM.
   { name: 'social-kit', at: '08:47', until: '12:00', kind: 'social-kit' },
+  // The newsletter's extra sections (scripts/sections.py): built after each
+  // collect, and again right before each issue, after the event check, so
+  // the opening paragraph names only events still in it (and the pet is
+  // still up for adoption).
+  { name: 'sections', dow: 0, at: '18:13', until: '23:59', kind: 'sections' },
+  { name: 'sections-midweek', dow: 3, at: '18:13', until: '23:59', kind: 'sections' },
+  { name: 'sections-check', dow: 1, at: '07:08', until: '07:40', kind: 'sections' },
+  { name: 'sections-check-weekend', dow: 4, at: '06:23', until: '06:58', kind: 'sections' },
   // Sunday night, after the afternoon's collect.
   { name: 'weekly-digest', dow: 0, at: '21:00', until: '23:59', kind: 'digest' },
   { name: 'sponsor-reports', at: '09:00', until: '23:59' },

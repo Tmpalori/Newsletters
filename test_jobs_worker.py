@@ -319,18 +319,22 @@ class Meta:
         return _Resp(None, 200 if self._live(url) else 404)
 
 
-def fake_kit_build(kinds_seen, featured=0):
-    """Stands in for social_kit.py: writes a kit for the kinds asked."""
+def fake_kit_build(kinds_seen, featured=0, sections=False):
+    """Stands in for social_kit.py: writes a kit for the kinds asked (the
+    pet and new-in-town ones only with sections on, as social_kit.py does)."""
     def run(args, timeout, env=None):
         out = args[args.index("--out") + 1]
         kinds = args[args.index("--kinds") + 1].split(",")
         kinds_seen.append(kinds)
         kits = {}
         for k in kinds:
+            if k in ("pet", "new") and not sections:
+                continue
             for ext in ("png", "jpg"):
                 with open(os.path.join(out, f"{k}-1.{ext}"), "wb") as f:
                     f.write(b"IMG")
-            kits[k] = {"slides": [f"{k}-1.png"], "slides_jpg": [f"{k}-1.jpg"], "events": 4,
+            # The pet and new-in-town kits have no events, as social_kit.py builds them.
+            kits[k] = {"slides": [f"{k}-1.png"], "slides_jpg": [f"{k}-1.jpg"], "events": 0 if k in ("pet", "new") else 4,
                        "featured": featured if k == "today" else 0,
                        "captions": {"facebook": f"{k} in Medford", "instagram": f"{k} IG"}}
         with open(os.path.join(out, "kit.json"), "w") as f:
@@ -350,7 +354,11 @@ THU, MON, TUE = _date(2026, 10, 15), _date(2026, 10, 12), _date(2026, 10, 13)
 def test_social_plan_follows_the_github_days():
     assert jw.social_plan(MON) == (["week", "weekend", "today"], "week", False)
     assert jw.social_plan(THU) == (["weekend", "today"], "weekend", True)
-    assert jw.social_plan(TUE) == (["today"], "today", False)
+    # Tuesday and Wednesday: the sections' posts (the pet, New in Town).
+    assert jw.social_plan(TUE) == (["today", "pet"], "today", False)
+    assert jw.own_posts(TUE) == ["pet"] and jw.own_posts(THU) == []
+    assert jw.social_plan(_date(2026, 10, 14)) == (["today", "new"], "new", False)
+    assert jw.social_plan(_date(2026, 10, 16)) == (["today"], "today", False)
 
 
 VIC_PAGE = "1388965530960534"
@@ -389,6 +397,19 @@ def test_victorias_kit_runs_on_her_worker_and_posts_to_her_pinned_page(victoria)
     assert ("POST", f"{VIC_PAGE}/feed") in meta.calls
     assert not any("media" in p for _, p in meta.calls)                       # no Instagram id pinned: Facebook only
     assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}}
+
+
+def test_the_pets_own_post_goes_to_instagram_too_once_its_id_is_set(victoria):
+    w, _ = victoria
+    site = SocialSite(files={"sections": {"week": "2026-10-12", "pet": {"name": "Chloe"}}})
+    meta = Meta(site)
+    status, result = w.job_social_kit(site, run=fake_kit_build([], sections=True), env={**VIC_POSTING, "IG_USER_ID": "777"},
+                                      today=TUE, session=meta)
+    assert status == "done", result
+    posted = site.files["social_posted"]
+    assert set(posted) == {"2026-10-15:today", "2026-10-15:pet"}
+    assert all(set(v) == {"facebook", "instagram"} for v in posted.values())
+    assert ("POST", "777/media_publish") in meta.calls
 
 
 @pytest.mark.parametrize("env", [
@@ -609,3 +630,112 @@ def test_a_failed_build_hands_over_nothing(medford):
     site = SocialSite()
     status, result = w.job_social_kit(site, run=lambda args, timeout, env=None: (1, ["boom"]), env=POSTING, today=TUE)
     assert status == "failed" and "code 1" in result["error"] and site.uploads == []
+
+
+def test_sections_hands_in_last_weeks_file_and_the_replies_and_only_rechecks_before_an_issue():
+    from datetime import date
+
+    class Site(FakeSite):
+        def get_replies(self, since):
+            self.since = since
+            return [{"at": "2026-10-13T15:00:00Z", "name": "Maria", "text": "Kolaches!"}]
+
+        def get_issue(self, edition):
+            self.edition = edition
+            return {"edition": edition, "week": "2026-10-15", "total": 9, "top": [{"name": "Zoo Boo", "day": "Saturday", "venue": "Zoo"}]}
+
+    seen = []
+
+    issues = []
+
+    def run(args, timeout, env=None):
+        seen.append(args)
+        if "--issue" in args:
+            issues.append(json.load(open(args[args.index("--issue") + 1])))
+        assert json.load(open(args[args.index("--previous") + 1])) == {"week": "2026-10-05"}
+        assert json.load(open(args[args.index("--replies") + 1]))[0]["name"] == "Maria"
+        with open(args[args.index("--out") + 1], "w") as f:
+            json.dump({"week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": [{}], "good_news": None}, f)
+        return 0, ["pet: Chloe"]
+    site = Site(files={"sections": {"week": "2026-10-05"}})
+    status, result = jw.job_sections(site, run=run, env={}, today=date(2026, 10, 14))   # Wednesday
+    assert status == "done" and result["pet"] == "Chloe" and result["new_in_town"] == 1
+    assert site.since == "2026-10-12" and site.files["sections"]["week"] == "2026-10-12"
+    assert "--before-send" not in seen[0]
+    site = Site(files={"sections": {"week": "2026-10-05"}})
+    jw.job_sections(site, run=run, env={}, today=date(2026, 10, 15))   # Thursday morning
+    assert "--before-send" in seen[1] and site.edition == "weekend"
+    assert issues[0]["top"][0]["name"] == "Zoo Boo"
+    # A town without sections.json writes nothing: done, nothing handed in.
+    site = Site()
+    status, result = jw.job_sections(site, run=lambda a, t, e=None: (0, ["no sections.json"]), env={}, today=date(2026, 10, 14))
+    assert status == "done" and "sections" not in site.puts
+    assert jw.job_sections(Site(), run=lambda a, t, e=None: (1, ["boom"]), env={}, today=date(2026, 10, 14))[0] == "failed"
+
+
+def test_tuesday_posts_today_then_the_pet_on_its_own_and_hands_the_kit_the_sections_file(medford):
+    w, _ = medford
+
+    class StateSite(SocialSite):
+        def get_sections_state(self):
+            return {"enabled": True, "week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": []}
+    site = StateSite()
+    site.files["sections"] = {"week": "2026-10-12", "pet": {"name": "Chloe"}}
+    seen, sections_in = [], []
+
+    def run(args, timeout, env=None):
+        if "--sections" in args:
+            sections_in.append(json.load(open(args[args.index("--sections") + 1])))
+        return fake_kit_build(seen, sections=True)(args, timeout, env)
+    status, result = w.job_social_kit(site, run=run, env=POSTING, today=TUE, session=Meta(site))
+    assert status == "done", result
+    assert seen == [["today", "pet"]] and sections_in[0]["pet"]["name"] == "Chloe"
+    assert site.files["social_posted"] == {"2026-10-15:today": {"facebook": "post1"}, "2026-10-15:pet": {"facebook": "post1"}}
+    assert result["posted"] == "today + pet"
+    # The sections file never goes to the site as a kit file.
+    assert not any(name == "sections.json" for _, name in getattr(site, "social_puts", []))
+
+
+def test_no_answer_from_the_site_means_no_pet_post_from_the_raw_file(medford):
+    # The raw file may be last week's or hold a pet the owner took out.
+    w, _ = medford
+    site = SocialSite()
+    site.files["sections"] = {"week": "2026-10-12", "pet": {"name": "Chloe"}}
+    sections_in = []
+
+    def run(args, timeout, env=None):
+        if "--sections" in args:
+            sections_in.append(json.load(open(args[args.index("--sections") + 1])))
+        return fake_kit_build([], sections=False)(args, timeout, env)
+    w.job_social_kit(site, run=run, env=POSTING, today=TUE, session=Meta(site))
+    assert sections_in == [{}]
+
+
+def test_the_sites_switch_decides_and_social_gets_the_week_as_readers_see_it(victoria):
+    w, _ = victoria
+    state = {"enabled": True, "week": "2026-10-12", "pet": {"name": "Chloe"}, "new_in_town": []}
+
+    class StateSite(SocialSite):
+        def get_sections_state(self):
+            return state
+
+        def get_replies(self, since):
+            return []
+    site = StateSite(files={"sections": {"week": "2026-09-01", "pet": {"name": "Old"}}})
+    seen_env, sections_in = [], []
+
+    def run(args, timeout, env=None):
+        seen_env.append(env.get("SECTIONS"))
+        if "--sections" in args:
+            sections_in.append(json.load(open(args[args.index("--sections") + 1])))
+        return fake_kit_build([], sections=True)(args, timeout, env)
+    status, result = w.job_social_kit(site, run=run, env={**VIC_POSTING, "SECTIONS": "0"}, today=TUE, session=Meta(site))
+    assert status == "done", result
+    assert seen_env == ["1"] and sections_in[0]["pet"]["name"] == "Chloe"       # not the stale raw file
+    assert set(site.files["social_posted"]) == {"2026-10-15:today", "2026-10-15:pet"}
+    # Off on the site: the job runs sections.py with SECTIONS=0 (it builds nothing).
+    state = {"enabled": False}
+    got = []
+    w.job_sections(StateSite(), run=lambda a, t, e=None: got.append(e.get("SECTIONS")) or (0, ["off"]), env={"SECTIONS": "1"},
+                   today=_date(2026, 10, 18))
+    assert got == ["0"]

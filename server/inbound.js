@@ -156,7 +156,9 @@ export function isHardBounce(data) {
   return !type || type === 'permanent' || type === 'hard';
 }
 
-export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl = globalThis.fetch, nowFn = () => Date.now(), otherDomains, store = null }) {
+// onReply({ id, from, email, subject, text, at }): a reader's reply, for the
+// sections' Thursday roundup (server/sections.js); not sales mail.
+export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl = globalThis.fetch, nowFn = () => Date.now(), otherDomains, store = null, onReply = null }) {
   const seen = new Set();
   const others = otherDomains || otherTownDomains();
 
@@ -274,6 +276,11 @@ export function createInbound({ config, apiKey, slack, siteUrl = '', fetchImpl =
         footer: 'Full message in Resend → Emails → Receiving',
         channel: 'inbox'
       });
+    }
+    if (!sales && typeof onReply === 'function') {
+      try {
+        await onReply({ id: String(id), from, email: addr, subject, text, at: new Date(nowFn()).toISOString() });
+      } catch (err) { console.warn('[inbound] reply not saved for the roundup:', err.message); }
     }
     return 'posted';
   }

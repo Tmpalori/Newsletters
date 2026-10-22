@@ -181,3 +181,56 @@ export function renderEventCard(ev) {
   }
   return png;
 }
+
+// The newsletter sections' share cards (server/sections.js): the pet of the
+// week with its photo, or New in Town with its newest places. Same look as
+// the event cards; `photo` is the pet's JPEG as base64.
+export function sectionCardSvg({ kicker, title, lines = [], photo = null }) {
+  // Only base64 goes into the SVG attribute (it comes from the worker's file).
+  if (photo && !/^[A-Za-z0-9+/]+={0,2}$/.test(photo)) photo = null;
+  const { logo, skyline } = getAssets();
+  const left = 64;
+  const textLeft = photo ? 560 : left;
+  const max = W - textLeft - 64;
+  const parts = [];
+  if (photo) {
+    parts.push(`<clipPath id="ph"><rect x="64" y="64" width="440" height="440" rx="28"/></clipPath>`);
+    parts.push(`<rect x="72" y="72" width="440" height="440" rx="28" fill="${INK}"/>`);
+    parts.push(`<image href="data:image/jpeg;base64,${photo}" x="64" y="64" width="440" height="440" preserveAspectRatio="xMidYMid slice" clip-path="url(#ph)"/>`);
+    parts.push(`<rect x="64" y="64" width="440" height="440" rx="28" fill="none" stroke="${INK}" stroke-width="6"/>`);
+  }
+  parts.push(`<text x="${textLeft}" y="${photo ? 150 : 120}" font-family="Nunito" font-weight="800" font-size="30" letter-spacing="4" fill="#FF7A3D">${esc(stripEmoji(kicker).toUpperCase())}</text>`);
+  const t = fitName(stripEmoji(title), max, photo ? 170 : 140);
+  let y = firstBaseline(photo ? 170 : 140, t.size);
+  t.lines.forEach((line, i) => {
+    if (i) y += lineHeight(t.size);
+    parts.push(`<text x="${textLeft}" y="${y}" font-family="Fredoka" font-weight="700" font-size="${t.size}" fill="${INK}">${esc(line)}</text>`);
+  });
+  for (const line of lines.slice(0, 3)) {
+    y += 54;
+    parts.push(`<text x="${textLeft}" y="${y}" font-family="Nunito" font-weight="800" font-size="34" fill="${MUTED}">${esc(ellipsize(stripEmoji(line), 34, max, 'Nunito'))}</text>`);
+  }
+  parts.push(`<image href="${logo}" x="${textLeft}" y="${H - 200}" width="64" height="64"/>`);
+  parts.push(`<text x="${textLeft + 80}" y="${H - 155}" font-family="Fredoka" font-weight="700" font-size="40" fill="${INK}">${esc(town.siteName)}</text>`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDF0FA"/><stop offset="1" stop-color="#FFF4D6"/></linearGradient></defs>
+<rect width="${W}" height="${H}" fill="url(#bg)"/>
+<rect width="${W}" height="16" fill="${SUN}"/>
+<image href="${skyline}" x="0" y="${H - 112}" width="${W}" height="112" preserveAspectRatio="xMidYMax slice"/>
+${parts.join('\n')}
+</svg>`;
+}
+
+export function renderSectionCard(card) {
+  const key = `section|${createHash('sha1').update(JSON.stringify([CARD_RENDER_VERSION, town.id, card.kicker, card.title, card.lines, card.photo ? card.photo.length : 0, card.photo ? card.photo.slice(-64) : ''])).digest('hex')}`;
+  let png = cache.get(key);
+  if (!png) {
+    png = new Resvg(sectionCardSvg(card), {
+      fitTo: { mode: 'original' },
+      font: { fontFiles: FONT_FILES, loadSystemFonts: false, defaultFontFamily: 'Nunito' }
+    }).render().asPng();
+    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+    cache.set(key, png);
+  }
+  return png;
+}

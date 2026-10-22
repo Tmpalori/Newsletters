@@ -99,29 +99,60 @@ describe('repeats', () => {
 });
 
 describe('which events and in what order', () => {
-  // Eight on Saturday: the best six are shown, earliest first.
+  // Eight on Saturday: the best four are shown (a weekday shows three), earliest first.
   const SAT = [
     ['Early Run', '7 AM', 4], ['Pumpkin Patch', '9 AM', 5], ['Library Story Time', '10 AM', 3],
     ['Craft Fair', '11 AM', 4], ['Car Show', '12 PM', 4], ['Concert in the Park', '6 PM', 5],
     ['Bingo', '7 PM', 1], ['Karaoke', '9 PM', 3]
   ].map(([name, time, appeal]) => ({ date: '2026-10-10', name, time, appeal, venue: 'V' }));
 
-  it('shows the best-rated six (picks always), in time order', () => {
+  it('shows the best-rated four on a weekend day (picks always), in time order', () => {
     const evs = [...SAT, { date: '2026-10-10', name: 'Sponsor Night', time: '8 PM', appeal: 1, venue: 'V', featured: true, sponsor_order: 'o2' }];
     const issue = renderWeekly(withPages(evs), { ...opts, edition: 'weekly', now: new Date('2026-10-05T12:30:00Z') });
     const sat = issue.text.split('SATURDAY, OCTOBER 10')[1].split('\n\n')[0].split('\n').filter(Boolean).map(l => l.replace(/^- /, '').split(' @ ')[0]);
-    expect(sat).toEqual(['7 AM Early Run', '9 AM Pumpkin Patch', '11 AM Craft Fair', '12 PM Car Show', '6 PM Concert in the Park', '8 PM Sponsor Night']);
+    expect(sat).toEqual(['7 AM Early Run', '9 AM Pumpkin Patch', '6 PM Concert in the Park', '8 PM Sponsor Night']);
     expect(issue.picks).toEqual(['o2']);
   });
 
-  it('“Don’t miss” is the issue’s three best, in the HTML, text and preheader', () => {
+  it('shows three on a weekday, with "+N more" to the site for the rest', () => {
+    const wed = SAT.map(e => ({ ...e, date: '2026-10-07' }));
+    const issue = renderWeekly(withPages(wed), { ...opts, edition: 'weekly', now: new Date('2026-10-05T12:30:00Z') });
+    const day = issue.text.split('WEDNESDAY, OCTOBER 7')[1].split('\n\n')[0].split('\n').filter(Boolean);
+    expect(day).toHaveLength(3);
+    expect(issue.html).toMatch(/\+5 more on Wednesday/);
+  });
+
+  it('opens with a greeting and an "In this issue" list: the top 3 (linked bullets), how many more, the sections', () => {
     const issue = renderWeekly(withPages(SAT), opts);
     expect(dontMiss(issueDays(SAT, WEEKEND, { weekend: true })).map(e => e.name)).toEqual(['Pumpkin Patch', 'Concert in the Park', 'Early Run']);
-    expect(issue.html).toContain('Don’t miss this weekend');
+    expect(issue.html).not.toContain('Don’t miss');
+    expect(issue.html).toContain('In this issue');
+    expect(issue.html).toMatch(/Top 3 events you don’t want to miss this weekend<\/strong><div[^>]*>•&nbsp;<a href="[^"]*\/events\/[^"]*pumpkin-patch[^"]*"[^>]*>Pumpkin Patch<\/a> <span[^>]*>\(Sat\)<\/span><\/div>/);
     expect(issue.html).toContain('Pumpkin Patch · Concert in the Park · Early Run');
-    expect(issue.text).toContain('DON\'T MISS THIS WEEKEND\n1. Pumpkin Patch (Sat 9 AM, V)');
-    // Filler (Bingo, rated 1) isn't in the weekend count.
+    // The rest: everything else on the site for those days (8 in all).
+    expect(issue.text).toContain('IN THIS ISSUE\n- Top 3 events you don’t want to miss this weekend\n    • Pumpkin Patch (Sat)\n    • Concert in the Park (Sat)\n    • Early Run (Sat)\n- Plus another 5 things going on this weekend');
+    // Readers are told everything on the site for those days (8), though the
+    // email leaves filler (Bingo, rated 1) out of its own list (7).
+    expect(issue.count).toBe(8);
     expect(issue.total).toBe(7);
+    expect(issue.subject).toMatch(/^This weekend in Victoria: 8 things to do/);
+  });
+
+  it('lists the sections, and uses the AI’s greeting only when any event it names is in the issue', () => {
+    const sections = { pet: { name: 'Chloe' }, places: [{ name: 'Chai' }, { name: 'Bao Bao Bakery' }], question: 'Q?', monday: '2026-10-05',
+      poll: { id: 'p', question: 'Have you gone to something you found here?', choices: ['Yes', 'No'] } };
+    const plain = renderWeekly(withPages(SAT), { ...opts, sections });
+    // The poll and the question by name, cut at a word to fit one line.
+    expect(plain.text).toContain('- Meet Chloe, our pet of the week\n- New spots: Chai and Bao Bao Bakery\n- Quick poll: Have you gone to something you found here?\n- Question of the week: Q?');
+    const long = renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, question: 'What is the one local spot you always take visiting family and friends to first?' } });
+    expect(long.text).toContain('- Question of the week: What is the one local spot you always take visiting…');
+    const good = { text: 'Cooler nights and Pumpkin Patch on Saturday: fall is here.', mentions: ['Pumpkin Patch'] };
+    const withAi = renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, intro: good } });
+    expect(withAi.text).toContain(good.text);
+    expect(withAi.html).toContain('Cooler nights and <strong>Pumpkin Patch</strong> on Saturday');
+    // Names something the issue doesn't show (hidden by the event check): a plain greeting.
+    const stale = { text: 'Bingo Night is the big one.', mentions: ['Bingo Night'] };
+    expect(renderWeekly(withPages(SAT), { ...opts, sections: { ...sections, intro: stale } }).text).not.toContain('Bingo Night is the big one');
   });
 
   it('a small issue skips the box', () => {
@@ -137,13 +168,14 @@ describe('layout', () => {
 
   it('Vic’s Picks get space around them and no dashed line above', () => {
     const rowStyle = name => [...html.matchAll(/<tr><td style="([^"]*)">((?:(?!<tr>)[^])*?)>([A-H])<\/a>/g)].find(m => m[3] === name)[1];
+    // Four on a Saturday: E (its "12 AM" sorts first), A, then the picks B and C.
     expect(rowStyle('A')).not.toContain('dashed');
-    expect(rowStyle('D')).toContain('dashed');
+    expect(rowStyle('E')).toContain('dashed');
     expect(html.match(/<tr><td style="padding:6px 0;"><table/g)).toHaveLength(2);
   });
 
   it('"+N more" is a pill in the day’s color, not a plain link', () => {
-    const pill = html.match(/<a [^>]*>\+2 more on Saturday →<\/a>/)[0];
+    const pill = html.match(/<a [^>]*>\+4 more on Saturday →<\/a>/)[0];
     expect(pill).toContain('border-radius:999px');
     expect(pill).toMatch(/#B9A6FF/i); // Saturday's color, as on its header
   });
@@ -161,7 +193,7 @@ describe('the same as the site', () => {
   const MON = new Date('2026-10-05T12:30:00Z');
   const weekly = { ...opts, edition: 'weekly', now: MON };
 
-  it('times are formatted like the site, and "Don’t miss" gets AM/PM from a shared range', async () => {
+  it('times are formatted like the site', async () => {
     const { formatTime } = await import('../server/seo.js');
     const evs = [
       { date: '2026-10-09', name: 'Fair', time: '4-10 p.m.', venue: 'Grounds', appeal: 5 },
@@ -175,7 +207,7 @@ describe('the same as the site', () => {
     expect(issue.html).toContain('>7:30 AM</span>');
     expect(issue.html).not.toContain('07:30');
     expect(issue.text).toContain('- 8:00 PM Jazz @ Club');
-    expect(issue.text).toMatch(/Fair \(Fri 4 PM, Grounds\)/);
+    expect(issue.text).not.toContain('DON\'T MISS');
   });
 
   it('free: true is the Free icon on the site and in the email, never left out of the three', async () => {
@@ -203,7 +235,7 @@ describe('the same as the site', () => {
   it('the weekly "+N more" opens that day on the homepage', () => {
     const evs = Array.from({ length: 8 }, (_, i) => ({ date: '2026-10-09', name: `E${i}`, time: `${i + 8} AM`, venue: 'V', appeal: 4 }));
     const html = renderWeekly(withPages(evs), weekly).html;
-    expect(html).toMatch(/href="https:\/\/www\.thevic361\.com\/\?utm_[^"]*#day-4"[^>]*>\+2 more on Friday/);
+    expect(html).toMatch(/href="https:\/\/www\.thevic361\.com\/\?utm_[^"]*#day-4"[^>]*>\+4 more on Friday/);
   });
 
   it('a hub page colors a day by its weekday, not its position', async () => {
@@ -223,5 +255,31 @@ describe('the same as the site', () => {
     expect(w.text).toContain('- Today 7 PM: Tonight');
     expect(w.text).toContain('- Tue, Oct 13 6 PM: Tuesday Pick');
     expect(w.text.indexOf('Tonight')).toBeLessThan(w.text.indexOf('Tuesday Pick'));
+  });
+});
+
+describe('the multi-agent review (Oct 2026)', () => {
+  const MON2 = new Date('2026-10-05T12:30:00Z');
+  const base = { siteUrl: 'https://www.thevic361.com', unsubscribeUrl: '#', edition: 'weekly', now: MON2 };
+  const day = (name, i, extra = {}) => ({ date: '2026-10-07', name, time: `${8 + i} AM`, venue: `Place ${i}`, ...extra });
+
+  it('always shows a paid pick, even past the day’s cap', () => {
+    // Four paid picks on a weekday (3 a day): all four run.
+    const evs = [0, 1, 2, 3].map(i => day(`Paid Pick ${i}`, i, { featured: true, sponsor_order: `o${i}` })).concat([day('Other', 5, { appeal: 5 })]);
+    const issue = renderWeekly(withPages(evs), base);
+    for (const i of [0, 1, 2, 3]) expect(issue.html).toContain(`Paid Pick ${i}`);
+    expect(issue.picks.length).toBe(4);
+  });
+
+  it('uses the plain greeting when the AI names an event the issue doesn’t lead with', () => {
+    const evs = [day('Zoo Boo', 0, { appeal: 5 }), day('Haunted Hayride Night', 1, { date: '2026-10-20' })];
+    const sections = { intro: { edition: 'weekly', week: '2026-10-05', text: 'Happy Monday! Catch the Haunted Hayride Night soon.', mentions: [] } };
+    const issue = renderWeekly(withPages(evs), { ...base, sections });
+    expect(issue.html).not.toContain('Haunted Hayride Night soon');
+  });
+
+  it('never fails an issue over a malformed sections object', () => {
+    const sections = { monday: '2026-10-05', places: [null], pet: { name: 'X' }, roundup: { answers: [null] } };
+    expect(() => renderWeekly(withPages([day('Zoo Boo', 0)]), { ...base, sections })).not.toThrow();
   });
 });

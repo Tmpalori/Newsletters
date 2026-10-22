@@ -30,6 +30,15 @@ def test_creates_the_town(tmp_path, capsys):
         "areaZips": ["77414", "77404"], "otherTowns": ["wharton", "palacios"]}
     assert (tmp_path / "bay" / "local_events.yaml").read_text().endswith("events: []\n")
     assert json.loads((tmp_path / "bay" / "venues.json").read_text()) == []   # never Victoria's root list
+    # The newsletter sections: off, no sources yet, questions and polls to start.
+    sx = json.loads((tmp_path / "bay" / "sections.json").read_text())
+    assert sx["enabled"] is False and sx["pets"] == [] and sx["new_in_town"] == {}
+    assert len(sx["questions"]) >= 8 and len(sx["polls"]) >= 3
+    assert "Bay City" in sx["questions"][0] and "The Bay 979" in sx["polls"][0]["question"]
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
+    import sections
+    for q in sx["questions"]:
+        assert not sections.rule_problems(q, "question"), q        # the same rules as the AI's
     assert (tmp_path / "bay" / "public").is_dir()
     assert json.loads((tmp_path / "index.json").read_text()) == {"towns": ["victoria", "bay"]}
     # town.py reads it back as the server would at boot.

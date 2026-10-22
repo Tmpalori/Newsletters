@@ -1,0 +1,80 @@
+{
+  "enabled": true,
+  "pets": [
+    {
+      "name": "Florence-Lauderdale Animal Services",
+      "source": "24petconnect",
+      "code": "PP5622",
+      "address": "Florence",
+      "url": "https://24petconnect.com/PP5622"
+    }
+  ],
+  "new_in_town": {
+    "source": "growthzone_ribbons",
+    "base": "https://business.shoalschamber.com"
+  },
+  "good_news": {
+    "sources": [
+      {
+        "source": "granicus",
+        "client": "florenceal",
+        "view_id": 1,
+        "match": "Council",
+        "body": "Florence City Council"
+      }
+    ]
+  },
+  "questions": [
+    "What's your favorite song recorded in the Shoals?",
+    "Best thing to order at Trowbridge's?",
+    "Best view of the Tennessee River?",
+    "Favorite W.C. Handy Music Festival memory?",
+    "One stop for out-of-town guests: Ivy Green, the Music Hall of Fame or somewhere else?",
+    "Have you left a stone at Tom's Wall? Tell us about it.",
+    "Best breakfast in the Shoals?",
+    "A small business more people should know about?",
+    "Best place to hear live music on a weeknight?",
+    "Best burger in the Shoals? Make your case.",
+    "What Shoals tradition do you never miss?",
+    "Best thing you did in the Shoals this year?"
+  ],
+  "polls": [
+    {
+      "id": "went-to-event",
+      "question": "Have you gone to something you found in Shoals Setlist?",
+      "choices": [
+        "Yes, more than once",
+        "Yes, once",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "tried-a-place",
+      "question": "Have you tried a place you first saw here?",
+      "choices": [
+        "Yes",
+        "Not yet",
+        "It's on my list"
+      ]
+    },
+    {
+      "id": "forward",
+      "question": "Do you ever forward Shoals Setlist to someone?",
+      "choices": [
+        "All the time",
+        "Sometimes",
+        "Not yet"
+      ]
+    },
+    {
+      "id": "best-season",
+      "question": "Best time of year around here?",
+      "choices": [
+        "Spring",
+        "Summer",
+        "Fall",
+        "Winter"
+      ]
+    }
+  ]
+}

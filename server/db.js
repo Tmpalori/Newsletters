@@ -913,6 +913,21 @@ class FileStore {
     });
   }
 
+  // ─── Newsletter sections (server/sections.js) ───
+  // Readers' replies, for the Thursday roundup: kept 30 days.
+  async saveReaderReply(r) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!Array.isArray(data.reader_replies)) data.reader_replies = [];
+      if (data.reader_replies.some(x => x.id === r.id)) return false;
+      const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+      data.reader_replies = data.reader_replies.filter(x => x.created_at >= cutoff);
+      data.reader_replies.push({ id: r.id, created_at: r.created_at, name: r.name || '', email: r.email || '', subject: r.subject || '', text: r.text || '' });
+      await this._write(data);
+      return true;
+    });
+  }
+
   // Newsletter link clicks (/email/c, server/newsletter.js): one row per
   // issue, subscriber and link, with the first click's time and a count.
   // Like opens, an id that isn't a subscriber is ignored.
@@ -926,6 +941,38 @@ class FileStore {
       await this._write(data);
       return true;
     });
+  }
+
+  async listReaderReplies(since) {
+    const data = await this._read();
+    return (data.reader_replies || []).filter(x => x.created_at >= since).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+  }
+
+  // One-tap polls: one vote per subscriber per poll; a real subscriber only.
+  // One vote per active subscriber. A different choice within burstMs of
+  // the last click is a mail scanner opening every link: the vote is void
+  // (choice -1, not counted) and stays void through the rest of the burst.
+  // → { choice } as stored, or null for a reader who can't vote.
+  async recordPollVote({ week, poll, subscriber_id, choice, at, burstMs = 0 }) {
+    return this._withWrite(async () => {
+      const data = await this._read();
+      if (!data.subscribers.some(x => x.id === subscriber_id && x.status === 'active')) return null;
+      if (!Array.isArray(data.poll_votes)) data.poll_votes = [];
+      const row = data.poll_votes.find(x => x.week === week && x.poll === poll && x.subscriber_id === subscriber_id);
+      const burst = row && row.choice !== choice && Math.abs(Date.parse(at) - Date.parse(row.at)) < burstMs;
+      const stored = burst ? -1 : choice;
+      if (row) Object.assign(row, { choice: stored, at });
+      else data.poll_votes.push({ week, poll, subscriber_id, choice: stored, at, first_at: at });
+      await this._write(data);
+      return { choice: stored };
+    });
+  }
+
+  async countPollVotes(week, poll) {
+    const data = await this._read();
+    const out = {};
+    for (const v of data.poll_votes || []) if (v.week === week && v.poll === poll && v.choice >= 0) out[v.choice] = (out[v.choice] || 0) + 1;
+    return out;
   }
 
   // Every click row for the given issues: [{ week_key, subscriber_id, url, clicks, first_at }].
@@ -1387,7 +1434,12 @@ class FileStore {
       if (contact) data.contact_messages = keep;
       const inboxBefore = Array.isArray(data.inbox_events) ? data.inbox_events.length : 0;
       if (inboxBefore) data.inbox_events = data.inbox_events.filter(e => !(String(e.created_at || '') < contactBefore));
-      if (submissions || contact || (inboxBefore && inboxBefore !== data.inbox_events.length)) await this._write(data);
+      // Readers' replies (the roundup) keep 30 days; poll votes a year.
+      const n = { replies: (data.reader_replies || []).length, votes: (data.poll_votes || []).length };
+      if (n.replies) data.reader_replies = data.reader_replies.filter(x => !(String(x.created_at || '') < replyCutoff()));
+      if (n.votes) data.poll_votes = data.poll_votes.filter(x => !(String(x.at || '') < voteCutoff()));
+      const sxGone = n.replies - (data.reader_replies || []).length + n.votes - (data.poll_votes || []).length;
+      if (submissions || contact || sxGone || (inboxBefore && inboxBefore !== data.inbox_events.length)) await this._write(data);
       return { submissions, contact_messages: contact };
     });
   }
@@ -1404,6 +1456,16 @@ class FileStore {
       const out = { subscribers: 0, email_opens: 0, submissions: 0, contact_messages: 0, sponsor_orders: 0, referral_rewards: 0, newsletter_sends: 0 };
       const gone = new Set(data.subscribers.filter(x => same(x.email)).map(x => x.id));
       out.subscribers = gone.size;
+      if (Array.isArray(data.poll_votes)) {
+        const before = data.poll_votes.length;
+        data.poll_votes = data.poll_votes.filter(x => !gone.has(x.subscriber_id));
+        if (before !== data.poll_votes.length) out.poll_votes = before - data.poll_votes.length;
+      }
+      if (Array.isArray(data.reader_replies)) {
+        const before = data.reader_replies.length;
+        data.reader_replies = data.reader_replies.filter(x => !same(x.email));
+        if (before !== data.reader_replies.length) out.reader_replies = before - data.reader_replies.length;
+      }
       data.subscribers = data.subscribers.filter(x => !gone.has(x.id));
       const opens = data.email_opens.length;
       data.email_opens = data.email_opens.filter(x => !gone.has(x.subscriber_id));
@@ -1459,6 +1521,10 @@ class FileStore {
 // shape normalizePayload gives), and the rewards that hadn't gone out.
 const BLANK_SUBMITTER = { submitter_first_name: '', submitter_last_name: '', submitter_phone: '' };
 const OPEN_REWARD = new Set(['pending', 'held', 'failed', 'manual']);
+// The newsletter sections' personal data (purgePersonalData): readers' replies
+// keep 30 days (Thursday's roundup needs a week), poll votes a year.
+const replyCutoff = () => new Date(Date.now() - 30 * 86400000).toISOString();
+const voteCutoff = () => new Date(Date.now() - 365 * 86400000).toISOString();
 const FORGOTTEN = 'Skipped: the person asked us to delete their data.';
 
 // A job_queue row as the rest of the code sees it (ISO dates, numeric id).
@@ -2382,6 +2448,61 @@ class PgStore {
     return r.rows;
   }
 
+  // ─── Newsletter sections (server/sections.js): see FileStore. Their own
+  // tables, made on first use, so a town without sections gets none.
+  async _sectionTables() {
+    await this.ready();
+    if (!this._sectionTablesPromise) {
+      this._sectionTablesPromise = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS reader_replies (
+          id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL, name TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS poll_votes (
+          week TEXT NOT NULL, poll TEXT NOT NULL, subscriber_id TEXT NOT NULL, choice INTEGER NOT NULL,
+          at TIMESTAMPTZ NOT NULL, first_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (week, poll, subscriber_id))`)
+        .catch(err => { this._sectionTablesPromise = null; throw err; });
+    }
+    await this._sectionTablesPromise;
+  }
+
+  async saveReaderReply(r) {
+    await this._sectionTables();
+    await this.pool.query(`DELETE FROM reader_replies WHERE created_at < NOW() - INTERVAL '30 days'`);
+    const q = await this.pool.query(
+      `INSERT INTO reader_replies (id, created_at, name, email, subject, text) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+      [r.id, r.created_at, r.name || '', r.email || '', r.subject || '', r.text || '']);
+    return q.rowCount > 0;
+  }
+
+  async listReaderReplies(since) {
+    await this._sectionTables();
+    const q = await this.pool.query('SELECT id, created_at, name, email, subject, text FROM reader_replies WHERE created_at >= $1 ORDER BY created_at', [since]);
+    return q.rows.map(r => ({ ...r, created_at: new Date(r.created_at).toISOString() }));
+  }
+
+  // One statement, so a scanner's clicks arriving at once still void the
+  // vote (the row lock orders them). See FileStore.recordPollVote.
+  async recordPollVote({ week, poll, subscriber_id, choice, at, burstMs = 0 }) {
+    await this._sectionTables();
+    const q = await this.pool.query(
+      `INSERT INTO poll_votes (week, poll, subscriber_id, choice, at, first_at)
+         SELECT $1, $2, id, $4, $5, $5 FROM subscribers WHERE id = $3 AND status = 'active'
+       ON CONFLICT (week, poll, subscriber_id) DO UPDATE SET
+         choice = CASE WHEN poll_votes.choice <> EXCLUDED.choice
+                        AND abs(extract(epoch FROM EXCLUDED.at - poll_votes.at)) * 1000 < $6 THEN -1
+                       ELSE EXCLUDED.choice END,
+         at = GREATEST(poll_votes.at, EXCLUDED.at)
+       RETURNING choice`,
+      [week, poll, subscriber_id, choice, at, burstMs]);
+    return q.rowCount ? { choice: q.rows[0].choice } : null;
+  }
+
+  async countPollVotes(week, poll) {
+    await this._sectionTables();
+    const q = await this.pool.query('SELECT choice, COUNT(*)::int AS n FROM poll_votes WHERE week = $1 AND poll = $2 AND choice >= 0 GROUP BY choice', [week, poll]);
+    return Object.fromEntries(q.rows.map(r => [r.choice, r.n]));
+  }
+
   // See FileStore.databaseSpan.
   async databaseSpan() {
     await this.ready();
@@ -2873,6 +2994,10 @@ class PgStore {
        WHERE created_at < $1::timestamptz AND (submitter_ip IS NOT NULL OR user_agent IS NOT NULL)`, [submissionsBefore]);
     const msgs = await this.pool.query('DELETE FROM contact_messages WHERE created_at < $1::timestamptz', [contactBefore]);
     await this.pool.query('DELETE FROM inbox_events WHERE created_at < $1::timestamptz', [contactBefore]);
+    // The sections' tables exist only once a town has used them.
+    const t = await this.pool.query("SELECT to_regclass('reader_replies') AS r, to_regclass('poll_votes') AS v");
+    if (t.rows[0] && t.rows[0].r) await this.pool.query('DELETE FROM reader_replies WHERE created_at < $1::timestamptz', [replyCutoff()]);
+    if (t.rows[0] && t.rows[0].v) await this.pool.query('DELETE FROM poll_votes WHERE at < $1::timestamptz', [voteCutoff()]);
     return { submissions: subs.rowCount || 0, contact_messages: msgs.rowCount || 0 };
   }
 
@@ -2887,6 +3012,15 @@ class PgStore {
     try {
       if (client) await db.query('BEGIN');
       const out = {};
+      const sx = (await db.query("SELECT to_regclass('reader_replies') AS r, to_regclass('poll_votes') AS v")).rows[0] || {};
+      if (sx.v) {
+        const votes = n(await db.query('DELETE FROM poll_votes WHERE subscriber_id IN (SELECT id::text FROM subscribers WHERE lower(email) = $1)', [email]));
+        if (votes) out.poll_votes = votes;
+      }
+      if (sx.r) {
+        const replies = n(await db.query('DELETE FROM reader_replies WHERE lower(email) = $1', [email]));
+        if (replies) out.reader_replies = replies;
+      }
       out.email_opens = n(await db.query(
         'DELETE FROM email_opens WHERE subscriber_id IN (SELECT id FROM subscribers WHERE lower(email) = $1)', [email]));
       const clicksGone = n(await db.query(
