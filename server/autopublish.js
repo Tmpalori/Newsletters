@@ -158,7 +158,8 @@ function sortKey(ev) {
 //    removed/hidden events are matched fuzzily (sameEvent).
 // 8: this week's earlier days stay published and fill in from the
 //    collector (its window starts Monday), so the week view isn't empty.
-export const AUTO_PUBLISH_RULES = 8;
+// 9: New & Notable finds whose link the collector didn't check come down.
+export const AUTO_PUBLISH_RULES = 9;
 
 // Sources whose events can't be retired for going missing. FB/IG posts are
 // read back only a couple of weeks, so a post announcing an event weeks out
@@ -603,11 +604,14 @@ export function createAutoPublish({ store, candidatesFile, readJsonFile, nowFn, 
     }
     const payload = {
       ...extras,
-      // Candidates from before New & Notable was automated have no list:
-      // keep whatever is published.
+      // Candidates with no list (New & Notable didn't run, or predates the
+      // automation): keep what's published, minus collector finds whose link
+      // was never checked. Hand-added items (no "added" date) stay.
       ...(candidates && Array.isArray(candidates.new_and_notable)
         ? { new_and_notable: mergeNotable(candidates.new_and_notable, extras.new_and_notable, today) }
-        : {}),
+        : Array.isArray(extras.new_and_notable)
+          ? { new_and_notable: extras.new_and_notable.filter(n => n && (n.checked === true || typeof n.added !== 'string')) }
+          : {}),
       last_updated: now,
       events,
       // "Show anyway" keys follow an event this run renamed.
