@@ -278,6 +278,11 @@ export function jobsSummary(st) {
       status: j.status, finished_at: j.finished_at, seconds: Number.isFinite(r.seconds) ? r.seconds : null,
       ...(kind === 'collect' ? { upcoming: r.upcoming ?? null, events: r.events ?? null, warnings: r.warnings || '', sources: r.sources || {},
         scrape_stops: scrapeStops(r.scrape_stops), apify: apifySpend(r.apify) } : {}),
+      // A "done" sections run can still be thin: what went in and what went wrong.
+      ...(kind === 'sections' ? { pet: typeof r.pet === 'string' ? r.pet : null, new_in_town: Number.isFinite(r.new_in_town) ? r.new_in_town : null,
+        good_news: Number.isFinite(r.good_news) ? r.good_news : null, skipped: typeof r.skipped === 'string' ? r.skipped : null,
+        problems: [...(Array.isArray(r.ai_problems) ? r.ai_problems : []), ...(Array.isArray(r.source_problems) ? r.source_problems : [])]
+          .filter(p => typeof p === 'string').slice(0, 10).map(p => p.slice(0, 200)) } : {}),
       ...(j.status === 'failed' ? { error: String(r.error || '').slice(0, 300) } : {})
     };
   }

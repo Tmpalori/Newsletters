@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "pets": [
+    {"name": "Tupelo-Lee Humane Society", "source": "shelterluv", "gid": "11747",
+     "address": "2795 Cliff Gookin Blvd", "url": "https://tupeloleehumane.org/adopt/"}
+  ],
+  "new_in_town": {"source": "growthzone_ribbons", "base": "https://business.cdfms.org"},
+  "good_news": {"sources": [
+    {"source": "municode", "cid": "TUPELOMS", "ppid": "beb0a793-c749-4172-bd04-ecf1a0e39a5f", "body": "Tupelo City Council"}
+  ]},
+  "questions": [
+    "Where do you get the best burger in Tupelo, and what do you order?",
+    "What's your usual order at Johnnie's Drive-In?",
+    "Which animal at Tupelo Buffalo Park do you always go see first?",
+    "Where do you take family when they visit Tupelo?",
+    "Favorite stretch of the Natchez Trace for a walk, ride or drive?",
+    "What's a Tupelo restaurant you've loved for years?",
+    "Favorite memory from downtown Tupelo or Fairpark?",
+    "What's the best thing you did in Tupelo this year?",
+    "What's a small business in Tupelo more people should know about?",
+    "Favorite spot at Veterans Memorial Park: the lake, the trail or somewhere else?",
+    "What Tupelo tradition do you never miss?",
+    "Ever bought something at Reed's or Tupelo Hardware? What was it?"
+  ],
+  "polls": [
+    {"id": "went-to-event", "question": "Have you gone to something you found in Tupelo Current?", "choices": ["Yes, more than once", "Yes, once", "Not yet"]},
+    {"id": "tried-a-place", "question": "Have you tried a place you first saw here?", "choices": ["Yes", "Not yet", "It's on my list"]},
+    {"id": "forward", "question": "Do you ever forward Tupelo Current to someone?", "choices": ["All the time", "Sometimes", "Not yet"]},
+    {"id": "best-season", "question": "Best time of year in Tupelo?", "choices": ["Spring", "Summer", "Fall", "Winter"]}
+  ]
+}

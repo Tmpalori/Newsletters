@@ -2,6 +2,16 @@
   "HASHTAGS": "#VictoriaTX #ThingsToDoVictoria #VictoriaTexas #361 #TheVic361",
   "SITE": "https://www.thevic361.com",
   "TITLES": {
+    "new": [
+      "New in Victoria, TX",
+      "New in Victoria",
+      "/new-in-town"
+    ],
+    "pet": [
+      "Pet of the week in Victoria, TX",
+      "Pet of the Week",
+      "/pets"
+    ],
     "today": [
       "Today in Victoria, TX",
       "Today in Victoria",

@@ -18,6 +18,9 @@ Jobs:
                      report; nothing when the town has no ads settings)
   digest             send_digest.py (Sunday night's email of what's
                      collected; nothing without RESEND_API_KEY or SMTP settings)
+  sections           scripts/sections.py (the pet of the week, new in town,
+                     good news and the readers' answers, SECTIONS.md); the
+                     early Monday and Thursday runs only recheck the pet
 
 Environment (on Railway, the secrets are references to the web service's
 own variables, so nothing is copied):
@@ -61,7 +64,7 @@ from town import TOWN, VICTORIA, meta_allowed, repo_path, site_url, town_paths, 
 # How long each script may run (the site gives up a little later, see
 # JOB_KINDS in server/jobs.js). The collect's own budget is 50 minutes.
 TIMEOUTS = {"collect": 55 * 60, "event-check": 15 * 60, "submission-review": 8 * 60, "social-kit": 10 * 60,
-            "meta-ads": 5 * 60, "digest": 5 * 60}
+            "meta-ads": 5 * 60, "digest": 5 * 60, "sections": 10 * 60}
 LOG_TAIL = 60
 LINE_MAX = 500          # a log line's length in a report (one line can be megabytes)
 HTTP_TIMEOUT = 60
@@ -126,6 +129,38 @@ class Site:
             r = self.session.put(self._url(f"/api/jobs/files/{name}"), headers=self.headers, json=data, timeout=300)
             r.raise_for_status()
             return r.json()
+        return _retry(go)
+
+    def get_replies(self, since):
+        """Readers' replies to the newsletter since a date (server/sections.js)."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/replies"), headers=self.headers, params={"since": since}, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return []
+            r.raise_for_status()
+            return r.json().get("replies") or []
+        return _retry(go)
+
+    def get_sections_state(self):
+        """Whether the town's sections are on (the web service's switch is
+        the only one) and this week's pet and places as readers see them;
+        None from a site that doesn't say."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/sections"), headers=self.headers, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("sections")
+        return _retry(go)
+
+    def get_issue(self, edition):
+        """The next issue's top events and count (its opening paragraph)."""
+        def go():
+            r = self.session.get(self._url("/api/jobs/issue"), headers=self.headers, params={"edition": edition}, timeout=HTTP_TIMEOUT)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("issue")
         return _retry(go)
 
     def put_social(self, build, name, body):
@@ -310,10 +345,24 @@ def social_plan(today):
         return ["week", "weekend", "today"], "week", False
     if dow == 4:
         return ["weekend", "today"], "weekend", True
+    # The newsletter sections' posts (SECTIONS.md): Tuesday the pet of the
+    # week as a post of its own after "today" (own_posts), Wednesday New in
+    # Town. A town without them (or nothing to show) posts "today" as before
+    # (job_social_kit).
+    if dow == 2:
+        return ["today", "pet"], "today", False
+    if dow == 3:
+        return ["today", "new"], "new", False
     return ["today"], "today", False
 
 
-SOCIAL_SKIP = {"reel.txt", "posted.json"}
+def own_posts(today):
+    """Kits posted on their own, after the day's post, when they have
+    slides: Tuesday the pet of the week (the owner, Oct 2026)."""
+    return ["pet"] if today.isoweekday() == 2 else []
+
+
+SOCIAL_SKIP = {"reel.txt", "posted.json", "sections.json"}
 
 
 def job_social_kit(site, run=run_script, env=None, post=None, today=None, session=None):
@@ -328,13 +377,28 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
     build = f"w{int(time.time())}-{os.getpid()}"
     env["SOCIAL_BUILD"] = build
     with tempfile.TemporaryDirectory() as kit_dir:
-        code, tail = run([sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds),
-                          "--today", today.isoformat()], TIMEOUTS["social-kit"], env)
+        cmd = [sys.executable, "-u", "scripts/social_kit.py", "--out", kit_dir, "--kinds", ",".join(kinds), "--today", today.isoformat()]
+        if any(k in ("pet", "new") for k in kinds):
+            # This week's pet and places as readers see them (fresh, minus
+            # what the owner took out), and the site's switch.
+            state = _sections_state(site)
+            env = _sections_env(site, env, state)
+            sections_path = os.path.join(kit_dir, "sections.json")
+            # The site didn't answer: no pet or places post (the raw file
+            # may be last week's, or have something the owner took out).
+            _write_json(sections_path, state if isinstance(state, dict) and state.get("enabled") else {})
+            cmd += ["--sections", sections_path]
+        code, tail = run(cmd, TIMEOUTS["social-kit"], env)
         if code != 0:
             return "failed", {"error": f"The social kit build exited with code {code}.", "log_tail": tail}
         manifest = _read_json(os.path.join(kit_dir, "kit.json"))
         if not manifest or manifest.get("build") != build:
             return "failed", {"error": "The social kit build wrote no kit.json for this run.", "log_tail": tail}
+        # No pet or new places to post (or the town's sections are off): the
+        # usual "today" post instead.
+        if post_kind in ("pet", "new") and not ((manifest.get("kits") or {}).get(post_kind) or {}).get("slides"):
+            post_kind = "today"
+        extra = [k for k in own_posts(today) if ((manifest.get("kits") or {}).get(k) or {}).get("slides")]
         names = sorted(n for n in os.listdir(kit_dir) if n not in SOCIAL_SKIP and os.path.isfile(os.path.join(kit_dir, n)))
         names.sort(key=lambda n: n == "kit.json")      # the manifest last
         size = 0
@@ -378,6 +442,8 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
                 codes.append(post(["--kind", post_kind, "--kit-dir", kit_dir], session=session, on_save=save))
                 if extra_today:
                     codes.append(post(["--kind", "today", "--if-featured", "--kit-dir", kit_dir], session=session, on_save=save))
+                for k in extra:
+                    codes.append(post(["--kind", k, "--kit-dir", kit_dir], session=session, on_save=save))
         except Exception as e:      # noqa: BLE001 - reported as the job's failure
             codes.append(1)
             tee.write(f"::error::{type(e).__name__}: {e}\n")
@@ -392,7 +458,7 @@ def job_social_kit(site, run=run_script, env=None, post=None, today=None, sessio
             errors = [line.replace("::error::", "") for line in tee.tail if line.startswith("::error::")]
             return "failed", {**result, "error": "Posting failed: " + ("; ".join(errors)[:600] or "see the log."),
                               "log_tail": list(tee.tail)}
-        result["posted"] = post_kind + (" (+ today if it had a paid pick)" if extra_today else "")
+        result["posted"] = post_kind + (" (+ today if it had a paid pick)" if extra_today else "") + "".join(f" + {k}" for k in extra)
         return "done", result
 
 
@@ -492,6 +558,61 @@ def job_digest(site, run=run_script, env=None, session=None):
     return "done", {"events": len((events or {}).get("events") or []), "log_tail": tail[-5:]}
 
 
+def job_sections(site, run=run_script, env=None, today=None):
+    """The extra sections (scripts/sections.py): last week's file in (no
+    repeats), the readers' replies since Monday, the new file out. The
+    Monday and Thursday morning runs, right before an issue, only check the
+    pet is still listed (server/scheduler.js JOBS)."""
+    today = today or datetime.now(tz()).date()
+    monday = today - timedelta(days=today.weekday())
+    env = _sections_env(site, env)
+    with tempfile.TemporaryDirectory() as tmp:
+        prev, replies, issue, out = (os.path.join(tmp, n) for n in ("previous.json", "replies.json", "issue.json", "sections.json"))
+        _write_json(prev, site.get_file("sections") or {})
+        _write_json(replies, site.get_replies(monday.isoformat()))
+        before_send = today.weekday() in (0, 3)
+        cmd = [sys.executable, "scripts/sections.py", "--out", out, "--previous", prev, "--replies", replies,
+               "--today", today.isoformat()]
+        if before_send:
+            # The issue that goes out this morning: its opening paragraph.
+            _write_json(issue, site.get_issue("weekly" if today.weekday() == 0 else "weekend") or {})
+            cmd += ["--before-send", "--issue", issue]
+        code, tail = run(cmd, TIMEOUTS["sections"], env)
+        data = _read_json(out)
+        if code == 0 and data is None:
+            return "done", {"skipped": "no sections file came out (no sections.json, or sections are off)", "log_tail": tail[-3:]}
+        if code != 0 or data is None:
+            return "failed", {"error": f"The sections job exited with code {code}.", "log_tail": tail}
+        site.put_file("sections", data)
+    result = {"pet": (data.get("pet") or {}).get("name"), "new_in_town": len(data.get("new_in_town") or []),
+              "good_news": len((data.get("good_news") or {}).get("items") or []), "log_tail": tail[-8:]}
+    if data.get("ai_problems"):
+        result["ai_problems"] = data["ai_problems"]
+    if data.get("source_problems"):
+        result["source_problems"] = data["source_problems"]
+    return "done", result
+
+
+def _sections_state(site):
+    get = getattr(site, "get_sections_state", None)
+    try:
+        return get() if get else None
+    except Exception as e:  # noqa: BLE001 - an old site, or one that's down: go by this service's own setting
+        print(f"::warning::couldn't ask the site whether sections are on: {e}")
+        return None
+
+
+def _sections_env(site, env, state=None):
+    """The site says whether the town's sections are on; SECTIONS here
+    follows it, so one switch (on the web service) turns everything on or
+    off. A site that doesn't say leaves this service's own setting."""
+    env = dict(env if env is not None else os.environ)
+    state = state if state is not None else _sections_state(site)
+    if isinstance(state, dict) and "enabled" in state:
+        env["SECTIONS"] = "1" if state["enabled"] else "0"
+    return env
+
+
 def _social_post_main(argv, session=None, on_save=None):
     sys.path.insert(0, os.path.join(ROOT, "scripts"))
     import social_post
@@ -499,7 +620,7 @@ def _social_post_main(argv, session=None, on_save=None):
 
 
 JOBS = {"social-kit": job_social_kit, "collect": job_collect, "event-check": job_event_check, "submission-review": job_submission_review,
-        "meta-ads": job_meta_ads, "digest": job_digest}
+        "meta-ads": job_meta_ads, "digest": job_digest, "sections": job_sections}
 
 
 def run_one(site, job, run=run_script, clock=time.monotonic):

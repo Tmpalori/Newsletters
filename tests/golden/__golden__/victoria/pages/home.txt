@@ -88,7 +88,7 @@
   </header>
 
   <!-- ═══ BROWSE NAV ═══ (filled in by the server; see server/seo.js) -->
-  <nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner"><a href="/halloween-events">Halloween</a><a href="/today">Today</a><a href="/this-weekend">This Weekend</a><a href="/free-things-to-do">Free</a><a href="/kids-and-family">Kids &amp; Family</a><a href="/live-music">Live Music</a><a href="/food-and-drink">Food &amp; Drink</a><a class="browse-biz" href="/advertise">Feature your business</a></div></nav>
+  <nav class="browse-nav" aria-label="Browse events"><div class="container browse-inner"><a href="/halloween-events">Halloween</a><a href="/today">Today</a><a href="/this-weekend">This Weekend</a><a href="/new-in-town">New in Town</a><a href="/pets">Pets</a><a href="/city-hall">City Hall</a><a href="/free-things-to-do">Free</a><a href="/kids-and-family">Kids &amp; Family</a><a href="/live-music">Live Music</a><a href="/food-and-drink">Food &amp; Drink</a><a class="browse-biz" href="/advertise">Feature your business</a></div></nav>
 
   <!-- ═══ HERO ═══ -->
   <section class="hero">
@@ -153,6 +153,45 @@
         <ul class="notable-list" id="notable-list" role="list">
           <!-- rendered by JS -->
         </ul>
+        <hr class="section-sep">
+      </section>
+
+      <style>
+.sx-feature{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);grid-template-areas:"photo head" "photo body";column-gap:var(--space-6);align-items:start;margin-block:var(--space-8)}
+.sx-feature img{grid-area:photo;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border:3px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:6px 6px 0 var(--color-border)}
+.sx-feature .sx-head{grid-area:head;align-self:end}
+.sx-feature .sx-body{grid-area:body;display:grid;gap:var(--space-3);justify-items:start;margin-top:var(--space-3)}
+.sx-feature .sx-body p{margin:0}
+@media (max-width:640px){.sx-feature{grid-template-columns:120px minmax(0,1fr);grid-template-areas:"photo head" "body body";column-gap:var(--space-4)}.sx-feature .sx-head{align-self:center}.sx-name{font-size:var(--text-xl)}}
+.sx-kicker{font-weight:800;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--color-text-muted)}
+.sx-name{font-family:var(--font-display);font-size:var(--text-2xl);line-height:1;margin:var(--space-1) 0 var(--space-2)}
+.sx-head p{margin:0}
+.sx-muted{color:var(--color-text-muted);font-size:var(--text-sm)}
+.sx-tag{display:inline-block;border:2px solid var(--color-border);border-radius:6px;padding:0 6px;font-size:.7rem;font-weight:800;margin-left:6px;vertical-align:middle;transform:rotate(-3deg);background:var(--color-surface-offset)}
+.notable-name a{color:inherit;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}.sx-when{font-size:.85rem;font-weight:700;color:var(--color-text-muted);margin-top:2px}
+.sx-says{background:var(--color-surface-offset);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);margin-block:var(--space-8)}
+.sx-says h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-4);line-height:1.15}
+.sx-bubble{max-width:85%;background:var(--color-surface);border-radius:18px 18px 18px 4px;padding:10px 14px;margin:0 0 10px}
+.sx-bubble:nth-of-type(even){margin-left:auto;border-radius:18px 18px 4px 18px}
+.sx-bubble b{display:block;font-size:var(--text-xs);color:var(--color-text-muted)}
+.sx-ask{background:var(--color-primary-light);border-radius:var(--radius-xl);padding:var(--space-6) var(--space-5);text-align:center;display:grid;gap:var(--space-3);justify-items:center;margin-block:var(--space-8)}
+.sx-ask h3{font-family:var(--font-display);font-size:var(--text-xl);line-height:1.2;margin:0;max-width:24ch}
+.sx-ask p{margin:0;max-width:44ch}.sx-q{font-size:1.6em;line-height:0;vertical-align:-.3em;color:var(--color-primary)}.sx-q--open{margin-right:4px}.sx-q--close{margin-left:4px}
+.sx-good{border-bottom:1px solid #CFC8EE;padding-bottom:var(--space-5);margin-block:var(--space-8)}
+.sx-rule{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-weight:700;font-size:var(--text-xl);color:var(--color-primary);margin-bottom:var(--space-4)}
+.sx-rule::before,.sx-rule::after{content:"";flex:1;border-top:1px solid #CFC8EE}
+.sx-rule .ico{width:30px;height:30px;margin-right:6px;vertical-align:-6px}
+.sx-good h3{font-family:var(--font-display);font-size:var(--text-xl);margin:var(--space-2) 0 var(--space-3)}
+.sx-good ul{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3)}
+.sx-good li{padding-left:28px;position:relative}
+.sx-good li::before{content:"✓";position:absolute;left:0;font-weight:800}
+</style>
+      <section id="sections">
+      <section class="sx-ask" id="question-of-the-week"><span class="sx-kicker">Question of the week</span>
+        <h3><span class="sx-q sx-q--open" aria-hidden="true">“</span>Where do you take family when they visit Victoria?<span class="sx-q sx-q--close" aria-hidden="true">”</span></h3>
+        <p class="sx-muted">Get Monday's email to send your answer. It could be featured in Thursday's Newsletter!</p>
+        <a class="btn btn--primary" href="/subscribe">Count me in</a>
+      </section>
         <hr class="section-sep">
       </section>
 

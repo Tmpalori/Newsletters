@@ -186,7 +186,7 @@ export function renderTermsPage({ siteUrl }) {
   const op = escHtml(operatorName());
   const body = `
     <h1 class="page-title">Terms of use</h1>
-    <p class="page-lead">The rules for using ${town.siteName}, its newsletter and its forms, in plain English.</p>
+    <p class="page-lead">The rules for using ${town.siteName}, its newsletter and its forms.</p>
     ${updatedLine(TERMS_VERSION)}
     ${section('intro', 'Who we are', `<p>${operatorSentence()} "We" and "us" mean ${op}. By using the site or subscribing, you agree to these terms and to our <a href="/privacy">privacy policy</a>. Buying an ad or a ${town.pickName} is covered by our separate <a href="/advertising-terms">advertising terms</a>.</p>`)}
     ${section('who-can', 'Who can use it', `<p>The site is for a general audience. You need to be at least 13 to subscribe to the newsletter. Event submissions and referral rewards are for adults: 18 or older, or the age of majority in your state if that's higher.</p>`)}

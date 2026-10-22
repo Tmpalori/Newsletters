@@ -988,9 +988,20 @@ export function fillSeasonalNav(html, seasons, current) {
   return html.split(SEASONAL_NAV_SLOT).join(seasonalNavLinks(seasons, current));
 }
 
+// The newsletter sections' pages (server/sections.js) join the menu right
+// after "This Weekend" when the town has them on; none otherwise, so every
+// page is as it was.
+let sectionNav = [];
+export function setSectionNav(links) { sectionNav = Array.isArray(links) ? links : []; }
+
 export function navHtml(current) {
   const links = HUB_PAGES.filter(p => !p.hidden).map(p =>
     `<a href="${p.path}"${p.path === current ? ' aria-current="page"' : ''}>${escHtml(p.nav)}</a>`);
+  if (sectionNav.length) {
+    const at = HUB_PAGES.filter(p => !p.hidden).findIndex(p => p.path === '/this-weekend');
+    links.splice(at === -1 ? links.length : at + 1, 0, ...sectionNav.map(p =>
+      `<a href="${p.path}"${p.path === current ? ' aria-current="page"' : ''}>${escHtml(p.nav)}</a>`));
+  }
   // Last, after the reader's links: where a business finds the sponsor and
   // Pick offers without hunting through the footer.
   const biz = `<a class="browse-biz" href="/advertise"${current === '/advertise' ? ' aria-current="page"' : ''}>Feature your business</a>`;
@@ -1630,7 +1641,7 @@ export function renderComingUp(events, today) {
       </section>`;
 }
 
-export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null, venueOf = () => null }) {
+export function renderHome(template, events, { siteUrl, now, sponsor = null, signupHtml = null, sectionsHtml = '', venueOf = () => null }) {
   const today = localDateStr(now);
   const week = currentWeek(today);
   const weekEvents = events.filter(ev => ev.date >= week[0] && ev.date <= week[6]);
@@ -1647,6 +1658,9 @@ export function renderHome(template, events, { siteUrl, now, sponsor = null, sig
   let page = template;
   // The newsletter signup form (server/newsletter.js) fills the footer slot.
   if (signupHtml) page = page.replace(/<!--SIGNUP_START-->[\s\S]*?<!--SIGNUP_END-->/, () => signupHtml);
+  // The newsletter's sections (server/sections.js), above the sponsor spot;
+  // nothing at all for a town without them.
+  if (sectionsHtml) page = page.replace('<!-- ═══ SPONSOR ═══ -->', () => sectionsHtml + '<!-- ═══ SPONSOR ═══ -->');
   return page
     // Function replacements: event text can contain "$'" or "$&", which a
     // string replacement would expand into chunks of the page.

@@ -3,7 +3,9 @@
 Rendering needs Pillow and runs in the workflow; these tests cover the pure
 helpers that decide what gets posted.
 """
+import json
 import os
+import re
 import sys
 import urllib.error
 from datetime import date
@@ -465,3 +467,44 @@ def test_live_partners_read_from_events_json():
     assert sk.live_partners({"partners": {"active": [{"id": "a", "name": "A"}], "open": ["food"]}}) == [{"id": "a", "name": "A"}]
     assert sk.live_partners({"events": []}) == []
     assert sk.live_partners({"partners": "nope"}) == []
+
+
+def test_section_posts_are_built_only_with_something_to_show_and_never_name_the_source(tmp_path, monkeypatch):
+    import social_kit as sk
+    drawn = []
+    render = lambda kind, data, out: drawn.append(kind) or [f"{kind}-1.png"]
+    monkeypatch.setattr(sk, "jpeg_copies", lambda out, slides: [s.replace(".png", ".jpg") for s in slides])
+    sections = {"pet": {"name": "Chloe", "photo": "QUJD", "facts": "Pit Bull mix · Female", "blurb": "Loves a slow walk.",
+                        "shelter": "County Shelter", "shelter_address": "513 Profit St", "url": "https://shelter.example/chloe"},
+                "new_in_town": [{"name": "Chai Filipino Food", "line": "Filipino food, now open on Main St.", "status": "open"},
+                                {"name": "Bao Bao Bakery", "line": "Buns and pastries.", "status": "soon"}]}
+    pet = sk.build_section_kit("pet", sections, str(tmp_path), render=render)
+    assert pet["slides"] == ["pet-1.png"]
+    assert pet["captions"]["facebook"].startswith("🐾 Meet Chloe, our pet of the week!")
+    assert "Meet Chloe: https://www.thevic361.com/pets" in pet["captions"]["facebook"]
+    assert "shelter.example" not in pet["captions"]["facebook"]
+    assert "https://" not in pet["captions"]["instagram"]
+    new = sk.build_section_kit("new", sections, str(tmp_path), render=render)
+    assert "• Bao Bao Bakery: Buns and pastries." in new["captions"]["facebook"]
+    for text in (pet["captions"]["facebook"], new["captions"]["facebook"], new["captions"]["instagram"]):
+        assert not re.search(r"permit|licen[cs]e|record|filing", text, re.I)
+    # Nothing to show: no kit (the day posts "today").
+    assert sk.build_section_kit("pet", {"pet": {"name": "X"}}, str(tmp_path), render=render) is None
+    assert sk.build_section_kit("new", {"new_in_town": []}, str(tmp_path), render=render) is None
+    assert sk.build_section_kit("pet", sections, str(tmp_path), render=lambda *a: None) is None
+    # The kit's index page lists them under their own titles (it used to
+    # stop the build on a day with a pet or new places).
+    page = sk.render_page({"today": {**new, "slides": ["today-1.png"]}, "pet": pet, "new": new}, "now")
+    assert "<h2>Pet of the Week</h2>" in page and "<h2>New in Victoria</h2>" in page
+
+
+def test_section_posts_follow_the_towns_switch(monkeypatch):
+    import social_kit as sk
+    monkeypatch.setenv("SECTIONS", "1")
+    assert sk.sections_on() is True
+    monkeypatch.setenv("SECTIONS", "0")
+    assert sk.sections_on() is False
+    monkeypatch.delenv("SECTIONS")
+    # Unset: Victoria's sections.json decides.
+    with open(os.path.join(os.path.dirname(__file__), "sections.json")) as f:
+        assert sk.sections_on() is json.load(f)["enabled"]

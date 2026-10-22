@@ -71,6 +71,7 @@ import {
 } from './seo.js';
 import { operatorHtml, operatorName, mailingAddress, emailLink, versionDate, REFERRAL_RULES_VERSION } from './legal.js';
 import { partnerState, categoryOf, partnerHref } from './partners.js';
+import { petPhotoUrl, pollVoteUrl, sectionClickUrl, placeMapUrl, placeWhen } from './sections.js';
 import { botName } from './analytics.js';
 
 const RESEND_API = 'https://api.resend.com';
@@ -84,7 +85,12 @@ const RESEND_API = 'https://api.resend.com';
 const ATEXT = "[a-z0-9!#$%&'*+/=?^_`{|}~-]";
 const EMAIL_RE = new RegExp(`^(?=[^@]{1,64}@)${ATEXT}+(?:\\.${ATEXT}+)*@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$`);
 const BATCH_SIZE = 100;          // Resend batch limit
-const PER_DAY = 6;               // events per day in the email
+// Events per day in the email (the owner, Oct 2026): a short list, with
+// "+N more" to the site for the rest, so the sections have room. Weekdays
+// 3, Friday through Sunday 4 (the weekend issue's days).
+const PER_WEEKDAY = 3;
+const PER_WEEKEND_DAY = 4;
+export const perDay = d => ([5, 6, 0].includes(new Date(d + 'T12:00:00Z').getUTCDay()) ? PER_WEEKEND_DAY : PER_WEEKDAY);
 
 export function newsletterConfig(env = process.env, overrides = {}) {
   const c = {
@@ -311,14 +317,14 @@ export function emailShell({ title, preheader, bodyHtml, footerHtml, siteUrl, pi
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet"></head>
 <body style="margin:0;padding:0;background:${C.bg};">
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escHtml(preheader || '')}${PREHEADER_FILLER}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};"><tr><td align="center" style="padding:16px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${C.card};border:3px solid ${C.ink};border-radius:20px;box-shadow:6px 6px 0 ${C.ink};overflow:hidden;">
-<tr><td align="center" style="background:${C.sky};padding:22px 24px 0;font-family:${DISPLAY};color:${C.ink};">
+<tr><td align="center" style="background:${C.sky};padding:20px 16px 0;font-family:${DISPLAY};color:${C.ink};">
 <div>${emailWordmark()}</div>
 <div style="font-size:30px;font-weight:bold;line-height:1.15;margin:10px 0 12px;">${escHtml(title)}</div></td></tr>
 <tr><td style="background:${C.sky};padding:0;line-height:0;border-bottom:3px solid ${C.ink};"><img src="${siteUrl}/email/skyline.png" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>
-<tr><td style="padding:8px 22px 26px;font-family:${BODY};color:${C.ink};font-size:15px;line-height:1.5;">${bodyHtml}</td></tr>
-<tr><td style="background:${C.navy};padding:18px 24px;border-top:3px solid ${C.ink};font-family:${BODY};color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">${footerHtml}</td></tr>
+<tr><td style="padding:8px 12px 24px;font-family:${BODY};color:${C.ink};font-size:15px;line-height:1.5;">${bodyHtml}</td></tr>
+<tr><td style="background:${C.navy};padding:18px 16px;border-top:3px solid ${C.ink};font-family:${BODY};color:#D6CFFF;font-size:12px;line-height:1.6;font-weight:bold;">${footerHtml}</td></tr>
 </table></td></tr></table>${pixelUrl ? `<img src="${escHtml(pixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;">` : ''}</body></html>`);
 }
 
@@ -489,7 +495,7 @@ export function partnersEmailHtml(state, siteUrl) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:${C.sky};border:3px dashed ${C.ink};border-radius:16px;"><tr><td style="padding:14px 16px;">
 <span style="${PILL_LABEL}">FOUNDING PARTNERS WANTED</span>
 <div style="font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.ink};margin:8px 0 4px;">Own a local business? Be the one we recommend.</div>
-<div style="font-size:14px;color:${C.ink};line-height:1.4;">One business per category, in every issue and on the site. Cancel anytime.</div>
+<div style="font-size:14px;color:${C.ink};line-height:1.4;">One business per category, in every issue and on the site.</div>
 <div style="margin:8px 0 10px;">${chips}</div>
 <a href="${escHtml(join)}" style="display:inline-block;font-family:${DISPLAY};font-size:14px;font-weight:bold;color:#fff;background:${C.accent};border:2px solid ${C.ink};border-radius:999px;padding:7px 16px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">Claim your category →</a>
 </td></tr></table>`;
@@ -544,7 +550,7 @@ export function sampleEmailPreviews(siteUrl = '') {
 }
 
 // ─── Choosing what an issue shows ─────────────────────────────────────
-// Each day shows PER_DAY events: paid Vic's Picks always, then editor's
+// Each day shows perDay(d) events: paid Vic's Picks always, then editor's
 // picks, then the best-rated (`appeal`, 1–5, from the collector), then
 // earlier ones. Shown in time order (picks keep their badge), so a day
 // reads morning to night. The weekend issue leaves out what nobody plans a
@@ -640,9 +646,12 @@ export function issueDays(events, days, { weekend = false } = {}) {
   return out.filter(x => x.list.length);
 }
 
-// The day's events to show: the best PER_DAY, in time order.
-function shownOf(list) {
-  return list.slice(0, PER_DAY).sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
+// The day's events to show: the best perDay(d), in time order. A paid
+// Vic's Pick always shows, even past the cap (a town can sell more picks
+// a day than the email lists).
+function shownOf(list, d) {
+  const n = perDay(d);
+  return [...list.slice(0, n), ...list.slice(n).filter(paidPick)].sort((a, b) => startMin(a) - startMin(b) || pickRank(a) - pickRank(b));
 }
 
 // The issue's top three: best-rated across all its days.
@@ -655,37 +664,284 @@ export function dontMiss(byDay, n = 3) {
 // Sunday (weekend, Thursday). See EDITIONS.
 // partners: the payload's `partners` (server/partners.js partnersPayload);
 // missing means every category is open.
-export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', clickBase = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false }) {
+// ─── The extra sections (server/sections.js, SECTIONS.md) ────────────────
+// Under the events, before the referral box. Each block is its own
+// outlined box in the site's colors; sections = null (a town without
+// them) renders nothing, so its issues are exactly what they were.
+// Each section has its own look so the email doesn't read as one long
+// stack of boxes (the owner, Oct 2026): the days and events keep their
+// outlined boxes; these are open, banded or bubbled instead.
+const sxGap = '<div style="height:20px;line-height:20px;font-size:1px;">&nbsp;</div>';
+const sxKicker = (t, color = C.accent) => `<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${color};">${escHtml(t)}</div>`;
+// A heading with a short, thick underline in the given color, like the
+// site's squiggle headings.
+const sxHeading = (t, color) => `<div style="font-family:${DISPLAY};font-size:23px;font-weight:bold;line-height:1.2;margin:2px 0 0;">${escHtml(t)}</div>
+<div style="width:56px;height:5px;background:${color};border-radius:3px;margin:6px 0 12px;font-size:1px;line-height:5px;">&nbsp;</div>`;
+const sxBtn = (href, label, bg = C.sun) => `<a href="${escHtml(href)}" style="display:inline-block;margin:6px 4px 0;background:${bg};color:${C.ink};border:2px solid ${C.ink};border-radius:999px;padding:8px 16px;font-family:${DISPLAY};font-weight:bold;font-size:15px;text-decoration:none;box-shadow:2px 2px 0 ${C.ink};">${escHtml(label)}</a>`;
+const sxSticker = (t, bg) => `<span style="display:inline-block;margin-left:6px;background:${bg};border:2px solid ${C.ink};border-radius:6px;padding:0 6px;font-family:${DISPLAY};font-size:11px;font-weight:bold;vertical-align:middle;transform:rotate(-3deg);">${t}</span>`;
+// Each section below the events sits on its own soft band (no outline, so
+// it doesn't read as another event box), a different color each, so readers
+// can tell where one ends and the next begins (the owner, Oct 2026). From
+// City Hall is the exception: no band, set between two ink rules with its
+// label set in the top one, so the last section reads like a page footer.
+const SX_BG = { poll: '#ECE9FF', pet: C.sunLight, places: '#E3F6EC', question: C.sky, roundup: '#FFE3EF' };
+const sxBand = (bg, inner, align = 'left') => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border-radius:18px;border-collapse:separate;"><tr><td align="${align}" style="padding:18px 16px;">${inner}</td></tr></table>`;
+const sxRule = `<div style="height:0;border-top:1px solid #CFC8EE;font-size:1px;line-height:0;">&nbsp;</div>`;
+// A thin rule with the label in the middle of it.
+const sxRuleLabel = (label, icon = '') => `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="middle">${sxRule}</td>
+<td width="1" valign="middle" style="padding:0 12px;white-space:nowrap;font-family:${DISPLAY};font-size:20px;font-weight:bold;color:${C.accent};">${icon ? `<img src="${escHtml(icon)}" width="28" height="28" alt="" style="vertical-align:-6px;border:0;margin-right:6px;">` : ''}${escHtml(label)}</td>
+<td valign="middle">${sxRule}</td></tr></table>`;
+
+// part: 'poll' is just the poll (right under the events, the owner's call,
+// Oct 2026), 'rest' everything else (further down), 'all' both.
+// The address readers answer the question at (the town's news@).
+const answerTo = () => (/<([^>]+)>/.exec(town.emailFrom || '') || [, ''])[1];
+export const ANSWER_SUBJECT = 'My answer: ';
+const FEATURED = "Your answer could be featured in Thursday's Newsletter!";
+// The question's big quote marks, inline at either end of it.
+const sxQuote = q => `<span style="font-size:40px;line-height:0;vertical-align:-10px;color:${C.accent};margin:0 ${q === '“' ? '4px 0 0' : '0 0 4px'};">${q}</span>`;
+
+export function sectionsEmailHtml(sx, { siteUrl, subscriberId = '', part = 'all' }) {
+  if (!sx) return '';
+  const out = [];
+  const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
+  if (sx.pet && want('pet')) {
+    // A feature: a square photo beside the name in display type. No box.
+    const p = sx.pet;
+    out.push(sxBand(SX_BG.pet, `${sxKicker('Pet of the week', C.sunset)}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>
+<td width="162" valign="top" style="padding-right:12px;"><img src="${escHtml(petPhotoUrl(siteUrl, p))}" width="150" height="150" alt="${escHtml(p.name)}" style="display:block;width:150px;height:150px;object-fit:cover;border:3px solid ${C.ink};border-radius:16px;"></td>
+<td valign="top"><div style="font-family:${DISPLAY};font-size:28px;font-weight:bold;line-height:1.1;">${escHtml(p.name)}</div>
+${p.facts ? `<div style="font-size:13px;color:${C.muted};font-weight:bold;margin-top:2px;">${escHtml(p.facts)}</div>` : ''}
+<p style="margin:6px 0 0;font-size:15px;">${escHtml(p.blurb)}</p></td></tr></table>
+${safeUrl(p.url) ? `<div style="margin-top:6px;margin-left:-4px;">${sxBtn(sectionClickUrl(siteUrl, 'pet', sx.monday, p.url), `Meet ${p.name} →`, C.sunLight)}</div>` : ''}
+${p.shelter ? `<div style="margin-top:8px;font-size:12px;color:${C.muted};">At ${escHtml(p.shelter)}${p.shelter_address ? `, ${escHtml(p.shelter_address)}` : ''}. Photo: ${escHtml(p.shelter)}.</div>` : ''}`));
+  }
+  if (sx.places && sx.places.length && want('places')) {
+    // An open list: a heading, a line per place, dotted rules between. Each
+    // name opens the place on a map; under it, when it opened or opens.
+    const today = sx.today || sx.monday;
+    out.push(sxBand(SX_BG.places, `<a name="new-in-town" id="new-in-town"></a>${sxHeading(`New around ${town.city}`, C.sunset)}
+${sx.places.map((x, i) => { const when = placeWhen(x, today); return `<div style="padding:10px 0;${i ? `border-top:2px dotted ${C.line};` : ''}"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, placeMapUrl(x)))}" style="font-size:16px;font-weight:bold;color:${C.ink};text-decoration:underline;">${escHtml(x.name)}</a>${x.status === 'soon' ? sxSticker('SOON', C.sky) : sxSticker('NEW', C.sun)}<br><span style="font-size:14px;color:${C.muted};">${escHtml(x.line)}</span>${when ? `<div style="font-size:13px;font-weight:bold;color:${C.ink};margin-top:3px;">📅 ${escHtml(when)}</div>` : ''}</div>`; }).join('')}
+<div style="margin-top:6px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'places', sx.monday, '/new-in-town'))}" style="color:${C.accent};font-weight:800;">See every new place →</a></div>
+<div style="font-size:13px;color:${C.muted};margin-top:6px;">Know a place that just opened? Hit reply and tell us.</div>`));
+  }
+  if (sx.poll && want('poll')) {
+    // Centered buttons on the page itself.
+    out.push(sxBand(SX_BG.poll, `${sxKicker('Quick poll · one tap')}
+<div style="font-family:${DISPLAY};font-size:21px;font-weight:bold;line-height:1.25;margin:6px 0 6px;">${escHtml(sx.poll.question)}</div>
+${sx.poll.choices.map((c, i) => sxBtn(pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId), c, [C.sun, '#FFFFFF', C.sunLight, '#FFD6E8'][i % 4])).join('')}`, 'center'));
+  }
+  if (sx.question && want('question')) {
+    // A tinted band with the question as a big pull quote. The button opens
+    // an email with the subject marked as an answer, so the roundup can
+    // tell answers from other replies. The email asks only for the button
+    // (the owner, Oct 2026); a plain reply still reaches the roundup.
+    const to = answerTo();
+    const answer = to ? `mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}` : '';
+    out.push(sxBand(SX_BG.question, `${sxKicker('Question of the week')}
+<div style="font-family:${DISPLAY};font-size:24px;font-weight:bold;line-height:1.25;margin-top:8px;">${sxQuote('“')}${escHtml(sx.question)}${sxQuote('”')}</div>
+${answer ? `<div style="margin-top:10px;">${sxBtn(answer, 'Send my answer')}</div>` : ''}
+<div style="font-size:14px;margin-top:10px;">${answer ? '' : 'Hit reply and tell us. '}${FEATURED}</div>`, 'center'));
+  }
+  if (sx.roundup && want('roundup')) {
+    // Chat bubbles, alternating sides and colors.
+    const bubbles = sx.roundup.answers.map((a, i) => {
+      const right = i % 2 === 1;
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr><td align="${right ? 'right' : 'left'}">
+<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:86%;border-collapse:separate;"><tr><td style="background:${right ? C.sunLight : '#FFFFFF'};border-radius:${right ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};padding:10px 14px;font-size:15px;">${escHtml(a.quote)}${a.name ? `<div style="font-size:12px;font-weight:bold;color:${C.muted};margin-top:2px;">${escHtml(a.name)}</div>` : ''}</td></tr></table></td></tr></table>`;
+    }).join('');
+    out.push(sxBand(SX_BG.roundup, `${sxKicker(`${town.city} says`)}
+<div style="font-family:${DISPLAY};font-size:22px;font-weight:bold;line-height:1.25;margin:4px 0 4px;">${escHtml(sx.roundup.question || 'You answered')}</div>
+${bubbles}
+<div style="font-size:13px;color:${C.muted};margin-top:8px;">A new question comes Monday.</div>`));
+  }
+  if (sx.good && want('good')) {
+    // No band: a plain list between two thin rules, the label in the top one,
+    // a check per item.
+    out.push(`${sxRuleLabel('From City Hall', `${siteUrl}/email/cityhall.png`)}
+<div style="padding:12px 4px 14px;">
+${sx.good.items.map(g => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr><td width="28" valign="top" style="font-family:${DISPLAY};font-size:17px;font-weight:bold;color:#1C7C4A;">✓</td><td valign="top" style="font-size:15px;"><strong>${escHtml(g.title)}.</strong> ${escHtml(g.line)}</td></tr></table>`).join('')}
+${safeUrl(sx.good.url) ? `<div style="margin-top:8px;font-size:13px;"><a href="${escHtml(sectionClickUrl(siteUrl, 'hall', sx.monday, sx.good.url))}" style="color:${C.accent};font-weight:bold;">The full agenda →</a></div>` : ''}
+</div>${sxRule}`);
+  }
+  return out.length ? sxGap + out.join(sxGap) : '';
+}
+
+export function sectionsEmailText(sx, { siteUrl, subscriberId = '', part = 'all' }) {
+  if (!sx) return [];
+  const out = [];
+  const want = k => part === 'all' || (part === 'poll' ? k === 'poll' : k !== 'poll');
+  if (sx.pet && want('pet')) out.push(`PET OF THE WEEK: ${sx.pet.name}${sx.pet.facts ? ` (${sx.pet.facts})` : ''}`, ...(sx.pet.blurb ? [sx.pet.blurb] : []), ...(sx.pet.shelter || safeUrl(sx.pet.url) ? [`${sx.pet.shelter ? `At ${sx.pet.shelter}` : 'Meet them'}${safeUrl(sx.pet.url) ? `: ${sx.pet.url}` : ''}`] : []), '');
+  if (sx.places && sx.places.length && want('places')) {
+    out.push(`NEW AROUND ${town.city.toUpperCase()}`, ...sx.places.map(x => { const when = placeWhen(x, sx.today || sx.monday);
+      return `- ${x.name} (${x.status === 'soon' ? 'coming soon' : 'new'}): ${x.line}${when ? ` ${when}.` : ''} Map: ${placeMapUrl(x)}`; }), '');
+  }
+  if (sx.poll && want('poll')) out.push(`QUICK POLL: ${sx.poll.question}`, ...sx.poll.choices.map((c, i) => `- ${c}: ${pollVoteUrl(siteUrl, sx.monday, sx.poll, i, subscriberId)}`), '');
+  if (sx.question && want('question')) {
+    const to = answerTo();
+    out.push(`QUESTION OF THE WEEK: ${sx.question}`, to
+      ? `Send your answer: mailto:${to}?subject=${encodeURIComponent(ANSWER_SUBJECT + sx.question)}`
+      : 'Hit reply and tell us.', FEATURED, '');
+  }
+  if (sx.roundup && want('roundup')) out.push(`${town.city.toUpperCase()} SAYS: ${sx.roundup.question || ''}`.trim(), ...sx.roundup.answers.map(a => `"${a.quote}"${a.name ? ` (${a.name})` : ''}`), '');
+  if (sx.good && want('good')) out.push('FROM CITY HALL', ...sx.good.items.map(g => `- ${g.title}. ${g.line}`), ...(safeUrl(sx.good.url) ? [`The full agenda: ${sx.good.url}`] : []), '');
+  return out;
+}
+
+// ─── The opener ─────────────────────────────────────────────────────────
+// Every issue opens with a one-line greeting and an "In this issue" list
+// (the owner, Oct 2026; it replaced the "Don't miss" box): the issue's
+// three best events, how many things to do, and the sections further
+// down. The list comes from what the issue shows, so it's always right.
+// The greeting is the sections job's AI line (sections.intro, written each
+// Monday and Thursday morning after the event check), used only when every
+// event it names is in this issue; otherwise a plain one.
+const OPENERS = {
+  weekly: [c => `Good morning, ${c}!`, c => `Happy Monday, ${c}.`, c => `Here's your week, ${c}.`],
+  weekend: [c => `Happy Thursday, ${c}.`, c => `The weekend's almost here, ${c}.`, c => `Weekend plans, ${c}? We've got you.`]
+};
+const andList = xs => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+// A question cut to fit one line of the "In this issue" list, at a word.
+function shortLine(t, max = 52) {
+  const s = String(t).trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max + 1).replace(/\s+\S*$/, '').replace(/[\s,;:]+$/, '');
+  return `${cut}…`;
+}
+
+export function introText({ top, total, weekend, sections, key, otherNames = [] }) {
+  const ai = sections && sections.intro;
+  const shown = new Set(top.map(e => e.name));
+  // The AI's greeting, only if every event it names is one of the issue's
+  // top three: one it names but the issue doesn't lead with (or doesn't
+  // show at all) means the plain greeting instead.
+  const lower = typeof (ai && ai.text) === 'string' ? ai.text.toLowerCase() : '';
+  const aiOk = ai && typeof ai.text === 'string' && ai.text.length <= 220 && Array.isArray(ai.mentions) &&
+    ai.mentions.every(n => shown.has(n) && ai.text.includes(n)) &&
+    !otherNames.some(n => typeof n === 'string' && n.length >= 6 && !shown.has(n) && lower.includes(n.toLowerCase()));
+  const greeting = aiOk ? ai.text
+    : (OPENERS[weekend ? 'weekend' : 'weekly'])[Math.floor(Date.parse(key + 'T12:00:00Z') / (7 * 86400000)) % 3](town.city);
+  const items = [];
+  if (!total) {
+    items.push({ icon: '📅', text: `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}. Check back soon.` });
+    return { greeting, items, names: [] };
+  }
+  // "Friday Live Music", not "Friday Live Music (Friday)".
+  const dayOf = e => { const day = formatDay(e.date, { weekday: 'short' }); return new RegExp(`\\b${formatDay(e.date, { weekday: 'long' })}\\b`, 'i').test(e.name) ? '' : day; };
+  // The issue's best, as their own bullets, then everything else on the
+  // site for those days (the owner, Oct 2026: show how much we found).
+  const span = weekend ? 'this weekend' : 'this week';
+  if (top.length) items.push({ icon: '🎉', label: top.length === 1 ? `The event you don’t want to miss ${span}` : `Top ${top.length} events you don’t want to miss ${span}`, events: top.map(e => ({ e, day: dayOf(e) })) });
+  const more = total - top.length;
+  if (more > 0) items.push({ icon: '📅', text: `${top.length ? 'Plus another ' : ''}${more} ${more === 1 ? 'thing' : 'things'} going on ${span}`, list: true });
+  if (sections) {
+    if (sections.pet) items.push({ icon: '🐾', text: `Meet ${sections.pet.name}, our pet of the week` });
+    // The new spots by name, a tap away from the section below.
+    const names = (Array.isArray(sections.places) ? sections.places : []).filter(x => x && typeof x.name === 'string').map(x => x.name);
+    if (names.length) {
+      const text = names.length === 1 ? `New spot: ${names[0]}`
+        : names.length === 2 ? `New spots: ${names[0]} and ${names[1]}`
+        : `New spots: ${names[0]}, ${names[1]} and ${names.length - 2} more`;
+      items.push({ icon: '🏪', text, href: '#new-in-town' });
+    }
+    // The poll and the questions by name, so the list says what's asked.
+    if (sections.poll && sections.poll.question) items.push({ icon: '📊', text: `Quick poll: ${shortLine(sections.poll.question)}` });
+    if (sections.question) items.push({ icon: '💬', text: `Question of the week: ${shortLine(sections.question)}` });
+    if (sections.roundup) items.push({ icon: '💬', text: sections.roundup.question ? `Your answers: ${shortLine(sections.roundup.question)}` : "What you told us about Monday's question" });
+    if (sections.good) items.push({ icon: '🏛️', text: 'Updates from City Hall' });
+  }
+  return { greeting, items, names: aiOk ? ai.mentions : [] };
+}
+
+// What the sections job's AI gets to write the paragraph from: the same
+// top three and count the issue will show (GET /api/jobs/issue).
+export function issueFacts(events, { now, edition = 'weekly' }) {
+  const today = localDateStr(now);
+  const weekend = edition === 'weekend';
+  const byDay = issueDays(events, (EDITIONS[edition] || EDITIONS.weekly).days(today), { weekend });
+  const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
+  const days = (EDITIONS[edition] || EDITIONS.weekly).days(today);
+  const total = Math.max(byDay.reduce((n, x) => n + x.list.length, 0), (events || []).filter(e => e && days.includes(e.date)).length);
+  return { edition, week: (EDITIONS[edition] || EDITIONS.weekly).key(today), total,
+    top: top.map(e => ({ name: e.name, day: formatDay(e.date, { weekday: 'long' }), venue: e.venue || placeText(e) || '' })) };
+}
+
+// The greeting (events it names in bold) and the list, on a soft band
+// with no outline, so it doesn't read as another event box.
+function introHtml({ greeting, items, names }, { siteUrl, listPath }) {
+  let g = escHtml(greeting);
+  for (const n of names) {
+    const e = escHtml(n);
+    const k = g.indexOf(e);
+    if (k !== -1) g = `${g.slice(0, k)}<strong>${e}</strong>${g.slice(k + e.length)}`;
+  }
+  const link = (href, label) => `<a href="${escHtml(href)}" style="color:${C.ink};font-weight:800;">${label}</a>`;
+  const rows = items.map(it => {
+    let body;
+    if (it.events) {
+      body = `<strong>${escHtml(it.label)}</strong>${it.events.map(({ e, day }) =>
+        `<div style="padding:4px 0 0 14px;text-indent:-12px;">•&nbsp;${link(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl), escHtml(e.name))}${day ? ` <span style="color:${C.muted};">(${escHtml(day)})</span>` : ''}</div>`).join('')}`;
+    } else if (it.list) {
+      body = link(`${siteUrl}${listPath}`, escHtml(it.text));
+    } else if (it.href) {
+      body = link(it.href, escHtml(it.text));
+    } else {
+      body = escHtml(it.text);
+    }
+    return `<tr><td width="30" valign="top" style="padding:5px 0;font-size:17px;line-height:1.3;">${it.icon}</td><td valign="top" style="padding:5px 0;font-size:15px;line-height:1.4;">${body}</td></tr>`;
+  }).join('');
+  return `<p style="margin:16px 0 10px;font-family:${DISPLAY};font-size:20px;font-weight:bold;line-height:1.3;">${g}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sunLight};border-radius:16px;border-collapse:separate;"><tr><td style="padding:12px 14px;">
+<div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${C.sunset};margin-bottom:4px;">In this issue</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table></td></tr></table>`;
+}
+
+function introPlain({ greeting, items }) {
+  return [greeting, '', 'IN THIS ISSUE', ...items.flatMap(it => it.events
+    ? [`- ${it.label}`, ...it.events.map(({ e, day }) => `    • ${e.name}${day ? ` (${day})` : ''}`)]
+    : [`- ${it.text}`])];
+}
+
+export function renderWeekly(events, { siteUrl, now, sponsor, partners = null, unsubscribeUrl, address, openPixelUrl = '', clickBase = '', referral = null, edition = 'weekly', prefsUrl = '', replyAsk = false, sections = null, subscriberId = '' }) {
   const today = localDateStr(now);
   const weekend = edition === 'weekend';
   const week = (EDITIONS[edition] || EDITIONS.weekly).days(today);
   const byDay = issueDays(events, week, { weekend });
   const total = byDay.reduce((n, x) => n + x.list.length, 0);
-  const top = dontMiss(byDay);
-  // The "Don't miss" box only when there's a lot to choose from.
-  const topShown = total >= 6 ? top : [];
+  // What readers are told there is: everything on the site for the issue's
+  // days (repeats and filler included), not just what the email lists
+  // (the owner, Oct 2026: "we want them to feel there's a ton").
+  const count = Math.max(total, (events || []).filter(e => e && week.includes(e.date)).length);
+  // The three best the issue actually shows (each day's list is cut to
+  // perDay), for the opening paragraph and the inbox preview.
+  const top = dontMiss(byDay.map(({ d, list }) => ({ d, list: shownOf(list, d) })));
   const short = d => formatDay(d, { month: 'short', day: 'numeric' });
   const range = week.length ? (week.length === 1 ? short(week[0]) : `${short(week[0])}–${short(week[week.length - 1])}`) : '';
   const title = weekend ? `This weekend in ${town.city}` : `This week in ${town.city}`;
   const listPath = weekend ? '/this-weekend' : '/';
-  const subject = `${title}: ${total} ${total === 1 ? 'thing' : 'things'} to do (${range})`;
+  const subject = `${title}: ${count} ${count === 1 ? 'thing' : 'things'} to do (${range})`;
   const preheader = top.map(e => e.name).join(' · ');
   const when = e => [dayShort(e.date), clockOf(e.time)].filter(Boolean).join(' ');
-  const topHtml = topShown.length ? `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#fff;border:3px solid ${C.ink};border-radius:16px;"><tr><td style="padding:12px 16px;">
-<div style="font-family:${DISPLAY};font-size:19px;font-weight:bold;margin-bottom:4px;">Don’t miss ${weekend ? 'this weekend' : 'this week'}</div>
-${topShown.map((e, i) => `<div style="margin-top:6px;font-size:15px;"><strong>${i + 1}.</strong> <a href="${escHtml(e.page ? siteUrl + e.page : (safeUrl(e.url) || siteUrl))}" style="color:${C.ink};font-weight:800;">${escHtml(e.name)}</a> <span style="color:${C.muted};">· ${escHtml([when(e), e.venue || placeText(e)].filter(Boolean).join(' · '))}${paidPick(e) ? ` · ${AD_LABEL}` : ''}</span></div>`).join('')}
-</td></tr></table>` : '';
+  const otherNames = (events || []).filter(e => e && typeof e.name === 'string').map(e => e.name);
+  const intro = introText({ top, total: total ? count : 0, weekend, sections, key: (EDITIONS[edition] || EDITIONS.weekly).key(today), otherNames });
+  // The sections never stop an issue: a bad file means an issue without them.
+  const sx = part => { try { return sectionsEmailHtml(sections, { siteUrl, subscriberId, part }); } catch (err) { console.warn('[newsletter] sections left out:', err.message); return ''; } };
+  const sxText = part => { try { return sectionsEmailText(sections, { siteUrl, subscriberId, part }); } catch (err) { console.warn('[newsletter] sections left out:', err.message); return []; } };
 
   // Day colors follow the weekday (Monday yellow ... Sunday coral), like the site.
   const days = byDay.map(({ d, list }) => { const dayColor = DAY_COLORS[(currentWeek(d).indexOf(d) + 7) % 7]; return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;border:3px solid ${C.ink};border-radius:16px;overflow:hidden;border-collapse:separate;">
-<tr><td style="background:${dayColor};padding:10px 14px;border-bottom:3px solid ${C.ink};font-family:${DISPLAY};color:${C.ink};">
+<tr><td style="background:${dayColor};padding:10px 12px;border-bottom:3px solid ${C.ink};font-family:${DISPLAY};color:${C.ink};">
 <span style="font-size:21px;font-weight:bold;">${escHtml(formatDay(d, { weekday: 'long' }))}</span>
 <span style="display:inline-block;margin-left:6px;font-size:13px;font-weight:bold;background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:0 9px;">${escHtml(formatDay(d, { month: 'long', day: 'numeric' }))}</span></td></tr>
-<tr><td style="padding:6px 12px 10px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
-${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - PER_DAY} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
+<tr><td style="padding:4px 8px 10px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">${shownOf(list, d).map((e, i, arr) => eventRow(e, siteUrl, arr[i + 1])).join('')}</table>
+${list.length > shownOf(list, d).length ? `<p style="margin:12px 0 4px;text-align:center;"><a href="${siteUrl}${weekend ? listPath : `/#day-${currentWeek(d).indexOf(d)}`}" style="${MORE_PILL}background:${dayColor};">+${list.length - shownOf(list, d).length} more on ${escHtml(formatDay(d, { weekday: 'long' }))} →</a></p>` : ''}
 </td></tr></table>`; }).join('');
 
   const sponsorBlock = sponsorHtml(sponsor, siteUrl);
@@ -693,11 +949,11 @@ ${list.length > PER_DAY ? `<p style="margin:12px 0 4px;text-align:center;"><a hr
 
   const pill = (href, label) => `<a href="${siteUrl}${href}" style="display:inline-block;margin:6px 4px 0 0;font-family:${DISPLAY};font-weight:bold;font-size:13px;color:${C.ink};background:#fff;border:2px solid ${C.ink};border-radius:999px;padding:2px 10px;text-decoration:none;">${label}</a>`;
   const bodyHtml = `
-<p style="margin:16px 0 4px;font-size:16px;">${total ? `Here's what's happening in ${town.cityState} ${weekend ? 'this weekend' : 'this week'}: <strong>${total} ${total === 1 ? 'event' : 'events'}</strong>.` : `Nothing is listed yet for ${weekend ? 'this weekend' : 'the rest of this week'}.`}</p>
-<div>${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
-${sponsorBlock}${topHtml}${days}
-<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}
-${replyAsk ? replyAskHtml(false) : ''}
+${introHtml(intro, { siteUrl, listPath })}
+<div style="margin-top:8px;">${weekend ? pill('/', 'All week') : pill('/this-weekend', 'This weekend')}${pill('/free-things-to-do', 'Free')}${pill('/kids-and-family', 'Kids')}${pill('/live-music', 'Live music')}</div>
+${sponsorBlock}${days}
+<p style="margin:28px 0 0;text-align:center;">${btn(`${siteUrl}${listPath}`, weekend ? 'See the whole weekend' : 'See the full list')}</p>${sx('poll')}${partnersEmailHtml(pState, siteUrl)}${sponsorBlock ? '' : houseAdHtml(siteUrl)}${sx('rest')}
+${replyAsk && !(sections && sections.question) ? replyAskHtml(false) : ''}
 ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
 
   // Sponsors are sold "the top of the newsletter": first in both parts (and
@@ -708,23 +964,24 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : ''}`;
   const campaign = `${weekend ? 'weekend' : 'weekly'}-${(EDITIONS[edition] || EDITIONS.weekly).key(today)}`;
   const text = [
     `${subject}`, '', ...sponsorLine,
-    ...(topShown.length ? [`DON'T MISS ${weekend ? 'THIS WEEKEND' : 'THIS WEEK'}`, ...topShown.map((e, i) => `${i + 1}. ${e.name} (${[when(e), e.venue || placeText(e)].filter(Boolean).join(', ')})${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), ''] : []),
+    ...introPlain(intro), '',
     ...byDay.flatMap(({ d, list }) => [formatDay(d, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase(),
-      ...shownOf(list).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
-    `Full list: ${siteUrl}${listPath}`, '', ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...(replyAsk ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
+      ...shownOf(list, d).map(e => `- ${e.time ? formatTime(e.time) + ' ' : ''}${e.name}${placeText(e) ? ' @ ' + placeText(e) : ''}${e.town ? ' (' + e.town + ')' : ''}${e.also ? ' (also ' + e.also + ')' : ''}${paidTag(e)}${e.page ? ' ' + siteUrl + e.page : ''}`), '']),
+    `Full list: ${siteUrl}${listPath}`, '', ...sxText('poll'), ...partnersEmailText(pState, siteUrl), ...(sponsorLine.length ? [] : [houseAdText(siteUrl), '']), ...sxText('rest'),
+    ...(replyAsk && !(sections && sections.question) ? [replyAskText(false), ''] : []), ...(referral ? referralText({ siteUrl, ...referral }) : []),
     ...(prefsUrl ? [`${weekend ? 'Just want Mondays? Skip the weekend email' : 'Email settings'}: ${prefsUrl}`] : []),
     `Unsubscribe: ${unsubscribeUrl}`, `${town.siteName} · ${address || town.cityState}`
   ].join('\n');
 
   // The paid Vic's Picks this issue actually stars (shown, not cut by
-  // PER_DAY), recorded with the send for their reports.
-  const picks = [...new Set(byDay.flatMap(({ list }) => shownOf(list))
+  // perDay), recorded with the send for their reports.
+  const picks = [...new Set(byDay.flatMap(({ d, list }) => shownOf(list, d))
     .filter(e => e.featured && !e.editor_pick && e.sponsor_order).map(e => e.sponsor_order))];
   // Every event page the issue shows (its day lists and "Don't miss"),
   // recorded with the send for the event reports (server/eventReach.js).
-  const shownPages = [...new Set([...byDay.flatMap(({ list }) => shownOf(list)), ...topShown].map(e => e.page).filter(Boolean))];
+  const shownPages = [...new Set(byDay.flatMap(({ d, list }) => shownOf(list, d)).map(e => e.page).filter(Boolean))];
   return {
-    subject, total, picks, events: shownPages,
+    subject, total, count, picks, events: shownPages,
     html: clickWrap(utmTag(emailShell({ title, preheader, bodyHtml, siteUrl, pixelUrl: openPixelUrl, footerHtml: footer({ siteUrl, unsubscribeUrl, address, prefsUrl, edition }) }), siteUrl, campaign), siteUrl, clickBase),
     text: utmTag(text, siteUrl, campaign, '&')
   };
@@ -900,7 +1157,8 @@ ${referral ? referralHtml({ siteUrl, ...referral }) : `<p style="margin:22px 0 0
 
 // Where a signup came from. Forms send one of these; ":ad" means the visitor
 // first landed from a paid ad (docs/track.js). Anything else is "site".
-const SIGNUP_SOURCES = new Set(['footer', 'list-card', 'subscribe-page']);
+// sections: the New in Town, Pets and City Hall pages (server/sections.js).
+const SIGNUP_SOURCES = new Set(['footer', 'list-card', 'subscribe-page', 'sections']);
 export function signupSource(raw) {
   const [base, tag] = String(raw || '').split(':');
   if (!SIGNUP_SOURCES.has(base)) return 'site';
@@ -1006,7 +1264,14 @@ export function renderSubscribePage(events, { siteUrl, now, subscriberCount = 0,
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
-export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, analyticsSecret = '', mailDomainOk = null }) {
+export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null, siteUrl, nowFn, getPublicPayload, getSendPayload = getPublicPayload, createRateLimiter, config, resend, slack = null, verifyHuman = async () => true, turnstileConfigured = true, withNav = async html => html, onCron = null, tremendous = null, getSections: getSectionsRaw = async () => null, analyticsSecret = '', mailDomainOk = null }) {
+  // The question of the week asks readers to email their answer: only when
+  // email to news@ reaches us (server/inbound.js); otherwise the issue keeps
+  // its plain reply ask and no question.
+  const getSections = async (edition, now) => {
+    const sx = await getSectionsRaw(edition, now);
+    return sx && !config.inbound ? { ...sx, question: null } : sx;
+  };
   const rewards = createReferralRewards({ store, slack, tremendous, nowFn, localDate: localDateStr });
   const subscribeLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10 });
   const confirmLimiter = createRateLimiter({ windowMs: 24 * 60 * 60 * 1000, max: 3 });
@@ -1146,6 +1411,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (prior && !force && !priorFailed.length && !(resendUnknown && unknownChunks.length)) return { ok: false, error: 'already-sent', sent: prior };
     const resume = Boolean(prior && !force);
     const payload = await getSendPayload();
+    const sections = await getSections(edition, now).catch(err => { console.warn('[newsletter] sections:', err.message); return null; });
     let subs = await store.listSubscribers({ status: 'active' });
     if (weekend) subs = subs.filter(s => !s.weekend_optout);
     // Only people still on the list (and still taking this issue): someone
@@ -1272,7 +1538,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
         const code = s.id && refs.codes[s.id];
         const referral = code ? { code, count: refs.counts[code] || 0 } : null;
         const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl, address: config.address, openPixelUrl, clickBase, referral, replyAsk: Boolean(config.replyTo || config.inbound),
-          edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
+          sections, subscriberId: s.id || '', edition, prefsUrl: s.token && config.weekend ? prefsLink(s) : '' });
         return {
           from: config.from, to: [s.email], subject: issue.subject, html: issue.html, text: issue.text,
           ...(config.replyTo ? { reply_to: config.replyTo } : {}),
@@ -1338,7 +1604,7 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     if (slack) {
       const name = weekend ? 'Weekend newsletter' : 'Newsletter';
       if (failures.length) slack.alert(`newsletter-failed-${key}`, sent ? `${name} send partly failed` : `${name} send failed`, `${sent} sent, ${record.failed} failed.\n${failures[0]}`, `${siteUrl}/admin.html`);
-      else slack.notify({ title: `📧 ${name} sent`, fields: [['Recipients', sent], ['Subject', probe.subject], ['Events', probe.total]] });
+      else slack.notify({ title: `📧 ${name} sent`, fields: [['Recipients', sent], ['Subject', probe.subject], ['Events', probe.count]] });
     }
     // Referral rewards, once Monday's issue is out (never throws).
     if (!weekend) await rewards.run(refs.counts);
@@ -1799,8 +2065,9 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
     const edition = editionParam(req.query.edition);
     const { day, now } = await upcomingNow(edition);
     const payload = await getPublicPayload({ now });
+    const sections = await getSections(edition, now).catch(() => null);
     const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: '#', address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-      edition, prefsUrl: config.weekend ? '#' : '' });
+      sections, edition, prefsUrl: config.weekend ? '#' : '' });
     res.set('X-Issue-Date', day).set('X-Issue-Subject', encodeURIComponent(issue.subject)).type('html').send(issue.html);
   });
 
@@ -1812,8 +2079,9 @@ export function registerNewsletter(app, { store, requireAdmin, adminOrHq = null,
       const edition = editionParam((req.body || {}).edition);
       const { now } = await upcomingNow(edition);
       const payload = await getPublicPayload({ now });
+      const sections = await getSections(edition, now).catch(() => null);
       const issue = renderWeekly(payload.events, { siteUrl, now, sponsor: payload.sponsor, partners: payload.partners, unsubscribeUrl: `${siteUrl}/unsubscribe`, address: config.address, replyAsk: Boolean(config.replyTo || config.inbound),
-        edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
+        sections, edition, prefsUrl: config.weekend ? `${siteUrl}/email-prefs` : '' });
       await resend.send({ from: config.from, to: [to], subject: `[Test] ${issue.subject}`, html: issue.html, text: issue.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}) });
       res.json({ ok: true, to });
     } catch (err) {

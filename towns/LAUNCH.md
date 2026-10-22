@@ -13,6 +13,7 @@ version with each town's own values filled in.
 | Paid label | Spotlight | Featured | Spotlight | Headliner |
 | Newsletter from | `Tupelo Current <news@tupelocurrent.com>` | `The Crane 308 <news@thecrane308.com>` | `The Rogue 541 <news@therogue541.com>` | `Shoals Setlist <news@shoalssetlist.com>` |
 | Slack tag | Tupelo | Kearney | Medford | Shoals |
+| Newsletter sections | Set up, off | Set up, off (pet source to confirm from Railway) | Set up, off (no City Hall yet) | Set up, off |
 
 Do one town end to end first (Kearney has the best event feeds), then the
 other three.
@@ -85,6 +86,19 @@ it too. Get one in the town itself (a PO box or a registered mailbox
 there) so the site doesn't read as run from somewhere else; never reuse
 another town's. Send Claude the address.
 
+## 7. Newsletter sections (5 min a town, after a few weeks of events)
+
+The pet of the week, new places, question of the week, poll and City Hall
+updates (SECTIONS.md). Claude finds the town's shelter, chamber and
+agendas, sets them up and checks they read; nothing shows until you say so.
+
+1. Claude sends you a preview: the Monday and Thursday emails and the
+   homepage, written from the town's real data.
+2. Read it like a reader would. Say "turn on <town>", or what to change.
+3. After that it runs itself. Slack's activity channel shows what's in each
+   week's sections; Admin → Newsletter → This week's sections takes anything
+   out. The alerts channel says so if the AI has trouble.
+
 Nothing on GitHub: every town, Victoria included, runs its jobs on its own
 Railway jobs service, so there is no GitHub Environment to make.
 
@@ -93,6 +107,8 @@ Railway jobs service, so there is no GitHub Environment to make.
 The town's Railway web and jobs services and database, every Railway
 variable, domain, Stripe webhook, HQ entry, the first collect, the launch
 check (`scripts/launch_check.py --town <slug>`), a test newsletter to the
-test address, a test-mode checkout, and a check that Victoria is unchanged.
+test address, a test-mode checkout, the newsletter sections' sources
+(`scripts/sections_setup.py`) and their preview, and a check that Victoria
+is unchanged.
 The steps are LAUNCH_CHECKLIST.md and RAILWAY.md "New town, the simple
 way"; `town.json` keeps `"workflows": false`.
