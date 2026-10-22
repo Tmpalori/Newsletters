@@ -355,6 +355,15 @@ describe('auto-publish', () => {
     expect((await live()).new_and_notable).toEqual([item]);
   });
 
+  it('takes down unchecked finds even when the candidates have no New & Notable list', async () => {
+    const hand = { name: 'Hand item', description: 'x', tag: 'new', icon: 'food' };
+    const checked = { name: 'Checked find', description: 'x', tag: 'new', icon: 'food', url: 'https://a.example', added: '2026-10-05', checked: true };
+    const unchecked = { name: 'Front Porch Cafe', description: 'x', tag: 'coming', icon: 'food', url: 'https://d.example/404', added: '2026-10-05' };
+    await start({ candidates: CANDIDATES, published: { events: [], new_and_notable: [hand, checked, unchecked] } });
+    await runNow();
+    expect((await live()).new_and_notable.map(n => n.name)).toEqual(['Hand item', 'Checked find']);
+  });
+
   it('is off by default outside production', async () => {
     await start({ candidates: CANDIDATES });
     await new Promise(r => setTimeout(r, 50)); // checks nothing runs, so a fixed wait
