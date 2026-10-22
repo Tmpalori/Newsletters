@@ -331,14 +331,17 @@ describe('auto-publish', () => {
     expect(cutOff('Long Name Here', 'Long Name')).toBe(false);
   });
 
-  it('publishes New & Notable from the collector and keeps recent earlier finds for three weeks', async () => {
-    const recent = { name: 'Arcade opens on Navarro', description: 'x', tag: 'new', icon: 'music', url: 'https://a.example', added: '2026-09-25' };
-    const stale = { name: 'Old opening', description: 'x', tag: 'new', icon: 'food', url: 'https://b.example', added: '2026-09-01' };
+  it('publishes New & Notable from the collector and keeps recent checked earlier finds for three weeks', async () => {
+    const recent = { name: 'Arcade opens on Navarro', description: 'x', tag: 'new', icon: 'music', url: 'https://a.example', added: '2026-09-25', checked: true };
+    const stale = { name: 'Old opening', description: 'x', tag: 'new', icon: 'food', url: 'https://b.example', added: '2026-09-01', checked: true };
+    // Found before the collector checked links (Virginia Beach, Oct 2026: a
+    // 404 and a made-up Instagram post): recent, but it leaves the box.
+    const unchecked = { name: 'Front Porch Cafe', description: 'x', tag: 'coming', icon: 'food', url: 'https://d.example/404', added: '2026-09-28' };
     const legacy = { name: 'Hand item from before', description: 'x', tag: 'coming', icon: 'food' }; // no date
     const fresh = { name: 'Ellianos Coffee opens', description: 'y', tag: 'new', icon: 'food', url: 'https://c.example', added: '2026-10-05' };
     await start({
       candidates: { ...CANDIDATES, new_and_notable: [fresh, { ...recent, description: 'dupe by name' }] },
-      published: { events: [], new_and_notable: [recent, stale, legacy] }
+      published: { events: [], new_and_notable: [recent, stale, legacy, unchecked] }
     });
     await runNow();
     const d = await live();

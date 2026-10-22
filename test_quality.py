@@ -660,14 +660,53 @@ def test_gemini_notable_keeps_linked_grounded_items(monkeypatch):
         return _gemini_reply(items, hosts=("victoriaadvocate.com",))
 
     class Page:
-        status_code, text = 404, ""
+        def __init__(self, url):
+            self.url, self.status_code = url, 200
+            self.text = {"ellianos": "Ellianos Coffee opens on Airline Rd", "arcade": "Odd icon arcade opens"}.get(url.rsplit("/", 1)[-1], "")
 
-    out = ce.fetch_gemini_notable(post=post, get=lambda u: Page())
+    out = ce.fetch_gemini_notable(post=post, get=Page)
     assert [n["name"] for n in out] == ["Ellianos Coffee opens on Airline Rd", "Odd icon arcade"]
     assert out[0]["url"].startswith("https://www.victoriaadvocate.com/")
     assert out[0]["added"] == ce.now_central().date().isoformat()
+    assert out[0]["checked"] is True
     assert out[1]["tag"] == "new" and out[1]["icon"] == "community"  # unknown values fall back
     assert calls[0]["tools"] == [{"google_search": {}}]
+
+
+def test_gemini_notable_checks_links_even_on_cited_sites(monkeypatch):
+    # Virginia Beach, Oct 2026: a cited site's page that 404s, a city page that
+    # doesn't name the item, and one made-up Instagram post given for three
+    # different places all reached the homepage box.
+    import collect_events as ce
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    post_url = "https://www.instagram.com/p/C4O0513u457/"
+    items = [
+        {"name": "Front Porch Cafe", "description": "x", "tag": "coming", "icon": "food",
+         "url": "https://frontporchcafe.com/virginia-beach/"},
+        {"name": "Where Wonder Grows art installation", "description": "x", "tag": "coming", "icon": "arts",
+         "url": "https://www.virginiabeach.gov/venues"},
+        {"name": "Abercrombie & Fitch at Town Center", "description": "x", "tag": "coming", "icon": "shopping", "url": post_url},
+        {"name": "Safari Fun Park", "description": "x", "tag": "coming", "icon": "family", "url": post_url},
+        {"name": "Fogo de Chao at Pembroke", "description": "x", "tag": "coming", "icon": "food", "url": post_url},
+        {"name": "Grand Bakery opens downtown", "description": "x", "tag": "new", "icon": "food",
+         "url": "https://www.instagram.com/p/GrandBakery1/"},
+        {"name": "Tide Taproom on Atlantic", "description": "x", "tag": "new", "icon": "drinks",
+         "url": "https://www.instagram.com/tidetaproom"},
+    ]
+
+    def post(url, json=None, timeout=None, headers=None):
+        return _gemini_reply(items, hosts=("frontporchcafe.com", "virginiabeach.gov", "instagram.com"))
+
+    class Page:
+        def __init__(self, url):
+            self.url = url
+            self.status_code = 404 if "frontporch" in url else 200
+            self.text = "Venues: Sandler Center, Convention Center"
+
+    out = ce.fetch_gemini_notable(post=post, get=Page)
+    # Only the one Instagram post given for one place stands: the 404, the
+    # page that doesn't name its item, the shared post and a bare profile go.
+    assert [n["name"] for n in out] == ["Grand Bakery opens downtown"]
 
 
 def test_gemini_notable_off_without_key(monkeypatch):
