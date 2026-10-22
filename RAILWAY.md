@@ -170,7 +170,9 @@ copy a value from Victoria's project, or from another town's: a copied
    `NEWSLETTER_CRON_SECRET`, `EVENT_CHECK_SECRET`,
    `SUBMISSION_REVIEW_SECRET`, `ADS_SPEND_SECRET`.
 5. **Email (Resend).** Verify the town's domain in Resend (SPF, DKIM, and MX
-   for replies). `RESEND_API_KEY`; `NEWSLETTER_FROM="<Site name>
+   for replies). `RESEND_API_KEY=${{shared.Resend_api_key}}` (one
+   full-access key for every town's domain, kept once as the
+   project-shared `Resend_api_key`; no new key); `NEWSLETTER_FROM="<Site name>
    <news@<domain>>"` (an address on the town's domain; Victoria's is
    refused); `NEWSLETTER_ADDRESS` (the mailing address the law requires in
    every email); `NEWSLETTER_REPLY_TO` (an inbox you read, or leave it out
@@ -265,10 +267,14 @@ a commit or a redeploy.
    references it, so nothing is copied) and
    `JOBS_ON_RAILWAY=1`. Its scheduler and Pull Now then queue jobs in the
    town's database (`server/jobs.js`).
-2. **Project-shared variables (once, for every town):** `APIFY_TOKEN`,
-   `OPENAI_API_KEY`, `GEMINI_API_KEY`. These three are the only shared
-   secrets: every town already uses the same accounts, capped per town by
-   `limits` in its `town.json`. Never share a town's own secrets.
+2. **Project-shared variables (once, for every town):** `Apify_token`,
+   `Open_ai_key`, `Gemini_api_key` (its own Google Cloud project and
+   billing account, apart from SiteMap's), `Resend_api_key` (full access,
+   every town's domain) and `Stripe_secret_key` (the restricted key, One-time
+   setup step 5). These are the only shared secrets: every town already
+   uses the same accounts, capped per town by `limits` in its `town.json`.
+   Services reference them (`${{shared.Open_ai_key}}`), so rotating one is
+   a single paste and a redeploy. Never share a town's own secrets.
 3. **The jobs service:** a new service named `<domain>-jobs` from this repo
    (`main`), in `production` only, built from `Dockerfile.jobs`, no domain,
    watch paths `/*.py`, `!/test_*.py`, `/scripts/**`, `/requirements.txt`,
@@ -282,8 +288,12 @@ a commit or a redeploy.
      webhooks: `${{<web>.<NAME>}}` each
    - `OPS_REPORT_URL=https://www.<domain>`,
      `OPS_REPORT_SECRET=${{<web>.SUBMISSION_REVIEW_SECRET}}`
-   - `APIFY_TOKEN`, `OPENAI_API_KEY`, `GEMINI_API_KEY`:
-     `${{shared.<NAME>}}`
+   - `APIFY_TOKEN=${{shared.Apify_token}}`,
+     `OPENAI_API_KEY=${{shared.Open_ai_key}}`,
+     `GEMINI_API_KEY=${{shared.Gemini_api_key}}`, `GEMINI_MODEL=gemini-3.8-flash`
+     (the Gemini project is new, and Google no longer serves the code's
+     default `gemini-2.5-flash` to new projects),
+     `RESEND_API_KEY=${{shared.Resend_api_key}}`
    - `FB_POSTS_ENABLED=1`, `IG_POSTS_ENABLED=1` (the collector's other
      sources are on by default)
    - The social kit (daily at 8:47 AM town time, every town's):
@@ -310,9 +320,8 @@ a commit or a redeploy.
      daily spend goes to Admin → Growth. A town with no ad account pinned,
      or no token, does nothing. The report itself goes to Slack activity
      through the site; a dead token or lost access fails the job and alerts.
-   - The digest (Sunday 9 PM town time): `RESEND_API_KEY=${{<web
-     service>.RESEND_API_KEY}}`, a reference to the town's own key, so it
-     sends as news@<domain>. Or Gmail instead: `SMTP_EMAIL` and
+   - The digest (Sunday 9 PM town time): `RESEND_API_KEY=${{shared.Resend_api_key}}`
+     (the shared key), sending as news@<domain>. Or Gmail instead: `SMTP_EMAIL` and
      `SMTP_PASSWORD` (a Gmail app password), which win when both are set.
      Optional `DIGEST_TO` (default the owner's Gmail). Without either the
      job does nothing and alerts "Weekly digest email not sent".

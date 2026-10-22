@@ -54,10 +54,10 @@ Settings and secrets:
 - The worker reaches its web service at `http://${{<web>.RAILWAY_PRIVATE_DOMAIN}}:8080`
   with one `JOBS_SECRET` (also a reference). Requests from outside Railway
   can't reach the private address.
-- Keys every town already shares (Apify, OpenAI, Gemini, the Slack
-  webhooks, and on the web services Stripe) are set once as project-shared
-  variables and referenced. Per-town keys (Meta page and Instagram tokens,
-  ad account, Resend) are never shared.
+- Keys every town already shares (Apify, OpenAI, Gemini, Resend, the
+  Slack webhooks, and on the web services Stripe) are set once as
+  project-shared variables and referenced. Per-town keys (Meta page and
+  Instagram tokens, ad account, webhook signing secrets) are never shared.
 - A town can only ever see its own Meta credentials, so it can't post to
   another town's page.
 
@@ -75,7 +75,7 @@ The jobs and when the scheduler queues them (town time; `server/scheduler.js`):
 | `submission-review` | every 15 minutes | `scripts/review_submissions.py` |
 | `meta-ads` | daily 8:37 AM | `scripts/meta_ads.py report --scheduled`; the site posts the report to Slack activity; nothing without the town's ads settings |
 | `social-kit` | daily 8:47 AM | `scripts/social_kit.py`, the kit into the town's database, `scripts/social_post.py` with `SOCIAL_AUTOPOST=1` |
-| `digest` | Sun 9:00 PM | `send_digest.py` from the live list to the owner, through Resend (`RESEND_API_KEY=${{<web service>.RESEND_API_KEY}}`) or Gmail (`SMTP_EMAIL`/`SMTP_PASSWORD`); nothing without one of them |
+| `digest` | Sun 9:00 PM | `send_digest.py` from the live list to the owner, through Resend (`RESEND_API_KEY=${{shared.Resend_api_key}}`) or Gmail (`SMTP_EMAIL`/`SMTP_PASSWORD`); nothing without one of them |
 
 The newsletter, sponsor reports, privacy purge and the hourly health check
 run in the web service itself. A web service without jobs on Railway runs
@@ -176,8 +176,8 @@ Each phase is its own PR with tests. Victoria's output must not change
 - [x] The weekly digest (replaces `weekly-digest.yml`): kept in this repo
       rather than HQ, as the jobs worker's `digest` job (Sunday 9 PM town
       time, `send_digest.py` from the site's live list, the same email to
-      the owner). It needs `RESEND_API_KEY` (a reference to the town's web
-      service's key) or `SMTP_EMAIL` and `SMTP_PASSWORD` on the town's jobs
+      the owner). It needs `RESEND_API_KEY` (a reference to the shared
+      `Resend_api_key`) or `SMTP_EMAIL` and `SMTP_PASSWORD` on the town's jobs
       service and does nothing without them. HQ still sees every run.
 
 ### Phase 4: new towns the new way

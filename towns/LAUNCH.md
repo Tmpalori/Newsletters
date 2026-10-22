@@ -28,10 +28,12 @@ other three.
 
 1. resend.com → Domains → Add domain → the town's domain.
 2. Paste the DNS records it shows (SPF, DKIM, and the MX record for replies).
-3. API Keys → Create API key ("Sending access", that domain only).
+3. No new API key: every town uses the one full-access key kept as the
+   Newsletters shared variable `Resend_api_key` (to rotate it, create a new
+   full-access key and paste it there).
 4. Webhooks → Add endpoint: `https://www.<domain>/api/email/inbound`, events
    `email.received`, `email.bounced`, `email.complained`, `email.delivered`.
-5. Send Claude the API key and the webhook's signing secret.
+5. Send Claude the webhook's signing secret.
 
 ## 3. Stripe: payments (5 min a town)
 

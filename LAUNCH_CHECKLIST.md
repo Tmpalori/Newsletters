@@ -153,7 +153,7 @@ issue and tick it off.
 - [ ] Turnstile: add `www.<domain>` to the widget.
 - [ ] Agent: the Sunday night digest email (the jobs worker at 9 PM
       local mails the owner what's collected) needs
-      `RESEND_API_KEY=${{<web service>.RESEND_API_KEY}}` on the town's jobs
+      `RESEND_API_KEY=${{shared.Resend_api_key}}` on the town's jobs
       service (or `SMTP_EMAIL` and `SMTP_PASSWORD`, a Gmail app password);
       without it the job does nothing. `DIGEST_TO` changes the recipient.
 
