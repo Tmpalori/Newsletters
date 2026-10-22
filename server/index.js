@@ -2854,8 +2854,8 @@ export async function createApp(opts = {}) {
       { key: 'instagram', label: 'Instagram posting', ok: null, level: 'recommended',
         fix: 'On the jobs service in Railway: IG_USER_ID (the Instagram business account linked to the Facebook Page), once it is pinned in the town\'s settings ("meta".ig_user_id). Without it only Facebook gets the daily post.' },
       { key: 'stripe', label: 'Sponsor payments (Stripe)', ok: stripeCfg.enabled, level: 'recommended',
-        fix: 'In Stripe: create a restricted key (Checkout Sessions, Products and Prices: write) and a webhook to ' + siteUrl +
-          '/api/stripe/webhook on API version 2026-09-30.endive. Put them in Railway as STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET.' },
+        fix: 'In Railway, set STRIPE_SECRET_KEY to ${{shared.Stripe_secret_key}} (every town shares one restricted key). In Stripe, add a webhook to ' + siteUrl +
+          '/api/stripe/webhook on API version 2026-09-30.endive and put its signing secret in Railway as STRIPE_WEBHOOK_SECRET.' },
       // Production with Stripe's test keys: anyone can book with Stripe's
       // public test card. Fine for a new town's launch test, never after.
       ...(stripeCfg.production && stripeCfg.testKey ? [{ key: 'stripe_test_key', label: 'Stripe is in test mode', ok: false, level: 'recommended',

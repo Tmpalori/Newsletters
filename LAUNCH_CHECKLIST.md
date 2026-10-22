@@ -85,8 +85,9 @@ issue and tick it off.
       the same values for every town).
 - [ ] Stripe: the one shared account (no new account per town; its public
       name and statement descriptor prefix stay neutral, see RAILWAY.md
-      One-time setup step 5). On it, a restricted key for the town as
-      `STRIPE_SECRET_KEY` and a webhook endpoint to
+      One-time setup step 5) and its one shared key: the town's
+      `STRIPE_SECRET_KEY=${{shared.Stripe_secret_key}}` (no new key), and a
+      webhook endpoint to
       `https://www.<domain>/api/stripe/webhook` with all 12 events in
       RAILWAY.md "New town on Railway" step 6, its secret as
       `STRIPE_WEBHOOK_SECRET`. The code tags the town's sessions

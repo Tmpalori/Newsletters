@@ -55,9 +55,9 @@ Settings and secrets:
   with one `JOBS_SECRET` (also a reference). Requests from outside Railway
   can't reach the private address.
 - Keys every town already shares (Apify, OpenAI, Gemini, the Slack
-  webhooks) are set once as project-shared variables, referenced by each
-  jobs service. Per-town keys (Meta page and Instagram tokens, ad account,
-  Resend, Stripe) are never shared.
+  webhooks, and on the web services Stripe) are set once as project-shared
+  variables and referenced. Per-town keys (Meta page and Instagram tokens,
+  ad account, Resend) are never shared.
 - A town can only ever see its own Meta credentials, so it can't post to
   another town's page.
 

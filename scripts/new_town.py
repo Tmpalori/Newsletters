@@ -157,8 +157,9 @@ Victoria's).
     BUSINESS_CONTACT_EMAIL (an inbox you read: refunds, privacy requests,
     free drawing entries) and NEWSLETTER_ADDRESS (a PO box or registered
     mailbox in the town; every email needs it too).
-  - Stripe: the one shared account (no new account). On it, a restricted
-    key for the town as STRIPE_SECRET_KEY and a webhook endpoint at
+  - Stripe: the one shared account and its one shared key (no new account
+    or key): STRIPE_SECRET_KEY=${{{{shared.Stripe_secret_key}}}} on the
+    town's web service, and a webhook endpoint at
     {site}/api/stripe/webhook with its STRIPE_WEBHOOK_SECRET, subscribed to
     the 12 events in RAILWAY.md "New town on Railway" step 6 (including
     charge.dispute.closed and invoice.paid). The code tags the town's

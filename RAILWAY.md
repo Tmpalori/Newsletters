@@ -49,8 +49,8 @@ own).
    reads them as references (`${{<web>.<NAME>}}`), so nothing is copied.
    Give each its own value; see AGENTS.md "Security notes".
 5. **Stripe** (sponsor checkout). Every town sells through **one shared
-   Stripe account**; each town has its own key and its own webhook
-   endpoint on it. Orders stay apart by `metadata.town` on each session,
+   Stripe account** and **one shared key**; each town has its own
+   webhook endpoint on it. Orders stay apart by `metadata.town` on each session,
    payment and subscription (Victoria's say `victoria`; older untagged
    ones are hers) and by matching only the town's own orders; each town's
    webhook skips the others' sessions and subscriptions. The card
@@ -58,10 +58,14 @@ own).
    (`statement_descriptor_suffix`, e.g. "VIC 361"), so set the account's
    public name and statement descriptor prefix in the Dashboard to
    something neutral (the LLC or a shared brand, 10 characters or fewer).
-   Live restricted key (`rk_live_`: Checkout Sessions, Products and
-   Prices: write) in production as `STRIPE_SECRET_KEY`, one per town so
-   one can be revoked alone; a test key there shows a Setup checklist
-   warning, and with a live key a test-mode payment is never fulfilled.
+   One live restricted key (`rk_live_`, Custom permissions, never full
+   access: write on Checkout Sessions, Products, Prices, Subscriptions,
+   Charges and Refunds, and Customer Portal; read on Invoices) for every
+   town, kept once as the project-shared variable `Stripe_secret_key`;
+   each town's web service sets
+   `STRIPE_SECRET_KEY=${{shared.Stripe_secret_key}}`, so a rotation is
+   one paste. A test key there shows a Setup checklist warning, and with
+   a live key a test-mode payment is never fulfilled.
    Webhook endpoint `<SITE_URL>/api/stripe/webhook` on API version
    `2026-09-30.endive`, its signing secret as `STRIPE_WEBHOOK_SECRET`,
    subscribed to: `checkout.session.completed`,
@@ -174,9 +178,9 @@ copy a value from Victoria's project, or from another town's: a copied
    to `https://www.<domain>/api/email/inbound` with its secret as
    `RESEND_WEBHOOK_SECRET`.
 6. **Stripe: the shared account** (One-time setup step 5). No new
-   account: on the shared one, a new restricted key for the town
-   (Checkout Sessions, Products and Prices: write) as `STRIPE_SECRET_KEY`,
-   and `STRIPE_WEBHOOK_SECRET` from a new webhook endpoint at
+   account and no new key: `STRIPE_SECRET_KEY=${{shared.Stripe_secret_key}}`
+   (the shared key, One-time setup step 5), and `STRIPE_WEBHOOK_SECRET`
+   from a new webhook endpoint at
    `https://www.<domain>/api/stripe/webhook` (API version
    `2026-09-30.endive`, as in the admin setup checklist) sending all 12
    events: `checkout.session.completed`,
@@ -211,7 +215,7 @@ copy a value from Victoria's project, or from another town's: a copied
     open the admin signed in). HQ is its own repo and Railway project
     (`tmpalori/tristen-hq`, project Tristen HQ): it holds no town data and
     reads each town through its key.
-12. **Jobs.** `JOBS_ON_RAILWAY=1`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`
+12. **Jobs.** `JOBS_ON_RAILWAY=1`, `JOBS_SECRET` (its own fresh value)
     and the town's jobs service ("Jobs on Railway" below). `town.json`
     keeps `"workflows": false` (nothing runs on GitHub). Until the town's
     first collect lands, its scheduler queues only the collect and it sends
@@ -256,8 +260,9 @@ instead of GitHub Actions, so it needs no GitHub Environment, no
 `GITHUB_TOKEN` and no copied cron secrets, and a collect publishes without
 a commit or a redeploy.
 
-1. **On the town's web service:** `JOBS_SECRET` = `${{SUBMISSION_REVIEW_SECRET}}`
-   (a reference to the town's own fresh secret, so nothing is copied) and
+1. **On the town's web service:** `JOBS_SECRET` (its own fresh secret,
+   `openssl rand -hex 32`, unlike every other one; the jobs service
+   references it, so nothing is copied) and
    `JOBS_ON_RAILWAY=1`. Its scheduler and Pull Now then queue jobs in the
    town's database (`server/jobs.js`).
 2. **Project-shared variables (once, for every town):** `APIFY_TOKEN`,
@@ -373,9 +378,10 @@ events) and merged:
    `DATABASE_URL=${{Postgres-<Town>.DATABASE_URL}}`, `ADMIN_USERNAME`,
    `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `NEWSLETTER_CRON_SECRET`,
    `EVENT_CHECK_SECRET`, `SUBMISSION_REVIEW_SECRET`, `HQ_API_KEY`,
-   `HQ_SSO_SECRET`, `HQ_REPLY_KEY` (each fresh, 32+ characters, never
-   copied from another town), `SLACK_*` (shared channels are fine),
-   `SLACK_TOWN_TAG`, `JOBS_SECRET=${{SUBMISSION_REVIEW_SECRET}}`,
+   `HQ_SSO_SECRET`, `HQ_REPLY_KEY`, `JOBS_SECRET` (each fresh, 32+
+   characters, never copied from another town), `SLACK_*` (shared
+   channels are fine), `SLACK_TOWN_TAG`,
+   `STRIPE_SECRET_KEY=${{shared.Stripe_secret_key}}`,
    `JOBS_ON_RAILWAY=1`. The town's `town.json` keeps `"workflows": false`:
    it never runs on GitHub.
 3. **Jobs service** `<web>-jobs`: "Jobs on Railway" above.
