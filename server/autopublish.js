@@ -206,7 +206,10 @@ export function cutOff(oldName, newName) {
 }
 
 // New & Notable: this run's items first, then earlier finds still under
-// three weeks old (items carry the date the collector found them).
+// three weeks old (items carry the date the collector found them). An
+// earlier find carries forward only when the collector checked its link
+// (`checked`, Oct 2026): finds from before that check could link a 404 or
+// a made-up post, and they leave the box at the next publish.
 const NOTABLE_KEEP_DAYS = 21;
 const NOTABLE_MAX = 6;
 export function mergeNotable(fresh, prior, today) {
@@ -220,7 +223,7 @@ export function mergeNotable(fresh, prior, today) {
     out.push(n);
   };
   (fresh || []).forEach(add);
-  (prior || []).filter(n => n && typeof n.added === 'string' && n.added >= cutoff).forEach(add);
+  (prior || []).filter(n => n && n.checked === true && typeof n.added === 'string' && n.added >= cutoff).forEach(add);
   return out.slice(0, NOTABLE_MAX);
 }
 

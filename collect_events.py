@@ -1702,10 +1702,15 @@ def fetch_gemini_events(days_ahead=14, post=None, categories=None, get=None, wor
 #
 # The homepage's "New & Notable" box: businesses that just opened in
 # Victoria or have announced an opening. One grounded Gemini search per run;
-# an item is kept only with its own link on a site Gemini cited (or a page
-# that loads and names it), and never for churches/religious items. Each item
-# carries the date it was found ("added"); auto-publish keeps items for three
-# weeks so the box doesn't empty out between runs.
+# an item is kept only when its link is checked like a Gemini event's (a
+# page that loads, is still that page and names it, even on a site Gemini
+# cited; on Facebook/Instagram, which can't be read, one post on a cited
+# site), and never for churches/religious items. Gemini makes up deep links
+# on real sites: Oct 2026, Virginia Beach's box linked a 404 on the cafe's
+# own site and one invented Instagram post for three different places, so
+# a link given for two items is dropped for both. Each item carries the
+# date it was found ("added") and "checked"; auto-publish keeps checked
+# items for three weeks so the box doesn't empty out between runs.
 
 _NOTABLE_ICONS = {"food", "drinks", "shopping", "arts", "music", "outdoors", "family", "community"}
 NOTABLE_MAX = 5
@@ -1765,8 +1770,12 @@ def fetch_gemini_notable(post=None, get=None):
     cand = (data.get("candidates") or [{}])[0]
     text = "".join(p.get("text", "") for p in ((cand.get("content") or {}).get("parts") or []))
     grounded = _grounded_hosts(cand)
+    raw = _gemini_json_array(text)
+    url_uses = Counter(str(i.get("url") or "").strip().rstrip("/").lower() for i in raw if isinstance(i, dict))
     items, seen, dropped = [], set(), Counter()
-    for item in _gemini_json_array(text):
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
         name = _clean_text(item.get("name"))[:90]
         desc = _clean_text(item.get("description"))[:220]
         url = str(item.get("url") or "").strip()
@@ -1778,14 +1787,22 @@ def fetch_gemini_notable(post=None, get=None):
         if non_event_reason({"name": name, "description": desc}) in ("religious event", "church event", "worship service"):
             dropped["religious"] += 1
             continue
-        if not (grounded and _host_matches(_host(url), grounded)) and not _page_mentions(url, name, get=get):
+        if url_uses[url.rstrip("/").lower()] > 1:
+            dropped["same link as another item"] += 1
+            continue
+        cited = bool(grounded and _host_matches(_host(url), grounded))
+        if _LINK_CHECK_SKIP.search(url):
+            ok = cited and _is_social_event_url(url)
+        else:
+            ok = _page_mentions(url, name, get=get, unsure=cited) is True
+        if not ok:
             dropped["link didn't check out"] += 1
             continue
         seen.add(name.lower())
         tag = item.get("tag") if item.get("tag") in ("new", "coming") else "new"
         icon = item.get("icon") if item.get("icon") in _NOTABLE_ICONS else "community"
         items.append({"name": name, "description": desc, "tag": tag, "icon": icon, "url": url,
-                      "added": today.isoformat()})
+                      "added": today.isoformat(), "checked": True})
         if len(items) >= NOTABLE_MAX:
             break
     print(f"  [Gemini notable] {len(items)} items"

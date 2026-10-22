@@ -29,23 +29,31 @@ other three.
 
 1. resend.com → Domains → Add domain → the town's domain.
 2. Paste the DNS records it shows (SPF, DKIM, and the MX record for replies).
-3. API Keys → Create API key ("Sending access", that domain only).
+3. No new API key: every town uses the one full-access key kept as the
+   Newsletters shared variable `Resend_api_key` (to rotate it, create a new
+   full-access key and paste it there).
 4. Webhooks → Add endpoint: `https://www.<domain>/api/email/inbound`, events
    `email.received`, `email.bounced`, `email.complained`, `email.delivered`.
-5. Send Claude the API key and the webhook's signing secret.
+5. Send Claude the webhook's signing secret.
 
 ## 3. Stripe: payments (5 min a town)
 
-Every town sells through the one Stripe account The Vic 361 uses; no new
-account per town.
+Every town sells through the one Stripe account The Vic 361 uses, with
+one shared key; no new account or key per town.
 
 1. Once, for all towns: Settings → Business → Public details, a neutral
    business name and statement descriptor prefix (the LLC or a shared
    brand, 10 characters or fewer). The code adds the town to each card
    statement (e.g. `VIC 361`, `TUPELO`).
-2. Per town: a restricted key (Checkout Sessions, Products and Prices:
-   write). Send it to Claude; Claude adds the town's webhook endpoint and
-   both Railway variables (RAILWAY.md "New town on Railway" step 6).
+2. Once, for all towns: one restricted key (API keys → Create a secret
+   key → Building your own integration → Custom permissions; write on
+   Checkout Sessions, Products, Prices, Subscriptions, Charges and Refunds,
+   and Customer Portal; read on Invoices). It lives in Railway as the
+   Newsletters shared variable `Stripe_secret_key`; to rotate it, roll the
+   key and paste the new one there.
+3. Per town: nothing to create. Claude points the town's
+   `STRIPE_SECRET_KEY` at the shared key and adds its webhook endpoint and
+   `STRIPE_WEBHOOK_SECRET` (RAILWAY.md "New town on Railway" step 6).
 
 ## 4. Cloudflare Turnstile: spam protection on forms (2 minutes total)
 
