@@ -128,6 +128,23 @@ def test_group_keeps_one_time_events_past_the_window(monkeypatch):
     assert 1 <= names.count("Trivia") <= 3
 
 
+def test_shared_post_text_and_images_reach_the_model():
+    # The groups actor's shape for an admin's share of a page post (Oct 22 2026).
+    p = ce._group_post({"text": "", "sharedPost": {
+        "pageName": {"name": "Alchemy Lincoln"},
+        "text": "Miky Semrad takes the stage at 6:30 tonight.",
+        "media": [{"thumbnail": "https://x/thumb.jpg", "photo_image": {"uri": "https://x/flyer.jpg"}}]}})
+    assert p["text"] == "Shared from Alchemy Lincoln: Miky Semrad takes the stage at 6:30 tonight."
+    assert ce._post_image_urls(p) == ["https://x/flyer.jpg", "https://x/thumb.jpg"]
+
+
+def test_unavailable_share_is_empty():
+    p = ce._group_post({"text": "", "title": "This content isn't available right now", "attachments": [
+        {"title_with_entities": {"text": "This content isn't available right now"},
+         "description": {"text": "When this happens, it's usually because..."}}]})
+    assert p["text"] == "" and p["media"] == []
+
+
 def test_empty_group_goes_quiet(monkeypatch):
     _keys(monkeypatch)
     monkeypatch.setattr(ce, "_apify_posts_run", lambda *a: _resp([{"error": "private"}]))

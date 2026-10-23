@@ -5716,26 +5716,42 @@ def _town_facebook_groups(town=None):
     return out
 
 
+_UNAVAILABLE = "this content isn't available"
+
+
 def _group_post(p):
-    """A groups-actor post in the posts actor's shape: its images are under
-    "attachments", not "media", and a shared event or post (most of what
-    group admins post, often with no caption) comes as a link preview whose
-    title and description ("Sat, Nov 28 at 2 PM · Belmont Community Center")
-    the model needs as much as the text."""
+    """A groups-actor post in the posts actor's shape. Its images are under
+    "attachments", not "media". Most of what group admins post is a share
+    with no caption: the shared post's own text and images come under
+    "sharedPost" (Alchemy's "Miky Semrad takes the stage at 6:30", Oct 22
+    2026), a shared event or link as a preview title and description. Both
+    go into the text the model reads; Facebook's "This content isn't
+    available right now" stand-in for a share it won't show is dropped."""
     if not isinstance(p, dict):
         return p
     out = dict(p)
-    if not out.get("media") and isinstance(out.get("attachments"), list):
-        out["media"] = out["attachments"]
+    media = list(out.get("media") or out.get("attachments") or [])
     text = (out.get("text") or "").strip()
-    extra = [str(out.get(k)).strip() for k in ("title", "previewTitle", "previewDescription", "location")
-             if isinstance(out.get(k), str) and out.get(k).strip() and out.get(k).strip() not in text]
+    extra = []
+    shared = out.get("sharedPost")
+    if isinstance(shared, dict):
+        who = ((shared.get("pageName") or shared.get("user") or {}).get("name") or "").strip()
+        body = (shared.get("text") or "").strip()
+        if body:
+            extra.append(f"Shared from {who}: {body}" if who else f"Shared: {body}")
+        media += [m for m in (shared.get("media") or shared.get("attachments") or []) if isinstance(m, dict)]
+    media = [m for m in media if isinstance(m, dict)
+             and _UNAVAILABLE not in str((m.get("title_with_entities") or {}).get("text") or "").lower()]
+    out["media"] = media
+    previews = [str(out.get(k)).strip() for k in ("title", "previewTitle", "previewDescription", "location")
+                if isinstance(out.get(k), str) and out.get(k).strip()]
+    previews = [t for t in previews if _UNAVAILABLE not in t.lower() and t not in text]
     link = next((out.get(k) for k in ("link", "previewSource") if isinstance(out.get(k), str) and out.get(k).strip()), "")
     if link and link not in text:
-        extra.append(f"Link: {link.strip()}")
-    if extra:
-        shared = "Shared: " + " · ".join(extra)
-        out["text"] = f"{text}\n{shared}" if text else shared
+        previews.append(f"Link: {link.strip()}")
+    if previews:
+        extra.append("Shared: " + " · ".join(previews))
+    out["text"] = "\n".join([t for t in [text] + extra if t])
     return out
 
 
