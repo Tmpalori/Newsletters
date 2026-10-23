@@ -550,6 +550,8 @@ def cmd_emails(a, args):
     sent = submitted(a["slug"], "business_emails")
     need = [l for l in leads if l["id"] not in sent and not free_emails(l["content"])
             and not any((p.get("email") or {}).get("verified") for p in people.get(l["id"], []))]
+    if args.limit is not None:
+        need = need[:args.limit]   # picks are best-first
     print(f"{a['site_name']}: {len(need)} picks with no verified person email and no email in the search to look up")
     if not args.go:
         print("dry run: nothing sent (add --go)")
@@ -665,7 +667,7 @@ def main(argv=None):
     p.add_argument("--title", default="Owner or decision maker", help="the role find_people looks for")
     p.add_argument("--max-k", type=int, default=1, help="contacts per business, 1-8 (default 1)")
     p.add_argument("--phone", action="store_true", help="ask for phones too (costs more)")
-    p.add_argument("--limit", type=int, help="contacts: send at most this many new lookups (best picks first)")
+    p.add_argument("--limit", type=int, help="contacts, emails: send at most this many new lookups (best picks first)")
     p.add_argument("--max-spend", type=float, help="stop a stage once this many credits are spent")
     p.add_argument("--refresh", action="store_true", help="search again even when cached")
     p.add_argument("--go", action="store_true", help="really send (spends credits)")

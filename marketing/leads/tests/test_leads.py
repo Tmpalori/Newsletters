@@ -201,6 +201,8 @@ def test_emails_skip_picks_the_search_already_gave_an_email(capsys):
     picked_file("victoria", items)
     assert leads.main(["emails", "--town", "victoria"]) == 0
     assert "1 picks with no verified person email" in capsys.readouterr().out
+    assert leads.main(["emails", "--town", "victoria", "--limit", "0"]) == 0
+    assert "0 picks with no verified person email" in capsys.readouterr().out
 
 
 def test_submit_records_each_batch_and_splits_at_100(monkeypatch):
