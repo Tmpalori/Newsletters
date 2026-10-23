@@ -1,0 +1,8 @@
+# The subscribe-video toolkit only (marketing/video). Kept apart from the
+# site's requirements.txt on purpose: whisper and its CTranslate2/ONNX
+# runtimes are a few hundred MB the collector must never install.
+# Floors are what analyze.py uses (word timestamps, initial_prompt); the
+# caps block an untested major release, as in the repo's other files.
+faster-whisper>=1.1,<2
+requests>=2.31,<3
+pytest>=8.0,<10
