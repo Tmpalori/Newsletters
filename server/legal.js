@@ -31,7 +31,7 @@ import { layout, escHtml, AD_PACKAGES, CANCEL_NOTICE_DAYS } from './seo.js';
 // every sponsor order (terms_version) and sent to Stripe as metadata.
 export const ADVERTISING_TERMS_VERSION = '2026-10-17';
 export const TERMS_VERSION = '2026-10-10';
-export const PRIVACY_VERSION = '2026-10-20';
+export const PRIVACY_VERSION = '2026-10-23';
 export const ACCESSIBILITY_VERSION = '2026-10-10';
 export const REFERRAL_RULES_VERSION = '2026-10-10';
 
@@ -136,7 +136,7 @@ export function renderPrivacyPage({ siteUrl }) {
     ]))}
     ${section('public', 'Public event information', `<p>Most listings come from public sources: venue and organizer websites, public calendars, and public Facebook and Instagram pages of venues and organizations. We gather them with automated tools (including Apify for public social media pages, and OpenAI and Google Gemini to read event details and write short summaries). We collect event details (what, when, where, price), not information about individual people. If you organize an event and want a listing changed or removed, email ${emailLink('Event listing')}.</p>`)}
     ${section('measure', 'What we measure', ul([
-      '<strong>Our own visit counts:</strong> which pages are viewed and which links are clicked, so we know what\'s useful and can report to sponsors how often their placement was seen. We don\'t use cookies for this, and this counter doesn\'t keep your IP address; a visitor is a one-way code that changes every day.',
+      '<strong>Our own visit counts:</strong> which pages are viewed and which links are clicked, so we know what\'s useful and can tell sponsors how often their placement was seen, and people who submit an event how often it was seen in our lists. We don\'t use cookies for this, and this counter doesn\'t keep your IP address; a visitor is a one-way code that changes every day.',
       '<strong>Referrals:</strong> every subscriber gets a share link. When someone signs up through it, we note who shared it so we can count referrals and send rewards; we don\'t tell the person who shared it who signed up. Gift card rewards are sent by our rewards partner, <a href="https://www.tremendous.com/privacy" rel="noopener">Tremendous</a>, which gets the winner\'s email address to deliver them (see the <a href="/referral-rules">rules</a>).',
       '<strong>Newsletter opens:</strong> each newsletter has a tiny invisible image, so we can tell whether you opened that issue (we count each person once per issue), and links back to the site are tagged with the issue they came from. Links to our own pages in each issue also pass through our site first, so we can count which links each reader tapped (once per person, issue and link, kept as long as the open count). Turning off images in your email app stops the open count.',
       ga ? '<strong>Google Analytics</strong> measures visits to the site and uses cookies. See <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">how Google uses this data</a>, or use Google\'s <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener">opt-out add-on</a>.' : '',

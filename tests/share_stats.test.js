@@ -63,12 +63,17 @@ describe('event stats', () => {
       // On Trivia's page, its "Also on" list: Market's link and share icon belong to Market.
       click('2026-10-08', T, 'a', 'event_click', 'https://market.example'),
       click('2026-10-08', T, 'a', 'share_from_list', `https://www.thevic361.com${M}`),
-      view('2026-10-10', M, 'c')
+      view('2026-10-10', M, 'c'),
+      // Seen in a list (data-seen): on the homepage counts, on its own page
+      // doesn't; Market seen in Trivia's "Also on" list is Market's.
+      { day: '2026-10-08', kind: 'sighting', path: '/', click_url: T, visitor: 'a' },
+      { day: '2026-10-08', kind: 'sighting', path: T, click_url: T, visitor: 'a' },
+      { day: '2026-10-09', kind: 'sighting', path: T, click_url: M, visitor: 'b', n: 2 }
     ];
     const [trivia, market] = eventWeekStats(rows, events, { start: '2026-10-05', end: '2026-10-11' });
-    expect(trivia).toEqual({ page: T, name: 'Trivia', venue: 'Pub', date: '2026-10-09', counted_from: '2026-10-02',
+    expect(trivia).toEqual({ page: T, name: 'Trivia', venue: 'Pub', date: '2026-10-09', counted_from: '2026-10-02', shown: 1, shown_people: 1,
       page_views: 3, page_people: 3, link_clicks: 1, link_people: 1, calendar_adds: 0, shares: 2, share_visits: 1 });
-    expect(market).toEqual({ page: M, name: 'Market', venue: 'Square', date: '2026-10-10', counted_from: '2026-10-03',
+    expect(market).toEqual({ page: M, name: 'Market', venue: 'Square', date: '2026-10-10', counted_from: '2026-10-03', shown: 2, shown_people: 1,
       page_views: 1, page_people: 1, link_clicks: 0, link_people: 0, calendar_adds: 0, shares: 1, share_visits: 0 });
   });
 

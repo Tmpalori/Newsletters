@@ -11,14 +11,20 @@
  *     (scheduler 'event-recaps'), catching up for RECAP_CATCHUP_DAYS;
  *   - none when a paid pick was bought for the same event (its buyer gets
  *     the pick report), and none when its page had fewer than MIN_VIEWS
- *     views ("3 views" helps nobody); that's recorded so it isn't
- *     checked again.
+ *     views ("3 views" helps nobody) and it was seen in a list fewer than
+ *     MIN_SHOWN times; that's recorded so it isn't checked again.
  * Numbers are the admin's Event stats (sponsors.js eventWeekStats): the
- * event's page from LEAD_IN_DAYS before its date through its date. On top,
- * everywhere it was put in front of people (server/eventReach.js): the day
- * lists it made (checked on its day, a 'listed' history entry), the
- * newsletter issues and social posts that showed it, and visits from them;
- * and, with the upgrade line, how paid picks did against other events.
+ * event's page from LEAD_IN_DAYS before its date through its date, and how
+ * often it was seen in a list (data-seen, counted like a paid pick's
+ * impressions: half of it on screen for a second). Tristen (Oct 2026): most
+ * people see a free event in the list and never open it, so the page views
+ * alone undersold it and kept most organizers from getting the email. On
+ * top, everywhere it was put in front of people (server/eventReach.js): the
+ * day lists it made (checked on its day, a 'listed' history entry; shown
+ * only when it has no sightings, i.e. events from before they were
+ * counted), the newsletter issues and social posts that showed it, and
+ * visits from them; and, with the upgrade line, how paid picks did against
+ * other events.
  */
 
 import { town } from './town.js';
@@ -26,10 +32,14 @@ import { localDateStr, addDays } from './seo.js';
 import { eventKeyOf } from './db.js';
 import { currentWeek } from './seo.js';
 import { eventWeekStats, sameEvent } from './sponsors.js';
-import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, REACH_DAYS } from './eventReach.js';
+import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, typicalPickShown, REACH_DAYS } from './eventReach.js';
 import { renderSubmissionRecap } from './notify.js';
 
 export const MIN_VIEWS = 5;
+// Seen in lists this often is worth an email even with few page views. Above
+// the 20 sightings a day one address can send (/api/track), so a single
+// reader can't trip it alone.
+export const MIN_SHOWN = 25;
 const RECAP_CATCHUP_DAYS = 3;
 // Paid picks against other events over the last month (the upgrade line).
 const LIFT_DAYS = 30;
@@ -98,6 +108,11 @@ export function createEventRecaps({ store, getEvents, mailer, slack = null, site
       lift = pickLift(traffic, past, pages, { from: liftFrom, to: addDays(today, -1) });
       return lift;
     };
+    let pickShown;
+    const pickShownNow = () => {
+      if (pickShown === undefined) pickShown = typicalPickShown(traffic, allOrders, { from: liftFrom, to: addDays(today, -1) });
+      return pickShown;
+    };
     let sent = 0;
     for (const row of rows) {
       const record = async (entry) => {
@@ -115,21 +130,23 @@ export function createEventRecaps({ store, getEvents, mailer, slack = null, site
       // catch-up window lasts; nothing to report otherwise.
       if (!ev) continue;
       const [stats] = eventWeekStats(traffic, [ev], { start: ev.date, end: ev.date });
-      if (!stats || (stats.page_views || 0) < MIN_VIEWS) {
-        await record({ note: `No recap: ${stats ? stats.page_views : 0} page views`, sent: false });
+      const views = stats ? stats.page_views || 0 : 0, shown = stats ? stats.shown || 0 : 0;
+      const counted = `${views} page views, seen ${shown} times in lists`;
+      if (views < MIN_VIEWS && shown < MIN_SHOWN) {
+        await record({ note: `No recap: ${counted}`, sent: false });
         continue;
       }
       const reach = await reachOf(ev, row, traffic);
       const mail = renderSubmissionRecap({ ...row.payload, name: ev.name || row.payload.name, url: ev.url || row.payload.url }, { ...stats, ...reach },
-        { siteUrl, address, upgrade, pickLift: upgrade ? liftNow() : null });
+        { siteUrl, address, upgrade, pickLift: upgrade ? liftNow() : null, pickShown: upgrade ? pickShownNow() : null });
       const result = await mailer.deliver(row.submitter_email, mail, `${town.keyPrefix}-submission-recap-${row.id}`);
       if (result === 'off' || result === 'failed') continue;
-      await record({ note: result === 'sent' ? `Recap sent: ${stats.page_views} page views` : 'The address refused the recap', sent: result === 'sent' });
+      await record({ note: result === 'sent' ? `Recap sent: ${counted}` : 'The address refused the recap', sent: result === 'sent' });
       if (result !== 'sent') continue;
       sent++;
       if (slack) {
         slack.notify({ channel: 'activity', title: `📈 Sent ${String(ev.name || 'an organizer').slice(0, 80)}'s organizer their recap`,
-          fields: [['Page views', stats.page_views], ['List views', reach.list_views], ['Newsletter copies', reach.newsletter_recipients],
+          fields: [['Seen in lists', shown], ['Page views', stats.page_views], ['List views', reach.list_views], ['Newsletter copies', reach.newsletter_recipients],
             ['Social posts', reach.social_posts], ['Link clicks', stats.link_people], ['Calendar adds', stats.calendar_adds], ['Shares', stats.shares]] });
       }
     }

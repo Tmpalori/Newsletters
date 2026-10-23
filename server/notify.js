@@ -479,8 +479,9 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
   const range = `${formatDay(stats.week_start, short)} – ${formatDay(stats.week_end, short)}`;
   const total = stats.site_people + stats.email_people + (Number(stats.social_people) || 0);
   const views = Number(stats.views) || 0;
+  const lead = placementReach(views, Number(stats.newsletter_recipients) || 0, 'your block');
   const rows = [
-    ...(views ? [[`Your block was seen on ${town.domain}`, plural(views, 'time', 'times')]] : []),
+    ...(views && !lead.solo ? [[`Your block was seen on ${town.domain}`, plural(views, 'time', 'times')]] : []),
     ...(stats.site_people ? [[`Clicked your button on ${town.domain}`, people(stats.site_people)]] : []),
     ...(stats.email_people ? [['Clicked your button in our emails', people(stats.email_people)]] : []),
     ...(stats.social_people ? [[`Clicked your link in our ${town.instagram ? 'Facebook and Instagram' : 'Facebook'} posts`, people(stats.social_people)]] : []),
@@ -488,23 +489,27 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
       num(stats.newsletter_recipients)]] : []),
     ...(stats.site_visitors ? [[`Visits to ${town.domain} that week`, num(stats.site_visitors)]] : [])
   ];
+  const seen = views ? `seen ${timesN(views)}` : '';
   const bodyHtml =
     p(`Thanks for sponsoring ${town.siteName}, ${escHtml(business)}! Here’s how your week (${escHtml(range)}) went.`) +
+    (lead ? bigNumber(lead) : '') +
     p(`<strong>${escHtml(people(total))}</strong> clicked through to you in total.`, 'font-size:17px;') +
     statsTable(rows) +
     whereHtml(stats.where) +
-    p(`${escHtml(COUNTER_NOTE)} In your own analytics our visits are tagged utm_source=${town.utmSource}.`, `color:${C.muted};font-size:13px;`) +
+    p(`${escHtml(`${lead ? lead.note : ''}${COUNTER_NOTE}`)} In your own analytics our visits are tagged utm_source=${town.utmSource}.`, `color:${C.muted};font-size:13px;`) +
     box(`<strong>Want another week?</strong> One sponsor a week, so book early.<br><br>${btn(`${siteUrl}/advertise/checkout?package=weekly`, 'Book another week')}`);
   return {
-    subject: `Your ${town.shortName} sponsor week: ${people(total)} clicked`,
-    html: emailShell({ title: 'Your sponsor report', preheader: `${people(total)} clicked through to ${business} during ${range}.`, bodyHtml, siteUrl,
-      footerHtml: contactFooter(siteUrl, address) }),
+    subject: `Your ${town.shortName} sponsor week: ${seen ? `${seen}${total ? `, ${people(total)} clicked` : ''}` : `${people(total)} clicked`}`,
+    html: emailShell({ title: 'Your sponsor report',
+      preheader: seen ? `Your block was ${seen} on ${town.domain} during ${range}${total ? `, and ${people(total)} clicked through` : ''}.` : `${people(total)} clicked through to ${business} during ${range}.`,
+      bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Thanks for sponsoring ${town.siteName}, ${business}! Here's how your week (${range}) went.`, '',
+      ...(lead ? [`${num(lead.total)} ${lead.headline}`] : []),
       `${people(total)} clicked through to you in total.`,
       ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
       ...whereText(stats.where),
-      COUNTER_NOTE, '',
+      `${lead ? lead.note : ''}${COUNTER_NOTE}`, '',
       `Want another week? ${siteUrl}/advertise/checkout?package=weekly`,
       contactText(siteUrl)
     ].join('\n')
@@ -518,12 +523,17 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
 // counted like the admin's Event stats (sponsors.js eventWeekStats). Lines
 // for places it didn't appear are left out rather than shown as zero. The
 // /submit form says we email about the event; the paid pick is one line for
-// next time, with how picks did against other events (`pickLift`) when
-// there's enough to say so.
-export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true, pickLift = null }) {
+// next time, with how often a typical pick was on screen (`pickShown`) and
+// how picks did against other events (`pickLift`) when there's enough to
+// say so.
+export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true, pickLift = null, pickShown = null }) {
   const name = ev.name || 'your event';
   const day = ev.date ? formatDay(ev.date, { weekday: 'long' }) : 'its day';
-  const reach = reachRows(stats, { day });
+  const shown = Number(stats.shown) || 0;
+  // Seen in a list (stats.shown, counted like a pick's impressions) says
+  // more than views of the list it was on, so it takes that row when counted.
+  const reach = reachRows(stats, { day, shownLabel: `Seen in our event lists on ${town.domain}`,
+    soloLabel: n => `${n === 1 ? 'time' : 'times'} on screen in our event lists on ${town.domain}` });
   const rows = [
     ...reach.rows,
     ['Views of its event page', num(stats.page_views)],
@@ -536,18 +546,22 @@ export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = t
   ];
   const lead = `Thanks for sharing ${name} with ${town.city}. Here’s how it did on ${town.siteName} in the week leading up to it:`;
   const lift = pickLift ? `This past month, ${town.pickName}s got about ${times(pickLift)} the page views of other events. ` : '';
-  const next = `${lift}Next time, the ${town.pickName} upgrade guarantees your event a spot on its day’s list, highlighted with the ${town.pickName} badge and featured first in our social posts.`;
+  // What a pick adds, in the same count as the event's own (typicalPickShown
+  // in server/eventReach.js); left out when this event already did as well.
+  const typical = pickShown && pickShown > shown
+    ? `This past month, a typical ${town.pickName} was on screen about ${num(pickShown)} times${shown ? `; yours was on screen ${timesN(shown)}` : ''}. ` : '';
+  const next = `${typical}${lift}Next time, the ${town.pickName} upgrade guarantees your event a spot on its day’s list, highlighted with the ${town.pickName} badge and featured first in our social posts.`;
   const again = 'Have another event coming up? Send it in anytime, it’s free.';
   const bodyHtml =
     p(escHtml(lead)) +
-    (reach.headline ? p(`<strong style="font-size:24px;">${escHtml(num(reach.total))}</strong> ${escHtml(reach.headline)}`, 'font-size:17px;margin-bottom:0;') : '') +
+    (reach.headline ? bigNumber(reach) : '') +
     statsTable(rows) +
     p(escHtml(`${reach.note}${COUNTER_NOTE}`), `color:${C.muted};font-size:13px;`) +
     p(`${escHtml(again)}`) +
     `<div style="margin:16px 0;">${btn(`${siteUrl}/submit`, 'Submit an event')}</div>` +
     (upgrade ? p(`${escHtml(next)} <a href="${siteUrl}/advertise" style="color:${C.accent};">See how it works</a>.`, 'font-size:14px;') : '');
   return {
-    subject: `How ${name} did on ${town.siteName}`,
+    subject: `How ${name} did on ${town.siteName}${shown ? `: seen ${timesN(shown)}` : ''}`,
     html: emailShell({ title: 'Here’s how your event did', preheader: reach.headline ? `${num(reach.total)} ${reach.headline}.` : `${num(stats.page_views)} views of its page on ${town.domain}.`, bodyHtml, siteUrl,
       footerHtml: contactFooter(siteUrl, address) }),
     text: [
@@ -570,9 +584,10 @@ const andList = xs => xs.join(' plus ');
 
 // The "where it went" rows and headline, from server/eventReach.js numbers
 // (only the places it was): list views (or `shown`, a pick's counted
-// impressions), newsletter copies, social posts. The headline adds up what
-// can be counted (views and copies sent) and says so in the note.
-function reachRows(stats, { day, shownLabel = null }) {
+// impressions or a submitted event's sightings), newsletter copies, social
+// posts. The headline adds up what can be counted (views and copies sent)
+// and says so in the note.
+function reachRows(stats, { day, shownLabel = null, soloLabel = null }) {
   const rows = [], parts = [];
   let total = 0;
   if (shownLabel && stats.shown) {
@@ -592,14 +607,32 @@ function reachRows(stats, { day, shownLabel = null }) {
     const where = (stats.social_platforms || []).map(x => (x === 'instagram' ? 'Instagram' : 'Facebook')).sort().join(' and ') || 'social';
     rows.push([`In our ${where} posts`, plural(Number(stats.social_posts), 'post', 'posts')]);
   }
-  // One place alone would only repeat its own row.
   const both = parts.length > 1;
+  // Only its times on screen: that number leads on its own when the caller
+  // words it (soloLabel(n)), and leaves its row (Tristen, Oct 2026: reports
+  // open with reach). Any other single place would only repeat its row.
+  const shown = Number(stats.shown) || 0;
+  const solo = !both && Boolean(soloLabel && shownLabel && shown);
   return {
-    rows, total: both ? total : 0,
-    headline: both ? 'chances to be seen across our site and newsletter' : '',
+    rows: solo ? rows.filter(([k]) => k !== shownLabel) : rows, solo,
+    total: both ? total : solo ? shown : 0,
+    headline: both ? 'chances to be seen across our site and newsletter' : solo ? soloLabel(shown) : '',
     note: both ? `That total is ${andList(parts)}. ` : ''
   };
 }
+
+// The number a sponsor or partner report opens with (Tristen, Oct 2026:
+// reach first, it's what sells the next booking; clicks come right after):
+// times their placement was on screen, plus the newsletter copies that
+// carried it when there were any, with what that adds up to in the note.
+// Null with nothing seen. `what`: 'your block', 'your card'.
+function placementReach(views, copies, what) {
+  if (!views) return null;
+  if (copies) return { total: views + copies, solo: false, headline: 'chances to be seen across our site and newsletter',
+    note: `That total is times ${what} was seen on the site plus newsletter copies sent. ` };
+  return { total: views, solo: true, headline: `${views === 1 ? 'time' : 'times'} ${what} was on screen on ${town.domain}`, note: '' };
+}
+const bigNumber = r => p(`<strong style="font-size:24px;">${escHtml(num(r.total))}</strong> ${escHtml(r.headline)}`, 'font-size:17px;margin-bottom:0;');
 
 export function renderPickReport(order, stats, { siteUrl, address }) {
   const business = order.business || 'there';
@@ -610,9 +643,9 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
   // social posts and the headline total.
   const reach = reachRows({ shown, social_posts: stats.social_posts, social_platforms: stats.social_platforms,
     ...(stats.newsletter_starred ? { newsletter_issues: stats.newsletter_issues > 1 ? ['Monday', 'Thursday'] : ['Monday'], newsletter_recipients: recipients } : {}) },
-  { shownLabel: `Shown in our event lists as a ${town.pickName}` });
+  { shownLabel: `Shown in our event lists as a ${town.pickName}`, soloLabel: n => `${n === 1 ? 'time' : 'times'} on screen as a ${town.pickName}` });
   const rows = [
-    [`Shown in our event lists as a ${town.pickName}`, timesN(shown)],
+    ...(reach.solo ? [] : [[`Shown in our event lists as a ${town.pickName}`, timesN(shown)]]),
     ...(stats.newsletter_starred ? [[stats.newsletter_issues > 1 ? 'Starred in both newsletters (Monday and Thursday), copies sent' : 'Starred in the newsletter, sent to',
       stats.newsletter_issues > 1 ? num(recipients) : `${num(recipients)} subscribers`]] : []),
     ...reach.rows.filter(([k]) => /posts$/.test(k)),
@@ -630,14 +663,14 @@ export function renderPickReport(order, stats, { siteUrl, address }) {
   const headline = `${name} was seen ${plural(shown, 'time', 'times')} as a ${town.pickName}.`;
   const bodyHtml =
     p(`Thanks for making <strong>${escHtml(name)}</strong> a ${town.pickName}, ${escHtml(business)}! Here’s how it did on ${town.siteName}.`) +
-    (reach.total ? p(`<strong style="font-size:24px;">${escHtml(num(reach.total))}</strong> ${escHtml(reach.headline)}`, 'font-size:17px;margin-bottom:0;') : '') +
+    (reach.total ? bigNumber(reach) : '') +
     statsTable(rows) +
     (vs ? p(`<strong>${escHtml(vs)}</strong>`) : '') +
     whereHtml(stats.where) +
     p(escHtml(`${reach.note}${COUNTER_NOTE}`), `color:${C.muted};font-size:13px;`) +
     box(`<strong>Got another event coming up?</strong> Make it stand out on its day too.<br><br>${btn(`${siteUrl}/advertise/checkout?package=featured`, `Give it the ${town.pickName} badge`)}`);
   return {
-    subject: `Your ${town.pickNamePlain} report: ${name}`,
+    subject: `Your ${town.pickNamePlain} report: ${name}${shown ? `, seen ${timesN(shown)}` : ''}`,
     html: emailShell({ title: `Your ${town.pickName} report`, preheader: headline, bodyHtml, siteUrl,
       footerHtml: contactFooter(siteUrl, address) }),
     text: [
@@ -777,8 +810,10 @@ export function renderPartnerReport(order, stats, { siteUrl, address, manageUrl 
   const range = `${formatDay(stats.start, short)} – ${formatDay(stats.end, short)}`;
   const views = Number(stats.views) || 0;
   const total = Number(stats.click_people) || 0;
+  const lead = placementReach(views, Number(stats.newsletter_recipients) || 0, 'your card');
+  const seen = views ? `seen ${timesN(views)}` : '';
   const rows = [
-    [`Your card was seen on ${town.domain}`, plural(views, 'time', 'times')],
+    ...(lead && lead.solo ? [] : [[`Your card was seen on ${town.domain}`, plural(views, 'time', 'times')]]),
     ...(stats.newsletter_people ? [['Clicked your button in our newsletter', people(stats.newsletter_people)]] : []),
     ...(stats.site_people ? [[`Clicked your button on ${town.domain}`, people(stats.site_people)]] : []),
     ...(stats.social_people ? [['Clicked your link in our Facebook post', people(stats.social_people)]] : []),
@@ -786,21 +821,25 @@ export function renderPartnerReport(order, stats, { siteUrl, address, manageUrl 
   ];
   const bodyHtml =
     p(`Thanks for being our ${escHtml(cat.toLowerCase())} partner, ${escHtml(business)}! Here’s how your month (${escHtml(range)}) went.`) +
+    (lead ? bigNumber(lead) : '') +
     p(`<strong>${escHtml(people(total))}</strong> clicked through to you in total.`, 'font-size:17px;') +
     statsTable(rows) +
     whereHtml(stats.where) +
-    p(`${escHtml(COUNTER_NOTE)} In your own analytics our visits are tagged utm_source=${town.utmSource}.`, `color:${C.muted};font-size:13px;`) +
+    p(`${escHtml(`${lead ? lead.note : ''}${COUNTER_NOTE}`)} In your own analytics our visits are tagged utm_source=${town.utmSource}.`, `color:${C.muted};font-size:13px;`) +
     p('Want to change your line or link for next month? Just reply.', 'font-size:15px;') +
     manageHtml(manageUrl);
   return {
-    subject: `Your ${town.shortName} partner month: ${people(total)} clicked`,
-    html: emailShell({ title: 'Your partner report', preheader: `${people(total)} clicked through to ${business} during ${range}.`, bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
+    subject: `Your ${town.shortName} partner month: ${seen ? `${seen}${total ? `, ${people(total)} clicked` : ''}` : `${people(total)} clicked`}`,
+    html: emailShell({ title: 'Your partner report',
+      preheader: seen ? `Your card was ${seen} on ${town.domain} during ${range}${total ? `, and ${people(total)} clicked through` : ''}.` : `${people(total)} clicked through to ${business} during ${range}.`,
+      bodyHtml, siteUrl, footerHtml: contactFooter(siteUrl, address) }),
     text: [
       `Thanks for being our ${cat.toLowerCase()} partner, ${business}! Here's how your month (${range}) went.`, '',
+      ...(lead ? [`${num(lead.total)} ${lead.headline}`] : []),
       `${people(total)} clicked through to you in total.`,
       ...rows.map(([k, v]) => `- ${k}: ${v}`), '',
       ...whereText(stats.where),
-      COUNTER_NOTE, '',
+      `${lead ? lead.note : ''}${COUNTER_NOTE}`, '',
       'Want to change your line or link for next month? Just reply.',
       ...manageText(manageUrl), contactText(siteUrl)
     ].join('\n')
