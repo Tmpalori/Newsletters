@@ -60,7 +60,8 @@
     apify_facebook: 'Facebook events',
     apify_eventbrite: 'Eventbrite',
     apify_facebook_posts: 'Facebook posts',
-    apify_instagram_posts: 'Instagram posts'
+    apify_instagram_posts: 'Instagram posts',
+    apify_facebook_groups: 'Facebook groups'
   };
   function inferSource(ev) {
     if (!ev) return 'unknown';

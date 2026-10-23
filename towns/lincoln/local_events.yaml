@@ -309,6 +309,17 @@ events:
     url: "https://huskers.com/sports/volleyball/schedule"
     # VERIFIED: huskers.com volleyball schedule 2026-10-15
 
+  - date: "2026-10-24"
+    name: "Spay-ghetti and No Balls Dinner & Dessert Auction"
+    time: "6:00 PM"
+    venue: "Unitarian Church of Lincoln"
+    address: "6300 A St"
+    description: "Lincoln Animal Ambassadors' spaghetti dinner and dessert auction, raising money for its low-cost spay and neuter program. $25 a ticket; reserve online or by calling (402) 817-1168, or buy at the door."
+    icons: [food, community]
+    free: false
+    url: "https://www.lincolnanimalambassadors.org/snb/"
+    # VERIFIED: Lincoln NE Events Facebook group (LAA flyer, posted Oct 14) 2026-10-23; lincolnanimalambassadors.org/snb is the ticket page
+
   - date: "2026-10-26"
     name: "Chris Stapleton's All-American Road Show"
     time: "7:30 PM"
@@ -568,6 +579,17 @@ events:
     url: "https://huskers.com/sports/mens-basketball/schedule"
     # VERIFIED: huskers.com men's basketball schedule + pinnaclebankarena.com 2026-10-15
 
+  - date: "2026-11-28"
+    name: "Open Skate at the Belmont Community Center"
+    time: "2:00 PM – 5:00 PM"
+    venue: "Belmont Community Center"
+    address: "3335 N 12th St"
+    description: "An afternoon of open roller skating at the Belmont Community Center."
+    icons: [family, community]
+    free: false
+    url: "https://www.facebook.com/groups/445273878917326/"
+    # VERIFIED: Lincoln NE Events Facebook group (BCC event, Sat Nov 28 2-5 PM) 2026-10-23; address from NE211; price not listed
+
   - date: "2026-12-01"
     name: "Husker Women's Basketball vs. Omaha"
     time: "7:00 PM"
@@ -689,6 +711,17 @@ events:
     free: false
     url: "https://huskers.com/sports/wrestling/schedule"
     # VERIFIED: huskers.com wrestling schedule 2026-10-15
+
+  - date: "2026-12-19"
+    name: "Krampus Crawl"
+    time: ""
+    venue: "Bierhaus Maisschäler & The Rooftop"
+    address: "151 N 8th St"
+    description: "Krampus-themed night out in the Haymarket, 21 and over. Tickets $29; bring a toy for the Tyson Treasure Chest and get a free beer."
+    icons: [drinks, community]
+    free: false
+    url: "https://www.facebook.com/groups/445273878917326/"
+    # VERIFIED: Lincoln NE Events Facebook group (Bierhaus flyer: Dec 19 2026, $29, 21+) 2026-10-23; start time not listed
 
   - date: "2026-12-20"
     name: "Husker Men's Basketball vs. FDU"

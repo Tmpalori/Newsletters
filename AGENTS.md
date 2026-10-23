@@ -481,6 +481,7 @@ These tables are the full reference (`RAILWAY.md` covers Railway setup and smoke
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY` | — | Required in production (setup checklist). When set, `/api/submissions` requires a Turnstile token and a newsletter signup that passes it joins at once; unset, every newsletter signup confirms by email |
 | `SIGNUP_DOMAIN_CHECK` | on | `0` stops `/api/subscribe` asking DNS whether an address's domain takes mail (`server/mailDomain.js`; a lookup that fails or times out never refuses anyone). |
 | `FB_POSTS_ENABLED`, `IG_POSTS_ENABLED` | — | Jobs service; `=1` turns on the Facebook / Instagram post scrapes in the collect |
+| `FB_GROUPS_ENABLED`, `FB_GROUPS_POSTS` | on, 30 | Jobs service. The collect reads the town's public Facebook groups (`facebookGroups` in `town.json`, Victoria's in `town.py`; source `apify_facebook_groups`) whenever it lists some and has `APIFY_TOKEN` and `OPENAI_API_KEY`; `FB_GROUPS_ENABLED=0` turns it off, `FB_GROUPS_POSTS` is posts per group (~$0.007 each) |
 | `FB_POSTS_MAX_VENUES`, `IG_POSTS_MAX_VENUES` | (collector defaults) | Caps to keep Apify costs bounded. These and the other collector knobs (`GEMINI_ENABLED`, `ENRICH_ENABLED`, `FLYER_IMAGES`, `EVENTBRITE_ENABLED`, `EVENTBRITE_MAX`, `FB_EVENTS_ALT_ENABLED`, `FB_EVENTS_MAX`) are jobs-service variables; unset means the default |
 | `ENRICH_ENABLED` | on | `=0` stops the Gemini gap-filling lookups for thin events |
 | `FLYER_IMAGES` | on | `=0` stops sending post images (flyers) to OpenAI with the post text |

@@ -21,6 +21,9 @@ Types:
   cards     a Craft CMS tourism site's event listing (Visit Tupelo's
             tupelo.net/events: article.card blocks, "?page=N"; the time comes
             from each event page's schema.org startDate)
+  wix       a Wix site's events (Bierhaus, Lincoln): the event pages in its
+            /event-pages-sitemap.xml edited in the last WIX_FRESH_DAYS, then
+            each page's schema.org Event
 
 Optional per feed: "library": true (its events go through the collector's
 library cap), "exclude": a regular expression (case-insensitive) for names
@@ -40,6 +43,7 @@ Victoria lists no feeds: its own scrapers cover its calendars.
 import html
 import json
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 
 try:
@@ -47,9 +51,14 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9
     ZoneInfo = None
 
-TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone", "lineup")
+TYPES = ("ics", "tribe", "localist", "squarespace", "cards", "growthzone", "lineup", "wix")
 MAX_PAGES = 10          # tribe and localist pagination cap (50 or 100 a page)
 MAX_DETAILS = 80        # event pages a growthzone feed fetches per run
+# A Wix sitemap lists every event the site ever had (Bierhaus: 149, back to
+# 2024); one coming up was made or edited lately, so older pages aren't read.
+WIX_FRESH_DAYS = 150
+WIX_MAX_PAGES = 30
+WIX_PAUSE_S = 1         # between event pages: Wix answers a burst with 429s
 _SLUG = re.compile(r"^[a-z0-9_]+$")
 
 
@@ -572,6 +581,54 @@ def parse_card_detail(page_html, tz):
     return times[0], times[1], free
 
 
+def wix_event_pages(sitemap_xml, since):
+    """Event page URLs from a Wix event-pages sitemap edited on or after
+    `since` (a date), newest first."""
+    rows = []
+    for block in re.findall(r"<url>(.*?)</url>", sitemap_xml or "", re.S):
+        loc = re.search(r"<loc>\s*([^<\s]+)", block)
+        mod = re.search(r"<lastmod>\s*(\d{4}-\d{2}-\d{2})", block)
+        if not loc or not mod or "/event-details/" not in loc.group(1):
+            continue
+        if date.fromisoformat(mod.group(1)) >= since:
+            rows.append((mod.group(1), html.unescape(loc.group(1))))
+    return [u for _, u in sorted(rows, reverse=True)]
+
+
+def parse_jsonld_events(page_html, tz, start, end, url=""):
+    """The schema.org Events in a page's JSON-LD blocks, inside [start, end]."""
+    events = []
+    for block in re.findall(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', page_html or "", re.S | re.I):
+        try:
+            data = json.loads(block)
+        except ValueError:
+            continue
+        items = data if isinstance(data, list) else data.get("@graph", [data]) if isinstance(data, dict) else []
+        for it in items:
+            if not isinstance(it, dict) or it.get("@type") != "Event" or not it.get("startDate"):
+                continue
+            if "Cancelled" in str(it.get("eventStatus") or ""):
+                continue
+            try:
+                s_dt = _iso(it["startDate"], tz)
+                e_dt = _iso(it["endDate"], tz) if it.get("endDate") else None
+            except (ValueError, TypeError):
+                continue
+            if not (start <= s_dt.date() <= end):
+                continue
+            place = it.get("location") if isinstance(it.get("location"), dict) else {}
+            address = place.get("address")
+            if isinstance(address, dict):
+                address = address.get("streetAddress") or ""
+            offers = it.get("offers") if isinstance(it.get("offers"), dict) else {}
+            low = offers.get("lowPrice", offers.get("price"))
+            free = True if str(low).strip() in ("0", "0.0", "0.00") else None
+            events.append(_event(s_dt.date(), html.unescape(str(it.get("name") or "")), s_dt, e_dt,
+                                 venue=place.get("name") or "", address=str(address or "").split(",")[0],
+                                 description=it.get("description") or "", url=it.get("url") or url, free=free))
+    return events
+
+
 def _on_day(day, t):
     return datetime.combine(day, t.timetz()) if t else None
 
@@ -628,6 +685,22 @@ def fetch_feed(feed, get, tz, start, end):
                 events.extend(parse_ics(get(f"{base}/events/addtocalendar/{slug}?format=ICal").text, tz, start, end))
             except Exception:
                 continue        # one event's file; the rest still list
+        return events
+    if kind == "wix":
+        base = url.rstrip("/")
+        pages = wix_event_pages(get(f"{base}/event-pages-sitemap.xml").text, start - timedelta(days=WIX_FRESH_DAYS))
+        failed = []
+        for i, page in enumerate(pages[:WIX_MAX_PAGES]):
+            if i:
+                time.sleep(WIX_PAUSE_S)
+            try:
+                events.extend(parse_jsonld_events(get(page).text, tz, start, end, url=page))
+            except Exception as e:
+                failed.append(e)    # one event's page; the rest still list
+        if failed and len(failed) == len(pages[:WIX_MAX_PAGES]):
+            # Every page failed (rate-limited, or the site moved): say so
+            # rather than report a quiet calendar.
+            raise ValueError(f"all {len(failed)} event pages failed: {failed[0]}") from failed[0]
         return events
     if kind == "cards":
         sep = "&" if "?" in url else "?"

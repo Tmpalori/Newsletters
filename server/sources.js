@@ -38,6 +38,7 @@ const KNOWN_SOURCES = [
   { name: 'apify_eventbrite',      label: 'Apify · Eventbrite',   category: 'apify' },
   { name: 'apify_facebook_posts',  label: 'Apify · Facebook posts → OpenAI', category: 'apify' },
   { name: 'apify_instagram_posts', label: 'Apify · Instagram posts → OpenAI', category: 'apify' },
+  { name: 'apify_facebook_groups', label: 'Apify · Facebook groups → OpenAI', category: 'apify' },
   { name: 'gemini_search', label: 'Gemini · Google Search', category: 'ai' },
 ];
 

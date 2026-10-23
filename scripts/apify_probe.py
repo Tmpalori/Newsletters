@@ -40,6 +40,20 @@ ACTORS = {
     # Round 3: codingfrontend/google-events-scraper 4 items; muhammadafzal/google-events 0. Not worth adding.
 }
 
+# Facebook groups probe: set to a town slug to run that town's group scraper
+# (collect_events.fetch_apify_facebook_groups) instead of the actors above,
+# logging every post the groups actor returns and the events extracted.
+# About $0.007 a post (30 a group). Set back to "" when done.
+GROUPS_TOWN = ""
+# Raw-only runs (no OPENAI_API_KEY): posts per group and how many groups.
+GROUPS_RAW_POSTS = 30
+GROUPS_RAW_GROUPS = 9
+# Keys live on Railway, not GitHub: the probe logs raw posts only. A run
+# with OPENAI_API_KEY (e.g. by hand on Railway) also extracts events.
+GROUPS_EXTRACT = True
+# Group ids to leave out (already read this round), so they aren't paid twice.
+GROUPS_DONE = set()
+
 VICTORIA_RE = re.compile(r"victoria,?\s*(tx|texas)|\b7790[145]\b", re.I)
 
 
@@ -110,9 +124,82 @@ def run_actor(actor, inp):
             "usd": run.get("usageTotalUsd")}, None
 
 
+def groups_probe(town):
+    """Run the town's Facebook groups through the real collector code; log the
+    raw posts (text, shared-post previews, images) and the events found.
+    Several towns (comma-separated) run one process each: the collector reads
+    TOWN when it's imported."""
+    if "," in town:
+        import subprocess
+        for t in town.split(","):
+            subprocess.run([sys.executable, os.path.abspath(__file__)], env={**os.environ, "PROBE_GROUPS_TOWN": t})
+        return
+    os.environ["TOWN"] = town
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import collect_events as ce
+
+    raw = {}
+    real_run = ce._apify_posts_run
+
+    def recording_run(url, payload, token):
+        resp = real_run(url, payload, token)
+        try:
+            raw[payload["startUrls"][0]["url"]] = resp.json()
+        except Exception:
+            raw[payload["startUrls"][0]["url"]] = {"status": resp.status_code, "body": resp.text[:500]}
+        return resp
+
+    ce._apify_posts_run = recording_run
+    groups = ce._town_facebook_groups()
+    if GROUPS_EXTRACT and os.environ.get("OPENAI_API_KEY"):
+        events = ce.fetch_apify_facebook_groups()
+    else:
+        print("No OPENAI_API_KEY: raw posts only, no event extraction")
+        events = []
+        since = (ce.datetime.now().date() - ce.timedelta(days=ce._GROUP_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        for g in [g for g in groups if not any(i in g["url"] for i in GROUPS_DONE)][:GROUPS_RAW_GROUPS]:
+            recording_run(ce._apify_run_url(ce.APIFY_FB_GROUPS_ACTOR),
+                          {"startUrls": [{"url": g["url"]}], "resultsLimit": GROUPS_RAW_POSTS,
+                           "viewOption": "CHRONOLOGICAL", "onlyPostsNewerThan": since}, TOKEN)
+    print(f"\n══════ {town}: {len(groups)} groups")
+    report = {"town": town, "groups": groups, "events": events, "posts": {}}
+    for url, posts in raw.items():
+        print(f"\n━━━ {url}")
+        if not isinstance(posts, list):
+            print("  ✗", json.dumps(posts)[:500])
+            report["posts"][url] = posts
+            continue
+        keys = sorted({k for p in posts if isinstance(p, dict) for k in p})
+        print(f"  {len(posts)} items; fields: {', '.join(keys)[:600]}")
+        rows = []
+        for p in posts:
+            if not isinstance(p, dict):
+                continue
+            g = ce._group_post(p)
+            row = {"url": p.get("url"), "time": p.get("time"), "error": p.get("error"),
+                   "text": (g.get("text") or "")[:600], "images": ce._post_image_urls(g)[:3],
+                   "raw_preview": {k: p.get(k) for k in ("title", "previewTitle", "previewDescription", "previewSource",
+                                                         "link", "location", "isVideo") if p.get(k)}}
+            if not p.get("text") or "isn't available" in row["text"]:
+                # A share with no caption: what the actor gives for the shared post.
+                row["raw"] = {k: v for k, v in p.items() if k not in ("topComments", "user", "collaborators")}
+            rows.append(row)
+            if not events:
+                print("  •", json.dumps(row, ensure_ascii=False)[:3000])
+        report["posts"][url] = rows
+    print(f"\nEVENTS {town} ({len(events)})")
+    for e in sorted(events, key=lambda e: e["date"]):
+        print(f"  EV|{town}|{e['date']}|{e.get('time') or ''}|{e['name']}|{e.get('venue') or '-'}|{e.get('address') or ''}"
+              f"|{'R' if e.get('recurring') else ''}|{e.get('url')}")
+    with open(f"apify_probe_report_{town}.json", "w") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False, default=str)
+
+
 def main():
     if not TOKEN:
         sys.exit("APIFY_TOKEN not set")
+    if os.environ.get("PROBE_GROUPS_TOWN") or GROUPS_TOWN:
+        return groups_probe(os.environ.get("PROBE_GROUPS_TOWN") or GROUPS_TOWN)
     only = [a.strip() for a in os.environ.get("PROBE_ACTORS", "").split(",") if a.strip()]
     report = {}
     for actor, overrides in ACTORS.items():

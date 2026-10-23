@@ -145,7 +145,7 @@ export function collectWarnings(summary) {
 // Apify scrapers didn't read this run and why, one short line each. A venue
 // cap is by design (the skipped ones go first next run); the rest (out of
 // time, Apify's monthly limit, OpenAI down) cut the collect short.
-const STOP_SOURCE = { apify_facebook_posts: 'Facebook posts', apify_instagram_posts: 'Instagram posts', apify_facebook: 'Facebook events', apify_eventbrite: 'Eventbrite' };
+const STOP_SOURCE = { apify_facebook_posts: 'Facebook posts', apify_instagram_posts: 'Instagram posts', apify_facebook_groups: 'Facebook groups', apify_facebook: 'Facebook events', apify_eventbrite: 'Eventbrite' };
 const STOP_WHY = { cap: 'over its venue cap', time: 'out of time', 'apify-limit': 'Apify monthly limit', openai: 'OpenAI down' };
 export function collectStops(stops) {
   const list = (Array.isArray(stops) ? stops : []).filter(x => x && typeof x === 'object');

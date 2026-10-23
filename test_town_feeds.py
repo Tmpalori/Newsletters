@@ -349,3 +349,66 @@ def test_rename_replacements_are_checked_too():
         town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename": [["(a)", "\\2"]]}])
     with pytest.raises(ValueError, match="replacement"):
         town_feeds.check_feeds([{"name": "a", "type": "ics", "url": "https://a", "rename_venue": [["a", "\\g<x>"]]}])
+
+
+WIX_SITEMAP = """<urlset>
+<url><loc>https://www.bierhausne.com/event-details/krampus-crawl-2026</loc><lastmod>2026-10-19</lastmod></url>
+<url><loc>https://www.bierhausne.com/event-details/bockfest-2024</loc><lastmod>2024-02-01</lastmod></url>
+<url><loc>https://www.bierhausne.com/event-details/joe-machi</loc><lastmod>2026-10-20</lastmod></url>
+<url><loc>https://www.bierhausne.com/about</loc><lastmod>2026-10-21</lastmod></url>
+</urlset>"""
+
+KRAMPUS_PAGE = """<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"Event",
+"name":"Krampus Crawl 2026","startDate":"2026-12-19T15:30:00-06:00","endDate":"2026-12-19T18:30:00-06:00",
+"eventStatus":"https://schema.org/EventScheduled","location":{"@type":"Place","name":"Bierhaus Maissch\\u00e4ler",
+"address":"151 N 8th St, Lincoln, NE 68501, USA"},"offers":{"@type":"AggregateOffer","lowPrice":"31.88"}}</script></html>"""
+
+
+def test_wix_sitemap_keeps_recent_event_pages_newest_first():
+    pages = town_feeds.wix_event_pages(WIX_SITEMAP, date(2026, 6, 1))
+    assert pages == ["https://www.bierhausne.com/event-details/joe-machi",
+                     "https://www.bierhausne.com/event-details/krampus-crawl-2026"]
+
+
+def test_jsonld_event_in_the_window():
+    url = "https://www.bierhausne.com/event-details/krampus-crawl-2026"
+    [ev] = town_feeds.parse_jsonld_events(KRAMPUS_PAGE, CT, date(2026, 12, 1), date(2026, 12, 31), url=url)
+    assert ev["date"] == "2026-12-19" and ev["name"] == "Krampus Crawl 2026"
+    assert ev["time"] == "3:30 PM – 6:30 PM"
+    assert ev["venue"] == "Bierhaus Maisschäler" and ev["address"] == "151 N 8th St"
+    assert ev["url"] == url and "free" not in ev
+    assert town_feeds.parse_jsonld_events(KRAMPUS_PAGE, CT, date(2026, 10, 1), date(2026, 11, 30)) == []
+
+
+def test_fetch_wix_reads_each_recent_page(monkeypatch):
+    monkeypatch.setattr(town_feeds, "WIX_PAUSE_S", 0)
+    seen = []
+
+    class R:
+        def __init__(self, text):
+            self.text = text
+
+    def get(url):
+        seen.append(url)
+        return R(WIX_SITEMAP if url.endswith("sitemap.xml") else KRAMPUS_PAGE if "krampus" in url else "<html></html>")
+
+    events = town_feeds.fetch_feed({"type": "wix", "url": "https://www.bierhausne.com/"}, get, CT,
+                                   date(2026, 10, 23), date(2027, 1, 21))
+    assert [e["name"] for e in events] == ["Krampus Crawl 2026"]
+    assert seen[0] == "https://www.bierhausne.com/event-pages-sitemap.xml" and len(seen) == 3
+
+
+def test_fetch_wix_all_pages_failing_raises(monkeypatch):
+    monkeypatch.setattr(town_feeds, "WIX_PAUSE_S", 0)
+
+    class R:
+        text = WIX_SITEMAP
+
+    def get(url):
+        if url.endswith("sitemap.xml"):
+            return R()
+        raise RuntimeError("429 Too Many Requests")
+
+    with pytest.raises(ValueError, match="all 2 event pages failed"):
+        town_feeds.fetch_feed({"type": "wix", "url": "https://www.bierhausne.com"}, get, CT,
+                              date(2026, 10, 23), date(2027, 1, 21))

@@ -74,10 +74,17 @@ VICTORIA = {
     # without a list gets every source but those local scrapers.
     "enabled_sources": ["city_calendar", "chamber", "library", "moonshine", "vtx_artwalk", "jwelch",
                         "theatre_victoria", "generals", "allevents", "gemini_search", "apify_facebook",
-                        "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts"],
+                        "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts",
+                        "apify_facebook_groups"],
     "google_sheet_id": "1S42hYlrPM516LDTcy3W_8afCkCqc-ZrUfN2J-SmP23I",
     "eventbrite_search": {"searchQuery": "events in Victoria, TX", "location": "Victoria, TX"},
     "fb_search_queries": {"primary": ["Victoria Texas"], "alt": ["Victoria, Texas"]},
+    # Public Facebook groups where people post local events
+    # (collect_events.py fetch_apify_facebook_groups).
+    "facebook_groups": [
+        {"name": "Victoria Texas Community & Events", "url": "https://www.facebook.com/groups/3741886445840328/"},
+        {"name": "Victoria Texas Promote Your Event", "url": "https://www.facebook.com/groups/465382903645231/"},
+    ],
     "gemini_categories": [
         "concerts, live music, open mics and karaoke",
         "family and kids events (story times, zoo, museum, school and library programs)",
@@ -113,6 +120,7 @@ _FROM_JSON = {
     "areaName": "area_name", "areaZips": "area_zips", "otherTowns": "other_towns", "nearbyExamples": "nearby_examples",
     "cityTokensExtra": "city_tokens_extra", "allEventsSlug": "allevents_slug", "googleSheetId": "google_sheet_id",
     "eventbriteSearch": "eventbrite_search", "enabledSources": "enabled_sources", "fbSearchQueries": "fb_search_queries", "geminiCategories": "gemini_categories",
+    "facebookGroups": "facebook_groups",
 }
 
 

@@ -3096,7 +3096,7 @@ def _same_spot(a, b):
 
 
 _NIGHT_TOKENS = {"night", "nite", "nights"}
-_POST_SOURCES = {"apify_facebook_posts", "apify_instagram_posts"}
+_POST_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "apify_facebook_groups"}
 
 
 def _stem_tokens(tokens):
@@ -3115,7 +3115,7 @@ SOURCE_RANK = {
     "town_feeds": 8,
     "apify_eventbrite": 5,
     "moonshine": 6, "vtx_artwalk": 6, "allevents": 4, "apify_facebook": 4,
-    "apify_facebook_posts": 3, "apify_instagram_posts": 3,
+    "apify_facebook_posts": 3, "apify_instagram_posts": 3, "apify_facebook_groups": 3,
     "gemini_search": 2,
 }
 
@@ -3377,7 +3377,7 @@ _MEMBERS_ONLY_RE = re.compile(
 _DANGLING_WORDS = {"a", "an", "the", "and", "or", "for", "with", "of", "at", "&", "from"}
 # Sources whose event names the AI writes from free text. Official
 # calendars and the submissions sheet keep their own names untouched.
-AI_NAMED_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "gemini_search"}
+AI_NAMED_SOURCES = {"apify_facebook_posts", "apify_instagram_posts", "apify_facebook_groups", "gemini_search"}
 
 
 def cut_off_name_reason(name):
@@ -3459,6 +3459,9 @@ def _clean_text(value):
 
 
 HAND_SOURCES = {"local_events", "google_sheet"}
+# Sources whose one-time events are kept out to local_horizon_end(): hand-added
+# ones, and Facebook groups (a group announces once, weeks ahead).
+FAR_AHEAD_SOURCES = {"local_events", "apify_facebook_groups"}
 
 # The newsletter and lists show a short description; the event's own page
 # shows everything the source said (`details`, written by the AI review
@@ -3512,7 +3515,7 @@ def merge_events(all_events, days_ahead=7, venues=None):
             continue
         try:
             ev_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            last = horizon if ev.get("_source") == "local_events" else end_date
+            last = horizon if ev.get("_source") in FAR_AHEAD_SOURCES else end_date
             if ev_date < today or ev_date > last:
                 continue
         except ValueError:
@@ -5025,6 +5028,11 @@ def _trim_post_text(text, limit=POST_TEXT_LIMIT):
 # signed and short-lived, and one the API can't fetch fails the whole call.
 # FLYER_IMAGES=0 turns it off.
 FLYER_IMAGES_PER_ACCOUNT = 4
+# A town group is 30 posts by many people, and a third are a flyer with no
+# words (Lincoln, Oct 23: a trunk-or-treat, a New Year's show and a Zumba
+# night were only in pictures), so its flyers get more slots, the
+# captionless ones first.
+FLYER_IMAGES_PER_GROUP = 12
 FLYER_IMAGE_MAX_BYTES = 4_000_000
 # No GIF: the API rejects animated ones, which would lose the whole call.
 _FLYER_TYPES = ("image/jpeg", "image/png", "image/webp")
@@ -5195,11 +5203,12 @@ def _post_posted_on(p):
     return _to_central(dt).strftime("%a %Y-%m-%d %-I:%M %p")
 
 
-def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
+def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None, wordless_first=False):
     """[(post number, data URL)] for the newest posts' first image.
 
     Newest by post time, not list order: a pinned post (often months old)
-    comes first from the actors and would take a slot.
+    comes first from the actors and would take a slot. `wordless_first`:
+    posts with little text (the flyer is the whole post) go before the rest.
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -5209,7 +5218,10 @@ def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
         return []
     fetch = fetch or _fetch_image_data_url
     picks = []
-    for i, p in sorted(enumerate(posts, start=1), key=lambda ip: _post_time(ip[1]), reverse=True):
+    order = sorted(enumerate(posts, start=1), key=lambda ip: _post_time(ip[1]), reverse=True)
+    if wordless_first:
+        order.sort(key=lambda ip: len((ip[1].get("text") or ip[1].get("caption") or "").strip()) >= 80)
+    for i, p in order:
         urls = _post_image_urls(p)
         if urls:
             picks.append((i, urls[0]))
@@ -5222,16 +5234,24 @@ def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
     return sorted((i, data) for (i, _), data in zip(picks, datas) if data)
 
 
-def _post_events_prompt(venue_name, posts_blob, today_str, end_str):
+def _post_events_prompt(venue_name, posts_blob, today_str, end_str, group=False):
     """The AI prompt for pulling events out of a venue's recent posts (pure, so
-    the golden snapshots can pin it)."""
-    return f"""You are extracting future events from recent Facebook posts by {venue_name} in {TOWN['city_state']}.
+    the golden snapshots can pin it). `group`: the posts are from a Facebook
+    group named `venue_name`, by many people about many places."""
+    if group:
+        intro = (f'You are extracting future events from recent posts in the public Facebook group "{venue_name}", '
+                 f"where people share events in and around {TOWN['city_state']}.")
+        venue_field = "The venue's name as the post gives it, else empty string"
+    else:
+        intro = f"You are extracting future events from recent Facebook posts by {venue_name} in {TOWN['city_state']}."
+        venue_field = f"Where it happens if NOT at {venue_name} itself, else empty string"
+    return f"""{intro}
 
 Posts:
 {posts_blob}
 
 Return ONLY a JSON array of upcoming events mentioned in these posts. Each object:
-{{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"Where it happens if NOT at {venue_name} itself, else empty string","description":"One short sentence or empty string","details":"Everything the post or flyer says about this event, or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}}
+{{"date":"YYYY-MM-DD","weekday":"Friday","recurring":true_or_false,"name":"Event Name","time":"7:00 PM or empty string","venue":"{venue_field}","description":"One short sentence or empty string","details":"Everything the post or flyer says about this event, or empty string","free":true_or_false,"source_post_index":N,"starts":"YYYY-MM-DD or empty string","ends":"YYYY-MM-DD or empty string"}}
 
 Rules:
 - "weekday" is the day of the week the post gives for the event (e.g. "Thursday"). Copy it from the post; don't work it out from a date.
@@ -5250,7 +5270,7 @@ Rules:
 - Return [] if no events found. No prose, no markdown fences."""
 
 
-def _extract_events_from_posts_via_ai(venue_name, posts):
+def _extract_events_from_posts_via_ai(venue_name, posts, group=False):
     """Send a venue's recent posts (text and flyer images) to OpenAI and
     parse out events.
 
@@ -5262,7 +5282,7 @@ def _extract_events_from_posts_via_ai(venue_name, posts):
         return []
 
     today = _WINDOW_START
-    end_date = _WINDOW_END
+    end_date = local_horizon_end() if group else _WINDOW_END
     today_str = today.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
 
@@ -5271,7 +5291,8 @@ def _extract_events_from_posts_via_ai(venue_name, posts):
     # the old 400-character cut turned "…for a Plant and Sip!!" into an event
     # named "Scenic Root — Plant a" (2026-10-08).
     try:
-        flyers = _flyers_for(posts)
+        flyers = (_flyers_for(posts, limit=FLYER_IMAGES_PER_GROUP, wordless_first=True) if group
+                  else _flyers_for(posts))
     except Exception as e:  # a flyer problem must not cost the post text
         _warn("flyer images failed", venue=venue_name, error=str(e)[:200])
         flyers = []
@@ -5289,7 +5310,7 @@ def _extract_events_from_posts_via_ai(venue_name, posts):
         return []
     posts_blob = "\n".join(lines)
 
-    prompt = _post_events_prompt(venue_name, posts_blob, today_str, end_str)
+    prompt = _post_events_prompt(venue_name, posts_blob, today_str, end_str, group=group)
 
     text_prompt = prompt
     if flyers:
@@ -5392,7 +5413,7 @@ def _is_organizer_account(venue):
 _WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
-def _post_event_dates(r, window_start, window_end):
+def _post_event_dates(r, window_start, window_end, one_time_end=None):
     """Dates for one event the model pulled from a post, or [] to drop it.
 
     Models are unreliable at calendar math: J Welch Farms' "bingo Thursday,
@@ -5403,8 +5424,9 @@ def _post_event_dates(r, window_start, window_end):
         to the series' "starts"/"ends" when the post gives them, so "Starting
         Oct 16, karaoke every Friday" doesn't list Oct 9 (post events never
         retire, so a wrong date stays up until it passes).
-      - one-time: the model's date, kept only if it's in the window and, when
-        the model gave a weekday, actually falls on that weekday.
+      - one-time: the model's date, kept only if it's in the window (to
+        `one_time_end` when given) and, when the model gave a weekday,
+        actually falls on that weekday.
     """
     wd = str(r.get("weekday") or "").strip().lower()
     dow = _WEEKDAYS.index(wd) if wd in _WEEKDAYS else None
@@ -5432,11 +5454,68 @@ def _post_event_dates(r, window_start, window_end):
         d_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         return []
-    if not (window_start <= d_obj <= window_end):
+    if not (window_start <= d_obj <= (one_time_end or window_end)):
         return []
     if dow is not None and d_obj.weekday() != dow:
         return []
     return [d_obj]
+
+
+def _post_ai_events(raw, posts, page_url, venue_name, venue_address, organizer=False, one_time_end=None):
+    """Event dicts from what the post-extraction model returned for one
+    account's posts (a venue page or a Facebook group); `page_url` is the
+    link when the model didn't say which post an event came from, and
+    `one_time_end` lets one-time events run past the window."""
+    events = []
+    seen = set()
+    for r in raw:
+        if not isinstance(r, dict):
+            continue
+        name = (r.get("name") or "").strip()
+        dates = _post_event_dates(r, _WINDOW_START, _WINDOW_END, one_time_end) if name else []
+        if not dates:
+            continue
+
+        # Try to attach a source URL: prefer the post's URL when the model
+        # tagged source_post_index, otherwise fall back to the venue page.
+        source_url = page_url
+        idx = r.get("source_post_index")
+        if isinstance(idx, int) and 1 <= idx <= len(posts):
+            post = posts[idx - 1]
+            if isinstance(post, dict):
+                source_url = (
+                    post.get("url")
+                    or post.get("postUrl")
+                    or post.get("link")
+                    or page_url
+                )
+
+        description = (r.get("description") or "").strip()[:280]
+        details = _details_src(r.get("details"), description)
+        time_str = (r.get("time") or "").strip()
+        # Accounts like "Discover Victoria Texas" post about events held
+        # elsewhere; the model names the real venue when it isn't theirs.
+        ev_venue, address = _post_event_venue(r, venue_name, venue_address, organizer=organizer)
+
+        for d_obj in dates:
+            key = (d_obj, name.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            events.append({
+                "date": d_obj.strftime("%Y-%m-%d"),
+                "name": name,
+                "time": time_str,
+                "venue": ev_venue,
+                "address": address,
+                "description": description,
+                "icons": classify_icons(name, description, venue_name),
+                "free": bool(r.get("free", False)) or guess_free(name, description, venue_name),
+                "url": source_url,
+                **details,
+                **({"recurring": True} if r.get("recurring") is True else {}),
+            })
+    return events
 
 
 def fetch_apify_facebook_posts(days_ahead=14):
@@ -5593,57 +5672,10 @@ def fetch_apify_facebook_posts(days_ahead=14):
 
         # Hand the posts to OpenAI for event extraction
         raw = _extract_events_from_posts_via_ai(venue_name, posts)
-        kept = 0
-        seen = set()
-        for r in raw:
-            if not isinstance(r, dict):
-                continue
-            name = (r.get("name") or "").strip()
-            dates = _post_event_dates(r, _WINDOW_START, _WINDOW_END) if name else []
-            if not dates:
-                continue
-
-            # Try to attach a source URL: prefer the post's URL when the model
-            # tagged source_post_index, otherwise fall back to the venue page.
-            source_url = page_url
-            idx = r.get("source_post_index")
-            if isinstance(idx, int) and 1 <= idx <= len(posts):
-                post = posts[idx - 1]
-                if isinstance(post, dict):
-                    source_url = (
-                        post.get("url")
-                        or post.get("postUrl")
-                        or post.get("link")
-                        or page_url
-                    )
-
-            description = (r.get("description") or "").strip()[:280]
-            details = _details_src(r.get("details"), description)
-            time_str = (r.get("time") or "").strip()
-            # Accounts like "Discover Victoria Texas" post about events held
-            # elsewhere; the model names the real venue when it isn't theirs.
-            ev_venue, address = _post_event_venue(r, venue_name, (venue.get("address") or "").strip(),
-                                                  organizer=_is_organizer_account(venue))
-
-            for d_obj in dates:
-                key = (d_obj, name.lower())
-                if key in seen:
-                    continue
-                seen.add(key)
-                events.append({
-                    "date": d_obj.strftime("%Y-%m-%d"),
-                    "name": name,
-                    "time": time_str,
-                    "venue": ev_venue,
-                    "address": address,
-                    "description": description,
-                    "icons": classify_icons(name, description, venue_name),
-                    "free": bool(r.get("free", False)) or guess_free(name, description, venue_name),
-                    "url": source_url,
-                    **details,
-                    **({"recurring": True} if r.get("recurring") is True else {}),
-                })
-                kept += 1
+        found = _post_ai_events(raw, posts, page_url, venue_name, (venue.get("address") or "").strip(),
+                                organizer=_is_organizer_account(venue))
+        events.extend(found)
+        kept = len(found)
         venue_stats.append(f"{venue_name}: {len(posts)} posts → {kept} events")
 
     if quiet_skipped:
@@ -5654,6 +5686,184 @@ def fetch_apify_facebook_posts(days_ahead=14):
     print(f"  [Apify FB Posts] Extracted {len(events)} events across {len(high_conf)} venues")
     for s in venue_stats:
         print(f"    • {s}")
+    return events
+
+
+# ─── FACEBOOK GROUPS → OPENAI ────────────────────────────────────────────────
+#
+# Town groups where people post events ("Lincoln NE Events", "Victoria Texas
+# Promote Your Event"), listed per town (town.json "facebookGroups", Victoria's
+# in town.py). Same OpenAI extraction as the venue pages, with the group
+# prompt: a group isn't a place, so an event gets the venue the post names or
+# none. A group post announcing something weeks out is past the 10-day
+# lookback by the time the event is near, so its one-time events are kept
+# out to LOCAL_HORIZON_DAYS, like hand-added ones (weekly ones stay in the
+# window). Apify's groups actor reads public groups only; a private one comes
+# back empty and goes quiet like a dead venue page.
+#
+# Cost (Oct 2026 pricing): ~$0.005 a post plus ~$0.002 for the date filter,
+# so 30 posts × 2–3 groups ≈ $0.50 a town per run. FB_GROUPS_ENABLED=0 turns
+# it off; FB_GROUPS_POSTS changes the posts per group.
+
+APIFY_FB_GROUPS_ACTOR = "apify~facebook-groups-scraper"
+_GROUP_POSTS = 30
+_GROUP_LOOKBACK_DAYS = 10
+
+
+def _town_facebook_groups(town=None):
+    """The town's groups as [{"name", "url"}], skipping entries without a
+    facebook.com/groups/ link."""
+    out = []
+    for g in (town or TOWN).get("facebook_groups") or []:
+        if isinstance(g, str):
+            g = {"url": g}
+        if not isinstance(g, dict):
+            continue
+        url = str(g.get("url") or "").strip()
+        if not re.match(r"^https?://(www\.|m\.)?facebook\.com/groups/[^/?#]+", url, re.I):
+            continue
+        out.append({"name": str(g.get("name") or "").strip() or url, "url": url})
+    return out
+
+
+_UNAVAILABLE = "this content isn't available"
+
+
+def _group_post(p):
+    """A groups-actor post in the posts actor's shape. Its images are under
+    "attachments", not "media". Most of what group admins post is a share
+    with no caption: the shared post's own text and images come under
+    "sharedPost" (Alchemy's "Miky Semrad takes the stage at 6:30", Oct 22
+    2026), a shared event or link as a preview title and description. Both
+    go into the text the model reads; Facebook's "This content isn't
+    available right now" stand-in for a share it won't show is dropped."""
+    if not isinstance(p, dict):
+        return p
+    out = dict(p)
+    media = list(out.get("media") or out.get("attachments") or [])
+    text = (out.get("text") or "").strip()
+    extra = []
+    shared = out.get("sharedPost")
+    if isinstance(shared, dict):
+        who = ((shared.get("pageName") or shared.get("user") or {}).get("name") or "").strip()
+        body = (shared.get("text") or "").strip()
+        if body:
+            extra.append(f"Shared from {who}: {body}" if who else f"Shared: {body}")
+        media += [m for m in (shared.get("media") or shared.get("attachments") or []) if isinstance(m, dict)]
+    media = [m for m in media if isinstance(m, dict)
+             and _UNAVAILABLE not in str((m.get("title_with_entities") or {}).get("text") or "").lower()]
+    out["media"] = media
+    previews = [str(out.get(k)).strip() for k in ("title", "previewTitle", "previewDescription", "location")
+                if isinstance(out.get(k), str) and out.get(k).strip()]
+    previews = [t for t in previews if _UNAVAILABLE not in t.lower() and t not in text]
+    link = next((out.get(k) for k in ("link", "previewSource") if isinstance(out.get(k), str) and out.get(k).strip()), "")
+    if link and link not in text:
+        previews.append(f"Link: {link.strip()}")
+    if previews:
+        extra.append("Shared: " + " · ".join(previews))
+    out["text"] = "\n".join([t for t in [text] + extra if t])
+    return out
+
+
+def fetch_apify_facebook_groups(days_ahead=14):
+    """Pull recent posts from the town's public Facebook groups and ask OpenAI
+    to extract dated events."""
+    global _APIFY_LIMIT_TRIPPED
+    source = "apify_facebook_groups"
+    events = []
+
+    groups = _town_facebook_groups()
+    if os.environ.get("FB_GROUPS_ENABLED", "").strip().lower() in ("0", "false", "no") or not groups:
+        print("  [Apify FB Groups] Off (no facebook groups listed, or FB_GROUPS_ENABLED=0)")
+        _source_off(source)
+        return events
+    token = os.environ.get("APIFY_TOKEN", "").strip()
+    if not token:
+        print("  [Apify FB Groups] No APIFY_TOKEN — skipping")
+        _source_off(source)
+        return events
+    if _APIFY_LIMIT_TRIPPED:
+        print("  [Apify FB Groups] Monthly hard limit already tripped this run — skipping")
+        _scrape_stop(source, "apify-limit")
+        return events
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("  [Apify FB Groups] No OPENAI_API_KEY — cannot extract events from posts")
+        return events
+
+    per_group = _resolve_int_env("FB_GROUPS_POSTS", _GROUP_POSTS) or _GROUP_POSTS
+    newer_than = (datetime.now().date() - timedelta(days=_GROUP_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    print(f"  [Apify FB Groups] Pulling up to {per_group} posts from {len(groups)} groups (since {newer_than})")
+    actor_run_url = _apify_run_url(APIFY_FB_GROUPS_ACTOR)
+
+    stats = []
+    read = 0        # groups that came back with posts
+    for i, group in enumerate(groups):
+        name, url = group["name"], group["url"]
+        stop = ("apify-limit" if _APIFY_LIMIT_TRIPPED else "openai" if _OPENAI_DEAD
+                else "time" if _minutes_in() > fb_posts_budget_min() else None)
+        if stop:
+            rest = groups[i:]
+            _scrape_stop(source, stop, len(rest), len(groups), [g["name"] for g in rest])
+            break
+        if quiet_page_skip(url):
+            stats.append(f"{name}: SKIP (no posts the last {_QUIET_PAGES[url]['misses']} tries)")
+            continue
+
+        payload = {
+            "startUrls": [{"url": url}],
+            "resultsLimit": per_group,
+            "viewOption": "CHRONOLOGICAL",
+            "onlyPostsNewerThan": newer_than,
+        }
+        try:
+            resp = _apify_posts_run(actor_run_url, payload, token)
+        except Exception as e:
+            stats.append(f"{name}: ERROR ({type(e).__name__})")
+            _mark_partial(source, f"{name}: {type(e).__name__}")
+            _warn("FB groups actor exception", group=name, error=str(e)[:200])
+            continue
+        if resp.status_code >= 400:
+            stats.append(f"{name}: HTTP {resp.status_code}")
+            _mark_partial(source, f"{name}: HTTP {resp.status_code}")
+            if resp.status_code == 403 and _apify_hard_limit_tripped(resp.text):
+                _APIFY_LIMIT_TRIPPED = True
+                _warn("Apify monthly hard limit tripped", actor=APIFY_FB_GROUPS_ACTOR, status=403)
+            else:
+                _warn("FB groups actor HTTP error", group=name, status=resp.status_code, body=resp.text[:200])
+            continue
+        try:
+            posts = resp.json()
+        except Exception:
+            stats.append(f"{name}: bad JSON")
+            continue
+        if not isinstance(posts, list):
+            stats.append(f"{name}: unexpected type {type(posts).__name__}")
+            continue
+
+        errors = [p for p in posts if isinstance(p, dict) and p.get("error")]
+        posts = [_group_post(p) for p in posts if isinstance(p, dict) and not p.get("error")]
+        posts = [p for p in posts if p.get("text") or _post_image_urls(p)]
+        quiet_page_result(url, name, posts)
+        if not posts:
+            reason = errors[0].get("error") if errors else "no posts with text or images; private group?"
+            stats.append(f"{name}: 0 posts ({str(reason)[:60]})")
+            _mark_partial(source, f"{name}: no posts")
+            continue
+
+        read += 1
+        raw = _extract_events_from_posts_via_ai(name, posts, group=True)
+        found = _post_ai_events(raw, posts, url, name, "", organizer=True, one_time_end=local_horizon_end())
+        events.extend(found)
+        stats.append(f"{name}: {len(posts)} posts → {len(found)} events")
+
+    tried = [s for s in stats if "SKIP" not in s]
+    if tried and not read and not _APIFY_LIMIT_TRIPPED:
+        # Every group it asked came back empty or failed: Facebook or the
+        # actor changed, not a quiet week (one private group goes quiet alone).
+        _warn("FB groups: no posts from any group", town=TOWN["id"], groups=len(tried), first=tried[0][:120])
+    print(f"  [Apify FB Groups] Extracted {len(events)} events across {len(groups)} groups")
+    for line in stats:
+        print(f"    • {line}")
     return events
 
 
@@ -6080,6 +6290,8 @@ WEB_SOURCES = [
     # IG_POSTS_ENABLED; they pull from venues.json's pages and handles.
     ("apify_facebook_posts", "fetch_apify_facebook_posts", True),
     ("apify_instagram_posts", "fetch_apify_instagram_posts", True),
+    # The town's public Facebook groups (town.json "facebookGroups").
+    ("apify_facebook_groups", "fetch_apify_facebook_groups", False),
 ]
 # Scrapers of one town's own websites (Victoria's city calendar, chamber,
 # library, venues). Another town gets them only by naming them.

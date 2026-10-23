@@ -183,5 +183,15 @@
   },
   "schedule": {
     "meta-ads": "06:37"
-  }
+  },
+  "facebookGroups": [
+    {
+      "name": "What's Happening in and around Medford, Oregon",
+      "url": "https://www.facebook.com/groups/952534631527550/"
+    },
+    {
+      "name": "Southern Oregon Events",
+      "url": "https://www.facebook.com/groups/194541987562992/"
+    }
+  ]
 }
