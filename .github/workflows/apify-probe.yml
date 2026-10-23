@@ -37,8 +37,6 @@ jobs:
       - name: Run probe
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PROBE_ACTORS: ${{ inputs.actors }}
           PROBE_MAX_ITEMS: ${{ inputs.max_items }}
           PYTHONUNBUFFERED: 1

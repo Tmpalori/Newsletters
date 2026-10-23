@@ -44,14 +44,15 @@ ACTORS = {
 # (collect_events.fetch_apify_facebook_groups) instead of the actors above,
 # logging every post the groups actor returns and the events extracted.
 # About $0.007 a post (30 a group). Set back to "" when done.
-GROUPS_TOWN = "victoria,lincoln,shoals,virginiabeach,medford"
+GROUPS_TOWN = ""
 # Raw-only runs (no OPENAI_API_KEY): posts per group and how many groups.
 GROUPS_RAW_POSTS = 30
 GROUPS_RAW_GROUPS = 9
-# Raw-only (no extraction): GitHub's GEMINI_API_KEY was rejected on Oct 23.
-GROUPS_EXTRACT = False
-# Groups already read this round, not paid for twice.
-GROUPS_DONE = {"3741886445840328", "445273878917326", "223951663752782", "85588244403", "952534631527550"}
+# Keys live on Railway, not GitHub: the probe logs raw posts only. A run
+# with OPENAI_API_KEY (e.g. by hand on Railway) also extracts events.
+GROUPS_EXTRACT = True
+# Group ids to leave out (already read this round), so they aren't paid twice.
+GROUPS_DONE = set()
 
 VICTORIA_RE = re.compile(r"victoria,?\s*(tx|texas)|\b7790[145]\b", re.I)
 
@@ -123,20 +124,6 @@ def run_actor(actor, inp):
             "usd": run.get("usageTotalUsd")}, None
 
 
-def _gemini_chat(ce):
-    """collect_events._openai_chat on Gemini's OpenAI-compatible endpoint, for
-    a probe run where only GEMINI_API_KEY is set (GitHub's secrets)."""
-    def chat(api_key, messages, max_tokens, timeout=60):
-        resp = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                             headers={"Authorization": f"Bearer {api_key}"},
-                             json={"model": ce._GEMINI_DEFAULT_MODEL, "messages": messages,
-                                   "max_tokens": max_tokens, "reasoning_effort": "low"},
-                             timeout=max(timeout, 120))
-        resp.raise_for_status()
-        return (resp.json()["choices"][0]["message"].get("content") or "").strip()
-    return chat
-
-
 def groups_probe(town):
     """Run the town's Facebook groups through the real collector code; log the
     raw posts (text, shared-post previews, images) and the events found.
@@ -150,10 +137,6 @@ def groups_probe(town):
     os.environ["TOWN"] = town
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import collect_events as ce
-    if GROUPS_EXTRACT and not os.environ.get("OPENAI_API_KEY") and os.environ.get("GEMINI_API_KEY"):
-        os.environ["OPENAI_API_KEY"] = os.environ["GEMINI_API_KEY"]
-        ce._openai_chat = _gemini_chat(ce)
-        print(f"Extraction on Gemini ({ce._GEMINI_DEFAULT_MODEL}) with the collector's prompt")
 
     raw = {}
     real_run = ce._apify_posts_run
