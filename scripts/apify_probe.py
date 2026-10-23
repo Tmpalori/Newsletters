@@ -44,7 +44,7 @@ ACTORS = {
 # (collect_events.fetch_apify_facebook_groups) instead of the actors above,
 # logging every post the groups actor returns and the events extracted.
 # About $0.007 a post (30 a group). Set back to "" when done.
-GROUPS_TOWN = "lincoln"
+GROUPS_TOWN = "victoria,lincoln,shoals,virginiabeach,medford"
 # Raw-only runs (no OPENAI_API_KEY): posts per group and how many groups.
 GROUPS_RAW_POSTS = 15
 GROUPS_RAW_GROUPS = 1
@@ -119,12 +119,37 @@ def run_actor(actor, inp):
             "usd": run.get("usageTotalUsd")}, None
 
 
+def _gemini_chat(ce):
+    """collect_events._openai_chat on Gemini's OpenAI-compatible endpoint, for
+    a probe run where only GEMINI_API_KEY is set (GitHub's secrets)."""
+    def chat(api_key, messages, max_tokens, timeout=60):
+        resp = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                             headers={"Authorization": f"Bearer {api_key}"},
+                             json={"model": ce._GEMINI_DEFAULT_MODEL, "messages": messages,
+                                   "max_tokens": max_tokens, "reasoning_effort": "low"},
+                             timeout=max(timeout, 120))
+        resp.raise_for_status()
+        return (resp.json()["choices"][0]["message"].get("content") or "").strip()
+    return chat
+
+
 def groups_probe(town):
     """Run the town's Facebook groups through the real collector code; log the
-    raw posts (text, shared-post previews, images) and the events found."""
+    raw posts (text, shared-post previews, images) and the events found.
+    Several towns (comma-separated) run one process each: the collector reads
+    TOWN when it's imported."""
+    if "," in town:
+        import subprocess
+        for t in town.split(","):
+            subprocess.run([sys.executable, os.path.abspath(__file__)], env={**os.environ, "PROBE_GROUPS_TOWN": t})
+        return
     os.environ["TOWN"] = town
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import collect_events as ce
+    if not os.environ.get("OPENAI_API_KEY") and os.environ.get("GEMINI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = os.environ["GEMINI_API_KEY"]
+        ce._openai_chat = _gemini_chat(ce)
+        print(f"Extraction on Gemini ({ce._GEMINI_DEFAULT_MODEL}) with the collector's prompt")
 
     raw = {}
     real_run = ce._apify_posts_run
@@ -149,6 +174,7 @@ def groups_probe(town):
             recording_run(ce._apify_run_url(ce.APIFY_FB_GROUPS_ACTOR),
                           {"startUrls": [{"url": g["url"]}], "resultsLimit": GROUPS_RAW_POSTS,
                            "viewOption": "CHRONOLOGICAL", "onlyPostsNewerThan": since}, TOKEN)
+    print(f"\n══════ {town}: {len(groups)} groups")
     report = {"town": town, "groups": groups, "events": events, "posts": {}}
     for url, posts in raw.items():
         print(f"\n━━━ {url}")
@@ -171,20 +197,22 @@ def groups_probe(town):
                 # A share with no caption: what the actor gives for the shared post.
                 row["raw"] = {k: v for k, v in p.items() if k not in ("topComments", "user", "collaborators")}
             rows.append(row)
-            print("  •", json.dumps(row, ensure_ascii=False)[:3000])
+            if not events:
+                print("  •", json.dumps(row, ensure_ascii=False)[:3000])
         report["posts"][url] = rows
-    print(f"\nEVENTS ({len(events)})")
+    print(f"\nEVENTS {town} ({len(events)})")
     for e in sorted(events, key=lambda e: e["date"]):
-        print(f"  {e['date']} {e.get('time') or ''} | {e['name']} | {e.get('venue') or '-'} | {e.get('url')}")
-    with open("apify_probe_report.json", "w") as f:
+        print(f"  EV|{town}|{e['date']}|{e.get('time') or ''}|{e['name']}|{e.get('venue') or '-'}|{e.get('address') or ''}"
+              f"|{'R' if e.get('recurring') else ''}|{e.get('url')}")
+    with open(f"apify_probe_report_{town}.json", "w") as f:
         json.dump(report, f, indent=2, ensure_ascii=False, default=str)
 
 
 def main():
     if not TOKEN:
         sys.exit("APIFY_TOKEN not set")
-    if GROUPS_TOWN:
-        return groups_probe(GROUPS_TOWN)
+    if os.environ.get("PROBE_GROUPS_TOWN") or GROUPS_TOWN:
+        return groups_probe(os.environ.get("PROBE_GROUPS_TOWN") or GROUPS_TOWN)
     only = [a.strip() for a in os.environ.get("PROBE_ACTORS", "").split(",") if a.strip()]
     report = {}
     for actor, overrides in ACTORS.items():

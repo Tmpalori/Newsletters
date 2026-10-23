@@ -27,7 +27,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -38,6 +38,7 @@ jobs:
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PROBE_ACTORS: ${{ inputs.actors }}
           PROBE_MAX_ITEMS: ${{ inputs.max_items }}
           PYTHONUNBUFFERED: 1
@@ -46,5 +47,5 @@ jobs:
         if: always()
         with:
           name: apify-probe-report
-          path: apify_probe_report.json
+          path: apify_probe_report*.json
           if-no-files-found: ignore
