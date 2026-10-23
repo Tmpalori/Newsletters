@@ -11,7 +11,7 @@ import { formatTime as serverFormatTime, renderDays, withPages, parseTimes } fro
 const APP_JS = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'app.js'), 'utf8');
 
 function boot(containerHtml, fetchImpl = () => new Promise(() => {})) {
-  document.body.innerHTML = '<header id="site-header"></header><main><span id="skip-today-bar" hidden></span>' +
+  document.body.innerHTML = '<header id="site-header"></header><main>' +
     `<div id="events-container">${containerHtml}</div><section id="sponsor-section"></section></main>`;
   delete window.__vic361App;
   window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
@@ -60,6 +60,10 @@ describe('docs/app.js matches the server renderer', () => {
     expect(pastIds(server)).toEqual(['day-0', 'day-1']);
     const summary = h => h.match(/<summary class="day-header">[\s\S]*?<\/summary>/)[0];
     expect(summary(html)).toBe(summary(server));
+    // Both fold Mon and Tue under the same "Earlier this week" bar.
+    const group = h => h.match(/<details class="past-days">[\s\S]*?<\/summary>/)[0];
+    expect(group(html)).toBe(group(server));
+    expect(group(server)).toContain('<span class="past-days__meta">Mon–Tue · 1 event</span>');
   });
 
   it('folds every day but today, the same as the server, and opens days on demand', async () => {
@@ -114,7 +118,9 @@ describe('docs/app.js matches the server renderer', () => {
       expect(sections.filter(s => s.includes('--past'))).toHaveLength(6);
       expect(html.match(/today-badge/g)).toHaveLength(1);
       expect(document.querySelector('#day-6').innerHTML).toContain('today-badge');
-      expect(document.querySelector('.skip-today-btn')).not.toBeNull();
+      // Mon–Sat fold together above Sunday.
+      expect(document.querySelectorAll('.past-days .day-section')).toHaveLength(6);
+      expect(document.querySelector('.past-days__meta').textContent).toBe('Mon–Sat · No events');
     } finally {
       if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz;
     }

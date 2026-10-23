@@ -95,29 +95,9 @@
       <!-- Last updated -->
       <p class="last-updated" id="last-updated"></p>
 
-      <!-- One row of buttons above the list: Skip to Today (app.js shows it
-           when today isn't Monday), Next week, and the icon key, which opens
-           as a panel over the list so the row doesn't jump. -->
-      <div class="top-actions">
-        <span id="skip-today-bar" hidden></span>
-        <a class="btn btn--outline" href="/next-week">Next week →</a>
-        <!--COMING_UP_LINK-->
-      <details class="icon-guide">
-        <summary class="btn btn--outline">Icons Guide</summary>
-        <div class="legend-inner">
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-food"></use></svg> Food</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-music"></use></svg> Music</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-family"></use></svg> Family</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-drinks"></use></svg> 21+</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-arts"></use></svg> Arts</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-shopping"></use></svg> Shopping</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-outdoors"></use></svg> Outdoors</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-community"></use></svg> Community</span>
-          <span class="legend-item"><svg class="ico icon" aria-hidden="true" focusable="false"><use href="./icons.svg#i-free"></use></svg> Free</span>
-        </div>
-      </details>
-      </div>
-
+      <!-- The filter chips (docs/app.js renderFilterBar) go right above the
+           list: All, Today, the weekend, the categories with their icons
+           (so they double as the icon key), then Next week. -->
       <!-- Events rendered here by JS -->
       <div id="events-container">
         <p class="loading-message">Loading events...</p>

@@ -10,7 +10,7 @@ import { dirname, resolve } from 'node:path';
 const APP_JS = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'app.js'), 'utf8');
 
 function boot(town) {
-  document.body.innerHTML = '<header id="site-header"></header><main><span id="skip-today-bar" hidden></span>' +
+  document.body.innerHTML = '<header id="site-header"></header><main>' +
     '<div id="events-container"></div><section id="sponsor-section"></section></main>';
   delete window.__vic361App;
   if (town) window.__TOWN__ = town; else delete window.__TOWN__;

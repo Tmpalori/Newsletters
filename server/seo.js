@@ -917,13 +917,31 @@ export function openDay(dates, today) {
 }
 
 // Day sections for an arbitrary list of dates (homepage = Mon–Sun), every
-// day folded but the one openDay picks (see renderDay).
+// day folded but the one openDay picks (see renderDay). Days already gone
+// fold together under one "Earlier this week" bar, so the list starts on
+// today (pastDaysHtml; docs/app.js draws the same).
 export function renderDays(dates, events, today) {
   const open = openDay(dates, today);
-  return dates.map((d, i) => {
+  const past = [];
+  const html = dates.map((d, i) => {
     const list = sortEvents(events.filter(ev => ev.date === d));
-    return renderDay(d, list, i, today, d === open ? 'open' : 'closed', pickPromptHtml(d, list, today));
+    const day = renderDay(d, list, i, today, d === open ? 'open' : 'closed', pickPromptHtml(d, list, today));
+    if (d < today) { past.push({ date: d, n: list.length, html: day }); return ''; }
+    return day;
   }).join('');
+  return pastDaysHtml(past) + html;
+}
+
+// The past days' group: "Earlier this week", the days it spans and their
+// events, closed. Empty when no day has gone yet (a Monday).
+export function pastDaysHtml(past) {
+  if (!past.length) return '';
+  const short = d => formatDay(d, { weekday: 'short' });
+  const span = past.length === 1 ? short(past[0].date) : `${short(past[0].date)}–${short(past[past.length - 1].date)}`;
+  const n = past.reduce((s, p) => s + p.n, 0);
+  return '<details class="past-days"><summary class="past-days__head"><span class="past-days__title">Earlier this week</span>' +
+    `<span class="past-days__meta">${span} · ${dayCount(n)}</span></summary>` +
+    past.map(p => p.html).join('') + '</details>';
 }
 
 // Day sections only for dates that have events (intent pages).
@@ -1669,9 +1687,6 @@ export function renderHome(template, events, { siteUrl, now, sponsor = null, sig
     // The week's sponsor, or the house ad when the week is unsold (docs/app.js
     // only redraws it for a paid sponsor).
     .replace(/(<section id="sponsor-section">)\s*<!-- rendered by JS -->/, (m, open) => open + sponsorHtml(sponsor))
-    // A long week pushes "Coming up" far down; this jumps there.
-    .replace('<!--COMING_UP_LINK-->', () => comingUpEvents(events, today).length
-      ? '<a class="btn btn--outline" href="#coming-up">Coming up ↓</a>' : '')
     .replace('<!--NAV-->', () => navHtml('/'))
     // The template's footer year is only a fallback; every other page's
     // footer computes its year (footerHtml), so the homepage must too.
