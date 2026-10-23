@@ -26,7 +26,7 @@ sys.path.insert(0, VIDEO)
 import post_reel as pr  # noqa: E402
 import towns  # noqa: E402
 
-with open(os.path.join(VIDEO, "scripts.json"), encoding="utf-8") as _f:
+with open(os.environ["VIDEO_SCRIPTS"], encoding="utf-8") as _f:  # the frozen batch (conftest.py)
     VIDEOS = {v["id"]: v for v in json.load(_f)["videos"]}
 
 SYSTEM_TOKEN = "EAAsystemUserToken" + "s" * 60

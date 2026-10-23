@@ -1,6 +1,8 @@
 # Subscribe videos: handoff
 
-This is for a Claude session that has none of the earlier conversation. [README.md](README.md) covers the tools. This file covers the campaign, access, the loop for each batch of clips, and the rules. It was written Fri Oct 23, 2026.
+This is for a Claude session that has none of the earlier conversation. [README.md](README.md) covers the tools, and the `town-videos` skill (`.claude/skills/town-videos/SKILL.md`) is the routine for every future week: new scripts from `events.py`, then cutting and posting. This file covers this first campaign, access, the loop for each batch of clips, and the rules. It was written Fri Oct 23, 2026.
+
+**After this campaign:** move these 15 videos to `scripts-archive/2026-10-25.json` before writing the next batch. Give the new videos ids like `<town>-<post date>` (for example `lincoln-2026-11-08`), not `-1`, `-2` again: post_reel.py's ledger and the posted log below key on the id.
 
 ## The campaign
 

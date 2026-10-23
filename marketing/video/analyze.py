@@ -421,8 +421,10 @@ def _is_filler(text):
 
 # --- scripts -----------------------------------------------------------------
 
-def load_scripts(path=SCRIPTS_PATH):
-    with open(path, encoding="utf-8") as f:
+def load_scripts(path=None):
+    # VIDEO_SCRIPTS points at another script list: the tests pin a frozen
+    # batch with it, since scripts.json is rewritten every week.
+    with open(path or os.environ.get("VIDEO_SCRIPTS") or SCRIPTS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 

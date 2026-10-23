@@ -831,7 +831,8 @@ def _time(v):
 # ------------------------------------------------------------------ ledger
 
 def load_scripts(path=None):
-    with open(path or SCRIPTS_PATH, encoding="utf-8") as f:
+    # VIDEO_SCRIPTS: see analyze.load_scripts.
+    with open(path or os.environ.get("VIDEO_SCRIPTS") or SCRIPTS_PATH, encoding="utf-8") as f:
         return {v["id"]: v for v in json.load(f).get("videos") or []}
 
 

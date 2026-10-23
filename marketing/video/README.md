@@ -2,7 +2,7 @@
 
 Tools that turn Tristen's raw selfie takes into 16-second Facebook Reels for the five towns' free events newsletters, and post them on each town's Page. This folder is separate from the site. Nothing here is imported by `server/`, `scripts/` or the collector, and its dependencies stay out of the root `requirements.txt`.
 
-The campaign itself (which video posts when, where the raw takes are, the posting loop, the rules) is in [HANDOFF.md](HANDOFF.md).
+The campaign itself (which video posts when, where the raw takes are, the posting loop, the rules) is in [HANDOFF.md](HANDOFF.md). The week-to-week routine (write scripts, cut, post) is the `town-videos` skill in `.claude/skills/town-videos/SKILL.md`.
 
 ## Setup
 
@@ -19,7 +19,8 @@ V=~/.venvs/video/bin/python    # the venv setup.sh made; the commands below use 
 | File | What it does |
 |---|---|
 | `towns.py` | The five towns: name, domain, Facebook Page id, time zone, hashtags, palette, logo. |
-| `scripts.json` / `SCRIPTS.md` | The 15 scripts. Each has the words to say, the hook, the event chips with their cue words, the caption and `post_at_local`. SCRIPTS.md is the same content for people. Keep them in step. |
+| `scripts.json` / `SCRIPTS.md` | The current batch of scripts. Each has the words to say, the hook, the event chips with their cue words, the caption and `post_at_local`. SCRIPTS.md is the same content for people. Keep them in step. Past batches move to `scripts-archive/<first post date>.json`. From November 2026, ids are `<town>-<post date>` (for example `lincoln-2026-11-08`) so they never repeat. |
+| `events.py` | Each town's upcoming events from its live `/next-week` or `/this-weekend` page (the sites' Event JSON-LD), by day with each event's own page, for writing scripts. It leaves out weekly regulars unless `--all`. |
 | `fetch_clips.py` | Downloads new raw takes from Tristen's shared Drive folder (personal Drive, shared by link, so no sign-in) into `out/raw/`. It remembers what it has fetched, so re-runs only get new takes. |
 | `analyze.py` | Raw take to cut plan(s). Whisper gives word timestamps, and every script in the file is found, even several scripts or takes in one file. It picks the best take and cuts restarts, long pauses, fillers and corrected slips ("Monday... no, Thursday"). It lays out the hook, chips, sign-up line and end card on a 16 s timeline, speeding up to at most 1.12x, and writes warnings. The plan format is in its docstring. |
 | `render.py` | Plan to MP4. It cuts and joins on the frame grid, applies the speed-up, tone maps iPhone HDR (HLG/PQ) to SDR and burns in the hook, chips, word-by-word captions and end card in the town's colours (Fredoka, `fonts/`). Sound goes to -14 LUFS. |
@@ -29,6 +30,14 @@ V=~/.venvs/video/bin/python    # the venv setup.sh made; the commands below use 
 | `tests/` | pytest, no network. |
 
 ## Commands
+
+Events, for writing scripts:
+
+```bash
+$V events.py                              # next week, every town
+$V events.py --when weekend               # this coming weekend
+$V events.py --town lincoln --from 2026-11-06 --to 2026-11-08 --json
+```
 
 Fetch:
 
@@ -84,8 +93,11 @@ It makes one call per 6 s at most (`--interval`, never under 3 s), because the k
 Tests:
 
 ```bash
-$V -m pytest tests -q    # about 450 tests, 2.5 min; VIDEO_SKIP_SLOW=1 skips the 4 slowest renders
+$V -m pytest tests -q                     # about 520 tests, 2.5 min; VIDEO_SKIP_SLOW=1 skips the 4 slowest renders
+$V -m pytest tests/test_scripts.py -q     # just the live scripts.json: run it after writing new scripts
 ```
+
+The suite is pinned to a frozen copy of the October 2026 scripts (`tests/conftest.py`), so rewriting scripts.json for a new week never breaks it. `test_scripts.py` is the one file that reads the live scripts.json.
 
 The repo's CI runs `pytest -q` from the root on Python 3.11 without whisper or numpy. It collects these tests too: the whisper ones skip, and with `CI` set the slow renders skip as well.
 
@@ -97,6 +109,7 @@ The repo's CI runs `pytest -q` from the root on Python 3.11 without whisper or n
 | `GRAPH_API_VERSION` | post_reel.py | The Graph API version. The default is `v23.0`. Set it when Meta retires that version. |
 | `HQ_ASSISTANT_TOKEN` | hq_feedback.py | HQ's assistant key, the same one Caspian uses, for read-only use. `HQ_READ_TOKEN` is the fallback. With neither, calls go without an Authorization header, for a network that adds one. |
 | `HQ_URL` | hq_feedback.py | The default is `https://hq.tristenpalori.com`. It must be https. |
+| `VIDEO_SCRIPTS` | analyze.py, post_reel.py | Another script list instead of scripts.json. The tests use it to pin the October 2026 batch (`tests/fixtures/scripts-2026-10.json`). `tests/test_scripts.py` checks the live scripts.json. |
 | `VIDEO_DRIVE_FOLDER` | fetch_clips.py | The shared Drive folder's id. The default is Tristen's Town Newsletters folder. |
 | `VIDEO_VENV` | setup.sh | Where the venv goes. The default is `~/.venvs/video`. |
 | `VIDEO_WHISPER_MODEL` | setup.sh | The model to pre-download. The default is `small.en`. Use `--model` to cut with another. |
