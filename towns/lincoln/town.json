@@ -201,6 +201,33 @@
           "Nebraska State Capitol"
         ]
       ]
+    },
+    {
+      "name": "bierhaus",
+      "type": "wix",
+      "url": "https://www.bierhausne.com",
+      "venue": "Bierhaus Maisschäler",
+      "address": "151 N 8th St",
+      "rename": [
+        [
+          " *[-–] *(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,? .*$",
+          ""
+        ],
+        [
+          " at \\d{1,2}(:\\d\\d)? ?[ap]m$",
+          ""
+        ]
+      ],
+      "rename_venue": [
+        [
+          "^151 N 8th St$",
+          "Bierhaus Maisschäler"
+        ],
+        [
+          "^Bierhaus$",
+          "Bierhaus Maisschäler"
+        ]
+      ]
     }
   ],
   "limits": {
