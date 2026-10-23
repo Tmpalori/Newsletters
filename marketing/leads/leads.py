@@ -587,8 +587,10 @@ def rows_for(a, leads, people, shared):
     out = []
     for l in leads:
         c = l["content"]
-        ppl = best_email(people.get(l["id"], []))
-        top = ppl[0] if ppl else {}
+        found = people.get(l["id"], [])
+        ppl = best_email(found)
+        # No email: still the person's name, title and LinkedIn, to write to info@ by name.
+        top = ppl[0] if ppl else (found[0] if found else {})
         phones = [p.get("phone_number") for p in top.get("phones") or [] if p.get("valid") is not False]
         mail = [e.get("email") for e in shared.get(l["id"], []) if e.get("email")]
         mail += free_emails(c)
@@ -606,7 +608,7 @@ def rows_for(a, leads, people, shared):
             "contact_name": " ".join(x for x in (top.get("first_name"), top.get("last_name")) if x),
             "contact_title": top.get("title") or "",
             "contact_email": (top.get("email") or {}).get("email") or "",
-            "email_verified": "yes" if (top.get("email") or {}).get("verified") else ("no" if top else ""),
+            "email_verified": "yes" if (top.get("email") or {}).get("verified") else ("no" if ppl else ""),
             "contact_phone": ", ".join(p for p in phones if p),
             "contact_linkedin": top.get("linkedin_url") or "",
             "other_contacts": "; ".join(

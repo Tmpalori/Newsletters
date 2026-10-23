@@ -255,11 +255,18 @@ def test_export_writes_the_csv():
     bdir = os.path.join(leads.OUT, "victoria", "business_emails", "tasks")
     os.makedirs(bdir)
     leads.write_json(os.path.join(bdir, "t2.json"), {"tracking_id": "p2", "data": [{"email": "info@shop2.com", "status": "valid"}]})
+    leads.write_json(os.path.join(tdir, "t3.json"), {"tracking_id": "p3", "data": [
+        {"first_name": "Kim", "last_name": "Lee", "title": "Owner", "email": None, "phones": [],
+         "linkedin_url": "https://www.linkedin.com/in/kimlee"}]})
     leads.cmd_export(["victoria"])
     rows = list(csv.DictReader(open(os.path.join(leads.OUT, "victoria", "leads-victoria.csv"))))
     assert list(rows[0].keys()) == list(leads.COLUMNS)
     one, two, aero, three = rows
     assert three["business_email"] == "info@shop3.com, vet@shop3.com"
+    assert (three["contact_name"], three["contact_title"], three["contact_email"], three["email_verified"]) == \
+        ("Kim Lee", "Owner", "", "")
+    assert three["contact_linkedin"] == "https://www.linkedin.com/in/kimlee"
+    assert two["contact_name"] == "" and two["email_verified"] == ""
     assert three["staff_on_website"] == "Dr. Kim Lee (Owner); Sam"
     assert (three["facebook"], three["instagram"]) == ("https://www.facebook.com/shop3", "")
     assert (one["contact_name"], one["contact_email"], one["email_verified"]) == ("Ann A", "ann@shop1.com", "yes")
