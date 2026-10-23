@@ -3459,6 +3459,9 @@ def _clean_text(value):
 
 
 HAND_SOURCES = {"local_events", "google_sheet"}
+# Sources whose one-time events are kept out to local_horizon_end(): hand-added
+# ones, and Facebook groups (a group announces once, weeks ahead).
+FAR_AHEAD_SOURCES = {"local_events", "apify_facebook_groups"}
 
 # The newsletter and lists show a short description; the event's own page
 # shows everything the source said (`details`, written by the AI review
@@ -3512,7 +3515,7 @@ def merge_events(all_events, days_ahead=7, venues=None):
             continue
         try:
             ev_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            last = horizon if ev.get("_source") == "local_events" else end_date
+            last = horizon if ev.get("_source") in FAR_AHEAD_SOURCES else end_date
             if ev_date < today or ev_date > last:
                 continue
         except ValueError:
@@ -5270,7 +5273,7 @@ def _extract_events_from_posts_via_ai(venue_name, posts, group=False):
         return []
 
     today = _WINDOW_START
-    end_date = _WINDOW_END
+    end_date = local_horizon_end() if group else _WINDOW_END
     today_str = today.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
 
@@ -5400,7 +5403,7 @@ def _is_organizer_account(venue):
 _WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
-def _post_event_dates(r, window_start, window_end):
+def _post_event_dates(r, window_start, window_end, one_time_end=None):
     """Dates for one event the model pulled from a post, or [] to drop it.
 
     Models are unreliable at calendar math: J Welch Farms' "bingo Thursday,
@@ -5411,8 +5414,9 @@ def _post_event_dates(r, window_start, window_end):
         to the series' "starts"/"ends" when the post gives them, so "Starting
         Oct 16, karaoke every Friday" doesn't list Oct 9 (post events never
         retire, so a wrong date stays up until it passes).
-      - one-time: the model's date, kept only if it's in the window and, when
-        the model gave a weekday, actually falls on that weekday.
+      - one-time: the model's date, kept only if it's in the window (to
+        `one_time_end` when given) and, when the model gave a weekday,
+        actually falls on that weekday.
     """
     wd = str(r.get("weekday") or "").strip().lower()
     dow = _WEEKDAYS.index(wd) if wd in _WEEKDAYS else None
@@ -5440,24 +5444,25 @@ def _post_event_dates(r, window_start, window_end):
         d_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         return []
-    if not (window_start <= d_obj <= window_end):
+    if not (window_start <= d_obj <= (one_time_end or window_end)):
         return []
     if dow is not None and d_obj.weekday() != dow:
         return []
     return [d_obj]
 
 
-def _post_ai_events(raw, posts, page_url, venue_name, venue_address, organizer=False):
+def _post_ai_events(raw, posts, page_url, venue_name, venue_address, organizer=False, one_time_end=None):
     """Event dicts from what the post-extraction model returned for one
     account's posts (a venue page or a Facebook group); `page_url` is the
-    link when the model didn't say which post an event came from."""
+    link when the model didn't say which post an event came from, and
+    `one_time_end` lets one-time events run past the window."""
     events = []
     seen = set()
     for r in raw:
         if not isinstance(r, dict):
             continue
         name = (r.get("name") or "").strip()
-        dates = _post_event_dates(r, _WINDOW_START, _WINDOW_END) if name else []
+        dates = _post_event_dates(r, _WINDOW_START, _WINDOW_END, one_time_end) if name else []
         if not dates:
             continue
 
@@ -5680,7 +5685,10 @@ def fetch_apify_facebook_posts(days_ahead=14):
 # Promote Your Event"), listed per town (town.json "facebookGroups", Victoria's
 # in town.py). Same OpenAI extraction as the venue pages, with the group
 # prompt: a group isn't a place, so an event gets the venue the post names or
-# none. Apify's groups actor reads public groups only; a private one comes
+# none. A group post announcing something weeks out is past the 10-day
+# lookback by the time the event is near, so its one-time events are kept
+# out to LOCAL_HORIZON_DAYS, like hand-added ones (weekly ones stay in the
+# window). Apify's groups actor reads public groups only; a private one comes
 # back empty and goes quiet like a dead venue page.
 #
 # Cost (Oct 2026 pricing): ~$0.005 a post plus ~$0.002 for the date filter,
@@ -5709,11 +5717,26 @@ def _town_facebook_groups(town=None):
 
 
 def _group_post(p):
-    """A groups-actor post in the posts actor's shape (its images are under
-    "attachments", not "media")."""
-    if isinstance(p, dict) and not p.get("media") and isinstance(p.get("attachments"), list):
-        return {**p, "media": p["attachments"]}
-    return p
+    """A groups-actor post in the posts actor's shape: its images are under
+    "attachments", not "media", and a shared event or post (most of what
+    group admins post, often with no caption) comes as a link preview whose
+    title and description ("Sat, Nov 28 at 2 PM · Belmont Community Center")
+    the model needs as much as the text."""
+    if not isinstance(p, dict):
+        return p
+    out = dict(p)
+    if not out.get("media") and isinstance(out.get("attachments"), list):
+        out["media"] = out["attachments"]
+    text = (out.get("text") or "").strip()
+    extra = [str(out.get(k)).strip() for k in ("title", "previewTitle", "previewDescription", "location")
+             if isinstance(out.get(k), str) and out.get(k).strip() and out.get(k).strip() not in text]
+    link = next((out.get(k) for k in ("link", "previewSource") if isinstance(out.get(k), str) and out.get(k).strip()), "")
+    if link and link not in text:
+        extra.append(f"Link: {link.strip()}")
+    if extra:
+        shared = "Shared: " + " · ".join(extra)
+        out["text"] = f"{text}\n{shared}" if text else shared
+    return out
 
 
 def fetch_apify_facebook_groups(days_ahead=14):
@@ -5798,7 +5821,7 @@ def fetch_apify_facebook_groups(days_ahead=14):
             continue
 
         raw = _extract_events_from_posts_via_ai(name, posts, group=True)
-        found = _post_ai_events(raw, posts, url, name, "", organizer=True)
+        found = _post_ai_events(raw, posts, url, name, "", organizer=True, one_time_end=local_horizon_end())
         events.extend(found)
         stats.append(f"{name}: {len(posts)} posts → {len(found)} events")
 

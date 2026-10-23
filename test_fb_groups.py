@@ -101,6 +101,33 @@ def test_group_posts_become_events_at_the_named_venue(monkeypatch):
     assert by["No Venue Night"]["url"] == GROUP["url"]
 
 
+def test_shared_event_without_caption_reaches_the_model():
+    p = ce._group_post({"text": "", "previewTitle": "Open Skate at the Belmont Community Center",
+                        "previewDescription": "Sat, Nov 28 at 2 PM · Belmont Community Center",
+                        "link": "https://www.facebook.com/events/123/"})
+    assert p["text"] == ("Shared: Open Skate at the Belmont Community Center · Sat, Nov 28 at 2 PM · "
+                         "Belmont Community Center · Link: https://www.facebook.com/events/123/")
+    # A caption keeps its place; a preview it already quotes isn't repeated.
+    q = ce._group_post({"text": "Come skate! Open Skate", "previewTitle": "Open Skate"})
+    assert q["text"] == "Come skate! Open Skate"
+
+
+def test_group_keeps_one_time_events_past_the_window(monkeypatch):
+    _keys(monkeypatch)
+    far = date.today() + timedelta(days=50)
+    monkeypatch.setattr(ce, "_apify_posts_run", lambda *a: _resp([{"text": "Krampus Crawl Dec 19!"}]))
+    monkeypatch.setattr(ce, "_extract_events_from_posts_via_ai", lambda *a, **k: [
+        {"name": "Krampus Crawl", "date": far.strftime("%Y-%m-%d"), "venue": "Bierhaus"},
+        {"name": "Too Far", "date": (date.today() + timedelta(days=200)).strftime("%Y-%m-%d")},
+        {"name": "Trivia", "recurring": True, "weekday": "tuesday"}])
+    events = ce.fetch_apify_facebook_groups()
+    names = [e["name"] for e in events]
+    assert "Krampus Crawl" in names and "Too Far" not in names
+    # Weekly events stay inside the normal window.
+    assert all(date.fromisoformat(e["date"]) <= ce._WINDOW_END for e in events if e["name"] == "Trivia")
+    assert 1 <= names.count("Trivia") <= 3
+
+
 def test_empty_group_goes_quiet(monkeypatch):
     _keys(monkeypatch)
     monkeypatch.setattr(ce, "_apify_posts_run", lambda *a: _resp([{"error": "private"}]))
@@ -128,3 +155,12 @@ def test_group_prompt_names_the_group_and_asks_for_the_venue():
     assert 'Facebook group "Lincoln NE Events"' in p
     assert "The venue's name as the post gives it" in p
     assert "NOT at Lincoln NE Events itself" not in p
+
+
+def test_merge_keeps_far_group_events_but_not_other_scrapers():
+    far = (date.today() + timedelta(days=50)).strftime("%Y-%m-%d")
+    base = {"date": far, "time": "7:00 PM", "venue": "Bierhaus", "address": "151 N 8th St", "description": "x"}
+    merged = ce.merge_events([{**base, "name": "Krampus Crawl", "_source": "apify_facebook_groups"},
+                              {**base, "name": "Other Show", "_source": "apify_facebook_posts"}], venues=[])
+    names = [e["name"] for e in merged]
+    assert "Krampus Crawl" in names and "Other Show" not in names
