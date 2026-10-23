@@ -80,10 +80,20 @@ for f in zscale tonemap; do
   if has_filter "$f"; then say "ffmpeg: $f yes"; else say "ffmpeg: $f NO (HDR takes will look washed out)"; fi
 done
 
+echo
+echo "Ready. Next:"
+if [ -f "$HERE/edit.py" ]; then
+  echo "  $VENV/bin/python $HERE/edit.py RAW.MOV                    # raw take in, finished Reels out"
+fi
 cat <<EOF
-
-Ready. Next:
-  $VENV/bin/python $HERE/analyze.py RAW.MOV > plan.json     # find the scripts, plan the cut
+  $VENV/bin/python $HERE/analyze.py RAW.MOV > plan.json     # just find the scripts and plan the cut
   $VENV/bin/python $HERE/analyze.py RAW.MOV --video victoria-1
   $VENV/bin/python -m pytest $HERE/tests -q
 EOF
+if [ -f "$HERE/post_reel.py" ]; then
+  echo "  $VENV/bin/python $HERE/post_reel.py check                 # META_TOKEN and the five Pages"
+fi
+if [ -f "$HERE/hq_feedback.py" ]; then
+  echo "  $VENV/bin/python $HERE/hq_feedback.py                     # what readers wrote (HQ_ASSISTANT_TOKEN)"
+fi
+echo "How it all fits: $HERE/README.md; the campaign and the posting loop: $HERE/HANDOFF.md"
