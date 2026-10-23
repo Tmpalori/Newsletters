@@ -152,6 +152,9 @@ thevic361/
 │   ├── apify-probe.yml, gemini-probe.yml   # by hand, or claude/** pushes touching the probes
 │   └── market-scan.yml           # by hand — market research scan
 │
+├── marketing/video/              # subscribe videos (Facebook Reels): own tools, tests and requirements; nothing in the site imports it (its README.md, HANDOFF.md)
+├── .claude/skills/town-videos/   # the playbook a session follows to write, edit and post those videos
+│
 ├── venues.json                   # 47 manually-curated venues with tier (HIGH/MEDIUM/LOW)
 ├── local_events.yaml             # backbone: recurring + one-off curated events
 ├── extras.yaml                   # New & Notable + sponsor block

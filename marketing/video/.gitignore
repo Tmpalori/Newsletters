@@ -1,0 +1,5 @@
+# Raw takes, renders and test fixtures are big and personal; they never
+# belong in the repo.
+out/
+__pycache__/
+.pytest_cache/
