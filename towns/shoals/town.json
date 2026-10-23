@@ -178,5 +178,15 @@
     "newsletter": "07:58",
     "newsletter-weekend": "07:15",
     "sponsor-reports": "09:15"
-  }
+  },
+  "facebookGroups": [
+    {
+      "name": "What's happening in Sheffield (Center of the Shoals)",
+      "url": "https://www.facebook.com/groups/223951663752782/"
+    },
+    {
+      "name": "FloBama Music Events Updates",
+      "url": "https://www.facebook.com/groups/295665737132458/"
+    }
+  ]
 }

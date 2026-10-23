@@ -211,5 +211,15 @@
     "newsletter": "08:03",
     "newsletter-weekend": "07:20",
     "sponsor-reports": "09:20"
-  }
+  },
+  "facebookGroups": [
+    {
+      "name": "Lincoln NE Events",
+      "url": "https://www.facebook.com/groups/445273878917326/"
+    },
+    {
+      "name": "Events in & around Lincoln, NE",
+      "url": "https://www.facebook.com/groups/1446744522263172/"
+    }
+  ]
 }

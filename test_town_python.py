@@ -151,7 +151,7 @@ def test_web_sources_victoria_runs_all_in_order():
         ("city_calendar", True), ("chamber", True), ("library", True), ("moonshine", False),
         ("vtx_artwalk", False), ("jwelch", False), ("theatre_victoria", False), ("generals", False),
         ("allevents", True), ("gemini_search", True), ("apify_facebook", True), ("apify_eventbrite", True),
-        ("apify_facebook_posts", True), ("apify_instagram_posts", True)]
+        ("apify_facebook_posts", True), ("apify_instagram_posts", True), ("apify_facebook_groups", False)]
     assert all(callable(getattr(ce, fn)) for _, fn, _ in ce.WEB_SOURCES)
 
 
@@ -159,7 +159,8 @@ def test_web_sources_another_town():
     import collect_events as ce
     bay = town_mod.town_config(town=BAY)
     assert [n for n, _, _ in ce.enabled_web_sources(bay)] == [
-        "town_feeds", "allevents", "gemini_search", "apify_facebook", "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts"]
+        "town_feeds", "allevents", "gemini_search", "apify_facebook", "apify_eventbrite", "apify_facebook_posts", "apify_instagram_posts",
+        "apify_facebook_groups"]
     picked = town_mod.town_config(town={**BAY, "enabledSources": ["gemini_search", "allevents"]})
     assert [n for n, _, _ in ce.enabled_web_sources(picked)] == ["allevents", "gemini_search"]  # run order, not list order
     with pytest.raises(ValueError, match="unknown sources in enabled_sources: nope"):

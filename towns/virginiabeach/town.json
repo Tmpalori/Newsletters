@@ -185,5 +185,15 @@
   },
   "schedule": {
     "meta-ads": "09:37"
-  }
+  },
+  "facebookGroups": [
+    {
+      "name": "Virginia Beach Locals & Visitors: The Insider Guide",
+      "url": "https://www.facebook.com/groups/85588244403/"
+    },
+    {
+      "name": "What's Happening Virginia Beach",
+      "url": "https://www.facebook.com/groups/1915439882067431/"
+    }
+  ]
 }
