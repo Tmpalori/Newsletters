@@ -126,12 +126,29 @@ def test_pick_keeps_listed_venues_and_adds_the_ones_search_missed():
 
 
 def test_pick_fills_quotas_then_the_best_of_the_rest():
-    rows = [row(f"d{i}", f"Dentist {i}", f"dent{i}.com", cat="dental", reviews=1000) for i in range(40)]
+    rows = [row(f"d{i}", f"Dentist {i}", f"dent{i}.com", cat="dental", reviews=1000) for i in range(400)]
     rows += [row(f"l{i}", f"Law {i}", f"law{i}.com", cat="legal", reviews=1) for i in range(5)]
-    got = leads.pick(rows, [], target=30)
+    got = leads.pick(rows, [])
     cats = [l["category"] for l in got]
+    assert len(got) == leads.TARGET
     assert cats.count("legal") == 5, "a short category keeps every lead it has"
-    assert cats.count("dental") == 25, "its quota (20), then the rest of the slots"
+    assert cats.count("dental") == leads.TARGET - 5, "its quota, then the rest of the slots"
+
+
+def test_pick_listed_venues_shrink_every_quota_not_the_few_reviewed():
+    """Listed venues are kept, and the room they take comes out of every
+    category in step, not out of the ones with the fewest reviews."""
+    rows = []
+    for cat, *_ in leads.CATEGORIES:
+        few = cat in ("legal", "insurance", "realestate")
+        rows += [row(f"{cat}{i}", f"{cat} {i}", f"{cat}{i}.com", cat=cat, reviews=2 if few else 900)
+                 for i in range(40)]
+    venues = [{"name": f"Venue {i}", "domain": f"venue{i}.com", "category": "Bar"} for i in range(60)]
+    got = leads.pick(rows, venues)
+    cats = [l["category"] for l in got]
+    assert len(got) == leads.TARGET and cats.count("listed") == 60
+    for cat, _label, _partner, quota, _q in leads.CATEGORIES:
+        assert cats.count(cat) >= quota * 0.75, f"{cat}: {cats.count(cat)} of {quota}"
 
 
 def test_searched_keeps_each_business_once_at_its_best_match(tmp_path):
@@ -168,6 +185,8 @@ def test_contacts_skip_what_was_already_sent(capsys):
     leads.write_json(leads.batches_file("victoria", "people"), [{"batch_id": "b1", "tracking_ids": ["p0"]}])
     assert leads.main(["contacts", "--town", "victoria"]) == 0
     assert "1 already sent, 2 to send" in capsys.readouterr().out
+    assert leads.main(["contacts", "--town", "victoria", "--limit", "1"]) == 0
+    assert "1 already sent, 1 to send" in capsys.readouterr().out
     t = leads.find_people_task(items[1], a, "Owner or decision maker", 1, False)
     assert t == {"domain": "shop1.com", "company_name": "Shop 1", "title": "Owner or decision maker", "max_k": 1,
                  "info_access": ["EMAIL"], "city": "Victoria", "state": "TX", "country": "US", "tracking_id": "p1"}

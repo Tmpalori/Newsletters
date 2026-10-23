@@ -54,6 +54,7 @@ $L search --town victoria --category dental --per-query 5 --go   # pilot: 15 rec
 $L search --town victoria --go --max-spend 500
 $L pick --town victoria                      # offline: picked.json, counts per category
 $L contacts --town victoria --go             # find_people: 1 owner/decision maker per pick, email only
+$L contacts --town victoria --limit 100 --go # only the 100 best picks not yet sent (spend in measured steps)
 $L emails --town victoria --go               # info@-type emails for picks with no verified person email
 $L export                                    # offline: out/<town>/leads-<town>.csv + out/leads-all.csv
 ```

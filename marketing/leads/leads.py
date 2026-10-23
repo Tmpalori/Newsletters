@@ -384,19 +384,29 @@ def pick(rows, venues, target=TARGET):
                           "content": {"business_name": v["name"], "website_url": "https://" + v["domain"]},
                           "domain": v["domain"], "listed": True, "source": "venues.json"})
     leads.sort(key=lambda l: -score(l))
-    chosen, quota = [], {c[0]: c[3] for c in CATEGORIES}
+    # Listed venues first; each fills a slot of its own category, and the
+    # quotas shrink in step to the room left, so the categories with few
+    # reviews (law, insurance, real estate) keep their share.
+    chosen = [l for l in leads if l["listed"]][:target]
+    quota = {c[0]: c[3] for c in CATEGORIES}
+    for l in chosen:
+        if quota.get(l["category"], 0) > 0:
+            quota[l["category"]] -= 1
+    room, wanted = target - len(chosen), sum(quota.values())
+    if wanted > room:
+        quota = {k: v * room // wanted for k, v in quota.items()}
     rest = []
     for l in leads:
         if l["listed"]:
-            chosen.append(l)
-        elif quota.get(l["category"], 0) > 0:
+            continue
+        if quota.get(l["category"], 0) > 0:
             quota[l["category"]] -= 1
             chosen.append(l)
         else:
             rest.append(l)
     chosen += rest[:max(0, target - len(chosen))]
     chosen.sort(key=lambda l: -score(l))
-    return chosen[:target]
+    return chosen
 
 
 def cmd_pick(a, args):
@@ -512,6 +522,8 @@ def cmd_contacts(a, args):
     leads = picked(a["slug"])
     sent = submitted(a["slug"], "people")
     tasks = [find_people_task(l, a, args.title, args.max_k, args.phone) for l in leads if l["id"] not in sent]
+    if args.limit is not None:
+        tasks = tasks[:args.limit]   # picks are best-first
     print(f"{a['site_name']}: {len(leads)} picked, {len(sent)} already sent, {len(tasks)} to send "
           f"(max {args.max_k} per business, {'email + phone' if args.phone else 'email only'})")
     if not args.go:
@@ -651,6 +663,7 @@ def main(argv=None):
     p.add_argument("--title", default="Owner or decision maker", help="the role find_people looks for")
     p.add_argument("--max-k", type=int, default=1, help="contacts per business, 1-8 (default 1)")
     p.add_argument("--phone", action="store_true", help="ask for phones too (costs more)")
+    p.add_argument("--limit", type=int, help="contacts: send at most this many new lookups (best picks first)")
     p.add_argument("--max-spend", type=float, help="stop a stage once this many credits are spent")
     p.add_argument("--refresh", action="store_true", help="search again even when cached")
     p.add_argument("--go", action="store_true", help="really send (spends credits)")
