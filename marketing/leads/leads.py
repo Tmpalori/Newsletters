@@ -536,9 +536,9 @@ def cmd_emails(a, args):
     leads = picked(a["slug"])
     people = task_results(a["slug"], "people")
     sent = submitted(a["slug"], "business_emails")
-    need = [l for l in leads if l["id"] not in sent
+    need = [l for l in leads if l["id"] not in sent and not free_emails(l["content"])
             and not any((p.get("email") or {}).get("verified") for p in people.get(l["id"], []))]
-    print(f"{a['site_name']}: {len(need)} picks with no verified person email to look up")
+    print(f"{a['site_name']}: {len(need)} picks with no verified person email and no email in the search to look up")
     if not args.go:
         print("dry run: nothing sent (add --go)")
         return
@@ -556,7 +556,19 @@ def cmd_emails(a, args):
 COLUMNS = ("town", "newsletter", "category", "pitch", "business", "website", "domain", "address", "city",
            "zip", "business_phone", "business_email", "google_rating", "google_reviews", "already_listed",
            "contact_name", "contact_title", "contact_email", "email_verified", "contact_phone",
-           "contact_linkedin", "other_contacts", "openmart_id", "status", "notes")
+           "contact_linkedin", "other_contacts", "staff_on_website", "facebook", "instagram",
+           "openmart_id", "status", "notes")
+
+
+def free_emails(c):
+    """The emails a search record already carries (business_emails,
+    store_emails): no lookup needed for these."""
+    return [e for k in ("business_emails", "store_emails") for e in c.get(k) or [] if isinstance(e, str) and "@" in e]
+
+
+def social(c, network):
+    links = (c.get("social_media_links") or {}).get(network) or []
+    return links[0] if links else ""
 
 
 def rows_for(a, leads, people, shared):
@@ -567,7 +579,7 @@ def rows_for(a, leads, people, shared):
         top = ppl[0] if ppl else {}
         phones = [p.get("phone_number") for p in top.get("phones") or [] if p.get("valid") is not False]
         mail = [e.get("email") for e in shared.get(l["id"], []) if e.get("email")]
-        mail += [e for e in c.get("business_emails") or [] if isinstance(e, str)]
+        mail += free_emails(c)
         cat = CATEGORY.get(l["category"])
         out.append({
             "town": a["slug"], "newsletter": a["site_name"],
@@ -575,7 +587,7 @@ def rows_for(a, leads, people, shared):
             "business": c.get("business_name") or c.get("store_name") or "",
             "website": c.get("website_url") or "", "domain": l["domain"],
             "address": c.get("street_address") or "", "city": c.get("city") or "", "zip": c.get("zipcode") or "",
-            "business_phone": ", ".join(c.get("store_phones") or []),
+            "business_phone": ", ".join(c.get("store_phones") or c.get("business_phones") or []),
             "business_email": ", ".join(dict.fromkeys(mail)),
             "google_rating": c.get("google_rating") or "", "google_reviews": c.get("google_reviews_count") or "",
             "already_listed": "yes" if l.get("listed") else "",
@@ -588,6 +600,10 @@ def rows_for(a, leads, people, shared):
             "other_contacts": "; ".join(
                 f"{' '.join(x for x in (p.get('first_name'), p.get('last_name')) if x)} <{p['email']['email']}>"
                 for p in ppl[1:]),
+            "staff_on_website": "; ".join(
+                f"{s['name']} ({s['role']})" if s.get("role") else s["name"]
+                for s in c.get("staffs") or [] if isinstance(s, dict) and s.get("name")),
+            "facebook": social(c, "FACEBOOK"), "instagram": social(c, "INSTAGRAM"),
             "openmart_id": "" if str(l["id"]).startswith("venue:") else l["id"],
             "status": "", "notes": "",
         })

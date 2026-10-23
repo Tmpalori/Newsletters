@@ -174,6 +174,16 @@ def test_contacts_skip_what_was_already_sent(capsys):
     assert leads.find_people_task(items[1], a, "Owner", 2, True)["info_access"] == ["EMAIL", "PHONE"]
 
 
+def test_emails_skip_picks_the_search_already_gave_an_email(capsys):
+    free = row("f", "Has Info", "hasinfo.com")
+    free["content"]["business_emails"] = ["info@hasinfo.com"]
+    items = [dict(free, domain="hasinfo.com", listed=False),
+             dict(row("n", "No Info", "noinfo.com"), domain="noinfo.com", listed=False)]
+    picked_file("victoria", items)
+    assert leads.main(["emails", "--town", "victoria"]) == 0
+    assert "1 picks with no verified person email" in capsys.readouterr().out
+
+
 def test_submit_records_each_batch_and_splits_at_100(monkeypatch):
     sent = []
 
@@ -207,10 +217,15 @@ def test_collect_saves_completed_tasks(monkeypatch):
 # --- export --------------------------------------------------------------------
 
 def test_export_writes_the_csv():
+    p3 = row("p3", "Shop 3", "shop3.com", cat="pets")
+    p3["content"].update(business_emails=["info@shop3.com"], store_emails=["vet@shop3.com"],
+                         staffs=[{"name": "Dr. Kim Lee", "role": "Owner"}, {"name": "Sam"}],
+                         social_media_links={"FACEBOOK": ["https://www.facebook.com/shop3"], "INSTAGRAM": None})
     items = [dict(row("p1", "Shop 1", "shop1.com", cat="dental"), domain="shop1.com", listed=False),
              dict(row("p2", "Shop 2", "shop2.com", cat="shops"), domain="shop2.com", listed=True),
              {"id": "venue:aero.pub", "category": "listed", "match_score": 0, "listed": True, "domain": "aero.pub",
-              "source": "venues.json", "content": {"business_name": "Aero", "website_url": "https://aero.pub"}}]
+              "source": "venues.json", "content": {"business_name": "Aero", "website_url": "https://aero.pub"}},
+             dict(p3, domain="shop3.com", listed=False)]
     picked_file("victoria", items)
     tdir = os.path.join(leads.OUT, "victoria", "people", "tasks")
     os.makedirs(tdir)
@@ -224,7 +239,10 @@ def test_export_writes_the_csv():
     leads.cmd_export(["victoria"])
     rows = list(csv.DictReader(open(os.path.join(leads.OUT, "victoria", "leads-victoria.csv"))))
     assert list(rows[0].keys()) == list(leads.COLUMNS)
-    one, two, aero = rows
+    one, two, aero, three = rows
+    assert three["business_email"] == "info@shop3.com, vet@shop3.com"
+    assert three["staff_on_website"] == "Dr. Kim Lee (Owner); Sam"
+    assert (three["facebook"], three["instagram"]) == ("https://www.facebook.com/shop3", "")
     assert (one["contact_name"], one["contact_email"], one["email_verified"]) == ("Ann A", "ann@shop1.com", "yes")
     assert one["contact_phone"] == "+13615550111" and one["other_contacts"] == "Bob B <bob@shop1.com>"
     assert one["pitch"] == "Category partner: Dental" and one["newsletter"] == "The Vic 361"
