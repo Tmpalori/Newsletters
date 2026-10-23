@@ -116,6 +116,7 @@ SQUEEZE_MIN = 80          # % width: past this, type gets smaller instead
 SS = 2                    # drawn at 2x and scaled down, for smooth edges
 FONT_FILES = {"bold": "Fredoka-Bold.ttf", "semi": "Fredoka-SemiBold.ttf", "body": "Nunito-ExtraBold.ttf"}
 WHITE = "#FFFFFF"
+NBSP = "\u00a0"
 GREEN = "#2FA876"         # the site's --color-success: a card's FREE pill
 SKY = "#DDF2FF"           # the site's --sky-light: the top of the end card's background
 LINE = 6                  # ink outline of the badge, its pills and the end card's boxes
@@ -138,6 +139,16 @@ FADE_FRAMES = 4
 BLACK_FRAMES = 8
 BADGE_OUT_FRAMES = 3      # the hook badge fades out this fast before the switch
 PHONE_OUT_FRAMES = 3
+# Cards keep off his eyes: the top EYE_BAND of the face box (forehead to just
+# under the eyes) is never covered. They go just under the chin, else above
+# the head under the badge, else over the chest above the captions, shrunk
+# down to CARD_MIN_SCALE if that is what it takes.
+FACE_EVERY = 0.5          # s of output time between the frames looked at
+FACE_WIDTH = 360          # px wide the frames are looked at
+EYE_BAND = 0.55
+CARD_MARGIN = 24          # px between the chin (or the head) and a card
+CARD_MIN_SCALE = 0.72
+YUNET = "face_detection_yunet_2023mar.onnx"
 # The town's name is underlined in the hook; these count as its name too.
 TOWN_ALIASES = {"medford": ["Rogue Valley"], "shoals": ["Muscle Shoals", "Florence"]}
 
@@ -953,10 +964,14 @@ def _break_bonus(left, right):
         b = 0.8
     else:
         b = 1.0
-    if left[-1].lower() in _SOFT:
+    if left[-1].lower() in ("the", "a", "an"):
+        b *= 2.0  # an article never ends a line
+    elif left[-1].lower() in _SOFT:
         b *= 1.2
-    elif right[0].lower() in _LEADS:
+    elif right[0].lower() in _LEADS or right[0].lower() in ("after", "before", "until", "every"):
         b *= 0.9
+    elif right[0].lower() == "to":
+        b *= 1.15  # "things / to do"
     # Keep a pair of names together: "Monday and Thursday", "Zoo Boo and Malloween".
     if (right[0].lower() in ("and", "&", "or") and len(right) > 1
             and left[-1][:1].isupper() and right[1][:1].isupper()):
@@ -1043,6 +1058,10 @@ def _hook_items(text, town):
         m = _NUMBER.match(w)
         if m:
             items.append({"kind": "pill", "text": m.group(1), "tail": m.group(2), "word": w})
+        elif i in marked and i - 1 in marked and items and items[-1]["kind"] == "mark":
+            # "Virginia Beach", "Victoria, TX": one stroke, never split over two lines.
+            items[-1]["text"] += " " + w
+            items[-1]["word"] += " " + w
         else:
             items.append({"kind": "mark" if i in marked else "text", "text": w, "tail": "", "word": w})
     return items
@@ -1374,6 +1393,12 @@ def end_card_picture(plan, town, pal, layout):
     box_h = 147 * k
     # The tagline: two lines at Tristen's size if they fit, else smaller, else three.
     words = tagline.split()
+    # The town's name stays on one line: its words travel as one token.
+    marked = town_words(words, town)
+    words = [w for w in words]
+    for i in sorted(marked, reverse=True):
+        if i - 1 in marked and i < len(words):
+            words[i - 1:i + 1] = [words[i - 1] + NBSP + words[i]]
     te, tlines = (END["tag_em"], []) if not words else fit_lines(
         words, lambda ln, em: text_width(" ".join(ln), "body", em), min(room, END["tag_w"]),
         [(1, END["tag_em"], END["tag_em"]), (2, END["tag_em"], END["tag_min"]), (3, END["tag_em"], 36)])
@@ -1425,20 +1450,18 @@ def end_card_picture(plan, town, pal, layout):
     # Tagline, each line centred, the town's name on a highlighter stroke.
     names = [w for w in [re.sub(r"(?i)^the\s+", "", city)] + TOWN_ALIASES.get(town["slug"], [])]
     for i, ln in enumerate(tlines):
-        text = " ".join(ln)
+        text = " ".join(ln).replace(NBSP, " ")
         lw = text_width(text, "body", te)
         x0 = cx - lw / 2
         yb = top + parts["tag_base"] + i * tpitch
-        marked = town_words(ln, town)
+        line_words = text.split(" ")
+        marked = sorted(town_words(line_words, town))
         if marked:
-            space = text_width(" ", "body", te)
-            x = x0
-            for j, wd in enumerate(ln):
-                core = wd.rstrip(",.;:!?")
-                ww = text_width(wd, "body", te)
-                if j in marked:
-                    s.rect(x - 8, yb - 0.27 * te, x + text_width(core, "body", te) + 6, yb + 0.34 * te, 0, hl)
-                x += ww + space
+            # One stroke from the first word of the name to the end of its last.
+            a = text_width(" ".join(line_words[:marked[0]]) + (" " if marked[0] else ""), "body", te)
+            b = text_width(" ".join(line_words[:marked[-1]] + [line_words[marked[-1]].rstrip(",.;:!?")]),
+                           "body", te)
+            s.rect(x0 + a - 8, yb - 0.27 * te, x0 + b + 6, yb + 0.34 * te, 0, hl)
         s.text(x0, yb, text, "body", te, ink)
     # The button and the address under it.
     by = top + parts["button"]
@@ -1449,6 +1472,178 @@ def end_card_picture(plan, town, pal, layout):
     return img, {"tagline": [" ".join(ln) for ln in tlines], "button": button, "url": url,
                  "wordmark": [mark_text, mark_badge], "top": round(top), "bottom": round(top + total),
                  "names": names}
+
+
+# ------------------------------------------------------------------ the face
+
+def face_model_path():
+    """YuNet's model (setup.sh fetches it into the cache), or None."""
+    for p in (os.environ.get("VIDEO_FACE_MODEL"), os.path.join(_cache_base(), "models", YUNET)):
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+def _source_frame(cut, t):
+    """The kept source frame (on the cut's 30 fps grid, from its seek point)
+    shown at output time t."""
+    c = int(round(t * cut["speed"] * FPS))
+    for f0, n in cut["frames"]:
+        if c < n:
+            return f0 + c
+        c -= n
+    f0, n = cut["frames"][-1]
+    return f0 + n - 1  # the held last frame
+
+
+_FACES = {}
+
+
+def detect_faces(info, cut, until, *, every=FACE_EVERY):
+    """Where the face is in the kept footage, every `every` s of output time
+    up to `until`: ({"detector", "samples"}, [(t, (x0, y0, x1, y1))]) with the
+    boxes as fractions of the upright source frame, the biggest face in each
+    frame that has one. OpenCV's YuNet when its model is in the cache, else
+    (and in a frame where YuNet finds nothing) the Haar cascade OpenCV ships
+    with. No OpenCV: no faces, and the cards take a fixed slot."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        return {"detector": None, "samples": 0, "why": "OpenCV is not installed (setup.sh)"}, []
+    times = [round(i * every, 3) for i in range(int(max(0.0, until) / every) + 1)]
+    key = (info.get("path"), os.path.getmtime(info["path"]) if os.path.exists(info.get("path") or "") else 0,
+           tuple(cut["frames"]), cut["speed"], cut["base"], tuple(times))
+    if key in _FACES:
+        return _FACES[key]
+    sw, sh = info.get("width") or 0, info.get("height") or 0
+    if not (sw and sh and times):
+        return {"detector": None, "samples": 0, "why": "no picture size"}, []
+    w = FACE_WIDTH
+    h = max(2, int(round(sh * w / sw / 2)) * 2)
+    wanted = sorted({_source_frame(cut, t) for t in times})
+    sel = "+".join(f"eq(n,{f})" for f in wanted)
+    out = _run(["ffmpeg", "-hide_banner", "-nostdin", "-v", "error"] + _input_args(info, cut)
+               + ["-map", f"0:{info['video_index']}", "-vf",
+                  f"fps={FPS}:start_time=0,select='{sel}',scale={w}:{h},format=bgr24",
+                  "-fps_mode", "passthrough", "-f", "rawvideo", "-"], binary=True, what="face frames",
+               timeout=600).stdout
+    size = w * h * 3
+    frames = {f: np.frombuffer(out[i * size:(i + 1) * size], np.uint8).reshape(h, w, 3)
+              for i, f in enumerate(wanted) if (i + 1) * size <= len(out)}
+    model = face_model_path()
+    yunet = None
+    if model and hasattr(cv2, "FaceDetectorYN"):
+        try:
+            yunet = cv2.FaceDetectorYN.create(model, "", (w, h), 0.6)
+        except cv2.error:
+            yunet = None
+    haar = cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml"))
+    used = set()
+    found = {}
+    for f, img in frames.items():
+        boxes = []
+        if yunet is not None:
+            _, res = yunet.detect(img)
+            boxes = [tuple(float(v) for v in r[:4]) for r in (res if res is not None else [])]
+            if boxes:
+                used.add("yunet")
+        if not boxes and not haar.empty():
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            boxes = [tuple(float(v) for v in b) for b in haar.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5, minSize=(w // 10, w // 10))]
+            if boxes:
+                used.add("haar")
+        if boxes:
+            x, y, bw, bh = max(boxes, key=lambda b: b[2] * b[3])
+            found[f] = (max(0.0, x / w), max(0.0, y / h), min(1.0, (x + bw) / w), min(1.0, (y + bh) / h))
+    faces = [(t, found[_source_frame(cut, t)]) for t in times if _source_frame(cut, t) in found]
+    meta = {"detector": "+".join(sorted(used)) or None, "samples": len(times), "found": len(faces),
+            "yunet_model": bool(yunet)}
+    _FACES[key] = (meta, faces)
+    return meta, faces
+
+
+def canvas_box(box, info, layout):
+    """A box in fractions of the source frame, in the layout's canvas px
+    (the same fit as _canvas: a portrait take covers and is cropped, a
+    landscape one sits across the middle of the safe zone)."""
+    W, H = LAYOUTS[layout]["size"]
+    safe = LAYOUTS[layout]["safe"]
+    sw, sh = info.get("width") or W, info.get("height") or H
+    x0, y0, x1, y1 = box
+    if sh >= sw:
+        k = max(W / sw, H / sh)
+        cw, ch = max(W, _even(sw * k)), max(H, _even(sh * k))
+        ox, oy = (cw - W) // 2, int((ch - H) * TOP_BIAS)
+        return (x0 * cw - ox, y0 * ch - oy, x1 * cw - ox, y1 * ch - oy)
+    fh = min(H, _even(sh * W / sw))
+    oy = int(min(max(0, (safe[1] + safe[3]) / 2 - fh / 2), H - fh))
+    return (x0 * W, y0 * fh + oy, x1 * W, y1 * fh + oy)
+
+
+def _median(vals):
+    vals = sorted(vals)
+    n = len(vals)
+    return (vals[n // 2] + vals[(n - 1) // 2]) / 2 if n else None
+
+
+def face_during(faces, start, end):
+    """The face box to keep a card off between start and end: the median
+    box over the whole cut, or, where he moves, the span of every box seen
+    while the card is up. Stray detections (far from the median face) are
+    ignored. None with no face."""
+    if not faces:
+        return None
+    med = tuple(_median([b[i] for _, b in faces]) for i in range(4))
+    mh = med[3] - med[1]
+    ok = [b for _, b in faces
+          if abs((b[1] + b[3]) / 2 - (med[1] + med[3]) / 2) < 0.6 * mh + 40 and 0.5 < (b[3] - b[1]) / mh < 2.0]
+    near = [b for t, b in faces if start - 0.25 <= t <= end + 0.25 and b in ok]
+    if not near:
+        return med
+    return (min(b[0] for b in near), min(b[1] for b in near), max(b[2] for b in near), max(b[3] for b in near))
+
+
+def place_card(h, face, lo, hi, *, margin=CARD_MARGIN):
+    """Where a card h px tall (with its shadow) goes, between lo (under the
+    badge) and hi (over the captions): (y, scale, slot), off the eye band
+    (the top EYE_BAND of the face box) whatever happens.
+
+    1. just under the chin, pulled up to clear the captions as long as it
+       stays under the mouth;
+    2. above the head, under the badge;
+    3. over the chest: the space between the eyes and the captions, the
+       card shrunk (to CARD_MIN_SCALE) if it must be.
+    With no face, the fixed slot over the captions."""
+    if face is None:
+        return hi - h, 1.0, "fixed"
+    fy0, fy1 = face[1], face[3]
+    fh = max(1.0, fy1 - fy0)
+    eye_bottom = fy0 + EYE_BAND * fh
+    y = min(fy1 + margin, hi - h)
+    if y >= lo and y >= fy1 - 0.08 * fh:
+        return y, 1.0, "below-chin"
+    if lo + h <= fy0 - 8:
+        return lo, 1.0, "above-head"
+    top = max(lo, eye_bottom + margin)
+    room_low, room_high = hi - top, (fy0 - 8) - lo
+    s = min(1.0, room_low / h)
+    if s >= CARD_MIN_SCALE:
+        return hi - h * s, s, "lower-third"
+    # Nowhere it fits at the smallest size: the bigger gap, the card as
+    # small as the gap needs (an extreme close-up).
+    if room_high > room_low:
+        s = max(0.5, room_high / h)
+        return lo, s, "above-head-small"
+    s = max(0.5, room_low / h)
+    return hi - h * s, s, "lower-third-small"
+
+
+def _caption_top(spec):
+    """The top of the captions' ink (ascenders and outline) on this layout."""
+    em = spec["caption_em"]
+    return spec["caption_y"] - 0.52 * em
 
 
 # ------------------------------------------------------------------ pictures: timing
@@ -1531,14 +1726,16 @@ def card_spans(plan, es=None):
     return out
 
 
-def build_sprites(plan, layout="4x5", *, screen=None):
+def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
     """The pictures laid over the video for one layout, and where they went.
 
     Returns (sprites, geo). A sprite is {"name", "frames" (PIL RGBA pictures:
     the entrance, then the one it rests on), "x", "y" (top-left on the
     canvas), "start", "end" (seconds, on the frame grid), "fade_out" (frames),
     "box" (what it covers)}. screen: the site's screenshot for the phone (a
-    PIL image or a path); without it there is no phone.
+    PIL image or a path); without it there is no phone. faces: [(t, box)]
+    where the face is, in canvas px (detect_faces + canvas_box); the cards
+    keep off its eyes (place_card). None or []: the cards take a fixed slot.
     """
     if layout not in LAYOUTS:
         raise ValueError(f"unknown layout {layout!r}; one of {', '.join(LAYOUTS)}")
@@ -1582,14 +1779,21 @@ def build_sprites(plan, layout="4x5", *, screen=None):
                     x, spec["badge_top"], sub_from, es,
                     box=(round(x), spec["badge_top"], round(x) + img.width, spec["badge_top"] + img.height),
                     info=info), "badge")
-    # The event cards, one at a time.
+    # The event cards, one at a time, kept off his eyes.
     no_icon = []
+    badge_bottom = max([b["box"][3] for b in geo.get("badge", [])] or [T])
+    lo, hi = badge_bottom + 20, min(B, _caption_top(spec)) - 16
     for n, (chip, start, end) in enumerate(card_spans(plan, es)):
         img, info = event_card(chip, pal)
         if chip.get("icon") and not info["icon"]:
             no_icon.append(chip["icon"])
+        face = face_during(faces or [], start, end)
+        y, scale, slot = place_card(img.height, face, lo, hi)
+        if scale < 1:
+            img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
         x = (W - img.width) / 2
-        y = spec["card_y"] - (img.height - CARD["drop"]) / 2
+        info.update({"y": round(y), "slot": slot, "scale": round(scale, 3),
+                     "face": [round(v) for v in face] if face else None})
         add(_sprite(f"card{n + 1}", _enter(img, "slide", SLIDE_FRAMES), x, y, start, end,
                     box=(round(x), round(y), round(x) + img.width, round(y) + img.height), info=info), "cards")
     if no_icon:
@@ -2079,7 +2283,10 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     ass, geo = build_ass(plan, layout)
     if plan.get("phone") and screen is None:
         screen = site_screenshot(town)
-    sprites, sgeo = build_sprites(plan, layout, screen=screen)
+    ec = plan.get("end_card") or {}
+    face_meta, faces = detect_faces(src, cut, float(ec["start"]) if ec else float(plan["duration"]))
+    canvas_faces = [(t, canvas_box(b, src, layout)) for t, b in faces]
+    sprites, sgeo = build_sprites(plan, layout, screen=screen, faces=canvas_faces)
     mode = hdr_mode(src, filters)
     notes = []
     if src.get("hdr") and not mode:
@@ -2097,6 +2304,10 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     if not logo and sprites:
         notes.append(f"no logo at {town['logo_path']}: the badge and the end card are drawn without it")
     notes += sgeo["notes"]
+    if (plan.get("chips") or []) and not faces:
+        notes.append("no face found (%s): the cards sit in the fixed slot over the captions; check they "
+                     "don't cover the eyes" % (face_meta.get("why") or "%d frames looked at"
+                                               % face_meta.get("samples", 0)))
     # ffmpeg runs inside the work folder, so a relative out_dir would land there.
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
@@ -2158,6 +2369,8 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
             "afftdn_latency": afftdn_latency() if src.get("has_audio") else None,
             "loudness_pass1": loud, "logo": logo, "notes": notes,
             "screen": screen if isinstance(screen, str) else None,
+            "face": dict(face_meta, median=[round(v) for v in face_during(canvas_faces, -1, -1)]
+                         if canvas_faces else None),
             "overlay": {"badge": sgeo.get("badge"), "cards": sgeo.get("cards") or [],
                         "phone": (sgeo.get("phone") or [None])[0],
                         "end_card": (sgeo.get("end_card") or [None])[0],
