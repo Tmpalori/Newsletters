@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Run a finished subscribe video as an ad in its town's Meta campaign.
 
-    python3 ads.py plan   out/renders/victoria-1/feed-4x5.mp4 --video victoria-1
-    python3 ads.py upload out/renders/victoria-1/feed-4x5.mp4 --video victoria-1 --go
-    python3 ads.py go     --video victoria-1 [--go]
-    python3 ads.py stop   --video victoria-1 [--campaign] [--go]
+    python3 ads.py plan   out/renders/<id>/feed-4x5.mp4 --video <id>
+    python3 ads.py upload out/renders/<id>/feed-4x5.mp4 --video <id> --go
+    python3 ads.py go     --video <id> [--go]
+    python3 ads.py stop   --video <id> [--campaign] [--go]
     python3 ads.py status [--town SLUG]
+
+    plan/upload options: --force (another ad for a video the ledger has),
+    --template ADSET_ID (when the campaign has several ad sets of its own),
+    --allow-draft, --no-instagram (name no Instagram account), --story
+    (refused, see STORY_NOT_USED).
 
 Every town has one campaign in the shared ad account (act_2614503002399063,
 "The Vic Ads"), named exactly its "meta".campaign_prefix (towns/<slug>/
@@ -29,9 +34,11 @@ act_/adimages), the creative (POST act_/adcreatives: the Page, video_data
 with the caption as primary text, the headline, CTA SUBSCRIBE to the town's
 /subscribe with url_tags the site reads as a paid Meta visit), a copy of the
 template ad set (POST /{adset}/copies, status_option PAUSED, the window as
-start_time/end_time) and the ad in it (POST act_/ads, status PAUSED). Nothing
-is turned on. The 9:16 cut isn't used: Meta's placement asset customization
-doesn't fit here (see STORY_NOT_USED), so the 4:5 runs everywhere.
+start_time/end_time) and the ad in it (POST act_/ads, status PAUSED), then
+reads the copy and the ad back (one that came out ACTIVE is paused at once).
+Nothing is turned on. The 9:16 cut isn't used: Meta's placement asset
+customization doesn't fit here (see STORY_NOT_USED), so the 4:5 runs
+everywhere.
 
 go shows what turns on (this video's ad and ad set, and the campaign if it's
 paused), what gets paused so only this video spends (every other active ad
@@ -986,6 +993,8 @@ def cmd_plan(args, session=None):
         sv = survey(graph, token, slug)
         template = template_adset(sv, ledger, args.template)
         ig, ig_from, ig_wanted = instagram_account(graph, token, sv, template, town["page_id"])
+        if args.no_instagram and ig:
+            ig, ig_from = None, "--no-instagram"
     except PostError as e:
         meta_error = str(e)
         problems.append(f"Meta: {e}")
@@ -1028,8 +1037,9 @@ def cmd_plan(args, session=None):
     for n in win["notes"]:
         say(f"             note: {n}")
     if sv and win["start"] and not win["problems"]:
+        # From now when the window has started already: what's left of it.
         for i, line in enumerate(spend_lines(sv, template, win["start"][1], win["end"][1] if win["end"] else None,
-                                             win["start"][1])):
+                                             now)):
             say(f"  {'Spend:' if i == 0 else '':10} {line}")
     say(f"  File:      {os.path.abspath(args.file)}")
     for f in report["facts"]:
@@ -1060,10 +1070,11 @@ def cmd_plan(args, session=None):
     say(f"  URL tags:  {text['url_tags']}")
     say("             (the site's paid attribution: utm_medium=paid, utm_source fb/ig/an/msg)")
     if ig:
-        say(f"  Instagram: account {ig}, from {ig_from}")
+        say(f"  Instagram: account {ig}, from {ig_from} (--no-instagram leaves it out)")
     elif ig_wanted and sv:
-        say("  Instagram: the ad set delivers there, but no ad in the campaign names an Instagram account; Meta "
-            "shows the Page's name and picture there")
+        say(("  Instagram: none (--no-instagram)" if ig_from == "--no-instagram"
+             else "  Instagram: the ad set delivers there, but no ad in the campaign names an Instagram account")
+            + "; Meta shows the Page's name and picture there")
     say(f"  Thumbnail: a frame {THUMB_AT:g} s in, uploaded with the ad")
     say("  Advantage+ creative: " + ", ".join(f"{k} {v['enroll_status'].replace('OPT_', '').lower()}"
                                              for k, v in CREATIVE_FEATURES.items()))
@@ -1100,8 +1111,7 @@ def cmd_plan(args, session=None):
         say("             upload --go resumes it")
 
     base = GRAPH if token_name else NETWORK_GRAPH
-    tmpl = (entry or {}).get("template_adset_id") if entry and not complete(entry) and not args.force else None
-    tmpl = tmpl or (template["id"] if template else "<template ad set>")
+    tmpl = template["id"] if template else "<template ad set>"
     say("  With --go:" if not go else "  Steps:")
     say(f"    1. POST {base}/{AD_ACCOUNT}/advideos  source=<the file, {report['size']:,} bytes>, name/title")
     say(f"    2. GET  {base}/<video id>?fields=status  until Meta has processed it (up to "
@@ -1149,8 +1159,8 @@ def upload(graph, token, ctx, entry, ledger, ledger_path, force):
     if entry and not complete(entry) and not force:
         if entry.get("fingerprint") != fp:
             say(f"Not uploading: {vid}'s upload stopped midway ({progress(entry)}), and the file, the words, the "
-                "window or the template changed since. Pass --force to start over (the paused leftovers stay in "
-                "the account, unused).", file=sys.stderr)
+                "link, the window or the campaign changed since. Pass --force to start over (the paused leftovers "
+                "stay in the account, unused).", file=sys.stderr)
             return 1
         say(f"Resuming {vid}'s upload ({progress(entry)}).")
     else:
@@ -1168,6 +1178,12 @@ def upload(graph, token, ctx, entry, ledger, ledger_path, force):
             entry["previous"] = ((prior.get("previous") or []) + [earlier])[-10:]
             say(f"--force: making a new ad for {vid} (attempt {attempt}); the earlier one stays as it is.")
     nm, steps = entry["names"], entry.setdefault("steps", {})
+    # What isn't made yet is made from today's plan (the template ad set,
+    # the Instagram account); what's made stays as the ledger has it.
+    if not (steps.get("creative") or {}).get("state") == "done":
+        entry["instagram_user_id"] = ctx["ig"]
+    if not (steps.get("adset") or {}).get("state") == "done":
+        entry["template_adset_id"], entry["template_adset_name"] = template["id"], template.get("name")
 
     def record(step, state, **extra):
         s = steps.setdefault(step, {})
@@ -1817,6 +1833,8 @@ def main(argv=None, session=None):
         p.add_argument("--template", metavar="ADSET_ID", help="the ad set to copy, when the campaign has several")
         p.add_argument("--force", action="store_true", help="make another ad for a video the ledger already has")
         p.add_argument("--allow-draft", action="store_true", help="a video scripts.json still marks draft")
+        p.add_argument("--no-instagram", action="store_true",
+                       help="name no Instagram account in the creative (Meta shows the Page there)")
         p.add_argument("--ledger", help=argparse.SUPPRESS)
 
     p = sub.add_parser("plan", help="what upload would make (reads Meta, writes nothing)")

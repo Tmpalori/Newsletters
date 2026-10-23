@@ -64,17 +64,20 @@ VIDEOS = [
     {"id": "victoria-2026-11-01", "town": "victoria", "video": 2, "draft": False, "angle": "Evergreen",
      "post_at_local": "2026-11-01T06:00", "run_until_local": None,
      "caption": "Live music, markets and festivals: everything in Victoria, free every Monday and Thursday."},
-    {"id": "virginiabeach-2026-10-25", "town": "virginiabeach", "video": 1, "draft": False, "angle": "Halloween week",
+    {"id": "virginiabeach-2026-10-25", "town": "virginiabeach", "video": 1, "draft": False,
+     "angle": "Halloween week",
      "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
      "headline": "Everything to do in Virginia Beach, free",
      "caption": "Dolphins, haunts and Hawthorne Heights. Free: https://www.thetide757.com/subscribe"},
     {"id": "lincoln-2026-10-25", "town": "lincoln", "video": 1, "draft": False, "angle": "Halloween week",
      "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
-     "caption": "Stapleton, Ella Langley and a silent film with a live score. Free: https://www.thestar402.com/subscribe"},
+     "caption": "Stapleton, Ella Langley and a silent film with a live score. Free: "
+                "https://www.thestar402.com/subscribe"},
     {"id": "victoria-draft", "town": "victoria", "video": 9, "draft": True, "angle": "Next week",
      "post_at_local": "2026-11-08T18:00", "run_until_local": "2026-11-14T17:00", "caption": "Soon."},
 ]
-VIC1, VIC2, TIDE1, STAR1 = "victoria-2026-10-25", "victoria-2026-11-01", "virginiabeach-2026-10-25", "lincoln-2026-10-25"
+VIC1, VIC2 = "victoria-2026-10-25", "victoria-2026-11-01"
+TIDE1, STAR1 = "virginiabeach-2026-10-25", "lincoln-2026-10-25"
 
 GOOD_PROBE = {
     "streams": [
@@ -422,7 +425,8 @@ def test_upload_go_sends_exactly_these_requests(env, capsys):
     assert upload(env, meta) == 0
     out = capsys.readouterr().out
     copy_id, ad_id = ours(meta, VIC1)[0]["id"], ours(meta, VIC1)[1]["id"]
-    video_id, creative_id = next(iter(meta.videos)), max(meta.creatives)
+    video_id = next(iter(meta.videos))
+    creative_id = next(k for k, v in meta.creatives.items() if v["name"] == f"{VIC1} video ad")
     assert routes(meta.calls) == survey_routes(N, VIC_CAMPAIGN) + [
         ("GET", f"{N}/{VIC_CREATIVE}"),                    # the campaign's Instagram account
         ("POST", f"{N}/{ACCOUNT}/advideos"),               # the 4:5, into the library
@@ -536,6 +540,30 @@ def test_the_tide_takes_the_instagram_account_of_its_video_ad(env):
     assert writes(meta.calls)[3]["data"]["start_time"] == "2026-10-25T22:00:00+0000"
 
 
+def test_no_instagram_leaves_the_account_out(env, capsys):
+    meta = FakeMeta()
+    assert upload(env, meta, TIDE1, "--no-instagram") == 0
+    story = json.loads(writes(meta.calls)[2]["data"]["object_story_spec"])
+    assert "instagram_user_id" not in story and story["page_id"] == PAGE["virginiabeach"]
+    assert "Instagram: none (--no-instagram); Meta shows the Page's name and picture there" in capsys.readouterr().out
+
+
+def test_a_creative_meta_refused_is_made_again_from_todays_plan(env, capsys):
+    """Say Meta won't let the system user name the Instagram account: the
+    creative fails, nothing after it is made, and the same upload with
+    --no-instagram picks up there without uploading the video again."""
+    meta = FakeMeta()
+    meta.faults.append(("POST", f"{ACCOUNT}/adcreatives", err(400, 100, "Invalid parameter",
+                                                                error_user_msg="instagram_user_id"), False))
+    assert upload(env, meta, TIDE1) == 1
+    meta.calls.clear()
+    assert upload(env, meta, TIDE1, "--no-instagram") == 0
+    assert routes(writes(meta.calls)) == [("POST", f"{N}/{ACCOUNT}/adcreatives"),
+                                          ("POST", f"{N}/{TIDE_TEMPLATE}/copies"), ("POST", f"{N}/{ACCOUNT}/ads")]
+    assert "instagram_user_id" not in json.loads(writes(meta.calls)[0]["data"]["object_story_spec"])
+    assert env.read_ledger()[TIDE1]["instagram_user_id"] is None and len(meta.videos) == 1
+
+
 def test_an_open_ended_video_copies_with_end_time_0(env, capsys):
     meta = FakeMeta()
     assert upload(env, meta, VIC2) == 0
@@ -553,7 +581,9 @@ def test_a_window_already_started_copies_from_now(env, capsys):
     meta = FakeMeta()
     assert upload(env, meta) == 0
     assert writes(meta.calls)[3]["data"]["start_time"] == "2026-10-26T14:07:00+0000"
-    assert "the window's start has passed" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "the window's start has passed" in out
+    assert "$68.00/day x 5.33 days" in out                 # what's left of the window, not all of it
 
 
 # ------------------------------------------------------------------ dry runs
