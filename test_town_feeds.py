@@ -396,3 +396,19 @@ def test_fetch_wix_reads_each_recent_page(monkeypatch):
                                    date(2026, 10, 23), date(2027, 1, 21))
     assert [e["name"] for e in events] == ["Krampus Crawl 2026"]
     assert seen[0] == "https://www.bierhausne.com/event-pages-sitemap.xml" and len(seen) == 3
+
+
+def test_fetch_wix_all_pages_failing_raises(monkeypatch):
+    monkeypatch.setattr(town_feeds, "WIX_PAUSE_S", 0)
+
+    class R:
+        text = WIX_SITEMAP
+
+    def get(url):
+        if url.endswith("sitemap.xml"):
+            return R()
+        raise RuntimeError("429 Too Many Requests")
+
+    with pytest.raises(ValueError, match="all 2 event pages failed"):
+        town_feeds.fetch_feed({"type": "wix", "url": "https://www.bierhausne.com"}, get, CT,
+                              date(2026, 10, 23), date(2027, 1, 21))

@@ -181,3 +181,41 @@ def test_merge_keeps_far_group_events_but_not_other_scrapers():
                               {**base, "name": "Other Show", "_source": "apify_facebook_posts"}], venues=[])
     names = [e["name"] for e in merged]
     assert "Krampus Crawl" in names and "Other Show" not in names
+
+
+def test_every_group_empty_warns_and_marks_partial(monkeypatch):
+    _keys(monkeypatch)
+    warned = []
+    monkeypatch.setattr(ce, "_warn", lambda msg, **tags: warned.append(msg))
+    ce._SOURCE_PARTIAL.pop("apify_facebook_groups", None)
+    monkeypatch.setattr(ce, "_apify_posts_run", lambda *a: _resp([{"error": "nothing"}]))
+    assert ce.fetch_apify_facebook_groups() == []
+    assert "FB groups: no posts from any group" in warned
+    assert ce._SOURCE_PARTIAL.get("apify_facebook_groups")
+
+
+def test_one_group_with_posts_doesnt_warn(monkeypatch):
+    _keys(monkeypatch)
+    monkeypatch.setitem(ce.TOWN, "facebook_groups", [GROUP, {"name": "Two", "url": "https://www.facebook.com/groups/2/"}])
+    warned = []
+    monkeypatch.setattr(ce, "_warn", lambda msg, **tags: warned.append(msg))
+    answers = iter([_resp([{"text": "Trivia Tuesday"}]), _resp([{"error": "private"}])])
+    monkeypatch.setattr(ce, "_apify_posts_run", lambda *a: next(answers))
+    monkeypatch.setattr(ce, "_extract_events_from_posts_via_ai", lambda *a, **k: [])
+    ce.fetch_apify_facebook_groups()
+    assert "FB groups: no posts from any group" not in warned
+
+
+def test_group_events_dedupe_under_an_official_calendar():
+    # A group repost of a calendar event merges into it; the calendar's
+    # name, time and link win (SOURCE_RANK), and the group counts as a source.
+    day = (date.today() + timedelta(days=3)).strftime("%Y-%m-%d")
+    cal = {"date": day, "name": "Haymarket Harvest 2026", "time": "2:00 PM", "venue": "Haymarket",
+           "address": "7th St", "description": "Fall festival.", "url": "https://downtownlincoln.org/h",
+           "_source": "town_feeds"}
+    grp = {"date": day, "name": "Haymarket Harvest", "time": "", "venue": "Haymarket", "address": "",
+           "description": "Market vendors and music.", "url": "https://www.facebook.com/groups/1/posts/2",
+           "_source": "apify_facebook_groups"}
+    merged = [e for e in ce.merge_events([grp, cal], venues=[]) if "Harvest" in e["name"]]
+    assert len(merged) == 1
+    assert merged[0]["url"] == "https://downtownlincoln.org/h" and merged[0]["time"] == "2:00 PM"

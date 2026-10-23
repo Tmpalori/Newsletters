@@ -5786,6 +5786,7 @@ def fetch_apify_facebook_groups(days_ahead=14):
     actor_run_url = _apify_run_url(APIFY_FB_GROUPS_ACTOR)
 
     stats = []
+    read = 0        # groups that came back with posts
     for i, group in enumerate(groups):
         name, url = group["name"], group["url"]
         stop = ("apify-limit" if _APIFY_LIMIT_TRIPPED else "openai" if _OPENAI_DEAD
@@ -5808,10 +5809,12 @@ def fetch_apify_facebook_groups(days_ahead=14):
             resp = _apify_posts_run(actor_run_url, payload, token)
         except Exception as e:
             stats.append(f"{name}: ERROR ({type(e).__name__})")
+            _mark_partial(source, f"{name}: {type(e).__name__}")
             _warn("FB groups actor exception", group=name, error=str(e)[:200])
             continue
         if resp.status_code >= 400:
             stats.append(f"{name}: HTTP {resp.status_code}")
+            _mark_partial(source, f"{name}: HTTP {resp.status_code}")
             if resp.status_code == 403 and _apify_hard_limit_tripped(resp.text):
                 _APIFY_LIMIT_TRIPPED = True
                 _warn("Apify monthly hard limit tripped", actor=APIFY_FB_GROUPS_ACTOR, status=403)
@@ -5834,13 +5837,20 @@ def fetch_apify_facebook_groups(days_ahead=14):
         if not posts:
             reason = errors[0].get("error") if errors else "no posts with text or images; private group?"
             stats.append(f"{name}: 0 posts ({str(reason)[:60]})")
+            _mark_partial(source, f"{name}: no posts")
             continue
 
+        read += 1
         raw = _extract_events_from_posts_via_ai(name, posts, group=True)
         found = _post_ai_events(raw, posts, url, name, "", organizer=True, one_time_end=local_horizon_end())
         events.extend(found)
         stats.append(f"{name}: {len(posts)} posts → {len(found)} events")
 
+    tried = [s for s in stats if "SKIP" not in s]
+    if tried and not read and not _APIFY_LIMIT_TRIPPED:
+        # Every group it asked came back empty or failed: Facebook or the
+        # actor changed, not a quiet week (one private group goes quiet alone).
+        _warn("FB groups: no posts from any group", town=TOWN["id"], groups=len(tried), first=tried[0][:120])
     print(f"  [Apify FB Groups] Extracted {len(events)} events across {len(groups)} groups")
     for line in stats:
         print(f"    • {line}")

@@ -689,13 +689,18 @@ def fetch_feed(feed, get, tz, start, end):
     if kind == "wix":
         base = url.rstrip("/")
         pages = wix_event_pages(get(f"{base}/event-pages-sitemap.xml").text, start - timedelta(days=WIX_FRESH_DAYS))
+        failed = []
         for i, page in enumerate(pages[:WIX_MAX_PAGES]):
             if i:
                 time.sleep(WIX_PAUSE_S)
             try:
                 events.extend(parse_jsonld_events(get(page).text, tz, start, end, url=page))
-            except Exception:
-                continue        # one event's page; the rest still list
+            except Exception as e:
+                failed.append(e)    # one event's page; the rest still list
+        if failed and len(failed) == len(pages[:WIX_MAX_PAGES]):
+            # Every page failed (rate-limited, or the site moved): say so
+            # rather than report a quiet calendar.
+            raise ValueError(f"all {len(failed)} event pages failed: {failed[0]}") from failed[0]
         return events
     if kind == "cards":
         sep = "&" if "?" in url else "?"
