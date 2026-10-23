@@ -153,6 +153,7 @@ thevic361/
 │   └── market-scan.yml           # by hand — market research scan
 │
 ├── marketing/video/              # subscribe videos (Facebook Reels): own tools, tests and requirements; nothing in the site imports it (its README.md, HANDOFF.md)
+├── marketing/leads/              # sponsor lead lists from Openmart (leads.py, its README.md); stdlib only, its out/ (names and emails) gitignored; nothing in the site imports it
 ├── .claude/skills/town-videos/   # the playbook a session follows to write, edit and post those videos
 │
 ├── venues.json                   # 47 manually-curated venues with tier (HIGH/MEDIUM/LOW)

@@ -1,0 +1,4 @@
+# Lead lists are people's names and emails; they never belong in the repo.
+out/
+__pycache__/
+.pytest_cache/
