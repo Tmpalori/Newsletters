@@ -49,7 +49,37 @@ describe('homepage filters', () => {
   it('renders the chip bar above the list', () => {
     boot();
     const chips = [...document.querySelectorAll('#event-filters .filter-chip')].map(b => b.textContent);
-    expect(chips).toEqual(['All', 'This weekend', 'Free', 'Kids & Family', 'Music', 'Food & Drink', 'Arts', 'Outdoors']);
+    expect(chips).toEqual(['All', 'Today', 'This weekend', 'Free', 'Kids & Family', 'Music', 'Food & Drink', 'Arts',
+      'Outdoors', 'Community', 'Shopping', 'Next week →']);
+    // The category chips carry their icons (the row is the icon key).
+    const icons = b => [...b.querySelectorAll('use')].map(u => u.getAttribute('href'));
+    expect(icons(document.querySelector('[data-filter="music"]'))).toEqual(['icons.svg#i-music']);
+    expect(icons(document.querySelector('[data-filter="food drinks"]'))).toEqual(['icons.svg#i-food', 'icons.svg#i-drinks']);
+    expect(icons(document.querySelector('[data-filter="all"]'))).toEqual([]);
+    expect(document.querySelector('#event-filters a.filter-chip').getAttribute('href')).toBe('/next-week');
+  });
+
+  it('Today shows only today, and the past group goes when it has nothing showing', () => {
+    document.body.innerHTML = '<main><div id="events-container"><details class="past-days">' +
+      day(0, [['Mon Trivia', 'drinks']]) + day(1, [['Tue Tacos', 'food']]) + '</details>' +
+      '<section class="day-section" id="day-2"><h2 class="day-name">Wednesday <span class="today-badge">Today</span></h2>' +
+      '<ul class="event-list"><li class="event-entry" data-icons="music">Wed Jazz</li></ul></section>' +
+      day(3, [['Thu Market', 'food']]) + day(4, []) + day(5, []) + day(6, []) + '</div></main>';
+    delete window.__vic361App;
+    window.fetch = () => new Promise(() => {});
+    (0, eval)(APP_JS);
+    const app = window.__vic361App;
+    const group = document.querySelector('.past-days');
+    app.applyFilter('today');
+    expect(visible()).toEqual(['Wed Jazz']);
+    expect(group.hidden).toBe(true);
+    app.applyFilter('food drinks');
+    expect(group.hidden).toBe(false);
+    app.applyFilter('weekend');
+    expect(group.hidden).toBe(true);
+    app.applyFilter('all');
+    expect(group.hidden).toBe(false);
+    expect(visible().length).toBe(4);
   });
 
   it('filters by category, free, and weekend', () => {

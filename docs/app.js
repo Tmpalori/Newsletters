@@ -328,8 +328,24 @@ function fullAddress(addr, ev) {
     return '<section class="day-section day-section--fold' + (past ? ' day-section--past' : '') + ' day--d' + dow + '" id="day-' + idx + '">' +
       '<details' + (dateStr === openDate ? ' open' : '') + '>' +
       '<summary class="day-header">' + headHtml + '<span class="day-count">' +
-        (n === 0 ? 'No events' : n === 1 ? '1 event' : n + ' events') + '</span></summary>' +
+        dayCount(n) + '</span></summary>' +
       bodyHtml + '</details></section>';
+  }
+
+  function dayCount(n) {
+    return n === 0 ? 'No events' : n === 1 ? '1 event' : n + ' events';
+  }
+
+  // Days already gone fold together under one "Earlier this week" bar, so
+  // the list starts on today (pastDaysHtml in server/seo.js, same markup).
+  function renderPastDays(past) {
+    if (!past.length) return '';
+    var short = function (d) { return dayAt(d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }); };
+    var span = past.length === 1 ? short(past[0].date) : short(past[0].date) + '–' + short(past[past.length - 1].date);
+    var n = past.reduce(function (s, p) { return s + p.n; }, 0);
+    return '<details class="past-days"><summary class="past-days__head"><span class="past-days__title">Earlier this week</span>' +
+      '<span class="past-days__meta">' + span + ' · ' + dayCount(n) + '</span></summary>' +
+      past.map(function (p) { return p.html; }).join('') + '</details>';
   }
 
   // ─── NEWSLETTER CARD ───
@@ -558,40 +574,23 @@ function fullAddress(addr, ev) {
             prompts[el.getAttribute('data-date')] = el.outerHTML;
           });
         }
+        var past = [];
         var html = days.map(function (date, idx) {
-          return renderDaySection(date, data.events || [], idx, openDate, prompts[date]);
+          var day = renderDaySection(date, data.events || [], idx, openDate, prompts[date]);
+          if (date < todayStr) {
+            past.push({ date: date, n: (data.events || []).filter(function (e) { return e.date === date; }).length, html: day });
+            return '';
+          }
+          return day;
         }).join('');
 
-        container.innerHTML = html;
+        container.innerHTML = renderPastDays(past) + html;
         applyFilter(currentFilter);
         openHashDay();
         markStuck();
 
-        // ─── SKIP TO TODAY BUTTON ───
         var todayIdx = days.indexOf(todayStr);
         insertNewsletterCard(container, Math.max(todayIdx, 0));
-        // Show button whenever today isn't Monday (idx 0)
-        if (todayIdx > 0) {
-          var skipBar = document.getElementById('skip-today-bar');
-          if (skipBar) {
-            var btn = document.createElement('button');
-            btn.className = 'btn btn--primary skip-today-btn';
-            btn.textContent = '↓ Skip to Today';
-            btn.addEventListener('click', function () {
-              var sec = document.getElementById('day-' + todayIdx);
-              if (sec) {
-                var fold = sec.querySelector('details');
-                if (fold) fold.open = true;
-                var stickyHeader = document.getElementById('site-header');
-                var stickyHeight = (stickyHeader ? stickyHeader.offsetHeight : 0) + 8;
-                var offset = sec.getBoundingClientRect().top + window.pageYOffset - stickyHeight;
-                window.scrollTo({ top: offset, behavior: 'smooth' });
-              }
-            });
-            skipBar.appendChild(btn);
-            skipBar.hidden = false;
-          }
-        }
 
         // New & Notable
         // The section (and its divider) only shows when there's something in it.
@@ -621,16 +620,21 @@ function fullAddress(addr, ev) {
 
   // ─── FILTERS ───
   // Chips above the list hide events that don't match. Pure client-side:
-  // the server-rendered markup carries data-icons on every event.
+  // the server-rendered markup carries data-icons on every event. Each
+  // category chip wears the icons it matches, so the row is the icon key
+  // too; the last chip is a link to next week.
   var FILTERS = [
     { key: 'all', label: 'All' },
+    { key: 'today', label: 'Today' },
     { key: 'weekend', label: 'This weekend' },
-    { key: 'free', label: 'Free' },
-    { key: 'family', label: 'Kids & Family' },
-    { key: 'music', label: 'Music' },
-    { key: 'food drinks', label: 'Food & Drink' },
-    { key: 'arts', label: 'Arts' },
-    { key: 'outdoors', label: 'Outdoors' }
+    { key: 'free', label: 'Free', icons: ['free'] },
+    { key: 'family', label: 'Kids & Family', icons: ['family'] },
+    { key: 'music', label: 'Music', icons: ['music'] },
+    { key: 'food drinks', label: 'Food & Drink', icons: ['food', 'drinks'] },
+    { key: 'arts', label: 'Arts', icons: ['arts'] },
+    { key: 'outdoors', label: 'Outdoors', icons: ['outdoors'] },
+    { key: 'community', label: 'Community', icons: ['community'] },
+    { key: 'shopping', label: 'Shopping', icons: ['shopping'] }
   ];
   var currentFilter = 'all';
 
@@ -644,8 +648,8 @@ function fullAddress(addr, ev) {
     bar.setAttribute('aria-label', 'Filter events');
     bar.innerHTML = FILTERS.map(function (f) {
       return '<button type="button" class="filter-chip" data-filter="' + f.key + '" aria-pressed="' +
-        (f.key === currentFilter) + '">' + f.label + '</button>';
-    }).join('');
+        (f.key === currentFilter) + '">' + (f.icons || []).map(iconSvg).join('') + f.label + '</button>';
+    }).join('') + '<a class="filter-chip filter-chip--link" href="/next-week">Next week →</a>';
     container.parentNode.insertBefore(bar, container);
     bar.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-filter]');
@@ -660,10 +664,11 @@ function fullAddress(addr, ev) {
     document.querySelectorAll('#event-filters [data-filter]').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.getAttribute('data-filter') === currentFilter));
     });
-    var wanted = currentFilter === 'all' || currentFilter === 'weekend' ? null : currentFilter.split(' ');
+    var wanted = currentFilter === 'all' || currentFilter === 'weekend' || currentFilter === 'today' ? null : currentFilter.split(' ');
     document.querySelectorAll('#events-container .day-section').forEach(function (sec, idx) {
       // Day sections are Mon (0) … Sun (6); the weekend is Fri–Sun.
-      var dayHidden = currentFilter === 'weekend' && idx < 4;
+      var dayHidden = (currentFilter === 'weekend' && idx < 4) ||
+        (currentFilter === 'today' && !sec.querySelector('.today-badge'));
       var shown = 0;
       sec.querySelectorAll('.event-entry').forEach(function (li) {
         var icons = (li.getAttribute('data-icons') || '').split(' ');
@@ -690,21 +695,31 @@ function fullAddress(addr, ev) {
         empty.hidden = true;
       }
     });
+    // The "Earlier this week" bar goes when a filter hides every day in it.
+    document.querySelectorAll('#events-container .past-days').forEach(function (g) {
+      g.hidden = ![].some.call(g.querySelectorAll('.day-section'), function (sec) { return !sec.hidden; });
+    });
   }
 
-  // A link to one day (#day-3) opens it.
+  // A link to one day (#day-3) opens it, and the "Earlier this week"
+  // group around it when it's a past day.
   function openHashDay() {
     var m = /^#day-\d$/.test(location.hash) && document.querySelector(location.hash + ' details');
-    if (m) m.open = true;
+    if (!m) return;
+    m.open = true;
+    var group = m.closest('.past-days');
+    if (group) group.open = true;
   }
   window.addEventListener('hashchange', openHashDay);
 
   // Folding a day from its stuck header bar, partway down the day, would
   // leave you somewhere further down the page: bring its bar back into view.
+  // Same for the "Earlier this week" group.
   document.addEventListener('toggle', function (e) {
     var d = e.target;
-    if (d.open || !d.closest || !d.closest('.day-section--fold')) return;
-    var sec = d.closest('.day-section');
+    if (d.open || !d.closest) return;
+    var sec = d.classList.contains('past-days') ? d : d.closest('.day-section--fold');
+    if (!sec) return;
     var top = sec.getBoundingClientRect().top;
     var h = header ? header.offsetHeight : 0;
     if (top < h) window.scrollTo({ top: top + window.pageYOffset - h - 8 });
@@ -732,22 +747,6 @@ function fullAddress(addr, ev) {
       renderSponsor: renderSponsor,
       today: townToday
     };
-  }
-
-  // The Icons Guide opens as a panel over the list; close it on a tap
-  // outside it or Esc, like any other popover, instead of only on its button.
-  var iconGuide = document.querySelector('.icon-guide');
-  if (iconGuide) {
-    document.addEventListener('click', function (e) {
-      if (iconGuide.open && !iconGuide.contains(e.target)) iconGuide.open = false;
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && iconGuide.open) {
-        iconGuide.open = false;
-        var summary = iconGuide.querySelector('summary');
-        if (summary) summary.focus();
-      }
-    });
   }
 
   // The server fills the footer year in; this covers the raw page it falls

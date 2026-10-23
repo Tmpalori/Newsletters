@@ -94,16 +94,16 @@ describe('coming up', () => {
   });
 
   it('fills the homepage slot, and the real template has the slot', () => {
-    const tpl = '<head></head><!--NAV--><!--COMING_UP_LINK--><p class="loading-message">Loading events...</p><!--COMING_UP-->';
+    const tpl = '<head></head><!--NAV--><p class="loading-message">Loading events...</p><!--COMING_UP-->';
     const page = renderHome(tpl, EVENTS, { siteUrl: SITE, now: NOW });
     expect(page).toContain('<section class="coming-up" id="coming-up"');
-    expect(page).toContain('<a class="btn btn--outline" href="#coming-up">Coming up ↓</a>');
     expect(page).not.toContain('<!--COMING_UP');
     const empty = renderHome(tpl, [], { siteUrl: SITE, now: NOW });
     expect(empty).not.toContain('coming-up');
     const template = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'index.html'), 'utf8');
     expect(template).toContain('<!--COMING_UP-->');
-    expect(template).toContain('<!--COMING_UP_LINK-->');
+    // The jump link above the list is gone (the button row was cleaned up).
+    expect(template).not.toContain('<!--COMING_UP_LINK-->');
   });
 });
 
