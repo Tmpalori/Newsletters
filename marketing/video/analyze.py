@@ -26,9 +26,27 @@ Plan fields (seconds; "output" = after the cuts and the speed-up):
   speed                       1.0 to 1.12, applied after joining segments
   duration, speech_end        output length (= end_card.end); last word end
   words                       kept words on the output timeline (captions)
-  hook, chips, cta_start, end_card   overlay timing on the output timeline
+  hook, chips, cta_start, phone, end_card   overlay timing on the output timeline
   diff                        script vs spoken, non-filler words
   warnings                    what a human must check before posting
+
+The overlays, on the output timeline:
+  hook        {text, start, end}: the badge shows the hook until end, then
+              "Subscribe free" and the domain until the end card
+  chips       [{text, start, end}], one event card each, from its first cue
+              word to the next card (the last to cta_start). The script's
+              card fields ride along when it has them: icon (one emoji),
+              tag, title, venue, and free (true: a FREE pill). A card
+              without a title shows text as its title.
+  cta_start   when the sign-up line (cta_cue) starts
+  phone       {start, end}: a phone showing the town's site, from the first
+              phone_cue word said after the cards (and after the hook) for
+              PHONE_SECONDS, cut short at the end card; null when
+              scripts.json has no phone_cue or none was said. The renderer
+              hides any card while the phone is up.
+  end_card    {start, end, line1, line2}, plus tagline, button and url when
+              scripts.json's end_card has them, with {city} and {domain}
+              filled in. Older plans with only line1/line2 still render.
 
 The video after the last segment (speech_end + 0.10 to duration) has no
 source footage in the plan: the renderer holds the last frame under the end
@@ -71,6 +89,10 @@ MAX_SPEED = 1.12       # faster than this and Tristen sounds like a podcast ad
 HOOK_MIN, HOOK_MAX, HOOK_LEAD = 1.6, 2.6, 0.15
 END_TAIL, END_MIN, END_FALLBACK = 0.9, 1.5, 1.2
 CTA_FALLBACK = 4.0
+PHONE_SECONDS, PHONE_MIN = 2.0, 1.0   # the phone mockup; shorter than PHONE_MIN before the end card, none
+# The event card's own fields, passed through from scripts.json to render.py.
+CARD_FIELDS = ("icon", "tag", "title", "venue", "free")
+END_CARD_FIELDS = ("tagline", "button", "url")
 
 # Which takes count.
 MIN_COVERAGE = 0.6
@@ -1018,8 +1040,9 @@ def _word_norms(words):
     return norms
 
 
-def _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac=0.0, aligned=None):
-    """Words, hook, chips, CTA and end card on the output timeline.
+def _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac=0.0, aligned=None,
+            phone_cues=frozenset()):
+    """Words, hook, chips, CTA, phone and end card on the output timeline.
     dom_frac: how far into its first word the address starts (whisper
     glued "Free" onto it). aligned: per kept word, the script words the
     aligner lined it up with (so a misheard cue still places its chip)."""
@@ -1074,8 +1097,22 @@ def _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac=0.0, ali
     chips = []
     for j, (chip, k) in enumerate(appeared):
         end = out[appeared[j + 1][1]]["start"] if j + 1 < len(appeared) else cta_start
-        chips.append({"text": chip["text"], "start": out[k]["start"], "end": end})
+        chips.append({"text": chip["text"], "start": out[k]["start"], "end": end,
+                      **{f: chip[f] for f in CARD_FIELDS if chip.get(f) not in (None, "")}})
     hook_end = HOOK_MAX if not chips else min(chips[0]["start"] - HOOK_LEAD, HOOK_MAX)
+    # The phone: the first of its cue words said after the cards and the
+    # hook, before the address.
+    phone = None
+    if phone_cues:
+        stop = dom_k if dom_k is not None else len(out)
+        k = next((k for k in range(after + 1, stop) if out[k]["start"] >= max(hook_end, HOOK_MIN) - 1e-9
+                  and (_cue_hit(norms[kept[k]], phone_cues) or aligned.get(kept[k], frozenset()) & phone_cues)),
+                 None)
+        if k is not None and min(out[k]["start"] + PHONE_SECONDS, ec_start) - out[k]["start"] >= PHONE_MIN:
+            phone = (out[k]["start"], min(out[k]["start"] + PHONE_SECONDS, ec_start))
+        elif k is None:
+            notes.append("no phone: none of its cue words (%s) was said after the cards"
+                         % ", ".join(sorted(phone_cues)))
     return {
         "words": out,
         "start_of": {i: out[k]["start"] for i, k in k_of.items()},
@@ -1083,6 +1120,7 @@ def _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac=0.0, ali
         "hook": {"text": s.video.get("hook", ""), "start": 0.0, "end": max(hook_end, HOOK_MIN)},
         "chips": chips,
         "cta_start": cta_start,
+        "phone": phone,
         "end_card": (ec_start, ec_end),
         "duration": ec_end,
         "notes": notes,
@@ -1297,6 +1335,7 @@ def _build_plan(source, words, norms, found, data, forced=False):
     dom_word = toks[dom[-1]].w0 if dom else None
     dom_frac = _lead_frac(take, words[dom_word]["text"], dom[-1]) if dom else 0.0
     cta = _cue_set(data.get("cta_cue", ["sign"]))
+    phone_cues = _cue_set(data.get("phone_cue") or [])
 
     aligned = {}
     for t, _ in take["_kept"]:
@@ -1305,7 +1344,7 @@ def _build_plan(source, words, norms, found, data, forced=False):
                 aligned.setdefault(i, set()).add(s.tokens[steps[t].q])
 
     def lay(speed):
-        return _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac, aligned)
+        return _layout(s, cta, words, kept, segs, speed, dom_word, norms, dom_frac, aligned, phone_cues)
 
     speed = _fit_speed(lay)
     L = lay(speed)
@@ -1359,6 +1398,10 @@ def _build_plan(source, words, norms, found, data, forced=False):
 
     town = towns.town(s.town)
     ec = data.get("end_card", {})
+
+    def fill(text):
+        return str(text).replace("{city}", town["city"]).replace("{domain}", town["domain"])
+
     return {
         "video_id": s.id,
         "town": s.town,
@@ -1374,12 +1417,14 @@ def _build_plan(source, words, norms, found, data, forced=False):
         "words": [{"text": w["text"], "start": _r(w["start"]), "end": _r(w["end"])}
                   for w in _captions(s, take, kept, L["words"])],
         "hook": {"text": L["hook"]["text"], "start": 0.0, "end": _r(L["hook"]["end"])},
-        "chips": [{"text": c["text"], "start": _r(c["start"]), "end": _r(c["end"])}
-                  for c in L["chips"]],
+        "chips": [{"text": c["text"], "start": _r(c["start"]), "end": _r(c["end"]),
+                   **{f: c[f] for f in CARD_FIELDS if f in c}} for c in L["chips"]],
         "cta_start": _r(L["cta_start"]),
+        "phone": {"start": _r(L["phone"][0]), "end": _r(L["phone"][1])} if L["phone"] else None,
         "end_card": {"start": _r(L["end_card"][0]), "end": _r(L["end_card"][1]),
                      "line1": ec.get("line1", ""),
-                     "line2": ec.get("line2", "{domain}").format(domain=town["domain"])},
+                     "line2": ec.get("line2", "{domain}").format(domain=town["domain"]),
+                     **{f: fill(ec[f]) for f in END_CARD_FIELDS if ec.get(f)}},
         "diff": diff,
         "warnings": warnings,
     }

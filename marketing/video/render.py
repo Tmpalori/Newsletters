@@ -2,24 +2,50 @@
 
 One ffmpeg run per layout does the whole edit: it trims and joins the plan's
 segments on the frame grid, applies the plan's speed-up, tone maps iPhone
-HDR to SDR, fits the take to the canvas, lays the town's end card over the
-tail and burns in one generated ASS file of text (hook sticker, event chips,
-word-by-word captions, end card lines). The audio is cleaned up and brought
-to -14 LUFS in two loudnorm passes.
+HDR to SDR, fits the take to the canvas, lays the overlays over it and burns
+in the word-by-word captions. The audio is cleaned up and brought to -14 LUFS
+in two loudnorm passes.
+
+The look is Tristen's own Victoria ad (a 4:5 feed ad he made by hand):
+
+  - a badge at the top, white with an ink outline and a hard shadow, holding
+    the town's logo and the hook (a number in an accent pill, the town's name
+    on a highlighter stroke), which turns into "Subscribe free" over the
+    domain when the hook ends and stays until the end card;
+  - an event card for each chip, popping up when its cue word is said: an
+    emoji icon, a small tag pill, a bold title and a grey venue line;
+  - captions low on the picture, white with an ink outline, the word being
+    said in the highlight colour;
+  - a phone showing the town's site for about 2 s when a phone cue word
+    ("email", "inbox") is said;
+  - an end card: the logo, the two-tone wordmark, a tagline, a "Sign up free"
+    button and the sign-up address, on a sky-to-paper background.
+
+The badge, cards, phone and end card are pictures drawn with Pillow (Fredoka
+and Nunito from fonts/, a colour emoji font for the icons) and laid over the
+video by ffmpeg, each with its own short entrance (a slide, a pop or a fade)
+baked into a few frames. The captions stay an ASS file burned in by libass.
 
     import render
-    render.render(plan, "out/renders/victoria-1", layout="9x16")
+    render.render(plan, "out/renders/victoria-1", layout="4x5")
 
 The plan contract is analyze.py's (see its docstring); this module only draws
 it. Needs ffmpeg/ffprobe built with libass (zscale and tonemap for HDR takes,
-with a 3D LUT fallback) and the stdlib. The Fredoka fonts and their licence
-are in fonts/.
+with a 3D LUT fallback) and Pillow. The fonts and their licences are in
+fonts/. The emoji font is looked up in VIDEO_EMOJI_FONT, the toolkit's cache
+(setup.sh puts Noto Color Emoji there) and the system's font folders; without
+one the cards are drawn without their icons. The phone's screenshot of the
+site is taken with headless Chromium once a day per town and cached; without
+a browser or the network the newest cached one is used, and with none at all
+the video has no phone.
 
-    python3 render.py PLAN.json [--out DIR] [--formats 9x16,4x5]
+    python3 render.py PLAN.json [--out DIR] [--formats 4x5,9x16]
 
 re-renders a saved plan (or an edit.py report.json) after a hand fix.
 """
 import argparse
+import datetime as dt
+import glob
 import json
 import math
 import os
@@ -30,6 +56,8 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 import towns
 
@@ -49,11 +77,17 @@ RATE = 48000
 SAMPLES_PER_FRAME = RATE // FPS
 
 LAYOUTS = {
-    # Reels: the app's own UI covers the top ~13% and the bottom ~23%.
-    "9x16": {"size": (1080, 1920), "safe": (60, 250, 1020, 1480), "file": "reel-9x16.mp4", "scale": 1.0},
-    # Feed ads have no UI over the video; a plain 60 px margin, and the type
-    # a little smaller because the canvas is 70% as tall.
-    "4x5": {"size": (1080, 1350), "safe": (60, 60, 1020, 1290), "file": "feed-4x5.mp4", "scale": 0.9},
+    # The feed ad, and the main output. Nothing of the app covers a feed
+    # video, so the overlays sit where Tristen put them in his own ad: the
+    # badge 30 px from the top, the captions near the bottom edge.
+    "4x5": {"size": (1080, 1350), "safe": (24, 24, 1056, 1326), "file": "feed-4x5.mp4",
+            "badge_top": 30, "card_y": 753, "phone_y": 615, "caption_y": 1256, "caption_em": 63},
+    # Reels: the app's own UI covers the top ~13% and the bottom ~23%, so
+    # everything stays between y 250 and 1480. The card sits on the same
+    # part of the picture as on 4:5 (a 4:5 cut of a portrait take starts
+    # 171 px down it).
+    "9x16": {"size": (1080, 1920), "safe": (60, 250, 1020, 1480), "file": "reel-9x16.mp4",
+             "badge_top": 256, "card_y": 924, "phone_y": 905, "caption_y": 1402, "caption_em": 66},
 }
 
 LOUDNESS = {"I": -14.0, "TP": -1.5, "LRA": 11.0}
@@ -68,24 +102,44 @@ HDR_REF_NITS = 203.0
 HDR_ROLLOFF = 0.7
 HDR_DESAT = 2.0
 
-# Type, as em sizes in canvas pixels (what a designer means by "68 px");
-# Font.ass_size() turns them into libass font sizes.
-HOOK_EM = (96, 52)
-HOOK_TILT = 2.0           # degrees counter-clockwise: a sticker, not a title card
-HOOK_GONE = 0.1           # s before its end the fading hook no longer counts as on screen
-END_TILT = -1.5           # the end card's domain sticker leans the other way
-# Every chip of a video at the same size: one line if it fits, else two;
-# smaller only when even two lines won't fit.
-CHIP_EM = (52, 40)
-CAPTION_EM = 72
-CAPTION_Y = 0.68          # caption centre, as a share of the canvas height
+# Captions, as em sizes in canvas pixels (what a designer means by "68 px");
+# Font.ass_size() turns them into libass font sizes. Each layout has its
+# own size and height (LAYOUTS: caption_em, caption_y, the caption's centre).
+CAPTION_EM = 72           # the most a caption may be; the layouts use a little less
 CAPTION_MAX_WORDS = 3
 CAPTION_PAUSE = 0.35      # a silence this long always starts a new caption
 CAPTION_HOLD = 0.45       # a caption stays this long after its last word if nothing follows
-END_LINE1_EM = 64
-END_LINE2_EM = (100, 56)
-LOGO_SHARE = {"9x16": 0.55, "4x5": 0.46}
 SQUEEZE_MIN = 80          # % width: past this, type gets smaller instead
+
+# The overlay pictures. Sizes are canvas pixels measured off Tristen's ad
+# (both canvases are 1080 wide, so the Reel uses the same ones).
+SS = 2                    # drawn at 2x and scaled down, for smooth edges
+FONT_FILES = {"bold": "Fredoka-Bold.ttf", "semi": "Fredoka-SemiBold.ttf", "body": "Nunito-ExtraBold.ttf"}
+WHITE = "#FFFFFF"
+GREEN = "#2FA876"         # the site's --color-success: a card's FREE pill
+SKY = "#DDF2FF"           # the site's --sky-light: the top of the end card's background
+LINE = 6                  # ink outline of the badge, its pills and the end card's boxes
+DROP = 8                  # the hard ink shadow under them, offset right and down
+BADGE = {"radius": 24, "pad_l": 25, "gap": 27, "pad_r": 34, "pad_y": 20,
+         "hook_em": 59, "hook_pitch": 75, "hook_logo": 114,
+         "sub_em": 68, "sub_pitch": 79, "sub_logo": 132, "domain_em": 61, "min_em": 40}
+CARD = {"width": 774, "radius": 26, "line": 7, "drop": 10, "icon": 110, "icon_x": 98, "text_x": 178,
+        "pad_r": 40, "pad_t": 31, "pad_b": 40, "title_em": 50, "title_min": 38, "title_pitch": 1.08,
+        "tag_em": 29, "tag_h": 41, "venue_em": 30}
+PHONE = {"width": 340, "height": 644, "radius": 48, "line": 8, "bezel": 11, "top": 45, "screen_line": 3,
+         "screen_radius": 30, "drop": (22, 10), "notch": (106, 22, 30), "dpr": 2, "viewport": (390, 844)}
+END = {"logo": 205, "mark_em": 118, "box_line": 7, "box_drop": 10, "tag_em": 58, "tag_min": 50, "tag_w": 860,
+       "tag_pitch": 70, "button_em": 65, "button_h": 153, "button_pad": 79, "url_em": 50}
+# Entrances, in frames: a card slides up and fades in like the ad's, the
+# phone pops, the subscribe badge fades in, the end card comes up from black.
+SLIDE_FRAMES, SLIDE_PX = 5, 56
+POP_FRAMES, POP_FROM = 4, 0.86
+FADE_FRAMES = 4
+BLACK_FRAMES = 8
+BADGE_OUT_FRAMES = 3      # the hook badge fades out this fast before the switch
+PHONE_OUT_FRAMES = 3
+# The town's name is underlined in the hook; these count as its name too.
+TOWN_ALIASES = {"medford": ["Rogue Valley"], "shoals": ["Muscle Shoals", "Florence"]}
 
 
 class RenderError(RuntimeError):
@@ -335,7 +389,15 @@ def fonts():
     if not _FONTS:
         _FONTS["bold"] = Font(os.path.join(FONTS_DIR, "Fredoka-Bold.ttf"), "Fredoka", True)
         _FONTS["semibold"] = Font(os.path.join(FONTS_DIR, "Fredoka-SemiBold.ttf"), "Fredoka SemiBold", False)
+        # The site's body face: the cards' venue line, the end card's tagline and address.
+        _FONTS["body"] = Font(os.path.join(FONTS_DIR, FONT_FILES["body"]), "Nunito ExtraBold", True)
     return _FONTS["bold"], _FONTS["semibold"]
+
+
+def body_font():
+    """Nunito ExtraBold's metrics, for clean_text on the body-face lines."""
+    fonts()
+    return _FONTS["body"]
 
 
 # ------------------------------------------------------------------ text
@@ -464,167 +526,10 @@ def fit_text(text, font, max_w, em_hi, em_lo, *, two_lines_from=None, two_lines_
     return max(8, int(em * max_w / (widest * SQUEEZE_MIN / 100) - 1e-6)), lines, SQUEEZE_MIN
 
 
-# ------------------------------------------------------------------ ASS overlay
-
-def _round_rect(w, h, r):
-    """An ASS drawing of a w x h rounded rectangle from 0,0 (libass anchors a
-    drawing at its origin, so starting anywhere else would shift it)."""
-    w, h = int(round(w)), int(round(h))
-    r = int(round(min(r, w / 2, h / 2)))
-    k = int(round(r * 0.4477))  # 1 - 0.5523: the cubic bezier quarter circle
-    return (f"m {r} 0 l {w - r} 0 b {w - k} 0 {w} {k} {w} {r} l {w} {h - r} "
-            f"b {w} {h - k} {w - k} {h} {w - r} {h} l {r} {h} b {k} {h} 0 {h - k} 0 {h - r} "
-            f"l 0 {r} b 0 {k} {k} 0 {r} 0")
-
+# ------------------------------------------------------------------ captions (ASS)
 
 def _event(layer, start, end, name, text, style="Bold"):
     return f"Dialogue: {layer},{_ts(start)},{_ts(end)},{style},{name},0,0,0,,{text}"
-
-
-def _pop(cx, cy, y, s0, ms, dy=0):
-    """Tags that grow a group from s0 to 100% around (cx, cy) in `ms`.
-
-    libass scales each event around its own anchor, so every line of a
-    multi-line sticker also moves toward the group centre; \\move and \\t
-    are both linear, so they stay in step. dy slides the group in from below.
-    """
-    y0 = cy + (y - cy) * s0 / 100 + dy
-    move = (f"\\move({_num(cx)},{_num(y0)},{_num(cx)},{_num(y)},0,{ms})"
-            if abs(y0 - y) > 0.4 else f"\\pos({_num(cx)},{_num(y)})")
-    return move, f"\\fscx{_num(s0)}\\fscy{_num(s0)}", ms
-
-
-def _sticker(events, *, layer, start, end, name, cx, cy, lines, font, em, squeeze,
-             fill, border, text_runs, border_px, shadow_px, pad_x, pad_y, radius,
-             tilt=0.0, pop_from=85, pop_ms=120, slide=0, fade=(70, 180), text_bord=0,
-             text_bord_color=None):
-    """A rounded box with lines of text on it, popping in as one piece.
-
-    text_runs(line_index, line) returns the line's ASS text, so a chip can
-    colour its day differently. Returns the box's bounds (with border,
-    shadow and tilt) as (x0, y0, x1, y1).
-    """
-    pitch = em * 1.04
-    widths = [font.width(x, em) * squeeze / 100 for x in lines]
-    text_h = font.cap * em + (len(lines) - 1) * pitch
-    box_w = max(widths) + 2 * pad_x
-    box_h = text_h + 2 * pad_y
-    fad = f"\\fad({fade[0]},{fade[1]})"
-    rot = f"\\org({_num(cx)},{_num(cy)})\\frz{_num(tilt)}" if tilt else ""
-    move, scale0, ms = _pop(cx, cy, cy, pop_from, pop_ms, slide)
-    grow = f"\\t(0,{ms},\\fscx100\\fscy100)"
-    events.append(_event(layer, start, end, name,
-                         f"{{\\an5{move}{rot}{scale0}{grow}{fad}\\bord{border_px}\\shad0"
-                         f"\\xshad0\\yshad{shadow_px}\\1c{_ass_color(fill)}\\3c{_ass_color(border)}"
-                         f"\\4c{_ass_color(border)}\\1a&H00&\\4a&H00&\\p1}}"
-                         f"{_round_rect(box_w, box_h, radius)}"))
-    top = cy - text_h / 2
-    fs = font.ass_size(em)
-    for i, line in enumerate(lines):
-        y = top + font.cap * em / 2 + i * pitch - font.cap_offset(em)
-        move, _, _ = _pop(cx, cy, y, pop_from, pop_ms, slide)
-        sq0 = f"\\fscx{_num(squeeze * pop_from / 100)}\\fscy{_num(pop_from)}"
-        grow_l = f"\\t(0,{ms},\\fscx{squeeze}\\fscy100)"
-        outline = (f"\\bord{_num(text_bord)}\\3c{_ass_color(text_bord_color)}"
-                   if text_bord else "\\bord0")
-        events.append(_event(layer + 1, start, end, name,
-                             f"{{\\an5{move}{rot}\\fs{_num(round(fs, 1))}{sq0}{grow_l}{fad}"
-                             f"{outline}\\shad0\\blur0.6}}{text_runs(i, line)}",
-                             style="Bold" if font.bold else "Semi"))
-    # Bounds after the tilt: the corners swing out by the other side's sine.
-    t = math.radians(abs(tilt))
-    half_w = (box_w * math.cos(t) + box_h * math.sin(t)) / 2 + border_px
-    half_h = (box_w * math.sin(t) + box_h * math.cos(t)) / 2 + border_px
-    return (cx - half_w, cy - half_h, cx + half_w, cy + half_h + shadow_px)
-
-
-def _hook(events, plan, geo, bold, pal, s):
-    hook = plan.get("hook") or {}
-    text = clean_text(str(hook.get("text") or "").upper(), bold)
-    L, T, R, _ = geo["safe"]
-    cx = (L + R) / 2
-    border, shadow = 6, 9
-    if not text or float(hook.get("end", 0)) <= float(hook.get("start", 0)):
-        return None
-    hi, lo = (round(e * s) for e in HOOK_EM)
-    # Room for the border and the tilt's swing on each side.
-    max_w = (R - L) - 2 * (border + 0.42 * hi) - 40
-    em, lines, squeeze = fit_text(text, bold, max_w, hi, hi, two_lines_from=hi, two_lines_to=lo)
-    pad_x, pad_y = 0.42 * em, 0.36 * em
-    box_h = bold.cap * em + (len(lines) - 1) * em * 1.04 + 2 * pad_y
-    box_w = max(bold.width(x, em) for x in lines) * squeeze / 100 + 2 * pad_x
-    t = math.radians(HOOK_TILT)
-    half_h = (box_w * math.sin(t) + box_h * math.cos(t)) / 2 + border
-    cy = T + 22 + half_h
-    ink = pal["ink"]
-    return _sticker(events, layer=20, start=float(hook["start"]), end=float(hook["end"]),
-                    name="hook", cx=cx, cy=cy, lines=lines, font=bold, em=em, squeeze=squeeze,
-                    fill=pal["highlight"], border=ink, border_px=border, shadow_px=shadow,
-                    pad_x=pad_x, pad_y=pad_y, radius=0.3 * em, tilt=HOOK_TILT,
-                    # Opaque from the first frame (it may be the preview a
-                    # platform shows); only the scale pops.
-                    fade=(0, 180),
-                    text_runs=lambda i, line: f"{{\\1c{_ass_color(ink)}}}{ass_escape(line)}",
-                    text_bord=1.2, text_bord_color=ink)
-
-
-_DAY = re.compile(r"^((?:MON|TUE|WED|THU|FRI|SAT|SUN)(?:[-\u2013](?:MON|TUE|WED|THU|FRI|SAT|SUN))?)\b")
-
-
-def _chips(events, plan, geo, bold, semi, pal, s, hook_box, cta, end_card_start):
-    chips = plan.get("chips") or []
-    L, T, R, _ = geo["safe"]
-    cx = (L + R) / 2
-    border, shadow = 5, 7
-    hi, lo = (round(e * s) for e in CHIP_EM)
-    max_w = (R - L) - 2 * (border + 0.55 * hi) - 12
-    ordered = sorted((c for c in chips if c.get("text")), key=lambda c: float(c["start"]))
-    # Chips go under the hook while it is still up (a chip cued in the first
-    # ~1.5 s). Once it has gone they take its slot at the top instead: just
-    # under the hook band is eye level in a selfie framed face-in-top-half.
-    # Its last frames don't count: it is all but faded out by then, and a
-    # chip cued 10 ms before its end (analyze.py's 1.6 s floor) used to send
-    # every chip of the video down to eye level.
-    hook = plan.get("hook") or {}
-    up_until = float(hook.get("end", 0)) - HOOK_GONE
-    overlaps = hook_box is not None and any(float(c["start"]) < up_until for c in ordered)
-    top = hook_box[3] + round(26 * s) if overlaps else T + 22
-    out = []
-    for n, chip in enumerate(ordered):
-        start = float(chip["start"])
-        # The plan's own rule (next chip, else the sign-up line), enforced
-        # again so a hand-edited plan can't stack two chips.
-        end = min(float(chip["end"]), end_card_start)
-        if n + 1 < len(ordered):
-            end = min(end, float(ordered[n + 1]["start"]))
-        elif cta is not None and float(cta) > start:
-            end = min(end, float(cta))
-        if end - start < 0.1:
-            continue
-        text = clean_text(chip["text"], semi)
-        if not text:
-            continue
-        em, lines, squeeze = fit_text(text, semi, max_w, hi, hi, two_lines_from=hi, two_lines_to=lo)
-        pad_x, pad_y = 0.55 * em, 0.42 * em
-        box_h = semi.cap * em + (len(lines) - 1) * em * 1.04 + 2 * pad_y
-        cy = top + border + box_h / 2
-        day = _DAY.match(lines[0])
-
-        def runs(i, line, day=day):
-            paper, hl = _ass_color(pal["paper"]), _ass_color(pal["highlight"])
-            if i == 0 and day:
-                d = day.group(1)
-                return f"{{\\1c{hl}}}{ass_escape(d)}{{\\1c{paper}}}{ass_escape(line[len(d):])}"
-            return f"{{\\1c{paper}}}{ass_escape(line)}"
-
-        box = _sticker(events, layer=10, start=start, end=end, name=f"chip{n + 1}", cx=cx, cy=cy,
-                       lines=lines, font=semi, em=em, squeeze=squeeze, fill=pal["primary"],
-                       border=pal["ink"], border_px=border, shadow_px=shadow, pad_x=pad_x,
-                       pad_y=pad_y, radius=min(box_h / 2, 0.8 * em), pop_from=90, pop_ms=160,
-                       slide=round(28 * s), fade=(110, 110), text_runs=runs)
-        out.append({"text": text, "start": start, "end": end, "box": box, "em": em,
-                    "lines": lines})
-    return out
 
 
 def caption_groups(words, font, em, max_w, until):
@@ -672,15 +577,17 @@ def caption_groups(words, font, em, max_w, until):
     return groups[::-1]
 
 
-def _captions(events, plan, geo, bold, pal, s, until):
+def _captions(events, plan, geo, bold, pal, spec, until):
+    """White words with a thick ink outline and a soft shadow, the word being
+    said in the highlight colour: Tristen's captions, as low as his on 4:5."""
     words = plan.get("words") or []
     L, _, R, _ = geo["safe"]
-    W, H = geo["canvas"]
-    em = round(CAPTION_EM * s)
-    bord = round(7 * s)
+    W, _ = geo["canvas"]
+    em = spec["caption_em"]
+    bord = round(em * 0.11)
     max_w = (R - L) - 2 * bord - 24
     groups = caption_groups(words, bold, em, max_w, until)
-    cx, cy = W / 2, round(H * CAPTION_Y)
+    cx, cy = W / 2, spec["caption_y"]
     white, ink, hl = "&HFFFFFF&", _ass_color(pal["ink"]), _ass_color(pal["highlight"])
     out = []
     for g, group in enumerate(groups):
@@ -705,11 +612,11 @@ def _captions(events, plan, geo, bold, pal, s, until):
             body = " ".join(f"{{\\1c{hl}}}{t}{{\\1c{white}}}" if i == k else t
                             for i, t in enumerate(texts))
             base = f"\\an5\\pos({_num(cx)},{_num(round(y, 1))})\\fs{_num(round(fs, 1))}{sq}{pop}"
-            # Under the words, a soft shadow: their shape, blurred and offset
-            # down, with the fill and outline themselves invisible.
+            # Under the words, a soft shadow: their shape, a little blurred
+            # and dropped down and right, with the fill and outline invisible.
             events.append(_event(0, start, end, "caption-shadow",
-                                 f"{{{base}\\bord{bord}\\1a&HFF&\\3a&HFF&\\4c{ink}\\4a&H60&"
-                                 f"\\xshad0\\yshad{round(5 * s)}\\blur{round(7 * s)}}}"
+                                 f"{{{base}\\bord{bord}\\1a&HFF&\\3a&HFF&\\4c{ink}\\4a&H70&"
+                                 f"\\xshad{round(em * 0.03)}\\yshad{round(em * 0.075)}\\blur3}}"
                                  + " ".join(texts)))
             events.append(_event(1, start, end, "caption",
                                  f"{{{base}\\bord{bord}\\shad0\\1c{white}\\3c{ink}\\blur0.8}}{body}"))
@@ -718,90 +625,23 @@ def _captions(events, plan, geo, bold, pal, s, until):
     return out
 
 
-def _end_card(events, plan, geo, bold, pal, s, layout, domain):
-    """The end card's text: line1 in the primary colour, then the domain,
-    big, in ink on a highlight sticker like the hook's, so the one thing to
-    type is the loudest thing on screen. The logo above it is ffmpeg's."""
-    ec = plan.get("end_card") or {}
-    if not ec:
-        return None
-    L, T, R, B = geo["safe"]
-    W, _ = geo["canvas"]
-    cx = W / 2
-    start, end = float(ec["start"]), float(ec.get("end") or plan["duration"])
-    line1 = clean_text(ec.get("line1") or "", bold)
-    line2 = clean_text(str(ec.get("line2") or "").replace("{domain}", domain), bold)
-    logo = round(W * LOGO_SHARE[layout] / 2) * 2
-    em1 = round(END_LINE1_EM * s)
-    hi2, lo2 = (round(e * s) for e in END_LINE2_EM)
-    border, shadow = 6, 9
-    em1, l1, sq1 = fit_text(line1, bold, (R - L) - 40, em1, round(em1 * 0.6)) if line1 else (em1, [""], 100)
-    # The sticker's padding, border and lean come out of the same width.
-    max_w2 = (R - L) - 2 * (border + 0.42 * hi2) - 30
-    em2, l2, sq2 = fit_text(line2, bold, max_w2, hi2, lo2) if line2 else (hi2, [""], 100)
-    pad_x2, pad_y2 = 0.42 * em2, 0.34 * em2
-    box_h2 = bold.cap * em2 + 2 * pad_y2 + 2 * border
-    gap1, gap2 = round(0.1 * logo), round(0.45 * em1)
-    h1 = bold.cap * em1 if line1 else 0
-    total = logo + (gap1 + h1 if line1 else 0) + (gap2 + box_h2 if line2 else 0)
-    # Upper-middle: a little above the safe zone's centre.
-    top = T + max(0, (B - T - total) * 0.42)
-    y = top + logo
-    out = {"start": start, "end": end,
-           "logo": {"x": int(cx - logo / 2), "y": int(round(top)), "size": logo},
-           "lines": [], "bounds": []}
-    if line1:
-        y += gap1 + h1 / 2
-        t0 = min(start + 0.12, end - 0.1)
-        fs = bold.ass_size(em1)
-        events.append(_event(30, t0, end, "end-line1",
-                             f"{{\\an5\\pos({_num(cx)},{_num(round(y - bold.cap_offset(em1), 1))})"
-                             f"\\fs{_num(round(fs, 1))}\\fscx{_num(sq1 * 0.88)}\\fscy88"
-                             f"\\t(0,180,\\fscx{sq1}\\fscy100)\\fad(160,0)\\bord0\\shad0"
-                             f"\\1c{_ass_color(pal['primary'])}}}{ass_escape(l1[0])}"))
-        w = bold.width(l1[0], em1) * sq1 / 100
-        out["lines"].append({"name": "end-line1", "text": l1[0], "em": em1})
-        out["bounds"].append((cx - w / 2, y - h1 / 2, cx + w / 2, y + h1 / 2))
-        y += h1 / 2
-    if line2:
-        cy = y + gap2 + box_h2 / 2
-        ink = pal["ink"]
-        box = _sticker(events, layer=30, start=min(start + 0.24, end - 0.1), end=end, name="end-line2",
-                       cx=cx, cy=cy, lines=l2, font=bold, em=em2, squeeze=sq2, fill=pal["highlight"],
-                       border=ink, border_px=border, shadow_px=shadow, pad_x=pad_x2, pad_y=pad_y2,
-                       radius=0.3 * em2, tilt=END_TILT, pop_from=80, pop_ms=160, fade=(120, 0),
-                       text_runs=lambda i, line: f"{{\\1c{_ass_color(ink)}}}{ass_escape(line)}",
-                       text_bord=1.2, text_bord_color=ink)
-        out["lines"].append({"name": "end-line2", "text": l2[0], "em": em2})
-        out["bounds"].append(box)
-    return out
-
-
-def build_ass(plan, layout="9x16"):
-    """The text overlay for one layout, as an ASS script, and its geometry:
-    where every box landed and where the end card's logo goes (ffmpeg draws
-    the logo and the end card's background; libass draws all the text)."""
+def build_ass(plan, layout="4x5"):
+    """The captions for one layout, as an ASS script, and their geometry.
+    Everything else on screen is a picture (build_sprites)."""
     if layout not in LAYOUTS:
         raise ValueError(f"unknown layout {layout!r}; one of {', '.join(LAYOUTS)}")
     spec = LAYOUTS[layout]
     W, H = spec["size"]
-    s = spec["scale"]
-    town = towns.town(plan["town"])
-    pal = town["palette"]
-    bold, semi = fonts()
-    duration = float(plan["duration"])
+    pal = towns.town(plan["town"])["palette"]
+    bold, _ = fonts()
     ec = plan.get("end_card") or {}
-    es = float(ec["start"]) if ec else duration
+    es = float(ec["start"]) if ec else float(plan["duration"])
     geo = {"canvas": (W, H), "safe": spec["safe"]}
     events = []
-    hook_box = _hook(events, plan, geo, bold, pal, s)
-    chips = _chips(events, plan, geo, bold, semi, pal, s, hook_box, plan.get("cta_start"), es)
-    captions = _captions(events, plan, geo, bold, pal, s, es)
-    end = _end_card(events, plan, geo, bold, pal, s, layout, town["domain"])
-    geo.update({"hook": hook_box, "chips": chips, "captions": captions, "end_card": end})
+    geo["captions"] = _captions(events, plan, geo, bold, pal, spec, es)
     header = "\n".join([
         "[Script Info]",
-        f"; render.py overlay for {re.sub(r'[^A-Za-z0-9._-]', '?', str(plan.get('video_id', '?')))} ({layout})",
+        f"; render.py captions for {re.sub(r'[^A-Za-z0-9._-]', '?', str(plan.get('video_id', '?')))} ({layout})",
         "ScriptType: v4.00+",
         f"PlayResX: {W}",
         f"PlayResY: {H}",
@@ -816,13 +656,969 @@ def build_ass(plan, layout="9x16"):
         "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: Bold,{bold.family},{_num(round(bold.ass_size(CAPTION_EM), 1))},&H00FFFFFF,&H00FFFFFF,"
         "&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1",
-        f"Style: Semi,{semi.family},{_num(round(semi.ass_size(CHIP_EM[0]), 1))},&H00FFFFFF,&H00FFFFFF,"
-        "&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1",
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ])
     return header + "\n" + "\n".join(events) + "\n", geo
+
+
+# ------------------------------------------------------------------ pictures: drawing
+
+def _rgb(color):
+    if isinstance(color, str):
+        h = color.lstrip("#")
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return tuple(color[:3])
+
+
+def _rgba(color, alpha=255):
+    return _rgb(color) + (alpha,)
+
+
+def _fill(color):
+    return tuple(color) if isinstance(color, tuple) and len(color) == 4 else _rgba(color)
+
+
+def _mix(a, b, t):
+    """Colour a moved toward b by t (0..1)."""
+    return tuple(round(x + (y - x) * t) for x, y in zip(_rgb(a), _rgb(b)))
+
+
+_PFONTS = {}
+
+
+def _pfont(kind, em):
+    """Pillow's font for kind ("bold", "semi", "body") at em `em` canvas px,
+    at the supersampled size it is drawn at."""
+    key = (kind, max(1, int(round(em * SS))))
+    if key not in _PFONTS:
+        _PFONTS[key] = ImageFont.truetype(os.path.join(FONTS_DIR, FONT_FILES[kind]), key[1])
+    return _PFONTS[key]
+
+
+def text_width(text, kind, em):
+    """Advance width in canvas px, kerned the way it is drawn."""
+    return _pfont(kind, em).getlength(text) / SS
+
+
+def _cap(kind, em):
+    """Cap height in canvas px."""
+    return -_pfont(kind, em).getbbox("H", anchor="ls")[1] / SS
+
+
+class _Surface:
+    """An RGBA picture drawn in canvas pixels, SS times finer, and scaled
+    down at the end: Pillow's shapes have no anti-aliasing of their own."""
+
+    def __init__(self, w, h, background=(0, 0, 0, 0)):
+        self.w, self.h = int(math.ceil(w)), int(math.ceil(h))
+        self.im = Image.new("RGBA", (self.w * SS, self.h * SS), background)
+        self.draw = ImageDraw.Draw(self.im)
+
+    def rect(self, x0, y0, x1, y1, r, fill):
+        if x1 - x0 <= 0 or y1 - y0 <= 0:
+            return
+        r = max(0.0, min(r, (x1 - x0) / 2, (y1 - y0) / 2))
+        self.draw.rounded_rectangle([round(x0 * SS), round(y0 * SS), round(x1 * SS) - 1, round(y1 * SS) - 1],
+                                    radius=round(r * SS), fill=_fill(fill))
+
+    def panel(self, x0, y0, x1, y1, r, fill, ink, line=LINE, drop=DROP):
+        """A rounded box filled with `fill`, outlined in ink, on a hard ink
+        shadow: the look of everything Tristen's ad puts on the picture."""
+        if drop:
+            self.rect(x0 + drop, y0 + drop, x1 + drop, y1 + drop, r, ink)
+        if line:
+            self.rect(x0, y0, x1, y1, r, ink)
+        self.rect(x0 + line, y0 + line, x1 - line, y1 - line, r - line, fill)
+
+    def text(self, x, y, text, kind, em, fill, anchor="ls"):
+        self.draw.text((x * SS, y * SS), text, font=_pfont(kind, em), fill=_fill(fill), anchor=anchor)
+
+    def paste(self, img, x, y, w, h):
+        """img scaled to w x h canvas px, its top-left at (x, y)."""
+        im = img.convert("RGBA").resize((max(1, round(w * SS)), max(1, round(h * SS))), Image.LANCZOS)
+        X, Y = round(x * SS), round(y * SS)
+        # alpha_composite takes no picture that hangs off the edge: crop it.
+        cx0, cy0 = max(0, -X), max(0, -Y)
+        cx1, cy1 = min(im.width, self.im.width - X), min(im.height, self.im.height - Y)
+        if cx1 > cx0 and cy1 > cy0:
+            self.im.alpha_composite(im.crop((cx0, cy0, cx1, cy1)), (X + cx0, Y + cy0))
+
+    def image(self):
+        return self.im.resize((self.w, self.h), Image.LANCZOS)
+
+
+def _alpha(img, a):
+    """img with its opacity multiplied by a (0..1)."""
+    if a >= 1:
+        return img
+    out = img.copy()
+    out.putalpha(img.getchannel("A").point(lambda v: round(v * max(0.0, a))))
+    return out
+
+
+# ------------------------------------------------------------------ pictures: what they show
+
+def _cache_base():
+    return os.environ.get("VIDEO_EDIT_CACHE") or os.path.join(os.path.expanduser("~"), ".cache", "video-edit")
+
+
+_LOGOS = {}
+
+
+def _logo(town):
+    """The town's logo cropped to its circle (None if it has none)."""
+    path = logo_file(town)
+    if path not in _LOGOS:
+        img = None
+        if path:
+            img = Image.open(path).convert("RGBA")
+            box = img.getchannel("A").getbbox()
+            img = img.crop(box) if box else img
+        _LOGOS[path] = img
+    return _LOGOS[path]
+
+
+EMOJI_FONT = "NotoColorEmoji.ttf"
+EMOJI_PATHS = ["/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf", "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+               "/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf",
+               "/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf", "/usr/local/share/fonts/NotoColorEmoji.ttf"]
+
+
+def emoji_font_path():
+    """A colour emoji font: VIDEO_EMOJI_FONT, the one setup.sh fetched into
+    the toolkit's cache, or the system's Noto Color Emoji."""
+    for p in [os.environ.get("VIDEO_EMOJI_FONT"), os.path.join(_cache_base(), "fonts", EMOJI_FONT)] + EMOJI_PATHS:
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+
+_EMOJI = {}
+
+
+def emoji_image(icon):
+    """The emoji as an RGBA picture cropped to the glyph, or None (no colour
+    emoji font, or one without this character)."""
+    icon = unicodedata.normalize("NFC", str(icon or "")).strip()
+    path = emoji_font_path()
+    key = (icon, path)
+    if key in _EMOJI:
+        return _EMOJI[key]
+    img = None
+    if icon and path:
+        try:
+            # A bitmap (CBDT) emoji font comes in one size: Noto's is 109.
+            font = ImageFont.truetype(path, 109)
+            ok = Font(path, "emoji", False).has(icon[0])
+        except (OSError, struct.error, KeyError, RenderError):
+            font, ok = None, False
+        if font is not None and ok:
+            im = Image.new("RGBA", (180 * len(icon) + 40, 200), (0, 0, 0, 0))
+            try:
+                ImageDraw.Draw(im).text((20, 20), icon, font=font, embedded_color=True)
+            except OSError:
+                im = None
+            box = im.getbbox() if im else None
+            img = im.crop(box) if box else None
+    _EMOJI[key] = img
+    return img
+
+
+def chrome_path():
+    """A Chromium or Chrome to take the phone's screenshot with: VIDEO_CHROME,
+    Playwright's (PLAYWRIGHT_BROWSERS_PATH), or one on the PATH."""
+    cands = [os.environ.get("VIDEO_CHROME")]
+    pw = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or os.path.expanduser("~/.cache/ms-playwright")
+    cands += sorted(glob.glob(os.path.join(pw, "chromium-*", "chrome-*", "chrome")), reverse=True)
+    cands += [shutil.which(n) for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")]
+    cands += ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+    return next((c for c in cands if c and os.path.isfile(c) and os.access(c, os.X_OK)), None)
+
+
+def capture_site(url, path, timeout=45):
+    """Screenshot `url` at a phone's width (390 px, 2x) with headless Chrome
+    into `path`. True when it worked."""
+    chrome = chrome_path()
+    if not chrome:
+        return False
+    vw, vh = PHONE["viewport"]
+    tmp = path + ".part.png"
+    # No --user-data-dir: headless makes a throwaway profile of its own, and
+    # pointing it at a fresh empty folder made it hang until the timeout.
+    cmd = [chrome, "--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--mute-audio",
+           "--no-first-run", f"--window-size={vw},{vh}", f"--force-device-scale-factor={PHONE['dpr']}",
+           "--virtual-time-budget=8000", f"--screenshot={tmp}"]
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if proxy:
+        cmd.append(f"--proxy-server={proxy}")
+    try:
+        subprocess.run(cmd + [url], capture_output=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        return False
+    try:
+        with Image.open(tmp) as im:
+            ok = im.width >= vw and im.height >= vh and len(set(im.convert("L").resize((24, 48)).getdata())) > 8
+    except (OSError, ValueError):
+        ok = False
+    if ok:
+        os.replace(tmp, path)
+    elif os.path.exists(tmp):
+        os.remove(tmp)
+    return ok
+
+
+_CAPTURE_FAILED = set()
+
+
+def site_screenshot(town, *, today=None, capture=True):
+    """The phone's picture: a screenshot of the town's /this-weekend page at a
+    phone's width. Today's from the cache, else a new one, else the newest
+    cached one (offline, or no browser); None when there is none at all. A
+    capture that failed isn't tried again in the same run."""
+    d = os.path.join(_cache_base(), "screens")
+    today = today or dt.date.today().isoformat()
+    path = os.path.join(d, f"{town['slug']}-{today}.png")
+    if os.path.isfile(path):
+        return path
+    if capture and path not in _CAPTURE_FAILED:
+        os.makedirs(d, exist_ok=True)
+        if capture_site(town["site_url"] + "/this-weekend", path):
+            return path
+        _CAPTURE_FAILED.add(path)
+    old = sorted(glob.glob(os.path.join(d, f"{town['slug']}-????-??-??.png")))
+    return old[-1] if old else None
+
+
+def wordmark(town):
+    """The site's two-tone name: (text, badge), e.g. ("The Vic", "361"), from
+    the town's siteNameHtml (town.py's VICTORIA for Victoria)."""
+    html = None
+    try:
+        if town["slug"] == "victoria":
+            with open(os.path.join(towns.REPO, "town.py"), encoding="utf-8") as f:
+                m = re.search(r'"site_name_html":\s*"([^"]+)"', f.read())
+            html = m.group(1) if m else None
+        else:
+            with open(os.path.join(towns.REPO, "towns", town["slug"], "town.json"), encoding="utf-8") as f:
+                html = json.load(f).get("siteNameHtml")
+    except (OSError, ValueError):
+        html = None
+    m = re.match(r"^\s*(.*?)\s*<span>(.*?)</span>\s*$", html or "")
+    if m and m.group(1) and m.group(2):
+        return m.group(1), m.group(2)
+    name = town["name"].rsplit(" ", 1)
+    return (name[0], name[1]) if len(name) == 2 else (town["name"], "")
+
+
+_NUMBER = re.compile(r"^(\$?\d+(?:[.,]\d+)*\+?)([^\w]*)$")
+
+
+def _norm_word(w):
+    w = unicodedata.normalize("NFKD", w.lower().replace("’", "'"))
+    w = re.sub(r"'s$", "", re.sub(r"[^a-z0-9']", "", w))
+    return w.replace("'", "")
+
+
+def town_words(words, town):
+    """Indices of the words that name the town (to underline): its city,
+    the names in TOWN_ALIASES, and a ", TX" after the city."""
+    names = [re.sub(r"(?i)^the\s+", "", town["city"])] + TOWN_ALIASES.get(town["slug"], [])
+    keys = [_norm_word(w) for w in words]
+    marked = set()
+    for name in names:
+        parts = [_norm_word(p) for p in name.split()]
+        for i in range(len(words) - len(parts) + 1):
+            if keys[i:i + len(parts)] == parts:
+                span = list(range(i, i + len(parts)))
+                j = i + len(parts)
+                if j < len(words) and words[j - 1].endswith(",") and re.fullmatch(r"[A-Z]{2}[.,!?]?", words[j]):
+                    span.append(j)
+                marked.update(span)
+    return marked
+
+
+def _break_bonus(left, right):
+    """How much better (under 1) or worse a line break between these words is."""
+    if left[-1][-1:] in _PHRASE_END:
+        b = 0.88
+    elif right[0] == "@":
+        b = 0.72
+    elif right[0].startswith("("):
+        b = 0.8
+    elif right[0] == "·" or left[-1] == "·":
+        b = 0.8
+    else:
+        b = 1.0
+    if left[-1].lower() in _SOFT:
+        b *= 1.2
+    elif right[0].lower() in _LEADS:
+        b *= 0.9
+    # Keep a pair of names together: "Monday and Thursday", "Zoo Boo and Malloween".
+    if (right[0].lower() in ("and", "&", "or") and len(right) > 1
+            and left[-1][:1].isupper() and right[1][:1].isupper()):
+        b *= 1.25
+    return b
+
+
+def break_lines(tokens, measure, n, text=str):
+    """`tokens` split into exactly n lines (lists of tokens): the widest line
+    as narrow as it can be, breaking where a designer would (after
+    punctuation, before "@ venue" or "in Lincoln", never after "the"), as
+    split_lines does for two. A middle dot at a break is dropped. text(token)
+    is the word a token stands for."""
+    tokens = list(tokens)
+    if n <= 1 or len(tokens) <= 1:
+        return [tokens]
+    n = min(n, len(tokens))
+    found = []
+    for cuts in _combinations(range(1, len(tokens)), n - 1):
+        bounds = (0,) + cuts + (len(tokens),)
+        lines = [tokens[a:b] for a, b in zip(bounds, bounds[1:])]
+        bonus = 1.0
+        for left, right in zip(lines, lines[1:]):
+            bonus *= _break_bonus([text(t) for t in left], [text(t) for t in right])
+        lines = [[t for k, t in enumerate(ln) if not (text(t) == "·" and k in (0, len(ln) - 1))]
+                 for ln in lines]
+        if not all(lines):
+            continue
+        widths = [measure(ln) for ln in lines]
+        found.append((max(widths) * bonus, max(widths) - min(widths), lines))
+    if not found:
+        return [tokens]
+    # Near-ties (a line that sets the width either way) go to the evener split:
+    # "in your inbox every / Monday and Thursday", not "... Monday / and Thursday".
+    top = min(f[0] for f in found)
+    return min((f for f in found if f[0] <= top * 1.015), key=lambda f: (f[1], f[0]))[2]
+
+
+def _combinations(items, k):
+    items = list(items)
+    if k == 0:
+        yield ()
+        return
+    for i in range(len(items) - k + 1):
+        for rest in _combinations(items[i + 1:], k - 1):
+            yield (items[i],) + rest
+
+
+def fit_lines(tokens, measure, max_w, plans, text=str):
+    """The first of `plans` ((lines, em_hi, em_lo), ...) that fits max_w:
+    returns (em, lines). measure(line, em) is a line's width. When none
+    fits, the last plan's split at whatever smaller size does."""
+    for n, hi, lo in plans:
+        for em in range(int(hi), int(lo) - 1, -1):
+            lines = break_lines(tokens, lambda ln: measure(ln, em), n, text)
+            if max(measure(ln, em) for ln in lines) <= max_w:
+                return em, lines
+    n, _, em = plans[-1]
+    em = int(em)
+    while em > 12:
+        lines = break_lines(tokens, lambda ln: measure(ln, em), n, text)
+        if max(measure(ln, em) for ln in lines) <= max_w:
+            return em, lines
+        em -= 1
+    return em, break_lines(tokens, lambda ln: measure(ln, em), n, text)
+
+
+# ------------------------------------------------------------------ pictures: the badge
+
+def _pill_metrics(em):
+    """A number pill in the hook at em: (padding, height, radius, outline)."""
+    k = em / BADGE["hook_em"]
+    return 13 * k, 76 * k, 14 * k, max(3, round(4 * k))
+
+
+def _hook_items(text, town):
+    """The hook as words, each plain, a number (accent pill) or part of the
+    town's name (highlighter stroke)."""
+    bold, _ = fonts()
+    words = clean_text(text, bold).split()
+    marked = town_words(words, town)
+    items = []
+    for i, w in enumerate(words):
+        m = _NUMBER.match(w)
+        if m:
+            items.append({"kind": "pill", "text": m.group(1), "tail": m.group(2), "word": w})
+        else:
+            items.append({"kind": "mark" if i in marked else "text", "text": w, "tail": "", "word": w})
+    return items
+
+
+def _item_width(it, em):
+    w = text_width(it["text"], "bold", em)
+    if it["kind"] == "pill":
+        pad, _, _, line = _pill_metrics(em)
+        w += 2 * (pad + line)
+    return w + (text_width(it["tail"], "bold", em) if it["tail"] else 0)
+
+
+def _gap_after(it, em):
+    """The space after an item: a pill's own padding stands in for part of it."""
+    space = text_width(" ", "bold", em)
+    return space * (0.6 if it["kind"] == "pill" and not it["tail"] else 1.0)
+
+
+def _line_width(items, em):
+    return sum(_item_width(it, em) for it in items) + sum(_gap_after(it, em) for it in items[:-1])
+
+
+def _badge(rows, block_top, block_bottom, logo, logo_size, pal, *, pad_y, text_w, nudge=0.0):
+    """The badge's card around a text block (rows drawn by the callers'
+    `draw(surface, x, y_offset)`), with the logo on its left."""
+    ink = pal["ink"]
+    pad_l, gap, pad_r = BADGE["pad_l"], BADGE["gap"], BADGE["pad_r"]
+    k = logo_size / BADGE["hook_logo"]
+    pad_l, gap, pad_r = pad_l * k, gap * k, pad_r * k
+    block_h = block_bottom - block_top
+    inner_h = max(logo_size + 2 * 34 * k, block_h + 2 * pad_y)
+    has_logo = logo is not None
+    inner_w = pad_l + (logo_size + gap if has_logo else 0) + text_w + pad_r
+    w, h = inner_w + 2 * LINE, inner_h + 2 * LINE
+    s = _Surface(w + DROP, h + DROP)
+    s.panel(0, 0, w, h, BADGE["radius"], WHITE, ink)
+    if has_logo:
+        s.paste(logo, LINE + pad_l, LINE + (inner_h - logo_size) / 2, logo_size, logo_size)
+    x = LINE + pad_l + (logo_size + gap if has_logo else 0)
+    dy = LINE + (inner_h - block_h) / 2 - block_top + nudge
+    for draw in rows:
+        draw(s, x, dy)
+    return s.image(), (w, h)
+
+
+def hook_badge(text, town, pal, logo=None, max_w=960):
+    """The badge while the hook is up: the hook in two lines (one if it is
+    one or two words), a number in an accent pill and the town's name on a
+    highlighter stroke, beside the logo."""
+    items = _hook_items(text, town)
+    if not items:
+        return None
+    ink, accent, hl = pal["ink"], pal["accent"], pal["highlight"]
+    logo_size = BADGE["hook_logo"]
+    room = max_w - DROP - 2 * LINE - (BADGE["pad_l"] + BADGE["pad_r"]) - (logo_size + BADGE["gap"] if logo else 0)
+    n = 2 if len(items) >= 3 else 1
+    em, lines = fit_lines(items, _line_width, room,
+                          [(n, BADGE["hook_em"], BADGE["min_em"]), (n + 1, BADGE["min_em"], 30)],
+                          text=lambda it: it["word"])
+    pitch = BADGE["hook_pitch"] * em / BADGE["hook_em"]
+    cap = _cap("bold", em)
+    pad, pill_h, pill_r, pill_line = _pill_metrics(em)
+    lift = 0.28 * em  # a pill's centre above the baseline
+    # The block's top and bottom, relative to the first baseline.
+    top = -max(pill_h / 2 + lift if any(it["kind"] == "pill" for it in lines[0]) else 0,
+               -_pfont("bold", em).getbbox(" ".join(it["text"] for it in lines[0]), anchor="ls")[1] / SS)
+    last = lines[-1]
+    bottom = (len(lines) - 1) * pitch + max(
+        0.24 * em if any(it["kind"] == "mark" for it in last) else 0,
+        pill_h / 2 - lift if any(it["kind"] == "pill" for it in last) else 0,
+        _pfont("bold", em).getbbox(" ".join(it["text"] for it in last), anchor="ls")[3] / SS)
+
+    def draw(s, x0, dy):
+        for r, line in enumerate(lines):
+            base = dy + r * pitch
+            # The highlighter strokes go under the words, one per run.
+            x, runs, cur = x0, [], None
+            for i, it in enumerate(line):
+                w = _item_width(it, em)
+                if it["kind"] == "mark":
+                    cur = [x, x + w] if cur is None else [cur[0], x + w]
+                elif cur is not None:
+                    runs.append(cur)
+                    cur = None
+                x += w + _gap_after(it, em)
+            if cur is not None:
+                runs.append(cur)
+            for a, b in runs:
+                s.rect(a - 4, base - 0.2 * em, b + 4, base + 0.24 * em, 0, hl)
+            x = x0
+            for it in line:
+                if it["kind"] == "pill":
+                    tw = text_width(it["text"], "bold", em)
+                    pw = tw + 2 * (pad + pill_line)
+                    yc = base - lift
+                    s.panel(x, yc - pill_h / 2, x + pw, yc + pill_h / 2, pill_r, accent, ink,
+                            line=pill_line, drop=0)
+                    s.text(x + pill_line + pad, base, it["text"], "bold", em, WHITE)
+                    x += pw
+                    if it["tail"]:
+                        s.text(x, base, it["tail"], "bold", em, ink)
+                        x += text_width(it["tail"], "bold", em)
+                else:
+                    s.text(x, base, it["text"], "bold", em, ink)
+                    x += text_width(it["text"], "bold", em)
+                x += _gap_after(it, em)
+
+    text_w = max(_line_width(ln, em) for ln in lines)
+    img, size = _badge([draw], top, bottom, logo, logo_size, pal, pad_y=BADGE["pad_y"], text_w=text_w)
+    return img, {"em": em, "lines": [" ".join(it["text"] + it["tail"] for it in ln) for ln in lines],
+                 "size": size}
+
+
+def subscribe_badge(town, pal, logo=None, max_w=960):
+    """The badge from the end of the hook to the end card: "Subscribe free"
+    over the domain in a highlight pill."""
+    ink, hl = pal["ink"], pal["highlight"]
+    bold, _ = fonts()
+    domain = clean_text(town["domain"], bold)
+    logo_size = BADGE["sub_logo"]
+    k = logo_size / BADGE["hook_logo"]
+    room = (max_w - DROP - 2 * LINE - (BADGE["pad_l"] + BADGE["pad_r"]) * k
+            - (logo_size + BADGE["gap"] * k if logo else 0))
+    em1, em2 = BADGE["sub_em"], BADGE["domain_em"]
+    pill_line, pill_pad = 5, 20
+    while em2 > 20 and max(text_width("Subscribe free", "bold", em1),
+                           text_width(domain, "bold", em2) + 2 * (pill_pad + pill_line)) > room:
+        em1, em2 = em1 - 1, em2 - 1
+    pitch = BADGE["sub_pitch"] * em1 / BADGE["sub_em"]
+    pill_h = 85 * em2 / BADGE["domain_em"]
+    cap1, cap2 = _cap("bold", em1), _cap("bold", em2)
+    top = _pfont("bold", em1).getbbox("Subscribe free", anchor="ls")[1] / SS
+    bottom = pitch - cap2 / 2 + pill_h / 2
+    dw = text_width(domain, "bold", em2)
+
+    def draw(s, x, dy):
+        s.text(x, dy, "Subscribe free", "bold", em1, ink)
+        yc = dy + pitch - cap2 / 2
+        s.panel(x, yc - pill_h / 2, x + dw + 2 * (pill_pad + pill_line), yc + pill_h / 2, 14, hl, ink,
+                line=pill_line, drop=0)
+        s.text(x + pill_line + pill_pad, dy + pitch, domain, "bold", em2, ink)
+
+    text_w = max(text_width("Subscribe free", "bold", em1), dw + 2 * (pill_pad + pill_line))
+    img, size = _badge([draw], top, bottom, logo, logo_size, pal, pad_y=31, text_w=text_w, nudge=3)
+    return img, {"em": em1, "domain_em": em2, "size": size}
+
+
+# ------------------------------------------------------------------ pictures: the event cards
+
+def _ellipsize(text, kind, em, max_w):
+    if text_width(text, kind, em) <= max_w:
+        return text
+    words = text.split()
+    while words and text_width(" ".join(words) + "…", kind, em) > max_w:
+        words.pop()
+    return (" ".join(words) + "…") if words else ""
+
+
+def event_card(chip, pal):
+    """One event's card: the emoji on the left; a tag pill, the title (one
+    or two lines) and the venue in grey on the right. A chip without a title
+    (the older scripts) shows its one-line text as the title."""
+    bold, _ = fonts()
+    body = body_font()
+    ink, hl = pal["ink"], pal["highlight"]
+    muted = _mix(ink, WHITE, 0.27)
+    W, line, drop = CARD["width"], CARD["line"], CARD["drop"]
+    icon = emoji_image(chip.get("icon")) if chip.get("icon") else None
+    text_x = CARD["text_x"] if icon is not None else line + 44
+    col_w = W - line - CARD["pad_r"] - text_x
+    tag = clean_text(chip.get("tag") or "", bold)
+    title = clean_text(chip.get("title") or chip.get("text") or "", bold)
+    venue = clean_text(chip.get("venue") or "", body)
+    free = chip.get("free") is True
+    free_em, free_h, free_pad, free_gap = 26, 36, 12, 10
+    free_w = text_width("FREE", "bold", free_em) + 2 * (free_pad + 3) + free_gap if free else 0
+
+    def measure(ln, em):
+        return text_width(" ".join(ln), "bold", em)
+
+    words = title.split() or [""]
+    hi, lo = CARD["title_em"], CARD["title_min"]
+    em, lines = fit_lines(words, measure, col_w,
+                          [(1, hi, hi), (2, hi, lo), (3, lo, 30)])
+    lines = [" ".join(ln) for ln in lines]
+    # The pill may reach a little into the right padding, as it does in the ad.
+    if free and measure(lines[-1].split(), em) + free_w > col_w + 12:
+        lines.append("")  # the FREE pill gets a line of its own
+    pitch = em * CARD["title_pitch"]
+    cap = _cap("bold", em)
+    tag_em, tag_h = CARD["tag_em"], CARD["tag_h"]
+    venue_em = CARD["venue_em"]
+    venue = _ellipsize(venue, "body", venue_em, col_w)
+    vcap = _cap("body", venue_em)
+    # The stack, top to bottom, from the inner top edge.
+    y = CARD["pad_t"]
+    tag_top = y
+    if tag:
+        y += tag_h + 22
+    title_base = y + cap
+    y = title_base + (len(lines) - 1) * pitch
+    if venue:
+        venue_base = y + 24 + vcap
+        y = venue_base
+    inner_h = y + CARD["pad_b"] + (6 if not venue else 0)
+    h = inner_h + 2 * line
+    if icon is not None:
+        h = max(h, CARD["icon"] + 2 * (line + 24))
+    s = _Surface(W + drop, h + drop)
+    s.panel(0, 0, W, h, CARD["radius"], WHITE, ink, line=line, drop=drop)
+    off = line + (h - 2 * line - inner_h) / 2  # the text stack, centred
+    if icon is not None:
+        size = CARD["icon"]
+        k = size / max(icon.width, icon.height)
+        iw, ih = icon.width * k, icon.height * k
+        s.paste(icon, CARD["icon_x"] - iw / 2, h / 2 - ih / 2, iw, ih)
+    if tag:
+        tag = _ellipsize(tag, "bold", tag_em, col_w - 40)
+        tw = text_width(tag, "bold", tag_em)
+        top = off + tag_top
+        s.panel(text_x, top, text_x + tw + 2 * 18 + 8, top + tag_h, tag_h / 2, hl, ink, line=4, drop=0)
+        s.text(text_x + 4 + 18, top + tag_h / 2 + _cap("bold", tag_em) / 2, tag, "bold", tag_em, ink)
+    for i, ln in enumerate(lines):
+        if ln:
+            s.text(text_x, off + title_base + i * pitch, ln, "bold", em, ink)
+    if free:
+        last = lines[-1]
+        x = text_x + (text_width(last, "bold", em) + free_gap if last else 0)
+        yc = off + title_base + (len(lines) - 1) * pitch - cap / 2
+        fw = free_w - free_gap
+        s.panel(x, yc - free_h / 2, x + fw, yc + free_h / 2, free_h / 2, GREEN, ink, line=3, drop=0)
+        s.text(x + fw / 2, yc + _cap("bold", free_em) / 2, "FREE", "bold", free_em, WHITE, anchor="ms")
+    if venue:
+        s.text(text_x, off + venue_base, venue, "body", venue_em, muted)
+    return s.image(), {"em": em, "title": [x for x in lines if x], "tag": tag, "venue": venue,
+                       "icon": icon is not None, "size": (W, h)}
+
+
+# ------------------------------------------------------------------ pictures: the phone
+
+def phone_picture(screen, pal):
+    """A phone like the one in Tristen's ad: an ink body with a paper bezel,
+    a notch, a hard ink shadow thrown right and a soft one beyond it, showing
+    the top of `screen`. Returns (picture, (x, y) of the body in it)."""
+    ink, paper = pal["ink"], pal["paper"]
+    w, h, r = PHONE["width"], PHONE["height"], PHONE["radius"]
+    line, bezel, top, sl = PHONE["line"], PHONE["bezel"], PHONE["top"], PHONE["screen_line"]
+    dx, dy = PHONE["drop"]
+    soft = 22
+    s = _Surface(w + dx + 2 * soft, h + dy + 2 * soft)
+    ox, oy = 4, 4
+    shadow = Image.new("RGBA", s.im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle(
+        [round((ox + dx + 8) * SS), round((oy + dy + 8) * SS), round((ox + w + dx + 8) * SS),
+         round((oy + h + dy + 8) * SS)], radius=round(r * SS), fill=_rgba(ink, 70))
+    s.im.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(6 * SS)))
+    s.rect(ox + dx, oy + dy, ox + w + dx, oy + h + dy, r, ink)
+    s.rect(ox, oy, ox + w, oy + h, r, ink)
+    s.rect(ox + line, oy + line, ox + w - line, oy + h - line, r - line, paper)
+    x0, y0, x1, y1 = ox + line + bezel, oy + top, ox + w - line - bezel, oy + h - line - bezel
+    sr = PHONE["screen_radius"]
+    s.rect(x0, y0, x1, y1, sr, ink)
+    x0, y0, x1, y1 = x0 + sl, y0 + sl, x1 - sl, y1 - sl
+    sw, sh = x1 - x0, y1 - y0
+    if screen is not None:
+        shot = screen.convert("RGBA")
+        crop_h = min(shot.height, round(shot.width * sh / sw))
+        shot = shot.crop((0, 0, shot.width, crop_h)).resize((round(sw * SS), round(sh * SS)), Image.LANCZOS)
+        mask = Image.new("L", shot.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, shot.width - 1, shot.height - 1],
+                                               radius=round((sr - sl) * SS), fill=255)
+        shot.putalpha(mask)
+        s.im.alpha_composite(shot, (round(x0 * SS), round(y0 * SS)))
+    else:
+        s.rect(x0, y0, x1, y1, sr - sl, WHITE)
+    nw, nh, ny = PHONE["notch"]
+    s.rect(ox + w / 2 - nw / 2, oy + ny, ox + w / 2 + nw / 2, oy + ny + nh, nh / 2, ink)
+    return s.image(), (ox, oy)
+
+
+# ------------------------------------------------------------------ pictures: the end card
+
+def _gradient(w, h, top, bottom):
+    col = Image.new("RGB", (1, 256))
+    col.putdata([_mix(top, bottom, i / 255) for i in range(256)])
+    return col.resize((w, h), Image.BILINEAR).convert("RGBA")
+
+
+def end_card_picture(plan, town, pal, layout):
+    """The last 1.5-2 s: the logo, the wordmark ("The Vic" + its 361 badge),
+    the tagline with the town's name highlighted, a "Sign up free" button and
+    the sign-up address, on the site's sky-to-paper background."""
+    bold, _ = fonts()
+    body = body_font()
+    spec = LAYOUTS[layout]
+    W, H = spec["size"]
+    L, T, R, B = spec["safe"]
+    ink, hl, primary = pal["ink"], pal["highlight"], pal["primary"]
+    ec = plan.get("end_card") or {}
+    city, domain = town["city"], town["domain"]
+
+    def fill(s):
+        return str(s or "").replace("{city}", city).replace("{domain}", domain)
+
+    # The older plans (line1/line2) still work: line1 as the tagline, line2
+    # (the domain) as the address under the button.
+    tagline = clean_text(fill(ec.get("tagline") or ec.get("line1") or ""), body)
+    button = clean_text(fill(ec.get("button") or "Sign up free"), bold)
+    url = clean_text(fill(ec.get("url") or ec.get("line2") or "{domain}/subscribe"), body)
+    room = (R - L) - 40
+    s = _Surface(W, H)
+    s.im.paste(_gradient(W * SS, H * SS, SKY, pal["paper"]), (0, 0))
+    logo = _logo(town)
+    mark_text, mark_badge = wordmark(town)
+    mark_text, mark_badge = clean_text(mark_text, bold), clean_text(mark_badge, bold)
+    # The wordmark: as big as Tristen's, smaller only if it won't fit.
+    me = END["mark_em"]
+    bl, bd = END["box_line"], END["box_drop"]
+
+    def mark_w(em):
+        k = em / END["mark_em"]
+        return (text_width(mark_text, "bold", em) + (28 * k + text_width(mark_badge, "bold", em) + 2 * (30 * k + bl)
+                if mark_badge else 0) + bd)
+
+    while me > 40 and mark_w(me) > room:
+        me -= 2
+    k = me / END["mark_em"]
+    box_h = 147 * k
+    # The tagline: two lines at Tristen's size if they fit, else smaller, else three.
+    words = tagline.split()
+    te, tlines = (END["tag_em"], []) if not words else fit_lines(
+        words, lambda ln, em: text_width(" ".join(ln), "body", em), min(room, END["tag_w"]),
+        [(1, END["tag_em"], END["tag_em"]), (2, END["tag_em"], END["tag_min"]), (3, END["tag_em"], 36)])
+    tpitch = END["tag_pitch"] * te / END["tag_em"]
+    tcap = _cap("body", te)
+    be = END["button_em"]
+    bw = text_width(button, "bold", be) + 2 * END["button_pad"]
+    while bw > room and be > 30:
+        be -= 2
+        bw = text_width(button, "bold", be) + 2 * END["button_pad"] * be / END["button_em"]
+    bh = END["button_h"] * be / END["button_em"]
+    ue = END["url_em"]
+    while ue > 24 and text_width(url, "body", ue) > room:
+        ue -= 1
+    ucap = _cap("body", ue)
+    # The stack, from the top of the logo, with Tristen's gaps.
+    logo_h = END["logo"] if logo is not None else 0
+    y = 0.0
+    parts = {}
+    parts["logo"] = y
+    y += logo_h + (49 if logo is not None else 0)
+    parts["box"] = y
+    y += box_h + 55
+    parts["tag_base"] = y + tcap
+    y = parts["tag_base"] + (len(tlines) - 1) * tpitch if tlines else y - 55
+    y += 56 if tlines else 49
+    parts["button"] = y
+    y += bh + 56
+    parts["url_base"] = y + ucap
+    total = parts["url_base"] + 10
+    top = T + max(0.0, (B - T - total) / 2)
+    cx = W / 2
+    if logo is not None:
+        s.paste(logo, cx - logo_h / 2, top + parts["logo"], logo_h, logo_h)
+    # Wordmark, centred as a whole; the badge's box is centred on the caps.
+    mcap = _cap("bold", me)
+    tw1 = text_width(mark_text, "bold", me)
+    tw2 = text_width(mark_badge, "bold", me) if mark_badge else 0
+    bx_w = tw2 + 2 * (30 * k + bl)
+    total_w = tw1 + (28 * k + bx_w if mark_badge else 0)
+    x = cx - (total_w + (bd if mark_badge else 0)) / 2
+    yc = top + parts["box"] + box_h / 2
+    base = yc + mcap / 2
+    s.text(x, base, mark_text, "bold", me, ink)
+    if mark_badge:
+        bx = x + tw1 + 28 * k
+        s.panel(bx, yc - box_h / 2, bx + bx_w, yc + box_h / 2, 22 * k, hl, ink, line=bl, drop=bd)
+        s.text(bx + bx_w / 2, base, mark_badge, "bold", me, ink, anchor="ms")
+    # Tagline, each line centred, the town's name on a highlighter stroke.
+    names = [w for w in [re.sub(r"(?i)^the\s+", "", city)] + TOWN_ALIASES.get(town["slug"], [])]
+    for i, ln in enumerate(tlines):
+        text = " ".join(ln)
+        lw = text_width(text, "body", te)
+        x0 = cx - lw / 2
+        yb = top + parts["tag_base"] + i * tpitch
+        marked = town_words(ln, town)
+        if marked:
+            space = text_width(" ", "body", te)
+            x = x0
+            for j, wd in enumerate(ln):
+                core = wd.rstrip(",.;:!?")
+                ww = text_width(wd, "body", te)
+                if j in marked:
+                    s.rect(x - 8, yb - 0.27 * te, x + text_width(core, "body", te) + 6, yb + 0.34 * te, 0, hl)
+                x += ww + space
+        s.text(x0, yb, text, "body", te, ink)
+    # The button and the address under it.
+    by = top + parts["button"]
+    s.panel(cx - bw / 2, by, cx + bw / 2, by + bh, bh / 2, primary, ink, line=7, drop=10)
+    s.text(cx, by + bh / 2 + _cap("bold", be) / 2, button, "bold", be, WHITE, anchor="ms")
+    s.text(cx, top + parts["url_base"], url, "body", ue, _mix(ink, WHITE, 0.15), anchor="ms")
+    img = s.image().convert("RGB").convert("RGBA")
+    return img, {"tagline": [" ".join(ln) for ln in tlines], "button": button, "url": url,
+                 "wordmark": [mark_text, mark_badge], "top": round(top), "bottom": round(top + total),
+                 "names": names}
+
+
+# ------------------------------------------------------------------ pictures: timing
+
+def _enter(img, kind, n):
+    """The entrance frames, then the resting picture, all one size: "slide"
+    rises SLIDE_PX and fades in (Tristen's cards), "pop" grows from POP_FROM
+    and fades in, "fade" only fades, "black" comes up from black."""
+    if kind == "none" or n <= 0:
+        return [img]
+    W, H = img.size
+    out = []
+    for i in range(n):
+        p = (i + 1) / (n + 1) if kind != "black" else i / n
+        if kind == "slide":
+            fr = Image.new("RGBA", (W, H + SLIDE_PX), (0, 0, 0, 0))
+            fr.alpha_composite(_alpha(img, min(1.0, p * 1.25)), (0, round(SLIDE_PX * (1 - p))))
+        elif kind == "pop":
+            e = 1 - (1 - p) ** 2
+            sc = POP_FROM + (1 - POP_FROM) * e
+            small = img.resize((max(1, round(W * sc)), max(1, round(H * sc))), Image.LANCZOS)
+            fr = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            fr.alpha_composite(_alpha(small, min(1.0, p * 1.3)), ((W - small.width) // 2, (H - small.height) // 2))
+        elif kind == "fade":
+            fr = _alpha(img, p)
+        elif kind == "black":
+            fr = Image.blend(Image.new("RGBA", (W, H), (0, 0, 0, 255)), img, p)
+        else:
+            raise ValueError(f"unknown entrance {kind!r}")
+        out.append(fr)
+    if kind == "slide":
+        rest = Image.new("RGBA", (W, H + SLIDE_PX), (0, 0, 0, 0))
+        rest.alpha_composite(img, (0, 0))
+        out.append(rest)
+    else:
+        out.append(img)
+    return out
+
+
+def _sprite(name, frames, x, y, start, end, *, fade_out=0, box=None, **extra):
+    f0, f1 = round(start * FPS), round(end * FPS)
+    if f1 <= f0:
+        return None
+    w, h = frames[-1].size
+    sp = {"name": name, "frames": frames, "x": int(round(x)), "y": int(round(y)), "start": f0 / FPS,
+          "end": f1 / FPS, "fade_out": fade_out, "box": box or (int(round(x)), int(round(y)),
+                                                                 int(round(x)) + w, int(round(y)) + h)}
+    sp.update(extra)
+    return sp
+
+
+def card_spans(plan, es=None):
+    """When each chip's card is up: the plan's times with its rules enforced
+    again (no two at once, gone by the sign-up line and the end card) and
+    none while the phone shows. [(chip, start, end)]"""
+    chips = [c for c in plan.get("chips") or [] if c.get("text") or c.get("title")]
+    chips = sorted(chips, key=lambda c: float(c["start"]))
+    if es is None:
+        ec = plan.get("end_card") or {}
+        es = float(ec["start"]) if ec else float(plan["duration"])
+    cta = plan.get("cta_start")
+    phone = plan.get("phone") or None
+    p0 = float(phone["start"]) if phone else None
+    p1 = min(float(phone["end"]), es) if phone else None
+    out = []
+    for n, chip in enumerate(chips):
+        start = float(chip["start"])
+        end = min(float(chip["end"]), es)
+        if n + 1 < len(chips):
+            end = min(end, float(chips[n + 1]["start"]))
+        elif cta is not None and float(cta) > start:
+            end = min(end, float(cta))
+        if phone and p1 > p0:
+            if start < p0:
+                end = min(end, p0)
+            elif start < p1:
+                start = p1
+        if end - start >= 0.1:
+            out.append((chip, start, end))
+    return out
+
+
+def build_sprites(plan, layout="4x5", *, screen=None):
+    """The pictures laid over the video for one layout, and where they went.
+
+    Returns (sprites, geo). A sprite is {"name", "frames" (PIL RGBA pictures:
+    the entrance, then the one it rests on), "x", "y" (top-left on the
+    canvas), "start", "end" (seconds, on the frame grid), "fade_out" (frames),
+    "box" (what it covers)}. screen: the site's screenshot for the phone (a
+    PIL image or a path); without it there is no phone.
+    """
+    if layout not in LAYOUTS:
+        raise ValueError(f"unknown layout {layout!r}; one of {', '.join(LAYOUTS)}")
+    spec = LAYOUTS[layout]
+    W, H = spec["size"]
+    L, T, R, B = spec["safe"]
+    town = towns.town(plan["town"])
+    pal = town["palette"]
+    duration = float(plan["duration"])
+    ec = plan.get("end_card") or {}
+    es = min(float(ec["start"]), duration) if ec else duration
+    logo = _logo(town)
+    sprites, geo = [], {"canvas": (W, H), "safe": spec["safe"], "notes": []}
+
+    def add(sp, key=None):
+        if sp:
+            sprites.append(sp)
+            if key:
+                entry = {k: sp[k] for k in ("name", "start", "end", "box")}
+                entry.update({"info": sp["info"]} if "info" in sp else {})
+                geo.setdefault(key, []).append(entry)
+        return sp
+
+    # The badge: the hook while it is up, then "Subscribe free" to the end card.
+    hook = plan.get("hook") or {}
+    h_end = min(float(hook.get("end") or 0.0), es)
+    sub_from = 0.0
+    made = hook_badge(hook.get("text") or "", town, pal, logo, max_w=R - L) if h_end > 0 else None
+    if made:
+        img, info = made
+        x = (W - img.width) / 2
+        sp = add(_sprite("badge-hook", [img], x, spec["badge_top"], 0.0, h_end, fade_out=BADGE_OUT_FRAMES,
+                         box=(round(x), spec["badge_top"], round(x) + img.width, spec["badge_top"] + img.height),
+                         info=info), "badge")
+        if sp:
+            sub_from = sp["end"]
+    if es - sub_from >= 0.1:
+        img, info = subscribe_badge(town, pal, logo, max_w=R - L)
+        x = (W - img.width) / 2
+        add(_sprite("badge-subscribe", _enter(img, "fade", FADE_FRAMES) if sub_from > 0 else [img],
+                    x, spec["badge_top"], sub_from, es,
+                    box=(round(x), spec["badge_top"], round(x) + img.width, spec["badge_top"] + img.height),
+                    info=info), "badge")
+    # The event cards, one at a time.
+    no_icon = []
+    for n, (chip, start, end) in enumerate(card_spans(plan, es)):
+        img, info = event_card(chip, pal)
+        if chip.get("icon") and not info["icon"]:
+            no_icon.append(chip["icon"])
+        x = (W - img.width) / 2
+        y = spec["card_y"] - (img.height - CARD["drop"]) / 2
+        add(_sprite(f"card{n + 1}", _enter(img, "slide", SLIDE_FRAMES), x, y, start, end,
+                    box=(round(x), round(y), round(x) + img.width, round(y) + img.height), info=info), "cards")
+    if no_icon:
+        geo["notes"].append("no colour emoji font for the card icons (%s): run setup.sh, or set "
+                            "VIDEO_EMOJI_FONT" % " ".join(no_icon) if not emoji_font_path() else
+                            "the emoji font has no %s: those cards have no icon" % " ".join(no_icon))
+    # The phone, when a phone cue was said.
+    phone = plan.get("phone") or None
+    if phone:
+        p0, p1 = float(phone["start"]), min(float(phone["end"]), es)
+        if screen is None:
+            geo["notes"].append("no screenshot of the site for the phone (no Chrome, or it failed, and none "
+                                "cached): the video has no phone")
+        elif p1 - p0 >= 0.3:
+            shot = Image.open(screen) if isinstance(screen, (str, os.PathLike)) else screen
+            img, (ox, oy) = phone_picture(shot, pal)
+            dx, dy = PHONE["drop"]
+            x = W / 2 - (PHONE["width"] + dx) / 2 - ox
+            y = spec["phone_y"] - PHONE["height"] / 2 - oy
+            add(_sprite("phone", _enter(img, "pop", POP_FRAMES), x, y, p0, p1, fade_out=PHONE_OUT_FRAMES,
+                        box=(round(x + ox), round(y + oy), round(x + ox + PHONE["width"] + dx),
+                             round(y + oy + PHONE["height"] + dy))), "phone")
+    # The end card, up from black, to the last frame.
+    if ec:
+        img, info = end_card_picture(plan, town, pal, layout)
+        add(_sprite("end-card", _enter(img, "black", BLACK_FRAMES), 0, 0, es, duration, info=info,
+                    box=(0, 0, W, H)), "end_card")
+        geo["end_card_info"] = info
+    return sprites, geo
 
 
 # ------------------------------------------------------------------ the cut
@@ -1196,12 +1992,26 @@ def logo_file(town):
     return None
 
 
-def card_seconds(cut, ec):
-    """How long the end card's own streams run: to the end, plus a margin."""
-    return max(0.5, cut["duration"] - ec["start"]) + 0.5
+def _sprite_chain(sp, index, label):
+    """[index:v] (a sprite's frames) to `label`: held on its last frame to
+    its end, faded out if it fades, and moved to its start on the video's
+    clock. Overlay shows nothing of it before then and passes the video
+    through once it has ended."""
+    f0, f1 = round(sp["start"] * FPS), round(sp["end"] * FPS)
+    total, n = f1 - f0, len(sp["frames"])
+    parts = [f"[{index}:v]format=rgba"]
+    if n > total:
+        parts.append(f"trim=end_frame={total}")
+    elif total > n:
+        parts.append(f"tpad=stop_mode=clone:stop={total - n}")
+    fo = min(int(sp.get("fade_out") or 0), total)
+    if fo:
+        parts.append(f"fade=t=out:start_frame={total - fo}:nb_frames={fo}:alpha=1")
+    parts.append(f"setpts=PTS-STARTPTS+{f0}/({FPS}*TB)")
+    return ",".join(parts) + label
 
 
-def _graph(info, cut, layout, geo, town, mode, has_logo, audio_label, loud):
+def _graph(info, cut, layout, sprites, first_input, mode, audio_label, loud):
     W, H = LAYOUTS[layout]["size"]
     n = len(cut["frames"])
     vin = f"[0:{info['video_index']}]"
@@ -1225,39 +2035,37 @@ def _graph(info, cut, layout, geo, town, mode, has_logo, audio_label, loud):
     chains.append(",".join(tail) + "[cut]")
     chains += _canvas(info, W, H, mode, LAYOUTS[layout]["safe"])
     cur = "[canvas]"
-    ec = geo.get("end_card")
-    if ec:
-        # The card's background and logo exist only from the card's start
-        # (overlay passes frames through until its second input begins), and
-        # run a little past the end so shortest=1 stops with the take.
-        es = ec["start"]
-        paper = town["palette"]["paper"].lstrip("#")
-        chains.append(f"color=c=0x{paper}:s={W}x{H}:r={FPS}:d={card_seconds(cut, ec):.3f},format=gbrap,"
-                      f"fade=t=in:st=0:d=0.15:alpha=1,setpts=PTS+{es:.4f}/TB[paper]")
-        chains.append(f"{cur}[paper]overlay=x=0:y=0:format=gbrp:shortest=1"
-                      f":enable='gte(t,{es:.4f})'[ecbg]")
-        cur = "[ecbg]"
-        if has_logo:
-            lg = ec["logo"]
-            chains.append(f"[1:v]scale={lg['size']}:-2:flags=lanczos,format=gbrap,"
-                          f"fade=t=in:st=0.06:d=0.25:alpha=1,setpts=PTS+{es:.4f}/TB[logo]")
-            chains.append(f"{cur}[logo]overlay=x={lg['x']}:y={lg['y']}:format=gbrp:shortest=1"
-                          f":enable='gte(t,{es:.4f})'[eclogo]")
-            cur = "[eclogo]"
-    # Text last, on RGB frames: on YUV, libass's colours go through BT.601
-    # and the brand yellow comes out a shade off in a BT.709 file.
-    chains.append(f"{cur}subtitles=filename=overlay.ass:fontsdir=fonts,"
-                  "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,"
+
+    def lay(k, sp, cur):
+        chains.append(_sprite_chain(sp, first_input + k, f"[sp{k}]"))
+        chains.append(f"{cur}[sp{k}]overlay=x={sp['x']}:y={sp['y']}:format=gbrp:eof_action=pass[ov{k}]")
+        return f"[ov{k}]"
+
+    # The badge, the cards and the phone, then the captions over them; the
+    # end card covers it all. Everything is blended on RGB frames: on YUV,
+    # libass's colours go through BT.601 and the brand yellow comes out a
+    # shade off in a BT.709 file.
+    for k, sp in enumerate(sprites):
+        if sp["name"] != "end-card":
+            cur = lay(k, sp, cur)
+    chains.append(f"{cur}subtitles=filename=overlay.ass:fontsdir=fonts[subs]")
+    cur = "[subs]"
+    for k, sp in enumerate(sprites):
+        if sp["name"] == "end-card":
+            cur = lay(k, sp, cur)
+    chains.append(f"{cur}scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,"
                   "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[vout]")
     chains += _audio_final(audio_label, cut, loud)
     return ";".join(chains)
 
 
-def render(plan, out_dir, layout="9x16", *, info=None):
+def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     """Render `plan` for one layout into out_dir; returns the .mp4's path.
 
     Pass a dict as `info` to get back what was done (probe, kept frames,
-    HDR handling, loudness pass) for a report.
+    HDR handling, loudness pass, where each overlay went) for a report.
+    screen: the phone's picture (a path or PIL image); by default the
+    town's site screenshot (site_screenshot), when the plan has a phone.
     """
     if layout not in LAYOUTS:
         raise ValueError(f"unknown layout {layout!r}; one of {', '.join(LAYOUTS)}")
@@ -1269,6 +2077,9 @@ def render(plan, out_dir, layout="9x16", *, info=None):
     town = towns.town(plan["town"])
     cut = cut_plan(plan, src)
     ass, geo = build_ass(plan, layout)
+    if plan.get("phone") and screen is None:
+        screen = site_screenshot(town)
+    sprites, sgeo = build_sprites(plan, layout, screen=screen)
     mode = hdr_mode(src, filters)
     notes = []
     if src.get("hdr") and not mode:
@@ -1282,9 +2093,10 @@ def render(plan, out_dir, layout="9x16", *, info=None):
         # the first sample (analyze.py's) puts every cut and caption this early.
         notes.append(f"the sound track starts {late:.2f} s after the picture: check that no cut "
                      "clips a word and the captions keep time with the voice")
-    logo = logo_file(town) if geo.get("end_card") else None
-    if geo.get("end_card") and not logo:
-        notes.append(f"no logo at {town['logo_path']}; end card without it")
+    logo = logo_file(town)
+    if not logo and sprites:
+        notes.append(f"no logo at {town['logo_path']}: the badge and the end card are drawn without it")
+    notes += sgeo["notes"]
     # ffmpeg runs inside the work folder, so a relative out_dir would land there.
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
@@ -1309,16 +2121,15 @@ def render(plan, out_dir, layout="9x16", *, info=None):
                 f.write(hdr_lut(src["hdr"], _peak(src)))
         cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-nostats", "-v", "error", "-y"]
         cmd += _input_args(src, cut)
-        inputs = 1
-        if logo:
-            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{card_seconds(cut, geo['end_card']):.3f}",
-                    "-i", logo]
-            inputs += 1
+        for k, sp in enumerate(sprites):
+            for i, frame in enumerate(sp["frames"]):
+                frame.save(os.path.join(work, f"sprite{k}_{i:03d}.png"), compress_level=1)
+            cmd += ["-framerate", str(FPS), "-i", f"sprite{k}_%03d.png"]
         audio_label = None
         if wav:
             cmd += ["-i", wav]
-            audio_label = f"[{inputs}:a]"
-        graph = _graph(src, cut, layout, geo, town, mode, bool(logo), audio_label, loud)
+            audio_label = f"[{1 + len(sprites)}:a]"
+        graph = _graph(src, cut, layout, sprites, 1, mode, audio_label, loud)
         cmd += ["-filter_complex", graph, "-map", "[vout]", "-map", "[aout]",
                 "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "18",
                 # A keyframe every 2 s: Meta asks for a closed GOP of 2-5 s and
@@ -1346,9 +2157,11 @@ def render(plan, out_dir, layout="9x16", *, info=None):
             "seek": cut["base"], "speed": cut["speed"], "frames": cut["total_frames"],
             "afftdn_latency": afftdn_latency() if src.get("has_audio") else None,
             "loudness_pass1": loud, "logo": logo, "notes": notes,
-            "overlay": {"hook": geo.get("hook"), "chips": geo.get("chips"),
-                        "captions": len(geo.get("captions") or []),
-                        "end_card": geo.get("end_card")},
+            "screen": screen if isinstance(screen, str) else None,
+            "overlay": {"badge": sgeo.get("badge"), "cards": sgeo.get("cards") or [],
+                        "phone": (sgeo.get("phone") or [None])[0],
+                        "end_card": (sgeo.get("end_card") or [None])[0],
+                        "captions": len(geo.get("captions") or [])},
         })
     return out_path
 
@@ -1410,7 +2223,7 @@ def main(argv=None):
     ap.add_argument("plan", help="plan JSON: one plan, a list of plans, or a report.json")
     ap.add_argument("--out", help="renders go to OUT/<video_id>/ (default: a report.json's own folder, "
                                   "else out/renders)")
-    ap.add_argument("--formats", default="9x16,4x5")
+    ap.add_argument("--formats", default="4x5,9x16")
     args = ap.parse_args(argv)
     with open(args.plan, encoding="utf-8") as f:
         data = json.load(f)
