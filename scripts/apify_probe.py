@@ -46,8 +46,12 @@ ACTORS = {
 # About $0.007 a post (30 a group). Set back to "" when done.
 GROUPS_TOWN = "victoria,lincoln,shoals,virginiabeach,medford"
 # Raw-only runs (no OPENAI_API_KEY): posts per group and how many groups.
-GROUPS_RAW_POSTS = 15
-GROUPS_RAW_GROUPS = 1
+GROUPS_RAW_POSTS = 30
+GROUPS_RAW_GROUPS = 9
+# Raw-only (no extraction): GitHub's GEMINI_API_KEY was rejected on Oct 23.
+GROUPS_EXTRACT = False
+# Groups already read this round, not paid for twice.
+GROUPS_DONE = {"3741886445840328", "445273878917326", "223951663752782", "85588244403", "952534631527550"}
 
 VICTORIA_RE = re.compile(r"victoria,?\s*(tx|texas)|\b7790[145]\b", re.I)
 
@@ -146,7 +150,7 @@ def groups_probe(town):
     os.environ["TOWN"] = town
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import collect_events as ce
-    if not os.environ.get("OPENAI_API_KEY") and os.environ.get("GEMINI_API_KEY"):
+    if GROUPS_EXTRACT and not os.environ.get("OPENAI_API_KEY") and os.environ.get("GEMINI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = os.environ["GEMINI_API_KEY"]
         ce._openai_chat = _gemini_chat(ce)
         print(f"Extraction on Gemini ({ce._GEMINI_DEFAULT_MODEL}) with the collector's prompt")
@@ -164,13 +168,13 @@ def groups_probe(town):
 
     ce._apify_posts_run = recording_run
     groups = ce._town_facebook_groups()
-    if os.environ.get("OPENAI_API_KEY"):
+    if GROUPS_EXTRACT and os.environ.get("OPENAI_API_KEY"):
         events = ce.fetch_apify_facebook_groups()
     else:
         print("No OPENAI_API_KEY: raw posts only, no event extraction")
         events = []
         since = (ce.datetime.now().date() - ce.timedelta(days=ce._GROUP_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-        for g in groups[:GROUPS_RAW_GROUPS]:
+        for g in [g for g in groups if not any(i in g["url"] for i in GROUPS_DONE)][:GROUPS_RAW_GROUPS]:
             recording_run(ce._apify_run_url(ce.APIFY_FB_GROUPS_ACTOR),
                           {"startUrls": [{"url": g["url"]}], "resultsLimit": GROUPS_RAW_POSTS,
                            "viewOption": "CHRONOLOGICAL", "onlyPostsNewerThan": since}, TOKEN)
