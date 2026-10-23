@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createEventRecaps, MIN_SHOWN } from '../server/eventRecaps.js';
 import { renderSubmissionRecap } from '../server/notify.js';
 import { useTown, townConfig, VICTORIA } from '../server/town.js';
-import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, liftOver } from '../server/eventReach.js';
+import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, liftOver, typicalPickShown } from '../server/eventReach.js';
 import { renderPickReport } from '../server/notify.js';
 import { renderWeekly } from '../server/newsletter.js';
 
@@ -192,7 +192,9 @@ describe('seen in lists (data-seen sightings)', () => {
     const t = setup({ traffic: [...views(2), ...seen(MIN_SHOWN)] });
     expect((await t.er.run(NOW)).sent).toBe(1);
     const { text } = t.sent[0].mail;
-    expect(text).toContain(`- Seen in our event lists on thevic361.com: ${MIN_SHOWN} times`);
+    expect(text).toContain(`${MIN_SHOWN} times on screen in our event lists on thevic361.com`);
+    expect(text).not.toContain('- Seen in our event lists');  // the headline, not a repeated row
+    expect(t.sent[0].mail.subject).toBe(`How Fall Fest did on The Vic 361: seen ${MIN_SHOWN} times`);
     expect(text).toContain('- Views of its event page: 2');
     expect(text).toContain('A view means at least half of it was on someone’s screen for a second.');
     expect(t.rows[0].review_history.at(-1)).toMatchObject({ action: 'recap', sent: true, note: `Recap sent: 2 page views, seen ${MIN_SHOWN} times in lists` });
@@ -209,7 +211,7 @@ describe('seen in lists (data-seen sightings)', () => {
     const other = { day: '2026-10-23', kind: 'sighting', path: '/', click_url: '/e/other', visitor: 'o' };
     const t = setup({ traffic: [...views(5), ...seen(3, '/', '2026-10-16'), ...seen(4, '/today', '2026-10-24'), ...seen(2, '/', '2026-10-25'), other] });
     await t.er.run(NOW);
-    expect(t.sent[0].mail.text).toContain('- Seen in our event lists on thevic361.com: 4 times');
+    expect(t.sent[0].mail.text).toContain('4 times on screen in our event lists on thevic361.com');
   });
 
   it('takes the place of list views, which are only a fallback for events from before sightings', async () => {
@@ -223,6 +225,72 @@ describe('seen in lists (data-seen sightings)', () => {
     expect(text).not.toContain('which was viewed');
     expect(text).toContain('3,162 chances to be seen across our site and newsletter');
     expect(text).toContain('That total is times shown on the site plus newsletter copies sent.');
+  });
+});
+
+describe('reports lead with reach', () => {
+  const imp = (ad, day, n) => Array.from({ length: n }, (_, i) => ({ day, kind: 'impression', ad, path: '/', visitor: `${ad}${i}` }));
+  const pick = (id, date, extra = {}) => ({ id, kind: 'featured', status: 'paid', paid_at: '2026-10-01T15:00:00Z', event: { name: id, date }, ...extra });
+  const window = { from: '2026-09-25', to: '2026-10-24' };
+
+  it('a typical pick: the median of each one’s times on screen, bought through its date, rounded down', () => {
+    const traffic = [...imp('a', '2026-10-05', 640), ...imp('b', '2026-10-06', 1234), ...imp('c', '2026-10-07', 300),
+      ...imp('c', '2026-09-30', 50),   // before it was bought: not its report's either
+      ...imp('c', '2026-10-09', 50),   // after its date
+      { day: '2026-10-05', kind: 'impression', ad: 'a', path: '/', visitor: 'g', n: 9 }];  // grouped rows count n
+    const orders = [pick('a', '2026-10-05'), pick('b', '2026-10-06'), pick('c', '2026-10-07'),
+      pick('r', '2026-10-08', { status: 'refunded' }), pick('w', '2026-10-08', { kind: 'weekly' }), pick('old', '2026-09-01')];
+    expect(typicalPickShown([...traffic, ...imp('r', '2026-10-08', 9999)], orders, window)).toBe(640);  // 649 -> 640
+    expect(typicalPickShown(traffic, orders.slice(0, 2), window)).toBeNull();  // under 3 picks
+    expect(typicalPickShown([], orders, window)).toBeNull();  // none seen
+  });
+
+  it('the recap’s upgrade line says what a typical pick got, only when it beats this event', async () => {
+    const day = d => `2026-10-${String(d).padStart(2, '0')}`;
+    const orders = [5, 6, 7].map(d => pick(`p${d}`, day(d)));
+    const traffic = [...TRAFFIC, ...orders.flatMap(o => imp(o.id, o.event.date, 400)),
+      ...Array.from({ length: 30 }, (_, i) => ({ day: '2026-10-23', kind: 'sighting', path: '/', click_url: '/e/fall-fest', visitor: `s${i}` }))];
+    const t = setup({ traffic, orders });
+    await t.er.run(NOW);
+    expect(t.sent[0].mail.text).toContain('This past month, a typical Vic’s Pick was on screen about 400 times; yours was on screen 30 times. Next time,');
+    // An event that was seen more than a typical pick: no comparison.
+    const big = setup({ traffic: [...traffic, ...Array.from({ length: 400 }, (_, i) => ({ day: '2026-10-22', kind: 'sighting', path: '/', click_url: '/e/fall-fest', visitor: `b${i}` }))], orders });
+    await big.er.run(NOW);
+    expect(big.sent[0].mail.text).not.toContain('typical Vic’s Pick');
+    // Checkout off: no upgrade line at all.
+    const off = setup({ traffic, orders, checkout: false });
+    await off.er.run(NOW);
+    expect(off.sent[0].mail.text).not.toContain('typical');
+  });
+
+  it('the pick report opens with its times on screen, and its subject says it', () => {
+    const mail = renderPickReport({ business: 'Biz', event: { name: 'Fall Fest' } }, { shown: 640, page_views: 88 }, { siteUrl: 'https://www.thevic361.com' });
+    expect(mail.subject).toBe('Your Vic\'s Pick report: Fall Fest, seen 640 times');
+    expect(mail.text).toContain('640 times on screen as a Vic’s Pick\n');
+    expect(mail.text).not.toContain('- Shown in our event lists');
+    expect(mail.html).toContain('<strong style="font-size:24px;">640</strong> times on screen as a Vic’s Pick');
+    // Nothing seen: the plain subject.
+    expect(renderPickReport({ event: { name: 'Fall Fest' } }, { shown: 0 }, { siteUrl: 'https://x' }).subject).toBe('Your Vic\'s Pick report: Fall Fest');
+  });
+
+  it('sponsor and partner reports open with reach, then clicks', async () => {
+    const { renderSponsorReport, renderPartnerReport } = await import('../server/notify.js');
+    const week = { week_start: '2026-10-05', week_end: '2026-10-11', site_people: 12, email_people: 8 };
+    const both = renderSponsorReport({ business: 'Acme' }, { ...week, views: 812, newsletter_recipients: 152, newsletter_issues: 2 }, { siteUrl: 'https://x' });
+    expect(both.text).toContain('964 chances to be seen across our site and newsletter\n20 people clicked through to you in total.');
+    expect(both.text).toContain('- Your block was seen on thevic361.com: 812 times');
+    expect(both.text).toContain('That total is times your block was seen on the site plus newsletter copies sent. These numbers');
+    expect(both.subject).toBe('Your Vic 361 sponsor week: seen 812 times, 20 people clicked');
+    const none = renderSponsorReport({ business: 'Acme' }, { ...week, site_people: 0, email_people: 0, views: 812 }, { siteUrl: 'https://x' });
+    expect(none.subject).toBe('Your Vic 361 sponsor week: seen 812 times');
+    expect(none.html).toContain('Your block was seen 812 times on thevic361.com during Oct 5 – Oct 11.');  // the preheader: no "0 people"
+    const unseen = renderSponsorReport({ business: 'Acme' }, { ...week, views: 0 }, { siteUrl: 'https://x' });
+    expect(unseen.subject).toBe('Your Vic 361 sponsor week: 20 people clicked');
+    expect(unseen.text).not.toContain('chances to be seen');
+    const partner = renderPartnerReport({ business: 'Cafe', category: 'food' }, { start: '2026-10-01', end: '2026-10-31', views: 1240, click_people: 31 }, { siteUrl: 'https://x' });
+    expect(partner.subject).toBe('Your Vic 361 partner month: seen 1,240 times, 31 people clicked');
+    expect(partner.text).toContain('1,240 times your card was on screen on thevic361.com\n31 people clicked through to you in total.');
+    expect(partner.text).not.toContain('- Your card was seen');
   });
 });
 
@@ -293,7 +361,8 @@ describe('report polish', () => {
     expect(pick.text).toContain('- Views of its event page: 0');
     expect(pick.text).not.toContain('Clicked through');
     const sponsor = renderSponsorReport({ business: 'Acme' }, { week_start: '2026-10-05', week_end: '2026-10-11', views: 2400, site_people: 3, email_people: 0 }, { siteUrl: 'https://x' });
-    expect(sponsor.text).toContain('seen on thevic361.com: 2,400 times');
+    expect(sponsor.text).toContain('2,400 times your block was on screen on thevic361.com');
+    expect(sponsor.subject).toBe('Your Vic 361 sponsor week: seen 2,400 times, 3 people clicked');
     expect(sponsor.text).not.toContain('in our emails');
   });
 

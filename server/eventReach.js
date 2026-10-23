@@ -19,8 +19,9 @@
  * get those lines.
  */
 
-import { addDays, currentWeek } from './seo.js';
+import { addDays, currentWeek, localDateStr } from './seo.js';
 import { pathOf, eventWeekStats, LEAD_IN_DAYS } from './sponsors.js';
+import { rowCount } from './analytics.js';
 
 const SOCIAL_SOURCES = new Set(['Facebook', 'Instagram']);
 // How far back the list views reach: /next-week shows it the week before.
@@ -97,6 +98,31 @@ export function pickLift(traffic, events, pickPages, { from, to }) {
   const paid = stats.filter(s => picks.has(s.page)).map(s => s.page_views);
   if (paid.length < 3) return null;
   return liftOver(median(paid), stats.filter(s => !picks.has(s.page)).map(s => s.page_views), { minOthers: 10 });
+}
+
+// Times a typical paid pick was on screen, for the recap's upgrade line
+// next to the event's own count (Tristen, Oct 2026: show free submitters
+// what a pick adds, in numbers). The median over the picks dated `from` to
+// `to`, each counted as its own report counts it: impressions from the day
+// it was bought through its date. Rounded down to two significant figures
+// so it never overstates; null under 3 picks, or with none seen. `traffic`
+// starting after a pick was bought only undercounts it.
+const PAID_PICK = new Set(['paid', 'active', 'processing']);
+function roundDown(n) {
+  if (n < 100) return n;
+  const step = 10 ** (Math.floor(Math.log10(n)) - 1);  // 640 -> 10, 1,234 -> 100
+  return Math.floor(n / step) * step;
+}
+export function typicalPickShown(traffic, orders, { from, to }) {
+  const picks = (orders || []).filter(o => o && o.kind === 'featured' && PAID_PICK.has(o.status) && o.event &&
+    o.event.date >= from && o.event.date <= to);
+  if (picks.length < 3) return null;
+  const counts = picks.map(o => {
+    const bought = localDateStr(new Date(o.paid_at || o.created_at || `${o.event.date}T12:00:00Z`));
+    return rowCount((traffic || []).filter(r => r.kind === 'impression' && r.ad === o.id && r.day >= bought && r.day <= o.event.date));
+  });
+  const typical = Math.floor(median(counts));
+  return typical > 0 ? roundDown(typical) : null;
 }
 
 // The headline total: list views plus newsletter copies, only from the

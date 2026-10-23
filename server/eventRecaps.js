@@ -32,7 +32,7 @@ import { localDateStr, addDays } from './seo.js';
 import { eventKeyOf } from './db.js';
 import { currentWeek } from './seo.js';
 import { eventWeekStats, sameEvent } from './sponsors.js';
-import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, REACH_DAYS } from './eventReach.js';
+import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, typicalPickShown, REACH_DAYS } from './eventReach.js';
 import { renderSubmissionRecap } from './notify.js';
 
 export const MIN_VIEWS = 5;
@@ -108,6 +108,11 @@ export function createEventRecaps({ store, getEvents, mailer, slack = null, site
       lift = pickLift(traffic, past, pages, { from: liftFrom, to: addDays(today, -1) });
       return lift;
     };
+    let pickShown;
+    const pickShownNow = () => {
+      if (pickShown === undefined) pickShown = typicalPickShown(traffic, allOrders, { from: liftFrom, to: addDays(today, -1) });
+      return pickShown;
+    };
     let sent = 0;
     for (const row of rows) {
       const record = async (entry) => {
@@ -133,7 +138,7 @@ export function createEventRecaps({ store, getEvents, mailer, slack = null, site
       }
       const reach = await reachOf(ev, row, traffic);
       const mail = renderSubmissionRecap({ ...row.payload, name: ev.name || row.payload.name, url: ev.url || row.payload.url }, { ...stats, ...reach },
-        { siteUrl, address, upgrade, pickLift: upgrade ? liftNow() : null });
+        { siteUrl, address, upgrade, pickLift: upgrade ? liftNow() : null, pickShown: upgrade ? pickShownNow() : null });
       const result = await mailer.deliver(row.submitter_email, mail, `${town.keyPrefix}-submission-recap-${row.id}`);
       if (result === 'off' || result === 'failed') continue;
       await record({ note: result === 'sent' ? `Recap sent: ${counted}` : 'The address refused the recap', sent: result === 'sent' });
