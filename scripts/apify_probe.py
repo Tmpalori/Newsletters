@@ -45,6 +45,9 @@ ACTORS = {
 # logging every post the groups actor returns and the events extracted.
 # About $0.007 a post (30 a group). Set back to "" when done.
 GROUPS_TOWN = "lincoln"
+# Raw-only runs (no OPENAI_API_KEY): posts per group and how many groups.
+GROUPS_RAW_POSTS = 15
+GROUPS_RAW_GROUPS = 1
 
 VICTORIA_RE = re.compile(r"victoria,?\s*(tx|texas)|\b7790[145]\b", re.I)
 
@@ -142,9 +145,9 @@ def groups_probe(town):
         print("No OPENAI_API_KEY: raw posts only, no event extraction")
         events = []
         since = (ce.datetime.now().date() - ce.timedelta(days=ce._GROUP_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-        for g in groups:
+        for g in groups[:GROUPS_RAW_GROUPS]:
             recording_run(ce._apify_run_url(ce.APIFY_FB_GROUPS_ACTOR),
-                          {"startUrls": [{"url": g["url"]}], "resultsLimit": ce._GROUP_POSTS,
+                          {"startUrls": [{"url": g["url"]}], "resultsLimit": GROUPS_RAW_POSTS,
                            "viewOption": "CHRONOLOGICAL", "onlyPostsNewerThan": since}, TOKEN)
     report = {"town": town, "groups": groups, "events": events, "posts": {}}
     for url, posts in raw.items():
@@ -164,8 +167,11 @@ def groups_probe(town):
                    "text": (g.get("text") or "")[:600], "images": ce._post_image_urls(g)[:3],
                    "raw_preview": {k: p.get(k) for k in ("title", "previewTitle", "previewDescription", "previewSource",
                                                          "link", "location", "isVideo") if p.get(k)}}
+            if not p.get("text") or "isn't available" in row["text"]:
+                # A share with no caption: what the actor gives for the shared post.
+                row["raw"] = {k: v for k, v in p.items() if k not in ("topComments", "user", "collaborators")}
             rows.append(row)
-            print("  •", json.dumps(row, ensure_ascii=False)[:900])
+            print("  •", json.dumps(row, ensure_ascii=False)[:3000])
         report["posts"][url] = rows
     print(f"\nEVENTS ({len(events)})")
     for e in sorted(events, key=lambda e: e["date"]):
