@@ -443,7 +443,10 @@ def no_key(e):
     """Meta's answer when a call reached it with no token at all: no
     META_TOKEN, and no network secret for NETWORK_HOST either."""
     text = str(e)
-    return e.code in (104, 200) and ("app ID" in text or "access token is required" in text)
+    # 200 "Provide valid app ID" for a Page, 2500 "An active access token
+    # must be used" for /me, 104 "An access token is required" elsewhere.
+    return e.code in (104, 200, 2500) and any(
+        s in text for s in ("app ID", "access token is required", "active access token"))
 
 
 NO_KEY_HELP = (f"No Facebook key: META_TOKEN isn't set, and Meta got no key on {NETWORK_HOST}. Add the system "

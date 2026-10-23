@@ -1026,9 +1026,14 @@ def test_check_with_a_dead_token(env, capsys):
     assert "META_TOKEN doesn't work" in out and "invalid or expired" in out and len(s.calls) == 1
 
 
-def test_check_without_any_key(env, monkeypatch, capsys):
+@pytest.mark.parametrize("answer", [
+    NO_KEY,
+    # What Meta really answered for GET /me with no key on Oct 23.
+    err(400, 2500, "An active access token must be used to query information about the current user."),
+])
+def test_check_without_any_key(env, monkeypatch, capsys, answer):
     monkeypatch.delenv("META_TOKEN")
-    s = FakeSession(NO_KEY)
+    s = FakeSession(answer)
     assert pr.main(["check"], session=s) == 1
     assert routes(s) == [("GET", f"{N}/me")] and "Authorization" not in s.calls[0]["headers"]
     out = capsys.readouterr().out
