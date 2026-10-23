@@ -1,182 +1,176 @@
 {
-  "_about": "The subscribe-video scripts (Oct 25 - Nov 8, 2026). One entry per video: what to say, the on-screen hook and event chips (no emoji: libass can't draw color emoji), each chip's cue words (the first spoken word that matches shows it), the Facebook caption and when to post it (town time). Video 3 is a draft until Sunday Nov 1's collect fills in the week of Nov 2.",
-  "cta_cue": ["sign"],
-  "end_card": {"line1": "FREE every Mon & Thu", "line2": "{domain}"},
+  "_about": "The subscribe-video ads, Oct 25 2026 on: two per town. Video 1 is Halloween week (runs Oct 25-31); video 2 is evergreen, built on what readers said they want (live music first), with no dates, so it can run for weeks. Each entry: what to say (in Tristen's own style: what you're missing, a few real examples, one free email every Monday and Thursday, click the link), the hook for the corner badge, the event cards (icon, tag, title, venue; cue = the spoken word that pops each one; text = the one-line fallback), the ad's primary text (caption) and headline, and its run window in town time (run_until_local null = until stopped). Every script ends on the newsletter's name: the end card starts at the last time the name or address is said.",
+  "cta_cue": ["click", "sign"],
+  "phone_cue": ["email", "inbox"],
+  "end_card": {"line1": "FREE every Mon & Thu", "line2": "{domain}",
+               "tagline": "Everything to do in {city}, in your inbox every Monday and Thursday",
+               "button": "Sign up free", "url": "{domain}/subscribe"},
   "videos": [
     {
-      "id": "victoria-1", "town": "victoria", "video": 1, "draft": false,
-      "angle": "Halloween week", "post_at_local": "2026-10-25T18:30",
-      "say": "Victoria: eight trunk-or-treats this week, and they're not even the best part. Monday, Nightmare on Elm Street at Moonshine. Thursday, spooky mini golf, inside the library. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. thevic361.com",
-      "hook": "8 TRUNK-OR-TREATS THIS WEEK",
+      "id": "victoria-2026-10-25", "town": "victoria", "video": 1, "draft": false,
+      "angle": "Halloween week", "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
+      "say": "Victoria has eight trunk-or-treats this week, and you probably know about one. Plus spooky mini golf inside the library, Zoo Boo and Malloween. It's all in one free email, every Monday and Thursday. Just click the link to get The Vic 361.",
+      "hook": "8 trunk-or-treats this week",
       "chips": [
-        {"text": "MON · Nightmare on Elm Street @ Moonshine", "cue": ["monday", "nightmare"]},
-        {"text": "THU · Spooky mini golf @ the library", "cue": ["thursday", "spooky", "golf"]}
+        {"icon": "🎃", "tag": "All week", "title": "8 trunk-or-treats", "venue": "All over Victoria",
+         "text": "ALL WEEK · 8 trunk-or-treats", "cue": ["trunk"]},
+        {"icon": "⛳", "tag": "Thu, Oct 29", "title": "Spooky mini golf", "venue": "Victoria Public Library",
+         "text": "THU · Spooky mini golf @ the library", "cue": ["golf", "spooky"]},
+        {"icon": "🦁", "tag": "Sat, Oct 31", "title": "Zoo Boo", "venue": "The Texas Zoo",
+         "text": "SAT · Zoo Boo @ the Texas Zoo", "cue": ["zoo"]},
+        {"icon": "🛍️", "tag": "Sat, Oct 31", "title": "Victoria Malloween", "venue": "Victoria Mall",
+         "text": "SAT · Malloween @ Victoria Mall", "cue": ["malloween"]}
       ],
-      "caption": "8 trunk-or-treats, haunted mini golf inside the library, and Freddy at Moonshine 🎃 The whole Halloween week lands in your inbox Monday morning. Free: https://www.thevic361.com/subscribe #VictoriaTX #ThingsToDoVictoria #TheVic361"
+      "headline": "Everything to do in Victoria, free",
+      "caption": "8 trunk-or-treats, spooky mini golf inside the library, Zoo Boo and Malloween 🎃 Everything happening in Victoria, in one free email every Monday and Thursday. Sign up: https://www.thevic361.com/subscribe"
     },
     {
-      "id": "victoria-2", "town": "victoria", "video": 2, "draft": false,
-      "angle": "Halloween weekend", "post_at_local": "2026-10-28T18:30",
-      "say": "Your Halloween weekend in Victoria. Friday, Calaveras and Cocktails at The Nave. Saturday, the costume contest at the farmers market, Zoo Boo, then Malloween. Sunday, a free Coco screening at DeLeon Plaza. Sign up tonight and it's in your inbox tomorrow morning. thevic361.com",
-      "hook": "YOUR HALLOWEEN WEEKEND",
+      "id": "victoria-2026-11-01", "town": "victoria", "video": 2, "draft": false,
+      "angle": "Evergreen", "post_at_local": "2026-11-01T06:00", "run_until_local": null,
+      "say": "Looking for something to do in Victoria this weekend? There's a lot going on you don't know about, because you're not subscribed. Live music, family nights, markets, festivals. It's all in one free email, every Monday and Thursday. Just click the link to get The Vic 361.",
+      "hook": "50+ things to do every week",
       "chips": [
-        {"text": "FRI · Calaveras & Cocktails @ The Nave", "cue": ["friday", "calaveras"]},
-        {"text": "SAT · Boo Bash · Zoo Boo · Malloween", "cue": ["saturday", "costume"]},
-        {"text": "SUN · Free Coco screening @ DeLeon Plaza", "cue": ["sunday", "coco"]}
+        {"icon": "🎸", "tag": "Every week", "title": "Live music", "venue": "Bars, patios and breweries",
+         "text": "Live music, every week", "cue": ["music"]},
+        {"icon": "🎈", "tag": "Every week", "title": "Family nights", "venue": "Free and kid-friendly picks",
+         "text": "Family nights, every week", "cue": ["family"]},
+        {"icon": "🥕", "tag": "Wed & Sat", "title": "Farmers market", "venue": "Victoria Farmers Market",
+         "text": "WED & SAT · Farmers market", "cue": ["markets"]},
+        {"icon": "🎉", "tag": "All year", "title": "Festivals", "venue": "All over the Crossroads",
+         "text": "Festivals, all year", "cue": ["festivals"]}
       ],
-      "caption": "Calaveras & Cocktails, Zoo Boo, Malloween and a free Coco screening at DeLeon Plaza. Get the full Halloween weekend list tomorrow morning, free: https://www.thevic361.com/subscribe #VictoriaTX #TheVic361"
+      "headline": "Everything to do in Victoria, free",
+      "caption": "Live music, family nights, markets and festivals: everything happening in Victoria, in one free email every Monday and Thursday. Sign up: https://www.thevic361.com/subscribe"
     },
     {
-      "id": "victoria-3", "town": "victoria", "video": 3, "draft": true,
-      "angle": "Week of Nov 2", "post_at_local": "2026-11-01T18:30",
-      "say": "Halloween's over, and Victoria's just getting started. Friday and Saturday, Hot Rod Riot. Saturday, Hasta los Huesos Fest. Plus a clean-comedy girls' night out Friday. Sign up tonight and the whole week's in your inbox tomorrow morning. thevic361.com",
-      "hook": "HALLOWEEN'S OVER. VICTORIA'S NOT.",
+      "id": "lincoln-2026-10-25", "town": "lincoln", "video": 1, "draft": false,
+      "angle": "Halloween week", "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
+      "say": "Lincoln, you could go out every night this week. Ella Langley, a silent film with a live score, a masquerade inside the Sheldon, the Huskers on Halloween. It's all in one free email, every Monday and Thursday. Just click the link to get The Star 402.",
+      "hook": "80+ things to do this week",
       "chips": [
-        {"text": "FRI-SAT · Hot Rod Riot", "cue": ["hot", "rod", "riot"]},
-        {"text": "SAT · Hasta los Huesos Fest", "cue": ["hasta", "huesos"]},
-        {"text": "FRI · Clean-comedy girls' night out", "cue": ["comedy", "girls"]}
+        {"icon": "🎤", "tag": "Fri, Oct 30", "title": "Ella Langley", "venue": "Pinnacle Bank Arena",
+         "text": "FRI · Ella Langley @ Pinnacle Bank Arena", "cue": ["ella", "langley"]},
+        {"icon": "🎞️", "tag": "Thu, Oct 29", "title": "1926 silent film, live score", "venue": "Ross Media Arts Center",
+         "text": "THU · Silent film + live score @ the Ross", "cue": ["silent", "film"]},
+        {"icon": "🎭", "tag": "Fri, Oct 30 · 21+", "title": "Halloween masquerade", "venue": "Sheldon Museum of Art",
+         "text": "FRI · 21+ masquerade @ the Sheldon", "cue": ["masquerade", "sheldon"]},
+        {"icon": "🏈", "tag": "Sat, Oct 31", "title": "Huskers vs. Washington", "venue": "Memorial Stadium",
+         "text": "SAT · Huskers vs. Washington", "cue": ["huskers"]}
       ],
-      "caption": "Hot Rod Riot, Hasta los Huesos Fest and a clean-comedy girls' night out. The whole week lands in your inbox Monday morning. Free: https://www.thevic361.com/subscribe #VictoriaTX #TheVic361"
+      "headline": "Everything to do in Lincoln, free",
+      "caption": "Ella Langley, a 100-year-old silent film with a live score, a masquerade inside the Sheldon and the Huskers on Halloween. Everything happening in Lincoln, in one free email every Monday and Thursday. Sign up: https://www.thestar402.com/subscribe"
     },
     {
-      "id": "lincoln-1", "town": "lincoln", "video": 1, "draft": false,
-      "angle": "Halloween week", "post_at_local": "2026-10-25T18:30",
-      "say": "Lincoln: Chris Stapleton Monday, Ella Langley Friday, and they're not even the coolest thing this week. Thursday at the Ross, a hundred-year-old silent film with a live score. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. thestar402.com",
-      "hook": "STAPLETON MON · ELLA LANGLEY FRI",
+      "id": "lincoln-2026-11-01", "town": "lincoln", "video": 2, "draft": false,
+      "angle": "Evergreen", "post_at_local": "2026-11-01T06:00", "run_until_local": null,
+      "say": "Lincoln, there's live music, art shows and markets every week, and most people hear about them the day after, because they're not subscribed. It's all in one free email, every Monday and Thursday. Just click the link to get The Star 402.",
+      "hook": "50+ things to do every week",
       "chips": [
-        {"text": "THU · 1926 silent film + live score @ the Ross", "cue": ["thursday", "ross", "silent"]}
+        {"icon": "🎸", "tag": "Every week", "title": "Live music", "venue": "Zoo Bar, Bourbon Theatre and more",
+         "text": "Live music, every week", "cue": ["music"]},
+        {"icon": "🎨", "tag": "Every week", "title": "Art shows", "venue": "Sheldon, Lux Center, Burkholder",
+         "text": "Art shows, every week", "cue": ["art"]},
+        {"icon": "🧺", "tag": "All season", "title": "Markets", "venue": "Craft fairs and pop-ups",
+         "text": "Markets and craft fairs", "cue": ["markets"]}
       ],
-      "caption": "Stapleton, Ella Langley, and a 100-year-old animated film with a live score at the Ross ⭐ The whole week lands in your inbox Monday morning. Free: https://www.thestar402.com/subscribe #LincolnNE #LNK #TheStar402"
+      "headline": "Everything to do in Lincoln, free",
+      "caption": "Live music, art shows and markets: everything happening in Lincoln, in one free email every Monday and Thursday. Sign up: https://www.thestar402.com/subscribe"
     },
     {
-      "id": "lincoln-2", "town": "lincoln", "video": 2, "draft": false,
-      "angle": "Halloween weekend", "post_at_local": "2026-10-28T18:30",
-      "say": "Halloween weekend in Lincoln: Hockey Halloween with the Stars on Friday, a masquerade inside the Sheldon art museum, Huskers-Washington on Halloween, and Roca Scary Farm. Sign up tonight and it's in your inbox tomorrow morning. thestar402.com",
-      "hook": "HALLOWEEN WEEKEND IN LINCOLN",
+      "id": "medford-2026-10-25", "town": "medford", "video": 1, "draft": false,
+      "angle": "Halloween week", "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
+      "say": "Medford's original haunted house closes for good after sixteen seasons, and this is its last week. Plus Irish music at Dunbar Farms and a Halloween party at RoxyAnn. It's all in one free email, every Monday and Thursday. Just click the link to get The Rogue 541.",
+      "hook": "Final week after 16 seasons",
       "chips": [
-        {"text": "FRI · Stars Hockey Halloween", "cue": ["hockey"]},
-        {"text": "FRI · 21+ masquerade @ the Sheldon", "cue": ["masquerade", "sheldon"]},
-        {"text": "SAT · Huskers vs. Washington", "cue": ["huskers", "washington"]},
-        {"text": "Roca Scary Farm", "cue": ["roca", "scary"]}
+        {"icon": "💀", "tag": "Fri & Sat", "title": "The Nightmare Chamber", "venue": "Final nights ever",
+         "text": "FRI-SAT · The Nightmare Chamber's last nights", "cue": ["haunted"]},
+        {"icon": "🎻", "tag": "Thu, Oct 29 · Free", "title": "Irish music in the tasting room", "venue": "Dunbar Farms winery",
+         "text": "THU · Free Irish music @ Dunbar Farms winery", "cue": ["irish", "dunbar"]},
+        {"icon": "🍷", "tag": "Fri, Oct 30", "title": "Halloween party + live band", "venue": "RoxyAnn Winery",
+         "text": "FRI · Halloween party + live music @ RoxyAnn Winery", "cue": ["roxyann", "party"]}
       ],
-      "caption": "Hockey Halloween, a 21+ masquerade inside the Sheldon, Huskers on Halloween and Roca Scary Farm. Get the full weekend list tomorrow morning, free: https://www.thestar402.com/subscribe #LincolnNE #StarCity #TheStar402"
+      "headline": "Everything in the Rogue Valley, free",
+      "caption": "The Nightmare Chamber closes for good after 16 seasons: last nights Fri & Sat. Plus free Irish music at Dunbar Farms winery and a Halloween party with a live band at RoxyAnn 🍷 Everything happening in the Rogue Valley, in one free email every Monday and Thursday. Sign up: https://www.therogue541.com/subscribe"
     },
     {
-      "id": "lincoln-3", "town": "lincoln", "video": 3, "draft": true,
-      "angle": "Week of Nov 2", "post_at_local": "2026-11-01T18:30",
-      "say": "Halloween's over, and Lincoln's just getting started. Husker basketball Monday, state volleyball starts Wednesday, and Friday is First Friday Artwalk. Sign up tonight and the whole week's in your inbox tomorrow morning. thestar402.com",
-      "hook": "HALLOWEEN'S OVER. LINCOLN'S NOT.",
+      "id": "medford-2026-11-01", "town": "medford", "video": 2, "draft": false,
+      "angle": "Evergreen", "post_at_local": "2026-11-01T06:00", "run_until_local": null,
+      "say": "Who's playing at the wineries this weekend? Most people in the Rogue Valley find out too late. Live music, wine nights, markets, stuff for the kids. It's all in one free email, every Monday and Thursday. Just click the link to get The Rogue 541.",
+      "hook": "Who's playing at the wineries?",
       "chips": [
-        {"text": "MON · Husker basketball", "cue": ["husker", "basketball"]},
-        {"text": "WED · State volleyball", "cue": ["volleyball"]},
-        {"text": "FRI · First Friday Artwalk", "cue": ["artwalk", "art"]}
+        {"icon": "🍷", "tag": "Every week", "title": "Live music at the wineries", "venue": "RoxyAnn, Dunbar Farms and more",
+         "text": "Live music at the wineries", "cue": ["music", "wine"]},
+        {"icon": "🧺", "tag": "Every week", "title": "Markets", "venue": "Makers markets and pop-ups",
+         "text": "Markets, every week", "cue": ["markets"]},
+        {"icon": "🎈", "tag": "Every week", "title": "Stuff for the kids", "venue": "Museums, libraries and parks",
+         "text": "Stuff for the kids, every week", "cue": ["kids"]}
       ],
-      "caption": "Husker hoops, state volleyball and First Friday Artwalk. The whole week lands in your inbox Monday morning. Free: https://www.thestar402.com/subscribe #LincolnNE #LNK #TheStar402"
+      "headline": "Everything in the Rogue Valley, free",
+      "caption": "Who's playing at the wineries this weekend? Live music, wine nights, markets and stuff for the kids: everything happening in the Rogue Valley, in one free email every Monday and Thursday. Sign up: https://www.therogue541.com/subscribe"
     },
     {
-      "id": "medford-1", "town": "medford", "video": 1, "draft": false,
-      "angle": "Halloween week", "post_at_local": "2026-10-25T18:30",
-      "say": "Medford's original haunted house closes for good after sixteen seasons, and the last nights are this Friday and Saturday. Thursday, live Irish music at Dunbar Farms winery. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. therogue541.com",
-      "hook": "THE NIGHTMARE CHAMBER'S FINAL WEEKEND",
+      "id": "shoals-2026-10-25", "town": "shoals", "video": 1, "draft": false,
+      "angle": "Halloween week", "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
+      "say": "Shoals, Halloween week is stacked. Rocky Horror with a live shadow cast, a Howl-o-ween 5K you can run with your dog, and a costume bash at the Lava Room. It's all in one free email, every Monday and Thursday. Just click the link to get Shoals Setlist.",
+      "hook": "100+ things to do this week",
       "chips": [
-        {"text": "FRI-SAT · The last nights ever", "cue": ["last", "nights"]},
-        {"text": "THU · Free Irish music @ Dunbar Farms winery", "cue": ["irish", "dunbar"]}
+        {"icon": "🎬", "tag": "Fri, Oct 30", "title": "Rocky Horror, live shadow cast", "venue": "Shoals Community Theatre",
+         "text": "FRI · Rocky Horror (live shadow cast)", "cue": ["rocky", "horror"]},
+        {"icon": "🐶", "tag": "Sat, Oct 31", "title": "Howl-o-ween Dash 5K", "venue": "McFarland Park",
+         "text": "SAT · Howl-o-ween Dash (bring the dog)", "cue": ["howl", "howloween", "dash"]},
+        {"icon": "🎃", "tag": "Sat, Oct 31", "title": "Halloween bash + costume contest", "venue": "Lava Room",
+         "text": "SAT · Halloween costume bash @ the Lava Room", "cue": ["lava", "costume", "bash"]}
       ],
-      "caption": "The Nightmare Chamber closes for good after 16 seasons. Last nights are Fri & Sat. Plus free live Irish music at Dunbar Farms winery Thursday 🍷 The whole week lands in your inbox Monday morning. Free: https://www.therogue541.com/subscribe #RogueValley #MedfordOregon #TheRogue541"
+      "headline": "Everything to do in the Shoals, free",
+      "caption": "Rocky Horror with a live shadow cast, a Howl-o-ween 5K you can run with your dog, and a Halloween costume bash at the Lava Room 🎃 Everything happening in the Shoals, in one free email every Monday and Thursday. Sign up: https://www.shoalssetlist.com/subscribe"
     },
     {
-      "id": "medford-2", "town": "medford", "video": 2, "draft": false,
-      "angle": "Halloween weekend", "post_at_local": "2026-10-28T18:30",
-      "say": "Halloween weekend in the Rogue Valley: Harvest and Hallow at Rogue X, a Halloween party with live music at RoxyAnn Winery, a big-band hootenanny at the Talent Club, and Sunday, Cirque Mechanics at the Craterian. Sign up tonight and it's in your inbox tomorrow morning. therogue541.com",
-      "hook": "HALLOWEEN WEEKEND IN THE ROGUE VALLEY",
+      "id": "shoals-2026-11-01", "town": "shoals", "video": 2, "draft": false,
+      "angle": "Evergreen", "post_at_local": "2026-11-01T06:00", "run_until_local": null,
+      "say": "Who's playing in the Shoals this weekend? There's live music every single night here, plus food, drinks and craft markets, and most people never hear about half of it. It's all in one free email, every Monday and Thursday. Just click the link to get Shoals Setlist.",
+      "hook": "Live music every night",
       "chips": [
-        {"text": "Harvest & Hallow @ Rogue X", "cue": ["harvest", "hallow"]},
-        {"text": "FRI · Halloween party + live music @ RoxyAnn Winery", "cue": ["roxyann", "winery"]},
-        {"text": "SAT · Big Band Halloween Hootenanny", "cue": ["big", "band", "hootenanny"]},
-        {"text": "SUN · Cirque Mechanics @ the Craterian", "cue": ["sunday", "cirque"]}
+        {"icon": "🎸", "tag": "Every night", "title": "Live music", "venue": "Swampers, Rising Crust, Champy's",
+         "text": "Live music, every night", "cue": ["music"]},
+        {"icon": "🍗", "tag": "Every week", "title": "Food and drinks", "venue": "Patios, breweries and pop-ups",
+         "text": "Food and drinks, every week", "cue": ["food", "drinks"]},
+        {"icon": "🧶", "tag": "Every week", "title": "Craft markets", "venue": "Makers and vintage",
+         "text": "Craft markets, every week", "cue": ["craft", "markets"]}
       ],
-      "caption": "Harvest & Hallow, a Halloween party with live music at RoxyAnn Winery, a big-band hootenanny and Cirque Mechanics at the Craterian. Get the full weekend list tomorrow morning, free: https://www.therogue541.com/subscribe #RogueValley #SouthernOregon #TheRogue541"
+      "headline": "Everything to do in the Shoals, free",
+      "caption": "Who's playing in the Shoals this weekend? Live music every night, plus food, drinks and craft markets: everything happening in the Shoals, in one free email every Monday and Thursday. Sign up: https://www.shoalssetlist.com/subscribe"
     },
     {
-      "id": "medford-3", "town": "medford", "video": 3, "draft": true,
-      "angle": "Week of Nov 2", "post_at_local": "2026-11-01T18:30",
-      "say": "Halloween's over, and the Rogue Valley's just getting started. Dracula: A Comedy of Terrors this week, First Friday Art Walk, and dueling pianos Saturday. Sign up tonight and the whole week's in your inbox tomorrow morning. therogue541.com",
-      "hook": "HALLOWEEN'S OVER. THE VALLEY'S NOT.",
+      "id": "virginiabeach-2026-10-25", "town": "virginiabeach", "video": 1, "draft": false,
+      "angle": "Halloween week", "post_at_local": "2026-10-25T18:00", "run_until_local": "2026-10-31T17:00",
+      "say": "Virginia Beach, Halloween week is packed. Free live music at the Farmers Market, four haunts at Hunt Club Farm, and Hawthorne Heights playing their whole 2006 album. It's all in one free email, every Monday and Thursday. Just click the link to get The Tide 757.",
+      "hook": "100+ things to do this week",
       "chips": [
-        {"text": "Dracula: A Comedy of Terrors", "cue": ["dracula"]},
-        {"text": "FRI · First Friday Art Walk", "cue": ["first", "art"]},
-        {"text": "SAT · Dueling pianos", "cue": ["dueling", "pianos"]}
+        {"icon": "🎸", "tag": "Fri, Oct 30 · Free", "title": "Friday Night Hoedown", "venue": "Virginia Beach Farmers Market",
+         "text": "FRI · Free live music @ the Farmers Market", "cue": ["farmers", "music"]},
+        {"icon": "🏚️", "tag": "Through Oct 31", "title": "4 haunts in 1 night", "venue": "Hunt Club Farm",
+         "text": "4 haunts in 1 night @ Hunt Club Farm", "cue": ["haunts", "hunt"]},
+        {"icon": "🎤", "tag": "Fri, Oct 30", "title": "Hawthorne Heights: the whole 2006 album", "venue": "Elevation 27",
+         "text": "FRI · Hawthorne Heights @ Elevation 27", "cue": ["hawthorne"]}
       ],
-      "caption": "Dracula: A Comedy of Terrors, First Friday Art Walk and dueling pianos. The whole week lands in your inbox Monday morning. Free: https://www.therogue541.com/subscribe #RogueValley #MedfordOregon #TheRogue541"
+      "headline": "Everything to do in Virginia Beach, free",
+      "caption": "Free live music at the Friday Night Hoedown, four haunts at Hunt Club Farm, and Hawthorne Heights playing If Only You Were Lonely front to back. Everything happening in Virginia Beach, in one free email every Monday and Thursday. Sign up: https://www.thetide757.com/subscribe"
     },
     {
-      "id": "shoals-1", "town": "shoals", "video": 1, "draft": false,
-      "angle": "Halloween week", "post_at_local": "2026-10-25T18:30",
-      "say": "Shoals: Fraggle Rock is live at Norton Auditorium Monday. Yes, that Fraggle Rock. Tuesday, Frights and Lights on Court Street, plus a haunted ghost walk through UNA. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. shoalssetlist.com",
-      "hook": "FRAGGLE ROCK. LIVE. MONDAY.",
+      "id": "virginiabeach-2026-11-01", "town": "virginiabeach", "video": 2, "draft": false,
+      "angle": "Evergreen", "post_at_local": "2026-11-01T06:00", "run_until_local": null,
+      "say": "Where's the live music in Virginia Beach this weekend? If you're not subscribed, you're guessing. Bands, breweries, food, festivals. It's all in one free email, every Monday and Thursday. Just click the link to get The Tide 757.",
+      "hook": "Where's the live music?",
       "chips": [
-        {"text": "MON · Norton Auditorium", "cue": ["norton", "auditorium"]},
-        {"text": "TUE · Frights & Lights + UNA ghost walk", "cue": ["tuesday", "frights"]}
+        {"icon": "🎸", "tag": "Every week", "title": "Live bands", "venue": "Oceanfront to Shore Drive",
+         "text": "Live bands, every week", "cue": ["bands"]},
+        {"icon": "🍺", "tag": "Every week", "title": "Brewery nights", "venue": "Commonwealth, Wasserhund and more",
+         "text": "Brewery nights, every week", "cue": ["breweries"]},
+        {"icon": "🎡", "tag": "All year", "title": "Festivals", "venue": "Oceanfront and Mount Trashmore",
+         "text": "Festivals, all year", "cue": ["festivals"]}
       ],
-      "caption": "Fraggle Rock live at Norton, Frights & Lights on Court Street, and a haunted ghost walk through UNA 👻 The whole week lands in your inbox Monday morning. Free: https://www.shoalssetlist.com/subscribe #TheShoals #FlorenceAL #ShoalsSetlist"
-    },
-    {
-      "id": "shoals-2", "town": "shoals", "video": 2, "draft": false,
-      "angle": "Halloween weekend", "post_at_local": "2026-10-28T18:30",
-      "say": "Halloween weekend in the Shoals: Rocky Horror with a live shadow cast Friday, the Howl-o-ween Dash with your dog Saturday morning, and live music at a saloon built into a cave. Sign up tonight and it's in your inbox tomorrow morning. shoalssetlist.com",
-      "hook": "HALLOWEEN WEEKEND IN THE SHOALS",
-      "chips": [
-        {"text": "FRI · Rocky Horror (live shadow cast)", "cue": ["rocky", "horror"]},
-        {"text": "SAT · Howl-o-ween Dash (bring the dog)", "cue": ["howl", "howloween", "dash"]},
-        {"text": "Live music in a cave @ Rattlesnake Saloon", "cue": ["saloon", "cave"]}
-      ],
-      "caption": "Rocky Horror with a shadow cast, a Halloween 5K you can run with your dog, and live music in a cave. Get the full weekend list tomorrow morning, free: https://www.shoalssetlist.com/subscribe #TheShoals #MuscleShoals #ShoalsSetlist"
-    },
-    {
-      "id": "shoals-3", "town": "shoals", "video": 3, "draft": true,
-      "angle": "Week of Nov 2", "post_at_local": "2026-11-01T18:30",
-      "say": "The Muscle Shoals Songwriters Festival is this weekend, Friday through Sunday. Plus First Fridays in Florence. Sign up tonight and the whole week is in your inbox tomorrow morning. shoalssetlist.com",
-      "hook": "MUSCLE SHOALS SONGWRITERS FESTIVAL",
-      "chips": [
-        {"text": "FRI-SUN · Songwriters Festival", "cue": ["through", "weekend"]},
-        {"text": "FRI · First Fridays in Florence", "cue": ["first", "fridays", "florence"]}
-      ],
-      "caption": "The Muscle Shoals Songwriters Festival is this weekend, plus First Fridays in Florence. The whole week lands in your inbox Monday morning. Free: https://www.shoalssetlist.com/subscribe #TheShoals #MuscleShoals #ShoalsSetlist"
-    },
-    {
-      "id": "virginiabeach-1", "town": "virginiabeach", "video": 1, "draft": false,
-      "angle": "Halloween week", "post_at_local": "2026-10-25T18:30",
-      "say": "Virginia Beach: you can still go dolphin watching in late October. Boat tours from the Aquarium, Wednesday and Thursday. Friday, Hawthorne Heights plays their whole 2006 album. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. thetide757.com",
-      "hook": "DOLPHIN WATCHING. IN OCTOBER.",
-      "chips": [
-        {"text": "WED-THU · Aquarium boat tours", "cue": ["boat", "aquarium"]},
-        {"text": "FRI · Hawthorne Heights @ Elevation 27", "cue": ["hawthorne", "heights"]}
-      ],
-      "caption": "Dolphin-watching boat tours, Hawthorne Heights playing \"If Only You Were Lonely\" front to back, and a whole Halloween week 🌊 It lands in your inbox Monday morning. Free: https://www.thetide757.com/subscribe #VirginiaBeach #757 #TheTide757"
-    },
-    {
-      "id": "virginiabeach-2", "town": "virginiabeach", "video": 2, "draft": false,
-      "angle": "Halloween weekend", "post_at_local": "2026-10-28T18:30",
-      "say": "Halloween weekend at the beach: free live music at the Farmers Market's Friday Night Hoedown, four haunts in one night at Hunt Club Farm, and Sunday, a free fall festival at Mount Trashmore. Sign up tonight and it's in your inbox tomorrow morning. thetide757.com",
-      "hook": "HALLOWEEN WEEKEND AT THE BEACH",
-      "chips": [
-        {"text": "FRI · Free live music @ the Farmers Market", "cue": ["hoedown", "farmers"]},
-        {"text": "4 haunts in 1 night @ Hunt Club Farm", "cue": ["haunts", "hunt"]},
-        {"text": "SUN · Free fall festival @ Mount Trashmore", "cue": ["sunday", "trashmore"]}
-      ],
-      "caption": "Free live music at the Friday Night Hoedown, four haunts at Hunt Club Farm and a free fall fest at Mount Trashmore. Get the full weekend list tomorrow morning, free: https://www.thetide757.com/subscribe #VirginiaBeach #VB #TheTide757"
-    },
-    {
-      "id": "virginiabeach-3", "town": "virginiabeach", "video": 3, "draft": true,
-      "angle": "Week of Nov 2", "post_at_local": "2026-11-01T18:30",
-      "say": "Halloween's over, and the beach is just getting started. Sharks After Dark Thursday, Corrosion of Conformity with The Sword Friday, and an ABBA tribute Saturday. Sign up tonight and the whole week's in your inbox tomorrow morning. thetide757.com",
-      "hook": "HALLOWEEN'S OVER. THE BEACH ISN'T.",
-      "chips": [
-        {"text": "THU · Sharks After Dark", "cue": ["sharks"]},
-        {"text": "FRI · Corrosion of Conformity + The Sword", "cue": ["corrosion", "conformity"]},
-        {"text": "SAT · ABBA tribute", "cue": ["abba", "tribute"]}
-      ],
-      "caption": "Sharks After Dark, Corrosion of Conformity with The Sword, and an ABBA tribute. The whole week lands in your inbox Monday morning. Free: https://www.thetide757.com/subscribe #VirginiaBeach #757 #TheTide757"
+      "headline": "Everything to do in Virginia Beach, free",
+      "caption": "Where's the live music this weekend? Bands, breweries, food and festivals: everything happening in Virginia Beach, in one free email every Monday and Thursday. Sign up: https://www.thetide757.com/subscribe"
     }
   ]
 }

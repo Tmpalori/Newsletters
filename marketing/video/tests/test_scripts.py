@@ -56,17 +56,37 @@ def test_the_script_is_postable(v):
     t = towns.town(v["town"])
     n = len(v["say"].split())
     assert 28 <= n <= 50, f"{n} spoken words; about 42-46 fills 16 s"
-    assert t["domain"] in v["say"], "the script must end on the web address"
+    # The end card starts at the LAST time the newsletter's name or address
+    # is said, so the script has to end on it, or the card covers the pitch.
+    said = analyze.tokens(v["say"])
+    assert t["domain"] in said[-4:], "the script must end on the newsletter's name or web address"
     assert t["subscribe_url"] in v["caption"], "the caption must link to the sign-up page"
     assert isinstance(v["draft"], bool)
     assert 1 <= len(v["chips"]) <= 4
     assert v["hook"] and len(v["hook"]) <= 40, "the hook is a sticker: 40 characters at most"
     for text in [v["hook"]] + [c["text"] for c in v["chips"]]:
         assert not EMOJI.search(text), f"emoji in on-screen text {text!r}"
-    said = set(analyze.tokens(v["say"]))
+    words = set(said)
     for c in v["chips"]:
         cues = {tok for cue in c["cue"] for tok in analyze.tokens(cue)}
-        assert cues & said, f"chip {c['text']!r}: none of its cue words {c['cue']} is in the script"
+        assert cues & words, f"chip {c['text']!r}: none of its cue words {c['cue']} is in the script"
+        assert c["text"], "every chip keeps a one-line text (the fallback, and what analyze reports)"
+        if "title" in c:  # the event-card look: all four parts, emoji only in the icon
+            assert c.get("icon") and c.get("tag") and c["title"] and c.get("venue"), c
+            assert len(c["icon"]) <= 4, f"icon {c['icon']!r} should be one emoji"
+            for part in (c["tag"], c["title"], c["venue"]):
+                assert not EMOJI.search(part), f"emoji in card text {part!r}"
+
+
+@pytest.mark.parametrize("v", VIDEOS, ids=IDS)
+def test_the_ad_fields(v):
+    start = dt.datetime.strptime(v["post_at_local"], "%Y-%m-%dT%H:%M")
+    until = v.get("run_until_local")
+    if until is not None:
+        assert dt.datetime.strptime(until, "%Y-%m-%dT%H:%M") > start, "the run must end after it starts"
+    if "headline" in v:
+        assert 0 < len(v["headline"]) <= 40, "Meta cuts headlines past about 40 characters"
+    assert len(v["caption"]) <= 500, "keep the primary text short enough to read above the fold"
 
 
 @pytest.mark.parametrize("v", VIDEOS, ids=IDS)
@@ -86,5 +106,6 @@ def test_a_clean_read_plans_cleanly(v):
     p = ps[0]
     assert len(p["chips"]) == len(v["chips"]), p["warnings"]
     assert p["duration"] <= 16.5, f"{p['duration']:.1f} s: cut a few words"
+    assert p["end_card"]["start"] >= p["speech_end"] - 2.5, "the end card would cover the pitch"
     left = [w for w in p["warnings"] if "still a draft" not in w and not w.startswith("sped up")]
     assert not left, left
