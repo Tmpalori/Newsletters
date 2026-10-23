@@ -5028,6 +5028,11 @@ def _trim_post_text(text, limit=POST_TEXT_LIMIT):
 # signed and short-lived, and one the API can't fetch fails the whole call.
 # FLYER_IMAGES=0 turns it off.
 FLYER_IMAGES_PER_ACCOUNT = 4
+# A town group is 30 posts by many people, and a third are a flyer with no
+# words (Lincoln, Oct 23: a trunk-or-treat, a New Year's show and a Zumba
+# night were only in pictures), so its flyers get more slots, the
+# captionless ones first.
+FLYER_IMAGES_PER_GROUP = 12
 FLYER_IMAGE_MAX_BYTES = 4_000_000
 # No GIF: the API rejects animated ones, which would lose the whole call.
 _FLYER_TYPES = ("image/jpeg", "image/png", "image/webp")
@@ -5198,11 +5203,12 @@ def _post_posted_on(p):
     return _to_central(dt).strftime("%a %Y-%m-%d %-I:%M %p")
 
 
-def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
+def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None, wordless_first=False):
     """[(post number, data URL)] for the newest posts' first image.
 
     Newest by post time, not list order: a pinned post (often months old)
-    comes first from the actors and would take a slot.
+    comes first from the actors and would take a slot. `wordless_first`:
+    posts with little text (the flyer is the whole post) go before the rest.
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -5212,7 +5218,10 @@ def _flyers_for(posts, limit=FLYER_IMAGES_PER_ACCOUNT, fetch=None):
         return []
     fetch = fetch or _fetch_image_data_url
     picks = []
-    for i, p in sorted(enumerate(posts, start=1), key=lambda ip: _post_time(ip[1]), reverse=True):
+    order = sorted(enumerate(posts, start=1), key=lambda ip: _post_time(ip[1]), reverse=True)
+    if wordless_first:
+        order.sort(key=lambda ip: len((ip[1].get("text") or ip[1].get("caption") or "").strip()) >= 80)
+    for i, p in order:
         urls = _post_image_urls(p)
         if urls:
             picks.append((i, urls[0]))
@@ -5282,7 +5291,8 @@ def _extract_events_from_posts_via_ai(venue_name, posts, group=False):
     # the old 400-character cut turned "…for a Plant and Sip!!" into an event
     # named "Scenic Root — Plant a" (2026-10-08).
     try:
-        flyers = _flyers_for(posts)
+        flyers = (_flyers_for(posts, limit=FLYER_IMAGES_PER_GROUP, wordless_first=True) if group
+                  else _flyers_for(posts))
     except Exception as e:  # a flyer problem must not cost the post text
         _warn("flyer images failed", venue=venue_name, error=str(e)[:200])
         flyers = []

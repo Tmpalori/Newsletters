@@ -219,3 +219,14 @@ def test_group_events_dedupe_under_an_official_calendar():
     merged = [e for e in ce.merge_events([grp, cal], venues=[]) if "Harvest" in e["name"]]
     assert len(merged) == 1
     assert merged[0]["url"] == "https://downtownlincoln.org/h" and merged[0]["time"] == "2:00 PM"
+
+
+def test_group_flyers_read_wordless_posts_first():
+    posts = [{"text": "A long caption that says everything about the event, its date, place and price. " * 2,
+              "time": f"2026-10-2{i}T12:00:00Z", "media": [{"photo_image": {"uri": f"https://x/long{i}.jpg"}}]}
+             for i in range(1, 4)]
+    posts += [{"text": "", "time": "2026-10-10T12:00:00Z", "media": [{"photo_image": {"uri": "https://x/flyer.jpg"}}]}]
+    got = ce._flyers_for(posts, limit=1, fetch=lambda u: u, wordless_first=True)
+    assert got == [(4, "https://x/flyer.jpg")]
+    # Venue pages keep newest first.
+    assert ce._flyers_for(posts, limit=1, fetch=lambda u: u) == [(3, "https://x/long3.jpg")]
