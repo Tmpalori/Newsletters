@@ -33,7 +33,7 @@ SYSTEM_TOKEN = "EAAsystemUserToken" + "s" * 60
 PAGE_TOKEN = "EAAvictoriaPageToken" + "p" * 60
 TOKENS = (SYSTEM_TOKEN, PAGE_TOKEN)
 VICTORIA = towns.TOWNS["victoria"]["page_id"]
-G, R = pr.GRAPH, pr.RUPLOAD
+G, R, N = pr.GRAPH, pr.RUPLOAD, pr.NETWORK_GRAPH
 NOW = dt.datetime(2026, 10, 23, 18, 0, tzinfo=dt.timezone.utc)   # a Friday, two days before video 1
 OCT25 = 1792971000      # Sun Oct 25 2026 18:30 CDT = 23:30 UTC
 NOV1 = 1793579400       # Sun Nov 1 2026 18:30 CST = Mon Nov 2 00:30 UTC
@@ -334,16 +334,49 @@ def test_dry_run_with_problems_exits_1_still_without_calls(env, capsys):
 
 def test_dry_run_needs_no_token(env, monkeypatch, capsys):
     monkeypatch.delenv("META_TOKEN")
-    assert post(env, FakeSession()) == 0
-    assert "META_TOKEN isn't set (--go needs it)" in capsys.readouterr().out
-
-
-def test_go_without_a_token_refuses_before_any_call(env, monkeypatch, capsys):
-    monkeypatch.delenv("META_TOKEN")
     s = FakeSession()
-    assert post(env, s, "--go") == 1
+    assert post(env, s) == 0
     assert s.calls == []
-    assert "META_TOKEN (or META_PAGE_TOKEN) isn't set" in capsys.readouterr().err
+    out = capsys.readouterr().out
+    assert "no META_TOKEN: --go uses the network secret for graph-video.facebook.com" in out
+    assert f"1. GET  {N}/{VICTORIA}?fields=access_token,name" in out
+
+
+NO_KEY = err(400, 200, "(#200) Provide valid app ID")  # what Meta says to a call with no token at all
+
+
+def test_go_with_the_network_key_signs_only_page_calls(env, monkeypatch, capsys):
+    """No META_TOKEN: the system user's key is a network secret the proxy adds
+    on graph-video.facebook.com. Only the Page token lookup goes there, with
+    no Authorization of ours; every Page call carries the Page's own token
+    on graph.facebook.com and rupload, which the proxy leaves alone."""
+    monkeypatch.delenv("META_TOKEN")
+    s = FakeSession(PAGE, START(), UPLOADED, STATUS(), FINISHED, LIVE)
+    assert post(env, s, "--now", "--go") == 0
+    lookup, rest = s.calls[0], s.calls[1:]
+    assert (lookup["url"], lookup["params"]) == (f"{N}/{VICTORIA}", {"fields": "access_token,name"})
+    assert "Authorization" not in lookup["headers"]
+    assert all(not c["url"].startswith(N) for c in rest)
+    assert all(c["headers"]["Authorization"] in (f"Bearer {PAGE_TOKEN}", f"OAuth {PAGE_TOKEN}") for c in rest)
+    assert env.read_ledger()["victoria-1"]["state"] == "published"
+    assert_no_tokens(capsys.readouterr().out)
+
+
+def test_go_without_any_key_stops_at_the_page_lookup(env, monkeypatch, capsys):
+    monkeypatch.delenv("META_TOKEN")
+    s = FakeSession(NO_KEY)
+    assert post(env, s, "--now", "--go") == 1
+    assert routes(s) == [("GET", f"{N}/{VICTORIA}")]
+    assert "No Facebook key" in capsys.readouterr().err
+    # Nothing went to Meta but the lookup, so nothing may block a real post later.
+    assert not os.path.exists(env.ledger) or "victoria-1" not in env.read_ledger()
+
+
+def test_the_network_key_never_leaves_its_host():
+    with pytest.raises(pr.PostError, match="only works on graph-video.facebook.com"):
+        pr.Graph(FakeSession()).request("GET", f"{G}/me", "GET /me", pr.NETWORK_KEY)
+    with pytest.raises(pr.PostError, match="only works on graph-video.facebook.com"):
+        pr.Graph(FakeSession()).request("POST", f"{R}/777", "upload", pr.NETWORK_KEY, scheme="OAuth")
 
 
 def test_meta_page_token_is_the_fallback(env, monkeypatch):
@@ -993,11 +1026,29 @@ def test_check_with_a_dead_token(env, capsys):
     assert "META_TOKEN doesn't work" in out and "invalid or expired" in out and len(s.calls) == 1
 
 
-def test_check_without_a_token(env, monkeypatch, capsys):
+def test_check_without_any_key(env, monkeypatch, capsys):
     monkeypatch.delenv("META_TOKEN")
-    s = FakeSession()
+    s = FakeSession(NO_KEY)
     assert pr.main(["check"], session=s) == 1
-    assert s.calls == [] and "isn't set" in capsys.readouterr().out
+    assert routes(s) == [("GET", f"{N}/me")] and "Authorization" not in s.calls[0]["headers"]
+    out = capsys.readouterr().out
+    assert "No Facebook key" in out and "network secret for that host" in out
+
+
+def test_check_with_the_network_key(env, monkeypatch, capsys):
+    monkeypatch.delenv("META_TOKEN")
+    s = FakeSession(*check_answers())
+    assert pr.main(["check"], session=s) == 0
+    assert routes(s)[:2] == [("GET", f"{N}/me"), ("GET", f"{N}/me/permissions")]
+    for i, (slug, t) in enumerate(towns.TOWNS.items()):
+        lookup, reels = s.calls[2 + 2 * i], s.calls[3 + 2 * i]
+        assert lookup["url"] == f"{N}/{t['page_id']}" and "Authorization" not in lookup["headers"]
+        assert reels["url"] == f"{G}/{t['page_id']}/video_reels"
+        assert reels["headers"] == {"Authorization": f"Bearer EAApage{slug}" + "q" * 40}
+    out = capsys.readouterr().out
+    assert "Token: the network secret for graph-video.facebook.com, Reels poster" in out
+    assert out.rstrip().endswith("Ready to post reels.")
+    assert "EAApage" not in out
 
 
 # ------------------------------------------------------------------ status
@@ -1045,14 +1096,14 @@ def test_status_shows_the_pages_reels_the_scheduled_ones_and_the_ledger(env, cap
     assert_no_tokens(out)
 
 
-def test_status_without_a_token_shows_the_ledger_only(env, monkeypatch, capsys):
+def test_status_without_any_key_shows_the_ledger_only(env, monkeypatch, capsys):
     monkeypatch.delenv("META_TOKEN")
     env.write_ledger(_ledger_for_status())
-    s = FakeSession()
+    s = FakeSession(NO_KEY)
     assert pr.main(["status", "--ledger", env.ledger], session=s) == 0
-    assert s.calls == []
+    assert routes(s) == [("GET", f"{N}/{VICTORIA}")]  # one try, not one per town
     out = capsys.readouterr().out
-    assert "local ledger only" in out
+    assert "No Facebook key" in out and "local ledger only" in out
     assert "victoria-1  scheduled for Sun Oct 25 2026, 6:30 PM CDT" in out
     assert "lincoln-1  scheduled for Sun Oct 25 2026, 6:30 PM CDT" in out
     assert "medford: The Rogue 541" in out and "nothing posted from here yet" in out

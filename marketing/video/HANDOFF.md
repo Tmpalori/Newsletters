@@ -63,14 +63,14 @@ Meta only schedules more than 10 minutes and at most 29 days ahead. If a slot is
 
 | What | How it gets there | How to check |
 |---|---|---|
-| `META_TOKEN` | A Meta system-user token with the five Pages assigned (Create content) and `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `read_insights`. Tristen adds it as an environment variable in the cloud environment's settings (the environment menu in the session's title bar, then Edit). A new session picks it up. It must be a plain environment variable: post_reel.py reads it to look up each Page's own token. | `post_reel.py check` should end with "Ready to post reels." and show a "Page token OK" line for each of the five Pages. |
-| `HQ_ASSISTANT_TOKEN` | HQ's assistant key, the same key Caspian (Tristen's other assistant) uses. It's for **read-only** use. Tristen adds it the same way. | `hq_feedback.py` writes `out/feedback/<date>/`. A 401 means the key is missing or wrong. |
+| The Meta key | A token of the system user **Tristen's poster** (it has all five Pages, full access) with `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `read_insights`. It's a **network secret** (environment menu → Edit → Add secret): allowed website `graph-video.facebook.com`, Bearer, header `Authorization`. Not `graph.facebook.com`: the proxy replaces any Authorization header on a secret's host, and every Page call there carries the Page's own token. post_reel.py uses graph-video only for the Page token lookup and `/me`. (`META_TOKEN` as a variable also works, but the environment's variables are visible to anyone using it, so secrets don't go there.) | `post_reel.py check` should end with "Ready to post reels." and show a "Page token OK" line for each of the five Pages. |
+| The HQ key | HQ's assistant key (`HQ_READ_TOKEN` on Railway: Tristen HQ → hq), the same key Caspian (Tristen's other assistant) uses. It's for **read-only** use. It's a network secret too: allowed website `hq.tristenpalori.com`, Bearer, `Authorization`. Network secrets reach a running session at once (checked Oct 23); environment variables only reach the next session. | `hq_feedback.py` writes `out/feedback/<date>/`. A 401 means the key is missing or wrong. |
 | The raw takes | Nothing to add: the folder is shared by link (done Oct 23). Don't use the Google Drive connector for it (wrong account, and it returns files as base64). | `fetch_clips.py --list` prints the folder's videos. |
 | Network | The cloud environment's network access must allow these hosts: `graph.facebook.com`, `rupload.facebook.com`, `drive.google.com`, `drive.usercontent.google.com`, `hq.tristenpalori.com`, and `huggingface.co` plus PyPI for setup. All were reachable on Oct 23. | `setup.sh` and the checks above. |
 
 Never ask Tristen to paste a token into the chat, and never print one. Until the secrets are added, both checks fail cleanly, which is expected:
 
-- `post_reel.py check` says "META_TOKEN (or META_PAGE_TOKEN) isn't set..." and exits 1.
+- `post_reel.py check` makes one call, says "No Facebook key..." and exits 1.
 - `hq_feedback.py` makes one call, gets HQ's 401, explains it and exits 1. It writes no files.
 
 ## Fetching clips
@@ -135,9 +135,9 @@ The posts are due at 6:30 PM that evening, so the window is short. If a slot is 
 ## Pending: Tristen only (as of Oct 23)
 
 1. ~~Share the Drive folder.~~ Done Oct 23: **Town Newsletters** in his personal Drive, shared by link.
-2. **Add the two secrets, then start a new session.** He's being walked through it one step at a time:
-   - `HQ_ASSISTANT_TOKEN`: the value of `HQ_READ_TOKEN` on Railway (Tristen HQ → hq → Variables), added as an environment variable (the environment menu in the session's title bar → Edit).
-   - `META_TOKEN`: in Meta Business Settings → Users → System users, the system user the sites already use: assign the five Pages, then Generate new token (never expires) with `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` and `read_insights`. A new token doesn't revoke the ones on Railway. Added as an environment variable the same way.
+2. **The two keys, as network secrets** (see "Access the session needs"):
+   - HQ: done Oct 23. The first `hq_feedback.py` pull read 72 messages from 61 readers.
+   - Meta: on Oct 23 he generated a never-expiring token for **Tristen's poster** (the four permissions) and was adding it as the secret for `graph-video.facebook.com`. Confirm with `post_reel.py check`. A new token doesn't revoke the ones the sites' Railway jobs use.
 
    Video 1 posts Sun Oct 25 at 6:30 PM, so this needs to happen before then. If a session starts without them, `post_reel.py check` and `hq_feedback.py` say so.
 

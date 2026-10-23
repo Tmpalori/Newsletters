@@ -105,7 +105,7 @@ The repo's CI runs `pytest -q` from the root on Python 3.11 without whisper or n
 
 | Variable | Used by | Meaning |
 |---|---|---|
-| `META_TOKEN` | post_reel.py | A Meta system-user token with the five Pages assigned (Create content) and `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, plus `read_insights` for reach. `META_PAGE_TOKEN` is the fallback. Each Page's own token is looked up from it. |
+| `META_TOKEN` | post_reel.py | A Meta system-user token with the five Pages assigned (Create content) and `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, plus `read_insights` for reach. `META_PAGE_TOKEN` is the fallback. Each Page's own token is looked up from it. Without either, post_reel.py uses the environment's network secret for `graph-video.facebook.com`, which is how Tristen's environment has it (HANDOFF.md). The secret can't be on `graph.facebook.com`, because the proxy replaces the Page tokens' headers there. |
 | `GRAPH_API_VERSION` | post_reel.py | The Graph API version. The default is `v23.0`. Set it when Meta retires that version. |
 | `HQ_ASSISTANT_TOKEN` | hq_feedback.py | HQ's assistant key, the same one Caspian uses, for read-only use. `HQ_READ_TOKEN` is the fallback. With neither, calls go without an Authorization header, for a network that adds one. |
 | `HQ_URL` | hq_feedback.py | The default is `https://hq.tristenpalori.com`. It must be https. |

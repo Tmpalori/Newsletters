@@ -20,10 +20,10 @@ Tristen films short selfie videos that get people to subscribe to each town's fr
 cd marketing/video
 bash setup.sh                 # about 30 s the first time in a container, then a no-op
 V=~/.venvs/video/bin/python
-$V post_reel.py check         # Meta access: needs META_TOKEN
+$V post_reel.py check         # Meta access, through the network secret for graph-video.facebook.com
 ```
 
-If `check` says `META_TOKEN` isn't set, posting is blocked. Walk him through "Access the session needs" in HANDOFF.md, one step at a time.
+If `check` says "No Facebook key", posting is blocked. Walk him through "Access the session needs" in HANDOFF.md, one step at a time. Keys go in the environment's **Add secret** (network secrets), never in its environment variables, which anyone using the environment can see.
 
 ## A. New scripts ("make next week's videos")
 

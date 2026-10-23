@@ -19,12 +19,14 @@ PUBLISHED (--now) or SCHEDULED plus scheduled_publish_time, and the caption
 (scripts.json's, or --caption) as the description. The time is the video's
 post_at_local in the town's time zone unless --at gives another.
 
-Needs META_TOKEN (else META_PAGE_TOKEN): a system-user token with the five
-Pages assigned (Create content) and pages_show_list, pages_read_engagement and
-pages_manage_posts (read_insights too, for reach). Each Page's own token is
-looked up from it (GET /{page-id}?fields=access_token,name) and used for
-every call on that Page. Tokens only ever travel in an Authorization header,
-never in a URL, and are never printed, logged, raised or written down.
+Needs a system-user token with the five Pages assigned (Create content) and
+pages_show_list, pages_read_engagement and pages_manage_posts (read_insights
+too, for reach): the environment's network secret for graph-video.facebook.com
+(how Tristen's cloud environment has it; see NETWORK_HOST), or META_TOKEN
+(else META_PAGE_TOKEN). Each Page's own token is looked up from it
+(GET /{page-id}?fields=access_token,name) and used for every call on that
+Page. Tokens only ever travel in an Authorization header, never in a URL,
+and are never printed, logged, raised or written down.
 
 out/posted.json records what went out: video id -> Page, Meta's video id,
 state and scheduled time. A video that is scheduled, published or possibly
@@ -68,6 +70,24 @@ GRAPH = f"https://graph.facebook.com/{GRAPH_VERSION}"
 # Reel bytes go to their own host (the guide's Step 2), same version.
 RUPLOAD_HOST = "rupload.facebook.com"
 RUPLOAD = f"https://{RUPLOAD_HOST}/video-upload/{GRAPH_VERSION}"
+# Without META_TOKEN, the system-user token can be a network secret: the
+# environment's proxy puts it on every request to one host, replacing any
+# Authorization header there. Every Page call carries the Page's own token,
+# so that host can't be graph.facebook.com. It is graph-video.facebook.com,
+# Meta's other Graph API host, used here only for the calls that need the
+# system user: each Page's token, and the token's own name and permissions.
+NETWORK_HOST = "graph-video.facebook.com"
+NETWORK_GRAPH = f"https://{NETWORK_HOST}/{GRAPH_VERSION}"
+
+
+class _NetworkKey:
+    """Stands in for the system-user token when the network adds it."""
+
+    def __repr__(self):
+        return "<network key>"
+
+
+NETWORK_KEY = _NetworkKey()
 
 # Meta's "wait and retry" codes (Graph error-handling guide: unknown,
 # service, throttling, app limit), plus is_transient and any 5xx: the site's
@@ -293,7 +313,14 @@ class Graph:
 
     def request(self, method, url, what, token, *, params=None, data=None, headers=None,
                 timeout=TIMEOUT, scheme="Bearer"):
-        h = {"Authorization": f"{scheme} {token}"}
+        if token is NETWORK_KEY:
+            # Nothing to send: the network adds the key, and only on its host.
+            # Anywhere else this would be an unsigned call.
+            if urllib.parse.urlsplit(url).hostname != NETWORK_HOST:
+                raise PostError(f"{what}: the network key only works on {NETWORK_HOST}")
+            h = {}
+        else:
+            h = {"Authorization": f"{scheme} {token}"}
         h.update(headers or {})
         try:
             r = self.s.request(method, url, params=params, data=data, headers=h, timeout=timeout)
@@ -311,9 +338,10 @@ class Graph:
     def call(self, method, path, what, token, **kw):
         """A Graph call that is safe to repeat (reads, starting an upload
         session: a repeat leaves at most an unused session behind)."""
+        base = NETWORK_GRAPH if token is NETWORK_KEY else GRAPH
         for delay in RETRY_DELAYS + (None,):
             try:
-                return self.request(method, f"{GRAPH}/{path}", what, token, **kw)
+                return self.request(method, f"{base}/{path}", what, token, **kw)
             except PostError as e:
                 if not e.transient or delay is None:
                     raise
@@ -403,12 +431,36 @@ def token_from_env():
     return None, None
 
 
+def system_token():
+    """(what to call it, token): META_TOKEN or META_PAGE_TOKEN when set, else
+    the network key. Whether the network really has one, only Meta's answer
+    can tell (no_key() reads it)."""
+    name, token = token_from_env()
+    return (name, token) if token else (f"the network secret for {NETWORK_HOST}", NETWORK_KEY)
+
+
+def no_key(e):
+    """Meta's answer when a call reached it with no token at all: no
+    META_TOKEN, and no network secret for NETWORK_HOST either."""
+    text = str(e)
+    return e.code in (104, 200) and ("app ID" in text or "access token is required" in text)
+
+
+NO_KEY_HELP = (f"No Facebook key: META_TOKEN isn't set, and Meta got no key on {NETWORK_HOST}. Add the system "
+               "user's token as a network secret for that host (Bearer, Authorization header), or set META_TOKEN.")
+
+
 def page_access(graph, page_id, token):
     """(the Page's own token, its name), looked up with the system-user
     token. Posting as the Page needs the Page's token; the system user only
     has to have the Page assigned."""
-    body = graph.call("GET", page_id, f"GET /{page_id}?fields=access_token,name", token,
-                      params={"fields": "access_token,name"})
+    try:
+        body = graph.call("GET", page_id, f"GET /{page_id}?fields=access_token,name", token,
+                          params={"fields": "access_token,name"})
+    except PostError as e:
+        if token is NETWORK_KEY and no_key(e):
+            raise PostError(NO_KEY_HELP, code=e.code, fbtrace_id=e.fbtrace_id, status=e.status) from None
+        raise
     page_token = body.get("access_token")
     if not page_token:
         raise PostError(f"Meta gave no Page token for {page_id}: assign the Page to the system user (Business "
@@ -971,8 +1023,6 @@ def cmd_post(args, session=None):
                         "and set draft to false, or pass --allow-draft")
     problems += ledger_problems(ledger, vid, page_id, now, args.force)
     token_name = next((n for n in ("META_TOKEN", "META_PAGE_TOKEN") if os.environ.get(n, "").strip()), None)
-    if args.go and not token_name:
-        problems.append("META_TOKEN (or META_PAGE_TOKEN) isn't set")
 
     say(f"{'POST' if args.go else 'DRY RUN'}: {vid} ({video.get('angle') or 'video'}) as a Facebook Reel")
     say(f"  Page:     {town['name']}, Page id {page_id}")
@@ -994,14 +1044,16 @@ def cmd_post(args, session=None):
     say(f"  Caption:  {len(caption)} characters, {source}")
     for line in caption.splitlines():
         say(f"    {line}")
-    say(f"  Token:    {token_name} is set" if token_name else "  Token:    META_TOKEN isn't set (--go needs it)")
+    say(f"  Token:    {token_name} is set" if token_name
+        else f"  Token:    no META_TOKEN: --go uses the network secret for {NETWORK_HOST}")
     say(f"  Ledger:   {ledger_path}: "
         + (f"{vid} is {prior.get('state')} (Meta video {prior.get('fb_video_id') or '?'})" if prior
            else f"no entry for {vid} yet"))
     state = (f"video_state=SCHEDULED, scheduled_publish_time={int(when[1].timestamp())}" if when
              else "video_state=PUBLISHED")
     say("  With --go:" if not args.go else "  Steps:")
-    say(f"    1. GET  {GRAPH}/{page_id}?fields=access_token,name  (the Page's own token)")
+    say(f"    1. GET  {GRAPH if token_name else NETWORK_GRAPH}/{page_id}?fields=access_token,name  "
+        "(the Page's own token)")
     say(f"    2. POST {GRAPH}/{page_id}/video_reels  upload_phase=start")
     say(f"    3. POST {RUPLOAD}/<video id>  {report['size']:,} bytes, offset 0")
     say(f"    4. GET  {GRAPH}/<video id>?fields=status  until Meta has the file (up to {PROCESS_DEADLINE // 60} min)")
@@ -1019,7 +1071,7 @@ def cmd_post(args, session=None):
         for p in problems:
             say(f"  - {p}", file=sys.stderr)
         return 1
-    _, token = token_from_env()
+    _, token = system_token()
     with ledger_lock(ledger_path):
         # Again under the lock: another run may have posted this video (or
         # others) while this one was checking the file.
@@ -1152,15 +1204,12 @@ def granted_permissions(graph, token):
 
 
 def cmd_check(args, session=None):
-    name, token = token_from_env()
-    if not token:
-        say("META_TOKEN (or META_PAGE_TOKEN) isn't set: set it to a system-user token with the five Pages assigned.")
-        return 1
+    name, token = system_token()
     graph = Graph(session)
     try:
         me = graph.call("GET", "me", "GET /me", token, params={"fields": "id,name"})
     except PostError as e:
-        say(f"{name} doesn't work: {e}")
+        say(NO_KEY_HELP if token is NETWORK_KEY and no_key(e) else f"{name} doesn't work: {e}")
         return 1
     say(f"Token: {name}, {me.get('name') or '?'} (id {me.get('id') or '?'})")
     ready = True
@@ -1177,7 +1226,8 @@ def cmd_check(args, session=None):
             + ("granted" if not missing_insights else "MISSING " + ", ".join(missing_insights)))
         if missing_post or missing_insights:
             say("  To add them: Business settings > System users > your system user > Generate new token, tick "
-                "them, and set META_TOKEN to the new token.")
+                f"them, and put the new token where the old one was (META_TOKEN, or the network secret for "
+                f"{NETWORK_HOST}).")
         ready = ready and not missing_post
     say("Pages:")
     for slug in [args.town] if args.town else list(towns.TOWNS):
@@ -1255,10 +1305,8 @@ def _ledger_order(item):
 def cmd_status(args, session=None):
     ledger_path = args.ledger or LEDGER_PATH
     ledger = load_ledger(ledger_path)
-    _, token = token_from_env()
-    graph = Graph(session) if token else None
-    if not token:
-        say("META_TOKEN (or META_PAGE_TOKEN) isn't set: showing the local ledger only.")
+    _, token = system_token()
+    graph = Graph(session)
     rc = 0
     for slug in [args.town] if args.town else list(towns.TOWNS):
         t = towns.town(slug)
@@ -1271,8 +1319,14 @@ def cmd_status(args, session=None):
             try:
                 page_token, _ = page_access(graph, t["page_id"], token)
             except PostError as e:
-                rc = 1
-                say(f"  Couldn't read the Page: {e}")
+                if token is NETWORK_KEY and str(e).startswith(NO_KEY_HELP):
+                    # No key anywhere: the ledger is all there is to show, for
+                    # every town, without asking Meta four more times.
+                    graph = None
+                    say(f"  {NO_KEY_HELP} Showing the local ledger only.")
+                else:
+                    rc = 1
+                    say(f"  Couldn't read the Page: {e}")
         if page_token:
             listed = True
             try:
