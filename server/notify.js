@@ -523,7 +523,9 @@ export function renderSponsorReport(order, stats, { siteUrl, address }) {
 export function renderSubmissionRecap(ev, stats, { siteUrl, address, upgrade = true, pickLift = null }) {
   const name = ev.name || 'your event';
   const day = ev.date ? formatDay(ev.date, { weekday: 'long' }) : 'its day';
-  const reach = reachRows(stats, { day });
+  // Seen in a list (stats.shown, counted like a pick's impressions) says
+  // more than views of the list it was on, so it takes that row when counted.
+  const reach = reachRows(stats, { day, shownLabel: `Seen in our event lists on ${town.domain}` });
   const rows = [
     ...reach.rows,
     ['Views of its event page', num(stats.page_views)],
@@ -570,8 +572,9 @@ const andList = xs => xs.join(' plus ');
 
 // The "where it went" rows and headline, from server/eventReach.js numbers
 // (only the places it was): list views (or `shown`, a pick's counted
-// impressions), newsletter copies, social posts. The headline adds up what
-// can be counted (views and copies sent) and says so in the note.
+// impressions or a submitted event's sightings), newsletter copies, social
+// posts. The headline adds up what can be counted (views and copies sent)
+// and says so in the note.
 function reachRows(stats, { day, shownLabel = null }) {
   const rows = [], parts = [];
   let total = 0;

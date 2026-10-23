@@ -830,6 +830,18 @@ export function adAttr(id) {
 // a small "#ad" (the owner's choice of label; the legal pages say the same).
 // docs/app.js renderEvent and the newsletter's eventRow render the same.
 export const isPaidPick = ev => Boolean(ev && ev.featured && !ev.editor_pick);
+
+// data-seen marks a free submitted event with its page: docs/track.js
+// counts it as seen in a list the same way it counts an ad, for the
+// submitter's "how your event did" email (server/eventRecaps.js). Tristen
+// (Oct 2026): views of the list it was on don't say anyone got as far as
+// it. Only submissions, not every card: a 200-event week would send dozens
+// of beacons a visit, and only submitters get the email. A paid pick is
+// already counted through data-ad. docs/app.js seenAttr renders the same.
+export const EVENT_PAGE = /^\/events\/[a-z0-9-]{1,120}$/;
+export function seenAttr(ev) {
+  return ev && ev.submitted === true && !isPaidPick(ev) && EVENT_PAGE.test(ev.page || '') ? ` data-seen="${escHtml(ev.page)}"` : '';
+}
 export const AD_LABEL = '#ad';
 export const adTag = ev => (isPaidPick(ev) ? ` <span class="event-ad">${AD_LABEL}</span>` : '');
 export function pickBadges(ev) {
@@ -840,7 +852,7 @@ export function pickBadges(ev) {
 export function renderEventItem(ev) {
   const place = placeText(ev);
   const ad = ev.featured && !ev.editor_pick ? adAttr(ev.sponsor_order) : '';
-  return `<li class="event-entry${ev.featured ? ' event-entry--featured' : ''}"${ad} data-icons="${escHtml((ev.icons || []).join(' ') + (ev.free === true ? ' free' : ''))}">` +
+  return `<li class="event-entry${ev.featured ? ' event-entry--featured' : ''}"${ad}${seenAttr(ev)} data-icons="${escHtml((ev.icons || []).join(' ') + (ev.free === true ? ' free' : ''))}">` +
     iconsHtml(ev) +
     '<div class="event-details">' +
       pickBadges(ev) +
@@ -1640,7 +1652,7 @@ export function renderComingUp(events, today) {
     // A paid pick weeks out shows only here until its week starts; tag it
     // so its views count toward the buyer's "Shown in lists" figure.
     const ad = ev.featured && !ev.editor_pick ? adAttr(ev.sponsor_order) : '';
-    return `<li class="coming-item"${ad}><a href="${escHtml(ev.page)}">` +
+    return `<li class="coming-item"${ad}${seenAttr(ev)}><a href="${escHtml(ev.page)}">` +
       `<span class="coming-date">${escHtml(formatDay(ev.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</span>` +
       `<span class="coming-name">${escHtml(ev.name)}</span>` +
       (where || isPaidPick(ev) ? `<span class="coming-where">${escHtml(where)}${adTag(ev)}</span>` : '') +

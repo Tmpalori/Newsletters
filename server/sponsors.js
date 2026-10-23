@@ -622,7 +622,8 @@ export function pickStats(order, rows, { start, end, pages = [], urls = [], reci
 // are mostly the week before). Like pickStats: a link tap is one on its own
 // page for its link, or one anywhere else whose link is its link; a share
 // is one of its page's link (a share button on it, or the "Also on"
-// list's icon elsewhere), or a Facebook/X/Text button on its page.
+// list's icon elsewhere), or a Facebook/X/Text button on its page. `shown`
+// is how often a submitted event was seen in a list (only those are tagged).
 // `rows` must reach back LEAD_IN_DAYS before `start`. `events`: live and
 // archived events (each with page, name, venue, date, url).
 export const LEAD_IN_DAYS = 7;
@@ -647,8 +648,12 @@ export function eventWeekStats(rows, events, { start, end }) {
     const shares = clicks(t => /^share_/.test(t || ''))
       .filter(r => pathOf(r.click_url) === e.page || (onPage(r) && PAGE_SHARE_BUTTONS.has(r.click_type)));
     const fromShares = views.filter(r => r.ref_source === SHARED_LINK);
+    // Seen in a list (a submitted event's data-seen sightings): anywhere but
+    // its own page, where a look is already a page view.
+    const seen = inRange.filter(r => r.kind === 'sighting' && pathOf(r.click_url) === e.page && !onPage(r));
     out.push({
       page: e.page, name: e.name, venue: e.venue, date: e.date, counted_from: from,
+      shown: rowCount(seen), shown_people: peopleIn(seen),
       page_views: rowCount(views), page_people: peopleIn(views),
       link_clicks: rowCount(link), link_people: peopleIn(link),
       calendar_adds: rowCount(clicks('add_to_calendar').filter(onPage)),

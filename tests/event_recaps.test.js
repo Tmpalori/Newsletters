@@ -5,7 +5,7 @@
 // dropped-event notice.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createEventRecaps } from '../server/eventRecaps.js';
+import { createEventRecaps, MIN_SHOWN } from '../server/eventRecaps.js';
 import { renderSubmissionRecap } from '../server/notify.js';
 import { useTown, townConfig, VICTORIA } from '../server/town.js';
 import { listViews, newsletterReach, socialPosts, visitsFrom, pickLift, liftOver } from '../server/eventReach.js';
@@ -84,7 +84,7 @@ describe('free submitter recaps', () => {
   it('none (recorded) under 5 page views, or when a paid pick was bought for it', async () => {
     const quiet = setup({ traffic: views(4) });
     expect((await quiet.er.run(NOW)).sent).toBe(0);
-    expect(quiet.rows[0].review_history.at(-1)).toMatchObject({ action: 'recap', sent: false, note: 'No recap: 4 page views' });
+    expect(quiet.rows[0].review_history.at(-1)).toMatchObject({ action: 'recap', sent: false, note: 'No recap: 4 page views, seen 0 times in lists' });
     const paid = setup({ orders: [{ id: 'o1', kind: 'featured', status: 'paid', event: { ...EVENT } }] });
     expect((await paid.er.run(NOW)).sent).toBe(0);
     expect(paid.rows[0].review_history.at(-1)).toMatchObject({ action: 'recap', sent: false });
@@ -180,6 +180,49 @@ describe('free submitter recaps', () => {
     const few = setup({ events: evs, traffic, orders: orders.slice(0, 2) });
     await few.er.run(NOW);
     expect(few.sent[0].mail.text).not.toContain('This past month');
+  });
+});
+
+describe('seen in lists (data-seen sightings)', () => {
+  // Seen on the homepage or a day list: the page it was seen on is `path`,
+  // the event's own page is click_url (server/analytics.js beaconRow).
+  const seen = (n, path = '/', day = '2026-10-23') => Array.from({ length: n }, (_, i) => ({ day, kind: 'sighting', path, click_url: '/e/fall-fest', visitor: `s${i}` }));
+
+  it('sends with few page views once it was seen in lists often enough, and says so', async () => {
+    const t = setup({ traffic: [...views(2), ...seen(MIN_SHOWN)] });
+    expect((await t.er.run(NOW)).sent).toBe(1);
+    const { text } = t.sent[0].mail;
+    expect(text).toContain(`- Seen in our event lists on thevic361.com: ${MIN_SHOWN} times`);
+    expect(text).toContain('- Views of its event page: 2');
+    expect(text).toContain('A view means at least half of it was on someone’s screen for a second.');
+    expect(t.rows[0].review_history.at(-1)).toMatchObject({ action: 'recap', sent: true, note: `Recap sent: 2 page views, seen ${MIN_SHOWN} times in lists` });
+    expect(t.notes[0].fields).toContainEqual(['Seen in lists', MIN_SHOWN]);
+  });
+
+  it('none (recorded) when both are short; looks at its own page do not count as sightings', async () => {
+    const t = setup({ traffic: [...views(4), ...seen(MIN_SHOWN - 1), ...seen(10, '/e/fall-fest')] });
+    expect((await t.er.run(NOW)).sent).toBe(0);
+    expect(t.rows[0].review_history.at(-1)).toMatchObject({ sent: false, note: `No recap: 4 page views, seen ${MIN_SHOWN - 1} times in lists` });
+  });
+
+  it('counts the week before through its day, like page views; other events’ sightings are theirs', async () => {
+    const other = { day: '2026-10-23', kind: 'sighting', path: '/', click_url: '/e/other', visitor: 'o' };
+    const t = setup({ traffic: [...views(5), ...seen(3, '/', '2026-10-16'), ...seen(4, '/today', '2026-10-24'), ...seen(2, '/', '2026-10-25'), other] });
+    await t.er.run(NOW);
+    expect(t.sent[0].mail.text).toContain('- Seen in our event lists on thevic361.com: 4 times');
+  });
+
+  it('takes the place of list views, which are only a fallback for events from before sightings', async () => {
+    const listed = row({ review_history: [...row().review_history, { action: 'listed', on_list: true }] });
+    const homepage = Array.from({ length: 30 }, (_, i) => ({ day: '2026-10-21', kind: 'view', path: '/', visitor: `h${i}` }));
+    const t = setup({ rows: [listed], traffic: [...TRAFFIC, ...homepage, ...seen(12)],
+      sends: { '2026-10-22': { recipients: 3150, events: ['/e/fall-fest'] } } });
+    await t.er.run(NOW);
+    const { text } = t.sent[0].mail;
+    expect(text).toContain('- Seen in our event lists on thevic361.com: 12 times');
+    expect(text).not.toContain('which was viewed');
+    expect(text).toContain('3,162 chances to be seen across our site and newsletter');
+    expect(text).toContain('That total is times shown on the site plus newsletter copies sent.');
   });
 });
 

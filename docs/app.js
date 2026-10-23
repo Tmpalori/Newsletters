@@ -269,7 +269,7 @@ function fullAddress(addr, ev) {
 
     var iconAttr = (ev.icons || []).join(' ') + (ev.free === true ? ' free' : '');
     var ad = ev.featured && !ev.editor_pick ? adAttr(ev.sponsor_order) : '';
-    return '<li class="event-entry' + (ev.featured ? ' event-entry--featured' : '') + '"' + ad + ' data-icons="' + escHtml(iconAttr) + '">' +
+    return '<li class="event-entry' + (ev.featured ? ' event-entry--featured' : '') + '"' + ad + seenAttr(ev) + ' data-icons="' + escHtml(iconAttr) + '">' +
       '<span class="event-icons"' + iconAttrs + '>' + iconHtml + '</span>' +
       '<div class="event-details">' +
         (ev.featured ? '<span class="badge badge--featured">' + escHtml(TOWN.pickName) + '</span> ' : '') +
@@ -441,6 +441,13 @@ function fullAddress(addr, ev) {
   // docs/track.js to count views and clicks. Same as adAttr in server/seo.js.
   function adAttr(id) {
     return /^[A-Za-z0-9-]{8,64}$/.test(id || '') ? ' data-ad="' + escHtml(id) + '"' : '';
+  }
+
+  // A free submitted event's page, for docs/track.js to count it as seen
+  // in the list (the submitter's recap). Same as seenAttr in server/seo.js.
+  function seenAttr(ev) {
+    return ev.submitted === true && !(ev.featured && !ev.editor_pick) && /^\/events\/[a-z0-9-]{1,120}$/.test(ev.page || '')
+      ? ' data-seen="' + escHtml(ev.page) + '"' : '';
   }
 
   // ─── RENDER SPONSOR ───

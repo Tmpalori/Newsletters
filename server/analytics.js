@@ -16,7 +16,7 @@
  */
 
 import crypto from 'node:crypto';
-import { localDateStr, addDays, HUB_PAGES } from './seo.js';
+import { localDateStr, addDays, HUB_PAGES, EVENT_PAGE } from './seo.js';
 import { SEASONS } from './guides.js';
 import { createRateLimiter, ipKey } from './rateLimit.js';
 
@@ -237,6 +237,12 @@ export function beaconRow(body, { ip, ua, secret, siteHost, now }) {
   if (body.kind === 'impression') {
     const ad = adId(body.ad);
     return ad ? { ...base, kind: 'impression', ad } : null;
+  }
+  // A free submitted event seen in a list, the same way (data-seen). The
+  // event's page goes in click_url, the page it was seen on in path.
+  if (body.kind === 'sighting') {
+    const page = typeof body.page === 'string' && EVENT_PAGE.test(body.page) ? body.page : null;
+    return page ? { ...base, kind: 'sighting', click_url: page } : null;
   }
   return null;
 }

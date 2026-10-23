@@ -6,7 +6,8 @@
  * clicks out, event pages opened from a list, sponsor clicks, subscribe clicks. One delegated listener covers
  * both the server-rendered pages and the homepage list app.js re-renders.
  * Paid placements ([data-ad]) also report when they're seen, for the
- * sponsor reports (server/sponsors.js).
+ * sponsor reports (server/sponsors.js), and so do free submitted events
+ * ([data-seen]), for their submitter's recap (server/eventRecaps.js).
  */
 (function () {
   'use strict';
@@ -140,22 +141,26 @@
 
   // Ad views. A paid placement ([data-ad]) counts as seen once at least
   // half of it has been on screen for a full second, with the tab in front:
-  // one impression per ad per page load, however often it scrolls by. Lists
-  // re-render (app.js), so new [data-ad] elements are picked up as they
-  // appear. Browsers without IntersectionObserver just don't count views.
+  // one impression per ad per page load, however often it scrolls by. A
+  // free submitted event ([data-seen], its page) counts the same way, as a
+  // sighting for its submitter's recap. Lists re-render (app.js), so new
+  // elements are picked up as they appear. Browsers without
+  // IntersectionObserver just don't count views.
   var AD_MS = 1000;
   function watchAds() {
     if (skip || typeof window.IntersectionObserver !== 'function') return;
-    var seen = {};      // ad id -> impression sent
+    var seen = {};      // 'ad:<id>' / 'seen:<page>' -> beacon sent
     var showing = [];   // elements at least half on screen right now
     var timers = new Map();  // element -> its one-second timer
     function arm(el) {
       clearTimeout(timers.get(el));
       timers.set(el, setTimeout(function () {
         var id = el.getAttribute('data-ad');
-        if (document.visibilityState === 'hidden' || el.isConnected === false || !id || seen[id]) return;
-        seen[id] = true;
-        beacon({ kind: 'impression', ad: id });
+        var page = id ? '' : el.getAttribute('data-seen');
+        var key = id ? 'ad:' + id : 'seen:' + page;
+        if (document.visibilityState === 'hidden' || el.isConnected === false || !(id || page) || seen[key]) return;
+        seen[key] = true;
+        beacon(id ? { kind: 'impression', ad: id } : { kind: 'sighting', page: page });
       }, AD_MS));
     }
     function start(el) {
@@ -177,7 +182,7 @@
     }, { threshold: [0, 0.5] });
     var watched = new WeakSet();  // Map/WeakSet: every browser with IntersectionObserver has them
     function scan() {
-      var els = document.querySelectorAll('[data-ad]');
+      var els = document.querySelectorAll('[data-ad], [data-seen]');
       for (var i = 0; i < els.length; i++) {
         if (watched.has(els[i])) continue;
         watched.add(els[i]);

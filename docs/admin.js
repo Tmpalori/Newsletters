@@ -3052,10 +3052,14 @@
     if (msg) msg.textContent = nlLines.length ? 'Newsletter that week: ' + nlLines.join('; ') + '.' : '';
     if (!table) return;
     const n = v => Number(v) || 0;
+    // Only submitted events are counted in lists (data-seen), so a dash, not
+    // a 0, for the rest.
     table.innerHTML = (d.events || []).length
-      ? '<tr><th class="traffic-label">Event</th><th class="traffic-num">Views</th><th class="traffic-num">Link taps</th>' +
+      ? '<tr><th class="traffic-label">Event</th><th class="traffic-num" title="Times a submitted event was on screen in a list">Seen in lists</th>' +
+        '<th class="traffic-num">Views</th><th class="traffic-num">Link taps</th>' +
         '<th class="traffic-num">Shares</th><th class="traffic-num">From shares</th><th class="traffic-num"></th></tr>' +
         d.events.map((ev, i) => '<tr><td class="traffic-label">' + escapeHtml(ev.name) + '<br><small>' + escapeHtml((ev.venue ? ev.venue + ' · ' : '') + ev.date) + '</small></td>' +
+          '<td class="traffic-num">' + (n(ev.shown) ? n(ev.shown) : '–') + '</td>' +
           '<td class="traffic-num">' + n(ev.page_views) + '</td><td class="traffic-num">' + n(ev.link_people) + '</td>' +
           '<td class="traffic-num">' + n(ev.shares) + '</td><td class="traffic-num">' + n(ev.share_visits) + '</td>' +
           '<td class="traffic-num"><button type="button" class="btn btn--outline" data-pitch="' + i + '">Copy pitch</button></td></tr>').join('')

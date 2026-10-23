@@ -1566,10 +1566,12 @@ export async function createApp(opts = {}) {
   // (data-ad), so a script could post beacons all day to pad a report. Each
   // client address (ipKey) counts at most this many of each per ad (or
   // link) per day; a real reader browsing page after page stays under it.
-  const AD_BEACON_DAILY = { impression: 20, click: 5 };
+  // A submitted event's sightings (its recap) are capped the same, per event.
+  const AD_BEACON_DAILY = { impression: 20, click: 5, sighting: 20 };
   const adBeacons = { day: '', counts: new Map() };
   function adBeaconAllowed(row, req) {
-    const target = row.ad || (row.kind === 'click' && /^(sponsor|event)_click$/.test(row.click_type) ? row.click_url : '');
+    const target = row.ad || (row.kind === 'sighting' ? row.click_url : '') ||
+      (row.kind === 'click' && /^(sponsor|event)_click$/.test(row.click_type) ? row.click_url : '');
     if (!target || !AD_BEACON_DAILY[row.kind]) return true;
     if (adBeacons.day !== row.day) { adBeacons.day = row.day; adBeacons.counts.clear(); }
     const key = `${clientKey(req)}|${target}|${row.kind}`;
