@@ -48,10 +48,12 @@ def test_town_groups_keep_only_group_links():
 
 
 def test_every_town_group_list_reads():
-    for tid in ("lincoln", "shoals", "virginiabeach", "medford"):
+    # Two more (a Victoria and a Virginia Beach group) came back empty to the
+    # groups actor on Oct 23, private, and were dropped.
+    for tid, n in (("lincoln", 2), ("shoals", 2), ("virginiabeach", 1), ("medford", 2)):
         groups = ce._town_facebook_groups(town_mod.town_config(env={"TOWN": tid}))
-        assert len(groups) == 2, tid
-    assert len(ce._town_facebook_groups(town_mod.VICTORIA)) == 3
+        assert len(groups) == n, tid
+    assert len(ce._town_facebook_groups(town_mod.VICTORIA)) == 2
 
 
 def test_victoria_runs_the_groups_source():

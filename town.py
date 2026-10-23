@@ -84,7 +84,6 @@ VICTORIA = {
     "facebook_groups": [
         {"name": "Victoria Texas Community & Events", "url": "https://www.facebook.com/groups/3741886445840328/"},
         {"name": "Victoria Texas Promote Your Event", "url": "https://www.facebook.com/groups/465382903645231/"},
-        {"name": "Things To Do, Weekend Event Planner - Victoria Tx", "url": "https://www.facebook.com/groups/1153152211435077/"},
     ],
     "gemini_categories": [
         "concerts, live music, open mics and karaoke",
