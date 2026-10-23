@@ -137,7 +137,8 @@ The posts are due at 6:30 PM that evening, so the window is short. If a slot is 
 1. ~~Share the Drive folder.~~ Done Oct 23: **Town Newsletters** in his personal Drive, shared by link.
 2. **The two keys, as network secrets** (see "Access the session needs"):
    - HQ: done Oct 23. The first `hq_feedback.py` pull read 72 messages from 61 readers.
-   - Meta: on Oct 23 he generated a never-expiring token for **Tristen's poster** (the four permissions) and was adding it as the secret for `graph-video.facebook.com`. Confirm with `post_reel.py check`. A new token doesn't revoke the ones the sites' Railway jobs use.
+   - Meta: done Oct 23. A never-expiring token for **Tristen's poster**, saved as the secret for `graph-video.facebook.com`. `post_reel.py check` said "Ready to post reels." with a Page token for all five Pages. The token carries more permissions than the four needed (ads, Instagram publishing and more). A new token doesn't revoke the ones the sites' Railway jobs use.
+   - Scripts: on Oct 23, after the first feedback pull showed live music as readers' top interest, medford-1, medford-2, lincoln-2 and virginiabeach-2 were rewritten around live music, wine and art (each new event checked on its own page).
 
    Video 1 posts Sun Oct 25 at 6:30 PM, so this needs to happen before then. If a session starts without them, `post_reel.py check` and `hq_feedback.py` say so.
 

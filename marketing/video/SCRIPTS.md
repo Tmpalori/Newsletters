@@ -48,10 +48,10 @@ The sign-up line is the conversion trick. It promises something concrete within 
 
 ### 2: Halloween weekend (Wed Oct 28)
 **Say:**
-> Halloween weekend in Lincoln: Hockey Halloween with the Stars on Friday, Huskers–Washington *on* Halloween, Roca Scary Farm, and a thousand-dollar costume contest at the Royal Grove. Sign up tonight and it's in your inbox tomorrow morning. **thestar402.com**
+> Halloween weekend in Lincoln: Hockey Halloween with the Stars on Friday, a masquerade *inside* the Sheldon art museum, Huskers–Washington *on* Halloween, and Roca Scary Farm. Sign up tonight and it's in your inbox tomorrow morning. **thestar402.com**
 
-**On screen:** `HALLOWEEN WEEKEND 🎃` → `FRI · Stars Hockey Halloween` → `SAT · Huskers vs. Washington` → `Roca Scary Farm · $1,000 costume contest` → end card
-**Caption:** Huskers on Halloween, Hockey Halloween, Roca Scary Farm and a $1,000 costume contest. Get the full weekend list tomorrow morning, free: thestar402.com/subscribe #LincolnNE #StarCity #TheStar402
+**On screen:** `HALLOWEEN WEEKEND IN LINCOLN` → `FRI · Stars Hockey Halloween` → `FRI · 21+ masquerade @ the Sheldon` → `SAT · Huskers vs. Washington` → `Roca Scary Farm` → end card
+**Caption:** Hockey Halloween, a 21+ masquerade inside the Sheldon, Huskers on Halloween and Roca Scary Farm. Get the full weekend list tomorrow morning, free: thestar402.com/subscribe #LincolnNE #StarCity #TheStar402
 
 ### 3: Week of Nov 2 (draft)
 > Halloween's over, and Lincoln's just getting started. Husker basketball Monday, state volleyball starts Wednesday, and Friday is First Friday Artwalk. Sign up tonight and the whole week's in your inbox tomorrow morning. **thestar402.com**
@@ -62,17 +62,17 @@ The sign-up line is the conversion trick. It promises something concrete within 
 
 ### 1: Halloween week (Sun Oct 25)
 **Say:**
-> Medford's original haunted house closes *for good* after sixteen seasons, and the last nights are this Friday and Saturday. Tuesday, a twilight bat walk with gear that lets you *hear* the bats. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. **therogue541.com**
+> Medford's original haunted house closes *for good* after sixteen seasons, and the last nights are this Friday and Saturday. Thursday, live Irish music at Dunbar Farms winery. Sign up tonight and the whole week's in your inbox tomorrow morning. Free. **therogue541.com**
 
-**On screen:** `THE NIGHTMARE CHAMBER'S FINAL WEEKEND 💀` → `FRI–SAT · last nights ever` → `TUE · Twilight bat walk (register first)` → end card
-**Caption:** The Nightmare Chamber closes for good after 16 seasons. Last nights are Fri & Sat. Plus a Bat Week twilight walk 🦇 The whole week lands in your inbox Monday morning. Free: therogue541.com/subscribe #RogueValley #MedfordOregon #TheRogue541
+**On screen:** `THE NIGHTMARE CHAMBER'S FINAL WEEKEND` → `FRI–SAT · The last nights ever` → `THU · Free Irish music @ Dunbar Farms winery` → end card
+**Caption:** The Nightmare Chamber closes for good after 16 seasons. Last nights are Fri & Sat. Plus free live Irish music at Dunbar Farms winery Thursday 🍷 The whole week lands in your inbox Monday morning. Free: therogue541.com/subscribe #RogueValley #MedfordOregon #TheRogue541
 
 ### 2: Halloween weekend (Wed Oct 28)
 **Say:**
-> Halloween weekend in the Rogue Valley: Harvest and Hallow at Rogue X, Fright After Dark at Pheasant Fields, a big-band Halloween hootenanny at the Talent Club, and Sunday, Cirque Mechanics at the Craterian. Sign up tonight and it's in your inbox tomorrow morning. **therogue541.com**
+> Halloween weekend in the Rogue Valley: Harvest and Hallow at Rogue X, a Halloween party with live music at RoxyAnn Winery, a big-band hootenanny at the Talent Club, and Sunday, Cirque Mechanics at the Craterian. Sign up tonight and it's in your inbox tomorrow morning. **therogue541.com**
 
-**On screen:** `HALLOWEEN WEEKEND 🎃` → `Harvest & Hallow @ Rogue X` → `Fright After Dark @ Pheasant Fields` → `SAT · Big Band Hootenanny` → `SUN · Cirque Mechanics` → end card
-**Caption:** Harvest & Hallow, Fright After Dark, a big-band Halloween hootenanny and Cirque Mechanics at the Craterian. Get the full weekend list tomorrow morning, free: therogue541.com/subscribe #RogueValley #SouthernOregon #TheRogue541
+**On screen:** `HALLOWEEN WEEKEND IN THE ROGUE VALLEY` → `Harvest & Hallow @ Rogue X` → `FRI · Halloween party + live music @ RoxyAnn Winery` → `SAT · Big Band Halloween Hootenanny` → `SUN · Cirque Mechanics @ the Craterian` → end card
+**Caption:** Harvest & Hallow, a Halloween party with live music at RoxyAnn Winery, a big-band hootenanny and Cirque Mechanics at the Craterian. Get the full weekend list tomorrow morning, free: therogue541.com/subscribe #RogueValley #SouthernOregon #TheRogue541
 
 ### 3: Week of Nov 2 (draft)
 > Halloween's over, and the Rogue Valley's just getting started. *Dracula: A Comedy of Terrors* this week, First Friday Art Walk, and dueling pianos Saturday. Sign up tonight and the whole week's in your inbox tomorrow morning. **therogue541.com**
@@ -111,10 +111,10 @@ The sign-up line is the conversion trick. It promises something concrete within 
 
 ### 2: Halloween weekend (Wed Oct 28)
 **Say:**
-> Halloween weekend at the beach: the Wicked 10K full of costumed runners at the Oceanfront, four haunts in one night at Hunt Club Farm, and Sunday, a free fall festival at Mount Trashmore. Sign up tonight and it's in your inbox tomorrow morning. **thetide757.com**
+> Halloween weekend at the beach: free live music at the Farmers Market's Friday Night Hoedown, four haunts in one night at Hunt Club Farm, and Sunday, a free fall festival at Mount Trashmore. Sign up tonight and it's in your inbox tomorrow morning. **thetide757.com**
 
-**On screen:** `HALLOWEEN WEEKEND 🎃` → `SAT · Wicked 10K @ Oceanfront` → `4 haunts in 1 night @ Hunt Club Farm` → `SUN · Autumn in the Air (free)` → end card
-**Caption:** The Wicked 10K, four haunts at Hunt Club Farm and a free fall fest at Mount Trashmore. Get the full weekend list tomorrow morning, free: thetide757.com/subscribe #VirginiaBeach #VB #TheTide757
+**On screen:** `HALLOWEEN WEEKEND AT THE BEACH` → `FRI · Free live music @ the Farmers Market` → `4 haunts in 1 night @ Hunt Club Farm` → `SUN · Free fall festival @ Mount Trashmore` → end card
+**Caption:** Free live music at the Friday Night Hoedown, four haunts at Hunt Club Farm and a free fall fest at Mount Trashmore. Get the full weekend list tomorrow morning, free: thetide757.com/subscribe #VirginiaBeach #VB #TheTide757
 
 ### 3: Week of Nov 2 (draft, thin so far)
 > Halloween's over, and the beach is just getting started. Sharks After Dark Thursday, Corrosion of Conformity with The Sword Friday, and an ABBA tribute Saturday. Sign up tonight and the whole week's in your inbox tomorrow morning. **thetide757.com**
