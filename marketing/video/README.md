@@ -23,9 +23,10 @@ V=~/.venvs/video/bin/python    # the venv setup.sh made; the commands below use 
 | `events.py` | Each town's upcoming events from its live `/next-week` or `/this-weekend` page (the sites' Event JSON-LD), by day with each event's own page, for writing scripts. It leaves out weekly regulars unless `--all`. |
 | `fetch_clips.py` | Downloads new raw takes from Tristen's shared Drive folder (personal Drive, shared by link, so no sign-in) into `out/raw/`. It remembers what it has fetched, so re-runs only get new takes. |
 | `analyze.py` | Raw take to cut plan(s). Whisper gives word timestamps, and every script in the file is found, even several scripts or takes in one file. It picks the best take and cuts restarts, long pauses, fillers and corrected slips ("Monday... no, Thursday"). It lays out the hook, chips, sign-up line and end card on a 16 s timeline, speeding up to at most 1.12x, and writes warnings. The plan format is in its docstring. |
-| `render.py` | Plan to MP4. It cuts and joins on the frame grid, applies the speed-up, tone maps iPhone HDR (HLG/PQ) to SDR and burns in the hook, chips, word-by-word captions and end card in the town's colours (Fredoka, `fonts/`). Sound goes to -14 LUFS. |
-| `edit.py` | `analyze` + `render` for one or more raw files. It prints a summary per video. `!` lines are warnings. `~` lines are other places where the words differ from the script, and the captions show what was heard there. |
-| `post_reel.py` | Posts a finished Reel to its town's Page through Meta's Reels Publishing API, scheduled for `post_at_local` in the town's time zone. Without `--go` it's a dry run that makes no network calls. It keeps a ledger, so a video isn't posted twice. |
+| `render.py` | Plan to MP4, in the look of Tristen's own Victoria ad: the corner badge (the hook, then "Subscribe free" over the domain), event cards (icon, tag, title, venue), word-by-word captions, a phone showing the town's site as the email is mentioned, and his end card ("Sign up free" button). Cards and the phone are placed by where his face is: OpenCV finds it, and nothing covers the top 55% of the face box, where the eyes are. Overlays are drawn with Pillow (Fredoka, Nunito, Noto Color Emoji) and captions with libass. It also cuts on the frame grid, tone maps iPhone HDR and takes sound to -14 LUFS. |
+| `edit.py` | `analyze` + `render` for one or more raw files: `feed-4x5.mp4` (the ad) and `reel-9x16.mp4`. It prints a summary per video. `!` lines are warnings. `~` lines are other places where the words differ from the script, and the captions show what was heard there. |
+| `ads.py` | Runs a finished 4:5 video as an ad in its town's Meta campaign. `plan` only reads. `upload --go` makes the ad **paused**: a copy of the campaign's ad set with the video's run window, the creative (Subscribe button to `/subscribe`, paid-traffic UTM tags) and the ad. `go --go` pauses the campaign's other ads, then turns this one on. `stop` pauses it. `status` shows spend, results and cost per result. It never changes a budget. It uses Marketing API v26.0, because v23.0 and v24.0 are retired for ads. |
+| `post_reel.py` | Posts a finished Reel to its town's Page as a plain post (not an ad), scheduled for `post_at_local` in the town's time zone. Without `--go` it's a dry run that makes no network calls. It keeps a ledger, so a video isn't posted twice. |
 | `hq_feedback.py` | Read-only pull of what newsletter readers wrote (reply emails, contact-form messages) from HQ, for hook ideas. It never acks, marks or drafts anything. |
 | `tests/` | pytest, no network. |
 
@@ -52,7 +53,7 @@ Cut:
 ```bash
 $V edit.py out/raw/IMG_0412.MOV out/raw/IMG_0413.MOV   # every script found in each file
 $V edit.py out/raw/IMG_0412.MOV --video victoria-1     # only that script
-$V edit.py out/raw/IMG_0412.MOV --formats 9x16         # the Reel only (default 9x16,4x5)
+$V edit.py out/raw/IMG_0412.MOV --formats 4x5          # the ad only (default 4x5,9x16)
 $V analyze.py out/raw/IMG_0412.MOV > plan.json         # plan only: JSON on stdout, summary on stderr
 $V render.py out/renders/victoria-1/report.json        # re-render next to it after hand-editing its plan
 ```
@@ -61,7 +62,24 @@ Keep raw takes in `out/raw/` so git never sees them.
 
 Whisper takes about 0.5-0.8x the clip's length on 4 CPUs, and transcripts are cached per file. Rendering takes 25-30 s per format for a 1080p SDR take, and about 50-60 s for an HDR or 4K one.
 
-Post (`--go` is the only thing that sends anything):
+Run as an ad (only `--go` writes anything; without it, every command is a dry run):
+
+```bash
+$V ads.py plan   out/renders/victoria-2026-10-25/feed-4x5.mp4 --video victoria-2026-10-25   # reads only
+$V ads.py upload out/renders/victoria-2026-10-25/feed-4x5.mp4 --video victoria-2026-10-25 --go   # makes it, paused
+$V ads.py go     --video victoria-2026-10-25 --go     # Tristen's OK first: pauses the others, turns this on
+$V ads.py stop   --video victoria-2026-10-25 --go     # pause it (--campaign: the campaign too)
+$V ads.py status [--town victoria]                    # what's on, spend, results, cost per result
+```
+
+`upload` options:
+
+- `--force`: another ad for a video the ledger already has.
+- `--template ADSET_ID`: when the campaign has more than one ad set of its own.
+- `--no-instagram`: when Meta won't let the system user use the town's Instagram account.
+- `--allow-draft`: a video scripts.json still marks `draft`.
+
+Post as a plain Page post instead of an ad (`--go` is the only thing that sends anything):
 
 ```bash
 $V post_reel.py check                         # token, permissions, each Page's token
@@ -115,6 +133,8 @@ The repo's CI runs `pytest -q` from the root on Python 3.11 without whisper or n
 | `VIDEO_WHISPER_MODEL` | setup.sh | The model to pre-download. The default is `small.en`. Use `--model` to cut with another. |
 | `VIDEO_EDIT_CACHE` | analyze.py | Where the transcript cache goes. The default is `~/.cache/video-edit`. |
 | `VIDEO_SKIP_SLOW`, `VIDEO_SLOW` | tests | Skip the slow render tests, or run them even when `CI` is set. |
+| `VIDEO_EMOJI_FONT`, `VIDEO_FACE_MODEL` | render.py | The color emoji font and the YuNet face model. setup.sh fetches both into `~/.cache/video-edit`, checksum-verified. |
+| `VIDEO_CHROME` | render.py | The Chromium that screenshots the town's site for the phone. The default is Playwright's copy in `/opt/pw-browsers`. Without one, the newest cached screenshot is used, or no phone at all. |
 
 Tokens only travel in an Authorization header. They are never printed, logged, put in an error or written to a file. Set them as environment variables, and never paste them into a chat or commit them.
 
@@ -130,6 +150,7 @@ Everything goes under `out/`, which git ignores: raw takes, renders and readers'
 | `out/renders/<video_id>/thumb.jpg` | A frame 0.8 s in, with the hook showing. |
 | `out/renders/<video_id>/report.json` | The plan (takes, segments, words, overlay times, `diff`, `warnings`), what each render did, and an ffprobe summary. |
 | `out/renders/<video_id>-2/` | A second take of the same script from another file in the same run. It still posts as `<video_id>`, so pick one. |
+| `out/ads.json` | ads.py's ledger: per video, the ids of the video, thumbnail, creative, ad set copy and ad, and the step each reached. It only exists on the machine that uploaded. `status` also finds our ads by the `[id]` in their ad set names. |
 | `out/posted.json` | post_reel.py's ledger: video id, Page, Meta's video id, state, scheduled time. It only exists on the machine that posted. |
 | `out/feedback/<date>/` | `feedback.md` (messages by town, first names only, no addresses or phone numbers), `themes.md` (a keyword tally) and `feedback.json`. |
 | `out/samples/` | Example renders. `out/samples/contact-sheet.png` shows hook, chip, caption and end-card frames for every town. |

@@ -1,86 +1,88 @@
 ---
 name: town-videos
-description: Make the weekly 16-second subscribe videos (Facebook Reels) for the five newsletter towns. Write the scripts from the coming week's events, edit Tristen's raw takes, and schedule them on each town's Facebook Page. Use when Tristen says new videos or clips are in, asks for next week's video or ad scripts, or wants the town videos edited, posted or checked on.
+description: Make the 16-second subscribe video ads for the five newsletter towns. Write the scripts from the sites' events and readers' feedback, edit Tristen's raw takes, and load them into each town's Meta ad campaign, paused until he says go. Use when Tristen says new videos or clips are in, asks for new video or ad scripts, or wants the town ads edited, launched, paused or checked on.
 ---
 
 # Town videos
 
-Tristen films short selfie videos that get people to subscribe to each town's free events newsletter. You write the scripts, edit his takes and post them. Everything lives in `marketing/video/`: [README.md](../../../marketing/video/README.md) explains the tools, and [HANDOFF.md](../../../marketing/video/HANDOFF.md) has the campaign's current state and the posted log. Read HANDOFF.md first.
+Tristen films short selfie videos that run as **Meta ads** to get people to subscribe to each town's free events newsletter. You write the scripts, edit his takes and load them into the ad campaigns. Everything lives in `marketing/video/`: [README.md](../../../marketing/video/README.md) explains the tools, and [HANDOFF.md](../../../marketing/video/HANDOFF.md) has the current state, pending decisions and the ad log. Read HANDOFF.md first.
 
 ## Working with Tristen
 
 - He wants **one simple step at a time**: one short numbered instruction, then wait for "done". No jargon.
-- Never ask him to paste a token or key into the chat.
+- Keys live in the cloud environment's **network secrets** ("Add secret"), never in its environment variables, which anyone using the environment can see. Never ask him to paste a key into the chat.
 - Everything for this lives in his **personal** Google Drive. The Drive and Gmail connectors here are his Foresite work account, so don't use them for any of this.
-- He okays every finished video before it posts.
+- He okays every finished video, and every `go` that starts spending money.
 
 ## Setup, each new session
 
 ```bash
 cd marketing/video
-bash setup.sh                 # about 30 s the first time in a container, then a no-op
+bash setup.sh                 # the first time in a container, then a no-op
 V=~/.venvs/video/bin/python
-$V post_reel.py check         # Meta access, through the network secret for graph-video.facebook.com
+$V ads.py status              # Meta access, and what each town's ads did this week
 ```
 
-If `check` says "No Facebook key", posting is blocked. Walk him through "Access the session needs" in HANDOFF.md, one step at a time. Keys go in the environment's **Add secret** (network secrets), never in its environment variables, which anyone using the environment can see.
+If Meta says there's no key, walk him through "Access the session needs" in HANDOFF.md, one step at a time.
 
-## A. New scripts ("make next week's videos")
+## A. New scripts ("make new ads")
 
-The five towns are in `towns.py`: The Vic 361, The Star 402, The Rogue 541, Shoals Setlist and The Tide 757. Usually there are two videos per town per week:
+The ads run **a week or more**, so a script must stay true for the whole run:
 
-| Posts | Covers | Ends with |
-|---|---|---|
-| Sunday, 6:30 PM town time | the coming week (Monday's issue) | "Sign up tonight and the whole week's in your inbox tomorrow morning. Free. *domain*" |
-| Wednesday, 6:30 PM town time | the weekend (Thursday's issue) | "Sign up tonight and it's in your inbox tomorrow morning. *domain*" |
+- **No weekday names in the spoken lines,** and no "tonight" or "tomorrow morning". Dates go on the event cards (the `tag`), where they read as dates.
+- **Two kinds:**
+  - A **timely** ad for one week (Sunday to Saturday), built on that week's events.
+  - An **evergreen** ad with no dates, built on what readers say they want, which can run for weeks. Run `$V hq_feedback.py` for the themes; live music led in October 2026.
+- **His style,** from his own Victoria ad:
+  - what you're missing ("There's a lot going on in Victoria you don't know about, because you're not subscribed");
+  - a few real examples;
+  - "It's all in one free email, every Monday and Thursday";
+  - "Just click the link to get The Vic 361."
+- **Aim for 38-46 spoken words.**
+- **End on the newsletter's name.** The end card starts at the last time the name or address is said.
 
-1. **Get the events.** Run `$V events.py` for the week, or `$V events.py --when weekend`. Narrow it with `--from` and `--to`.
-2. **Optional: see what readers want.** Run `$V hq_feedback.py`, then read `out/feedback/<date>/themes.md` and lean the hooks toward those themes. It only reads. Never touch HQ's inbox state.
-3. **Write each town's script.**
-   - Open with a hook that stops the scroll: a count ("eight trunk-or-treats"), a surprise ("dolphin watching in October"), a last chance ("closes for good") or something free.
-   - Then two or three specific events with their days, then the sign-up line, then the domain last.
-   - Aim for 38-46 spoken words, which fits 16 s. Keep it upbeat and conversational.
-4. **Check every fact on the event's own page:** day, time, place, and that it's still on. Never invent or embellish. A wrong day in an ad is the worst failure.
-5. **Archive the old batch.** Move scripts.json's `videos` into `scripts-archive/<first post date>.json`, creating the folder if needed.
-   - New ids are `<town>-<YYYY-MM-DD>`, using the post date (for example `lincoln-2026-11-08`), so they never collide with anything already posted.
-   - Keep `cta_cue` and `end_card` as they are.
-6. **Write the new entries in scripts.json,** with the same fields the archived ones have:
-   - `say`: the script.
-   - `hook`: at most 40 characters, upper case, no emoji.
-   - `chips`: 1-4 of them. `text` is like "FRI · Rocky Horror (live shadow cast)". `cue` is words actually said that should pop it.
-   - `caption`: a line or two, the `subscribe_url` from towns.py and the town's hashtags. Emoji are fine here.
-   - `post_at_local`: `"YYYY-MM-DDT18:30"`.
-   - Also `draft: false`, `video` (1, 2...) and `angle`.
-7. **Check them.** Run `$V -m pytest tests/test_scripts.py -q`. It checks that every script fits 16 s, every chip's cue is spoken, and "tomorrow morning" is only promised on a Sunday or Wednesday post.
-8. **Send them to Tristen.** Rewrite `SCRIPTS.md` to match (same layout: per town, "Say", "On screen", "Caption"). Send it with the send-file tool, plus one line on what to film and by when.
-9. **Save.** Commit and push scripts.json, SCRIPTS.md and scripts-archive/.
+Steps:
+
+1. **Get the events.** `$V events.py` (next week) or `$V events.py --when weekend`, narrowed with `--from` and `--to`.
+2. **Write each town's script.** For a timely ad, check every fact on the event's own page: day, place, and that it's still on. Never invent or embellish.
+3. **Archive the old batch.** Move scripts.json's `videos` to `scripts-archive/<first start date>.json`. New ids are `<town>-<start date>`, for example `lincoln-2026-11-08`, so they never collide with anything already loaded.
+4. **Fill in scripts.json.** Copy the fields of the entries already there:
+   - `say` and `hook` (the corner badge: at most 40 characters, no emoji; a number like "8" or "100+" gets a pill).
+   - `chips`, the event cards: `icon` (one emoji), `tag` (a date, or "Every week"), `title`, `venue`, `cue` (the spoken word that pops the card), `text` (a one-line fallback) and optionally `"free": true`.
+   - `headline` (at most 40 characters; 27 is Meta's Feed ideal).
+   - `caption`, the ad's primary text. About 125-150 characters is ideal, with the town's `subscribe_url`.
+   - `post_at_local` and `run_until_local` (`null` = until stopped).
+5. **Check them.** Run `$V -m pytest tests/test_scripts.py -q`. It checks the fit in 16 s, that every card's cue is spoken, that the name comes last, and the run window.
+6. **Send them to Tristen.** Regenerate `SCRIPTS.md` (same layout: "Say", "Corner badge", "Event cards", "Ad headline", "Ad text") and send it with the send-file tool, plus one line on what to film and by when.
+7. **Save.** Commit and push.
 
 ## B. New clips ("the videos are in")
 
 1. **Fetch.** `$V fetch_clips.py` downloads the new takes from his shared folder into `out/raw/`.
-2. **Cut.** `$V edit.py out/raw/<new files>` finds which script or scripts each file holds, cuts them and renders. Whisper takes about 20 s per clip, and rendering 1-2 minutes per video.
+2. **Cut.** `$V edit.py out/raw/<new files>` works out which script each file holds, cuts out the flubs and pauses, and renders `feed-4x5.mp4` (the ad) and `reel-9x16.mp4`.
 3. **Review, before he sees it.**
-   - Read every `!` and `~` line. A `!` about a day, number, name or web address blocks posting.
-   - Look at frames from the hook, each chip, a caption and the end card (`ffmpeg -ss T -i FILE -frames:v 1 x.png`, then Read).
+   - Read every `!` and `~` line. A `!` about a day, number, name or web address blocks the ad.
+   - Look at frames of the badge, each card, the phone and the end card. No card or phone should cover his eyes: `report.json` has the face box and each card's slot.
    - Listen to it once.
-4. **Approve.** Send him each `out/renders/<id>/reel-9x16.mp4` with a one-line note, and wait for his OK. Re-cut, or ask for a retake if needed.
-5. **Post.**
-   - Dry run first: `$V post_reel.py post out/renders/<id>/reel-9x16.mp4 --video <id>`.
-   - Then the same command with `--go`, which schedules it for `post_at_local`.
-   - If that slot has passed, use `--at` for a later time the same evening, before the next issue goes out, or `--now` if he agrees.
-6. **Confirm.** Run `$V post_reel.py status --town <slug>`. Add a row to HANDOFF.md's posted log, then commit and push.
+4. **Approve.** Send him the 4:5 file with a one-line note, and wait for his OK.
+5. **Load it.**
+   - `$V ads.py plan <feed-4x5.mp4> --video <id>`, then the same `upload ... --go`. This makes the ad, **paused**.
+   - Send him the spend line from the plan. On his OK, `$V ads.py go --video <id> --go`, which pauses the campaign's other ads first.
+6. **Record it.** Run `$V ads.py status --town <slug>`. Add a row to HANDOFF.md's ad log, then commit and push.
 
 ## Rules
 
-- Never post a cut he hasn't okayed, unless he has said to go ahead without him.
-- A warning about a day, number, name or web address blocks posting until it's fixed or he approves it.
+- Never `go --go` without his OK for that video and its spend.
+- A warning about a day, number, name or web address blocks the ad until it's fixed or he approves it.
+- Never change a budget. Never touch the other ad account, `act_263113944523091`.
 - Never ack, mark done or draft anything in HQ.
 - Raw takes, renders and readers' words stay in `out/`, which git ignores. Never commit them.
-- Kearney (The Crane 308) and Tupelo (Tupelo Current) have no Facebook Page. Skip them until they do, then add them to towns.py with their Page id.
-- Instagram isn't connected for any town.
+- Kearney (The Crane 308) and Tupelo (Tupelo Current) have no Facebook Page or campaign. Skip them until they do.
+- Plain Page posts (`post_reel.py`) only if he asks for them.
 
 ## When something's off
 
 - **`fetch_clips.py` lists nothing, but he says he uploaded.** Either the folder isn't shared by link, or Drive changed its page markup (see `parse_listing` in fetch_clips.py).
-- **`post_reel.py` fails.** Read the Meta error code and message it prints. `status` shows what Meta has. The ledger (`out/posted.json`) doesn't survive a new container, so check HANDOFF.md's posted log before posting anything again.
+- **`ads.py` fails.** Read the Meta error code and message it prints, then run `status`. The ledger (`out/ads.json`) doesn't survive a new container: check HANDOFF.md's ad log and `status` (it finds our ads by the `[id]` in their names) before uploading again. If Meta won't let the system user use a town's Instagram account, rerun with `--no-instagram`.
+- **A card or the phone lands on his face.** Check the face box in report.json. The detector can miss in poor light; a retake in better light fixes it.
 - **Whisper keeps mishearing a name.** Spell it in the script exactly as it should appear. Captions use the script's spelling wherever the words match.

@@ -3,7 +3,7 @@
   "cta_cue": ["click", "sign"],
   "phone_cue": ["email", "inbox"],
   "end_card": {"line1": "FREE every Mon & Thu", "line2": "{domain}",
-               "tagline": "Everything to do in {city}, in your inbox every Monday and Thursday",
+               "tagline": "Everything to do in {city}, in your inbox Mon & Thu",
                "button": "Sign up free", "url": "{domain}/subscribe"},
   "videos": [
     {
