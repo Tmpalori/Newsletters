@@ -13,11 +13,14 @@ The look is Tristen's own Victoria ad (a 4:5 feed ad he made by hand):
     on a highlighter stroke), which turns into "Subscribe free" over the
     domain when the hook ends and stays until the end card;
   - an event card for each chip, popping up when its cue word is said: an
-    emoji icon, a small tag pill, a bold title and a grey venue line;
+    emoji icon, a small tag pill, a bold title and a grey venue line, kept
+    off the eyes; chips said in quick succession grow one list card instead,
+    a row each, up until the sign-up line;
   - captions low on the picture, white with an ink outline, the word being
     said in the highlight colour;
-  - a phone showing the town's site for about 2 s when a phone cue word
-    ("email", "inbox") is said;
+  - a phone showing the town's next newsletter issue (else its site's
+    weekend page) for about 2 s when a phone cue word ("email", "inbox") is
+    said, beside the face, or at least clear of the far eye;
   - an end card: the logo, the two-tone wordmark, a tagline, a "Sign up free"
     button and the sign-up address, on a sky-to-paper background.
 
@@ -34,10 +37,11 @@ it. Needs ffmpeg/ffprobe built with libass (zscale and tonemap for HDR takes,
 with a 3D LUT fallback) and Pillow. The fonts and their licences are in
 fonts/. The emoji font is looked up in VIDEO_EMOJI_FONT, the toolkit's cache
 (setup.sh puts Noto Color Emoji there) and the system's font folders; without
-one the cards are drawn without their icons. The phone's screenshot of the
-site is taken with headless Chromium once a day per town and cached; without
-a browser or the network the newest cached one is used, and with none at all
-the video has no phone.
+one the cards are drawn without their icons. The phone's picture is taken
+with headless Chromium once a day per town and cached: the next issue as HQ
+previews it (newsletter_preview: HQ_URL and the key as hq_feedback.py takes
+them), else the site's /this-weekend page; without a browser or the network
+the newest cached page is used, and with none at all the video has no phone.
 
     python3 render.py PLAN.json [--out DIR] [--formats 4x5,9x16]
 
@@ -49,6 +53,7 @@ import glob
 import json
 import math
 import os
+import pathlib
 import re
 import shutil
 import struct
@@ -56,8 +61,9 @@ import subprocess
 import sys
 import tempfile
 import unicodedata
+import urllib.parse
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 import towns
 
@@ -129,6 +135,13 @@ BADGE = {"radius": 24, "pad_l": 25, "gap": 27, "pad_r": 34, "pad_y": 20,
 CARD = {"width": 774, "radius": 26, "line": 7, "drop": 10, "icon": 110, "icon_x": 98, "text_x": 178,
         "pad_r": 40, "pad_t": 31, "pad_b": 40, "title_em": 50, "title_min": 38, "title_pitch": 1.08,
         "tag_em": 29, "tag_h": 41, "venue_em": 30}
+# Cards cued in quick succession ("live music, family nights, markets,
+# festivals") make one list that grows a row per item instead of flipping
+# every half second: a list starts when a card comes under RAPID s after the
+# one before, and keeps growing while the next comes within RAPID_KEEP.
+RAPID, RAPID_KEEP = 1.1, 1.5
+LIST = {"icon": 64, "icon_small": 54, "icon_x": 66, "text_x": 120, "title_em": 42, "title_min": 32,
+        "venue_em": 26, "row_gap": 14, "pad_t": 26, "pad_b": 26, "tag_gap": 16, "grow_frames": 4}
 PHONE = {"width": 340, "height": 644, "radius": 48, "line": 8, "bezel": 11, "top": 45, "screen_line": 3,
          "screen_radius": 30, "drop": (22, 10), "notch": (106, 22, 30), "dpr": 2, "viewport": (390, 844)}
 END = {"logo": 205, "mark_em": 118, "box_line": 7, "box_drop": 10, "tag_em": 58, "tag_min": 50, "tag_w": 860,
@@ -150,6 +163,11 @@ FACE_WIDTH = 360          # px wide the frames are looked at
 EYE_BAND = 0.55
 CARD_MARGIN = 24          # px between the chin (or the head) and a card
 CARD_MIN_SCALE = 0.72
+# The phone stays off his eyes too: beside the face when there's room,
+# else against the side of the frame with more room, so the far eye at
+# least stays clear (it shrinks, to PHONE_MIN_SCALE, if even that won't do).
+PHONE_MARGIN = 24
+PHONE_MIN_SCALE = 0.6
 YUNET = "face_detection_yunet_2023mar.onnx"
 # The town's name is underlined in the hook; these count as its name too.
 TOWN_ALIASES = {"medford": ["Rogue Valley"], "shoals": ["Muscle Shoals", "Florence"]}
@@ -916,6 +934,127 @@ def site_screenshot(town, *, today=None, capture=True):
     return old[-1] if old else None
 
 
+HQ_EDITION = "week"       # the Monday issue, "This week in ..."; HQ's preview also takes "weekend"
+_HQ = {}                  # this run's answers: "towns" (HQ's list), "down" (why HQ isn't asked again)
+# The issue is opened from a file: no scripts, frames or requests but its
+# images and fonts, whatever its event text holds.
+EMAIL_CSP = ("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src https: data:; "
+             "style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:\">")
+
+
+def _site_host(url):
+    host = (urllib.parse.urlsplit(str(url)).hostname or "").lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def newsletter_preview(town, edition=HQ_EDITION, *, session=None, timeout=30):
+    """The town's next issue as its subscribers will get it, from HQ: (html,
+    None), or (None, why). Two GETs: /api/newsletter for HQ's slug (matched
+    by the site's address) and /api/newsletter/<slug>/newsletter/preview.
+    HQ_URL and the key are hq_feedback.py's (HQ_ASSISTANT_TOKEN, else
+    HQ_READ_TOKEN; with neither the calls go without an Authorization header,
+    for a network that adds it). Redirects aren't followed, and after a
+    refused key or no answer HQ isn't asked again in the same run (it counts
+    a wrong key as a failed login)."""
+    if "down" in _HQ:
+        return None, _HQ["down"]
+    import requests
+    import hq_feedback
+    try:
+        cfg = hq_feedback.config()
+    except hq_feedback.HQError as e:
+        _HQ["down"] = str(e)
+        return None, _HQ["down"]
+    s = session if session is not None else requests.Session()
+    headers = {"Accept": "application/json"}
+    if cfg["token"]:
+        headers["Authorization"] = f"Bearer {cfg['token']}"
+
+    def get(path, params=None):
+        try:
+            r = s.get(cfg["url"] + path, params=params, headers=headers, timeout=timeout, allow_redirects=False)
+        except requests.RequestException as e:
+            _HQ["down"] = f"HQ didn't answer ({type(e).__name__})"
+            return None, _HQ["down"]
+        st = r.status_code
+        if st in (401, 403, 429) or 300 <= st < 400:
+            _HQ["down"] = f"HQ answered {st}"
+            return None, _HQ["down"]
+        try:
+            body = r.json()
+        except ValueError:
+            body = None
+        if st != 200 or not isinstance(body, dict) or body.get("ok") is False:
+            return None, f"HQ answered {st}" + ("" if isinstance(body, dict) else " (not JSON)")
+        return body, None
+
+    if "towns" not in _HQ:
+        body, why = get("/api/newsletter")
+        if body is None:
+            return None, why
+        _HQ["towns"] = [t for t in body.get("towns") or [] if isinstance(t, dict)]
+    host = _site_host(town["site_url"])
+    slug = next((t.get("slug") for t in _HQ["towns"] if _site_host(t.get("site") or "") == host), None)
+    if not isinstance(slug, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,39}", slug):
+        return None, f"HQ has no newsletter at {host}"
+    body, why = get(f"/api/newsletter/{slug}/newsletter/preview", {"edition": edition})
+    if body is None:
+        return None, why
+    html = body.get("html")
+    if not isinstance(html, str) or not re.search(r"<body[\s>]", html[:50000], re.I):
+        return None, "HQ's preview had no email in it"
+    return html, None
+
+
+def _no_scripts(html):
+    head = re.search(r"<head[^>]*>", html[:50000], re.I)
+    at = head.end() if head else 0
+    return html[:at] + EMAIL_CSP + html[at:]
+
+
+def email_screenshot(town, *, today=None, capture=True, edition=HQ_EDITION):
+    """The phone's picture: the top of the town's next issue (newsletter_preview)
+    at a phone's width, taken once a day and cached. (path, None), or (None,
+    why) when there's none for today; an older issue never stands in."""
+    d = os.path.join(_cache_base(), "screens")
+    today = today or dt.date.today().isoformat()
+    path = os.path.join(d, f"{town['slug']}-email-{today}.png")
+    if os.path.isfile(path):
+        return path, None
+    if not capture:
+        return None, "none taken today"
+    if path in _CAPTURE_FAILED:
+        return None, "it failed earlier in this run"
+    if not chrome_path():
+        return None, "no Chrome or Chromium to take it with"
+    html, why = newsletter_preview(town, edition)
+    if html is not None:
+        os.makedirs(d, exist_ok=True)
+        page = path[:-len(".png")] + ".html"
+        with open(page, "w", encoding="utf-8") as f:
+            f.write(_no_scripts(html))
+        try:
+            ok = capture_site(pathlib.Path(page).as_uri(), path)
+        finally:
+            os.remove(page)
+        if ok:
+            return path, None
+        why = "the browser didn't draw it"
+    _CAPTURE_FAILED.add(path)
+    return None, why
+
+
+def phone_screen(town, *, today=None, capture=True):
+    """What the phone shows: the town's next issue (email_screenshot), else
+    its /this-weekend page (site_screenshot). (path or None, a note when it
+    isn't the issue)."""
+    shot, why = email_screenshot(town, today=today, capture=capture)
+    if shot:
+        return shot, None
+    page = site_screenshot(town, today=today, capture=capture)
+    return page, (f"the phone shows the site's /this-weekend page, not the issue: {why}" if page else None)
+
+
 def wordmark(town):
     """The site's two-tone name: (text, badge), e.g. ("The Vic", "361"), from
     the town's siteNameHtml (town.py's VICTORIA for Victoria)."""
@@ -1312,6 +1451,97 @@ def event_card(chip, pal):
                        "icon": icon is not None, "size": (W, h)}
 
 
+def card_groups(spans, rapid=RAPID, keep=RAPID_KEEP):
+    """card_spans' cards in groups: one card alone, or a run cued in quick
+    succession that becomes one growing list (a card under `rapid` s after
+    the one before starts a list; one within `keep` s of the last row joins
+    it)."""
+    groups = []
+    for span in spans:
+        if groups and span[1] - groups[-1][-1][1] < (keep if len(groups[-1]) > 1 else rapid):
+            groups[-1].append(span)
+        else:
+            groups.append([span])
+    return groups
+
+
+def list_card(chips, pal, *, venues=True, rows=None, grow=1.0):
+    """Rapid-fire cards as one list: a row per chip with its icon and title
+    (and its venue, when `venues`), under their tag when they all share
+    one. rows: how many rows show; grow (0..1): how far the last of them has
+    come in (the card stretching, the row sliding up and fading in). The
+    picture is always as tall as the list with `rows` rows."""
+    bold, _ = fonts()
+    body = body_font()
+    ink, hl = pal["ink"], pal["highlight"]
+    muted, rule = _mix(ink, WHITE, 0.27), _mix(ink, WHITE, 0.86)
+    W, line, drop = CARD["width"], CARD["line"], CARD["drop"]
+    n = len(chips)
+    rows = n if rows is None else max(1, min(int(rows), n))
+    tags = {clean_text(c.get("tag") or "", bold) for c in chips}
+    tag = tags.pop() if len(tags) == 1 else ""
+    icons = [emoji_image(c.get("icon")) if c.get("icon") else None for c in chips]
+    text_x = LIST["text_x"] if any(i is not None for i in icons) else line + 44
+    col_w = W - line - CARD["pad_r"] - text_x
+    titles = [clean_text(c.get("title") or c.get("text") or "", bold) for c in chips]
+    # One title size for the whole list: the biggest at which every title fits.
+    em = LIST["title_em"]
+    while em > LIST["title_min"] and max(text_width(t, "bold", em) for t in titles) > col_w:
+        em -= 1
+    titles = [_ellipsize(t, "bold", em, col_w) or t[:1] for t in titles]
+    ve = LIST["venue_em"]
+    places = [_ellipsize(clean_text(c.get("venue") or "", body), "body", ve, col_w) if venues else ""
+              for c in chips]
+    icon = LIST["icon"] if venues else LIST["icon_small"]
+    row_h, gap = icon + 8, LIST["row_gap"]
+    head = CARD["tag_h"] + LIST["tag_gap"] if tag else 0
+
+    def height(k):
+        return LIST["pad_t"] + head + k * row_h + (k - 1) * gap + LIST["pad_b"] + 2 * line
+
+    full = height(rows)
+    e = 1 - (1 - max(0.0, min(1.0, grow))) ** 2
+    h = full if rows == 1 or grow >= 1 else height(rows - 1) + (full - height(rows - 1)) * e
+    s = _Surface(W + drop, full + drop)
+    s.panel(0, 0, W, h, CARD["radius"], WHITE, ink, line=line, drop=drop)
+    top = line + LIST["pad_t"]
+    if tag:
+        tag_em, tag_h = CARD["tag_em"], CARD["tag_h"]
+        tag = _ellipsize(tag, "bold", tag_em, col_w - 40)
+        tw = text_width(tag, "bold", tag_em)
+        s.panel(text_x, top, text_x + tw + 44, top + tag_h, tag_h / 2, hl, ink, line=4, drop=0)
+        s.text(text_x + 22, top + tag_h / 2 + _cap("bold", tag_em) / 2, tag, "bold", tag_em, ink)
+        top += head
+    cap, vcap = _cap("bold", em), _cap("body", ve)
+    for i in range(rows):
+        y = top + i * (row_h + gap)
+        last = i == rows - 1 and rows > 1 and grow < 1
+        layer = _Surface(W + drop, full + drop) if last else s
+        if last:
+            y += (1 - e) * 16
+        if i:
+            layer.rect(text_x, y - gap / 2 - 1, W - line - CARD["pad_r"], y - gap / 2 + 1, 0, rule)
+        if icons[i] is not None:
+            k = icon / max(icons[i].width, icons[i].height)
+            iw, ih = icons[i].width * k, icons[i].height * k
+            layer.paste(icons[i], LIST["icon_x"] - iw / 2, y + row_h / 2 - ih / 2, iw, ih)
+        if places[i]:
+            base = y + row_h / 2 - 4
+            layer.text(text_x, base, titles[i], "bold", em, ink)
+            layer.text(text_x, base + 8 + vcap, places[i], "body", ve, muted)
+        else:
+            layer.text(text_x, y + row_h / 2 + cap / 2, titles[i], "bold", em, ink)
+        if last:
+            # Fading in, and inside the card as it stretches to take the row.
+            fade = layer.im.getchannel("A").point(lambda v: round(v * e))
+            clip = Image.new("L", fade.size, 0)
+            ImageDraw.Draw(clip).rectangle([0, 0, fade.width, round((h - line) * SS) - 1], fill=255)
+            layer.im.putalpha(ImageChops.multiply(fade, clip))
+            s.im.alpha_composite(layer.im)
+    return s.image(), {"list": True, "rows": rows, "of": n, "em": em, "tag": tag, "venues": venues,
+                       "title": titles[:rows], "size": (W, full)}
+
+
 # ------------------------------------------------------------------ pictures: the phone
 
 def phone_picture(screen, pal):
@@ -1658,6 +1888,50 @@ def place_card(h, face, lo, hi, *, margin=CARD_MARGIN):
     return y, s, slot
 
 
+def eye_zones(face):
+    """The x ranges of the two eyes in a face box, the one on the left of
+    the picture first (where a face detector's box puts them)."""
+    x0, _, x1, _ = face
+    w = x1 - x0
+    return (x0 + 0.15 * w, x0 + 0.49 * w), (x0 + 0.51 * w, x0 + 0.85 * w)
+
+
+def place_phone(face, left, right, width, *, margin=PHONE_MARGIN):
+    """Where the phone's body (`width` px with its shadow) goes between the
+    safe zone's edges: (x, scale, side, clear).
+
+    Beside the face, centred in the room there, when it fits: nothing of
+    the face covered ("face"). Else against the edge on the side with more
+    room, which leaves at least the far eye clear ("both eyes" or "far
+    eye"), shrunk if even the far eye would be covered. No face: centred
+    ("centre")."""
+    if face is None:
+        return (left + right - width) / 2, 1.0, "centre", None
+    fx0, fx1 = face[0], face[2]
+    room_l, room_r = fx0 - left, right - fx1
+    side = "left" if room_l > room_r else "right"
+    room = max(room_l, room_r)
+    if room >= width + margin:
+        free = room - margin
+        x = left + (free - width) / 2 if side == "left" else fx1 + margin + (free - width) / 2
+        return x, 1.0, side, "face"
+    near, far = eye_zones(face) if side == "left" else eye_zones(face)[::-1]
+    scale = 1.0
+    if side == "left":
+        reach = far[0] - 8 - left              # how wide it may be and still miss the far eye
+        x = left
+        clear = "both eyes" if left + width <= near[0] - 8 else "far eye"
+    else:
+        reach = right - (far[1] + 8)
+        clear = "both eyes" if right - width >= near[1] + 8 else "far eye"
+        x = right - width
+    if width > reach:
+        scale = max(PHONE_MIN_SCALE, reach / width)
+        x = left if side == "left" else right - width * scale
+        clear = "far eye" if width * scale <= reach else "none"
+    return x, scale, side, clear
+
+
 def _caption_top(spec):
     """The top of the captions' ink (ascenders and outline) on this layout."""
     em = spec["caption_em"]
@@ -1802,35 +2076,75 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
     no_icon = []
     badge_bottom = max([b["box"][3] for b in geo.get("badge", [])] or [T])
     lo, hi = badge_bottom + 20, min(B, _caption_top(spec)) - 16
-    cards = []
-    for chip, start, end in card_spans(plan, es):
-        img, info = event_card(chip, pal)
-        if chip.get("icon") and not info["icon"]:
-            no_icon.append(chip["icon"])
+    units = []
+    for group in card_groups(card_spans(plan, es)):
+        start, end = group[0][1], group[-1][2]
         face = face_during(faces or [], start, end)
-        cards.append((start, end, img, info, face, card_slots(img.height, face, lo, hi)))
+        chips = [chip for chip, _, _ in group]
+        for chip in chips:
+            if chip.get("icon") and emoji_image(chip["icon"]) is None:
+                no_icon.append(chip["icon"])
+        if len(group) == 1:
+            img, info = event_card(chips[0], pal)
+            units.append({"group": group, "img": img, "info": info, "face": face,
+                          "opts": card_slots(img.height, face, lo, hi)})
+            continue
+        # A list: with the venue lines if it fits as well with them, else without.
+        best = None
+        for venues in (True, False):
+            img, info = list_card(chips, pal, venues=venues)
+            opts = card_slots(img.height, face, lo, hi)
+            score = (not opts[0][0].endswith("-small"), opts[0][2], venues)
+            if best is None or score > best[0]:
+                best = (score, img, info, opts)
+        _, img, info, opts = best
+        units.append({"group": group, "img": img, "info": info, "face": face, "opts": opts})
     # One place for every card of the video, the best that suits them all,
     # so they don't jump between the top and the bottom; each its own best
     # only when no place suits them all (he moves a lot).
-    names = [name for name, _, _ in cards[0][5]] if cards else []
-    common = next((name for name in names if all(any(o[0] == name for o in c[5]) for c in cards)), None)
-    for n, (start, end, img, info, face, opts) in enumerate(cards):
-        slot, y, scale = next((o for o in opts if o[0] == common), opts[0])
-        if scale < 1:
-            img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
-        x = (W - img.width) / 2
-        info.update({"y": round(y), "slot": slot, "scale": round(scale, 3),
-                     "face": [round(v) for v in face] if face else None})
+    names = [name for name, _, _ in units[0]["opts"]] if units else []
+    common = next((name for name in names if all(any(o[0] == name for o in u["opts"]) for u in units)), None)
+    n = 0
+    for u in units:
+        slot, y, scale = next((o for o in u["opts"] if o[0] == common), u["opts"][0])
+        face = u["face"]
+        place = {"y": round(y), "slot": slot, "scale": round(scale, 3),
+                 "face": [round(v) for v in face] if face else None}
         if slot.endswith("-small"):
             geo["notes"].append(f"card {n + 1}: the face fills the frame, so the card shrank to "
                                 f"{scale:.0%} and may still touch the eyes; check it")
-        add(_sprite(f"card{n + 1}", _enter(img, "slide", SLIDE_FRAMES), x, y, start, end,
-                    box=(round(x), round(y), round(x) + img.width, round(y) + img.height), info=info), "cards")
+        group = u["group"]
+        for k, (chip, start, end) in enumerate(group, 1):
+            n += 1
+            if len(group) == 1:
+                pic, info = u["img"], dict(u["info"])
+                frames = _enter(pic, "slide", SLIDE_FRAMES)
+            else:
+                # Each row comes in as its item is said; the list stays up
+                # until the last one's end (the sign-up line or the phone).
+                venues = u["info"]["venues"]
+                chips = [c for c, _, _ in group]
+                pic, info = list_card(chips, pal, venues=venues, rows=k)
+                if k == 1:
+                    frames = _enter(pic, "slide", SLIDE_FRAMES)
+                else:
+                    steps = LIST["grow_frames"]
+                    frames = [list_card(chips, pal, venues=venues, rows=k, grow=(i + 1) / (steps + 1))[0]
+                              for i in range(steps)] + [pic]
+                end = group[k][1] if k < len(group) else group[-1][2]
+            if scale < 1:
+                frames = [f.resize((round(f.width * scale), round(f.height * scale)), Image.LANCZOS)
+                          for f in frames]
+            w, h = round(pic.width * scale), round(pic.height * scale)
+            x = (W - w) / 2
+            info.update(place)
+            add(_sprite(f"card{n}", frames, x, y, start, end,
+                        box=(round(x), round(y), round(x) + w, round(y) + h), info=info), "cards")
     if no_icon:
         geo["notes"].append("no colour emoji font for the card icons (%s): run setup.sh, or set "
                             "VIDEO_EMOJI_FONT" % " ".join(no_icon) if not emoji_font_path() else
                             "the emoji font has no %s: those cards have no icon" % " ".join(no_icon))
-    # The phone, when a phone cue was said.
+    # The phone, when a phone cue was said, beside his face or off to one side of it.
     phone = plan.get("phone") or None
     if phone:
         p0, p1 = float(phone["start"]), min(float(phone["end"]), es)
@@ -1841,11 +2155,25 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
             shot = Image.open(screen) if isinstance(screen, (str, os.PathLike)) else screen
             img, (ox, oy) = phone_picture(shot, pal)
             dx, dy = PHONE["drop"]
-            x = W / 2 - (PHONE["width"] + dx) / 2 - ox
-            y = spec["phone_y"] - PHONE["height"] / 2 - oy
+            body_w, body_h = PHONE["width"] + dx, PHONE["height"] + dy
+            # Its soft shadow counts too: nothing of it may leave the safe zone.
+            vis = img.getchannel("A").getbbox()
+            pad_l, pad_r = ox - vis[0], vis[2] - (ox + body_w)
+            face = face_during(faces or [], p0, p1)
+            bx, scale, side, clear = place_phone(face, L + pad_l, R - pad_r, body_w)
+            if scale < 1:
+                img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+                ox, oy = ox * scale, oy * scale
+                body_w, body_h = body_w * scale, body_h * scale
+            x = bx - ox
+            y = spec["phone_y"] - body_h / 2 - oy
+            info = {"side": side, "x": round(bx), "scale": round(scale, 3), "clear": clear,
+                    "face": [round(v) for v in face] if face else None}
+            if clear == "none":
+                geo["notes"].append("the phone could not keep off both eyes (the face fills the frame); check it")
             add(_sprite("phone", _enter(img, "pop", POP_FRAMES), x, y, p0, p1, fade_out=PHONE_OUT_FRAMES,
-                        box=(round(x + ox), round(y + oy), round(x + ox + PHONE["width"] + dx),
-                             round(y + oy + PHONE["height"] + dy))), "phone")
+                        box=(round(bx), round(y + oy), round(bx + body_w), round(y + oy + body_h)), info=info),
+                "phone")
     # The end card, up from black, to the last frame.
     if ec:
         img, info = end_card_picture(plan, town, pal, layout)
@@ -2299,7 +2627,8 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     Pass a dict as `info` to get back what was done (probe, kept frames,
     HDR handling, loudness pass, where each overlay went) for a report.
     screen: the phone's picture (a path or PIL image); by default the
-    town's site screenshot (site_screenshot), when the plan has a phone.
+    town's next issue, else its site's weekend page (phone_screen), when
+    the plan has a phone.
     """
     if layout not in LAYOUTS:
         raise ValueError(f"unknown layout {layout!r}; one of {', '.join(LAYOUTS)}")
@@ -2311,8 +2640,9 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     town = towns.town(plan["town"])
     cut = cut_plan(plan, src)
     ass, geo = build_ass(plan, layout)
+    screen_note = None
     if plan.get("phone") and screen is None:
-        screen = site_screenshot(town)
+        screen, screen_note = phone_screen(town)
     ec = plan.get("end_card") or {}
     face_meta, faces = {"detector": None, "samples": 0, "why": "no cards"}, []
     if plan.get("chips"):
@@ -2321,7 +2651,7 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     canvas_faces = [(t, canvas_box(b, src, layout)) for t, b in faces]
     sprites, sgeo = build_sprites(plan, layout, screen=screen, faces=canvas_faces)
     mode = hdr_mode(src, filters)
-    notes = []
+    notes = [screen_note] if screen_note else []
     if src.get("hdr") and not mode:
         notes.append("HDR source, but this ffmpeg has neither zscale+tonemap nor lut3d: "
                      "colours will look washed out")

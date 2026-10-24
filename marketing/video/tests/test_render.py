@@ -884,6 +884,127 @@ def test_the_phone_shows_the_site_and_no_card_is_up_meanwhile():
     assert _count(rest, "#4B3FD1", tol=6) > 3000
 
 
+def _overlaps(a0, a1, b0, b1):
+    return a0 < b1 and b0 < a1
+
+
+@pytest.mark.parametrize("face,side,clear", [
+    ((430, 300, 900, 900), "left", "face"),          # room beside it: nothing of the face covered
+    ((362, 249, 708, 742), "right", "both eyes"),     # a face sitting high and narrow
+    ((238, 407, 833, 1243), "right", "far eye"),      # a close selfie: one side of the face at most
+    ((24, 200, 1056, 1300), "right", "far eye"),      # the face fills the frame
+])
+def test_the_phone_keeps_off_the_eyes(face, side, clear):
+    width = render.PHONE["width"] + render.PHONE["drop"][0]
+    x, scale, got_side, got_clear = render.place_phone(face, 24, 1056, width)
+    assert (got_side, got_clear) == (side, clear)
+    x1 = x + width * scale
+    assert 24 <= x and x1 <= 1056
+    (le0, le1), (re0, re1) = render.eye_zones(face)
+    far = (re0, re1) if side == "left" else (le0, le1)
+    assert not _overlaps(x, x1, *far), "the far eye stays clear"
+    if clear in ("face", "both eyes"):
+        assert not _overlaps(x, x1, le0, le1) and not _overlaps(x, x1, re0, re1)
+    if clear == "face":
+        assert not _overlaps(x, x1, face[0], face[2])
+    assert render.place_phone(None, 24, 1056, width)[2] == "centre"
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
+def test_the_phone_goes_beside_the_face_in_both_layouts(layout):
+    plan = script_plan("victoria-2")
+    last = plan["chips"][-1]
+    plan["phone"] = {"start": round(last["start"] + 0.6, 3), "end": round(last["start"] + 2.6, 3)}
+    spec = render.LAYOUTS[layout]
+    L, T, R, B = spec["safe"]
+    face = (238, spec["safe"][1] + 160, 833, spec["safe"][1] + 1000)  # a close selfie
+    sprites, geo = render.build_sprites(plan, layout, screen=_screen(), faces=_faces(face))
+    info = geo["phone"][0]["info"]
+    assert info["side"] in ("left", "right") and info["clear"] in ("far eye", "both eyes")
+    x0, _, x1, _ = geo["phone"][0]["box"]
+    assert info["x"] == x0 and L <= x0 and x1 <= R
+    left_eye, right_eye = render.eye_zones(face)
+    far = right_eye if info["side"] == "left" else left_eye
+    assert not _overlaps(x0, x1, *far)
+    phone = next(sp for sp in sprites if sp["name"] == "phone")
+    for fr in phone["frames"]:
+        a = fr.getchannel("A").getbbox()
+        assert L <= a[0] + phone["x"] and a[2] + phone["x"] <= R
+
+
+def test_rapid_cards_are_grouped_into_lists():
+    def spans(*starts):
+        return [({"text": str(i)}, t, t + 0.3) for i, t in enumerate(starts)]
+
+    def shape(*starts):
+        return [len(g) for g in render.card_groups(spans(*starts))]
+
+    assert shape(1.0, 4.0, 7.0) == [1, 1, 1]               # spaced: a card each, as before
+    assert shape(7.37, 7.73, 8.48, 8.91) == [4]            # "live music, family nights, markets, festivals"
+    assert shape(1.0, 4.4, 6.4, 7.2) == [1, 1, 2]          # "...Zoo Boo and Malloween"
+    assert shape(5.57, 6.62, 7.88) == [3]                  # a list keeps growing while items come within 1.5 s
+    assert shape(1.0, 2.6, 4.2) == [1, 1, 1]               # 1.6 s apart: no list starts
+
+
+def _rapid_plan(n=4, gap=0.45):
+    plan = script_plan("victoria-2")
+    titles = ["Live music", "Family nights", "Farmers market", "Festivals", "Art walks"]
+    venues = ["Bars, patios and breweries", "Free and kid-friendly picks", "Victoria Farmers Market",
+              "All over the Crossroads", "Downtown"]
+    icons = ["🎸", "🎈", "🥕", "🎉", "🎨"]
+    t0 = 4.0
+    plan["chips"] = [{"text": titles[i], "title": titles[i], "venue": venues[i], "icon": icons[i],
+                      "tag": "Every week", "start": round(t0 + i * gap, 3)} for i in range(n)]
+    for i, c in enumerate(plan["chips"]):
+        c["end"] = plan["chips"][i + 1]["start"] if i + 1 < n else plan["cta_start"]
+    return plan
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
+def test_rapid_cards_grow_one_list_that_stays_until_the_sign_up_line(layout):
+    plan = _rapid_plan()
+    sprites, geo = render.build_sprites(plan, layout)
+    cards = [sp for sp in sprites if sp["name"].startswith("card")]
+    assert [sp["name"] for sp in cards] == ["card1", "card2", "card3", "card4"]
+    # One list, a row more as each item is said, all in one place.
+    assert [c["info"]["rows"] for c in geo["cards"]] == [1, 2, 3, 4]
+    assert all(c["info"]["list"] and c["info"]["of"] == 4 for c in geo["cards"])
+    assert len({(sp["x"], sp["y"]) for sp in cards}) == 1
+    heights = [c["box"][3] - c["box"][1] for c in geo["cards"]]
+    assert heights == sorted(heights) and heights[0] < heights[-1]
+    for sp, chip in zip(cards, plan["chips"]):
+        assert _near(sp["start"], chip["start"])
+    assert _near(cards[-1]["end"], plan["cta_start"]), "the whole list stays up until the sign-up line"
+    for a, b in zip(cards, cards[1:]):
+        assert a["end"] == b["start"]
+    # A new row grows in: the card stretches and the row fades up, a frame at a time.
+    grow = cards[2]["frames"]
+    assert len(grow) == render.LIST["grow_frames"] + 1
+    bottoms = [fr.getchannel("A").getbbox()[3] for fr in grow]
+    assert bottoms == sorted(bottoms) and bottoms[0] < bottoms[-1]
+    # Their shared tag shows once, on top.
+    assert geo["cards"][-1]["info"]["tag"] == "Every week"
+
+
+def test_a_list_keeps_off_the_eyes_and_drops_its_venues_when_space_is_tight():
+    plan = _rapid_plan()
+    close = (238, 407, 833, 1243)
+    _, geo = render.build_sprites(plan, "4x5", faces=_faces(close))
+    e0, e1 = _eye_band(close)
+    for c in geo["cards"]:
+        assert c["info"]["slot"] == "lower-third" and not c["info"]["venues"]
+        assert c["box"][1] >= e1 and c["box"][3] <= HI + 1
+    high = (362, 249, 708, 742)
+    _, geo = render.build_sprites(plan, "4x5", faces=_faces(high))
+    assert all(c["info"]["slot"] == "below-chin" and c["info"]["venues"] and c["info"]["scale"] == 1.0
+               for c in geo["cards"])
+
+
+def test_spaced_cards_stay_single_cards():
+    _, geo = render.build_sprites(script_plan("victoria-2"), "4x5")
+    assert geo["cards"] and not any(c["info"].get("list") for c in geo["cards"])
+
+
 def test_no_screenshot_means_no_phone_and_a_note():
     plan = script_plan("victoria-2")
     plan["phone"] = {"start": 10.0, "end": 12.0}
@@ -914,6 +1035,141 @@ def test_the_site_screenshot_is_cached_for_the_day_and_old_ones_stand_in(tmp_pat
     assert render.site_screenshot(towns.town("medford"), today="2031-01-06") is None
     assert len(calls) == 3
     assert render.site_screenshot(town, today="2031-01-07", capture=False) == first and len(calls) == 3
+
+
+class _Answer:
+    def __init__(self, status, body):
+        self.status_code, self._body = status, body
+
+    def json(self):
+        if isinstance(self._body, dict):
+            return self._body
+        raise ValueError("not JSON")
+
+
+class _HQ:
+    """requests.Session as far as newsletter_preview may use it: GET only."""
+
+    def __init__(self, answers):
+        self.answers, self.calls = answers, []
+
+    def get(self, url, params=None, headers=None, timeout=None, allow_redirects=True):
+        self.calls.append({"url": url, "params": params, "headers": dict(headers or {}),
+                           "redirects": allow_redirects, "timeout": timeout})
+        a = self.answers.get(url.split("hq.tristenpalori.com", 1)[1], (404, {"ok": False, "error": "not found"}))
+        if isinstance(a, Exception):
+            raise a
+        return _Answer(*a)
+
+
+ISSUE = "<!DOCTYPE html><html><head><title>This week</title></head><body><p>This week in Victoria</p></body></html>"
+HQ_TOWNS = {"ok": True, "towns": [{"slug": "vic", "site": "https://thevic361.com"},
+                                  {"slug": "lincoln", "site": "https://www.thestar402.com"}]}
+
+
+@pytest.fixture
+def hq_env(monkeypatch):
+    for var in ("HQ_URL", "HQ_ASSISTANT_TOKEN", "HQ_READ_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(render, "_HQ", {})
+
+
+def test_the_issue_comes_from_hqs_preview_by_get_with_no_key_of_its_own(hq_env, monkeypatch):
+    hq = _HQ({"/api/newsletter": (200, HQ_TOWNS),
+              "/api/newsletter/vic/newsletter/preview": (200, {"ok": True, "html": ISSUE, "subject": "83 things"}),
+              "/api/newsletter/lincoln/newsletter/preview": (200, {"ok": True, "html": ISSUE})})
+    assert render.newsletter_preview(towns.town("victoria"), session=hq) == (ISSUE, None)
+    # HQ's slug is found by the site's address, not assumed to be the toolkit's.
+    assert [c["url"] for c in hq.calls] == ["https://hq.tristenpalori.com/api/newsletter",
+                                            "https://hq.tristenpalori.com/api/newsletter/vic/newsletter/preview"]
+    assert hq.calls[1]["params"] == {"edition": "week"}
+    assert all(c["redirects"] is False and c["timeout"] and "Authorization" not in c["headers"] for c in hq.calls)
+    # The list is asked for once a run; a key in the environment goes in the header, as hq_feedback.py sends it.
+    monkeypatch.setenv("HQ_ASSISTANT_TOKEN", "k3y-for-the-test-only")
+    assert render.newsletter_preview(towns.town("lincoln"), "weekend", session=hq) == (ISSUE, None)
+    assert len(hq.calls) == 3 and hq.calls[2]["params"] == {"edition": "weekend"}
+    assert hq.calls[2]["headers"]["Authorization"] == "Bearer k3y-for-the-test-only"
+
+
+@pytest.mark.parametrize("answers, why, down", [
+    ({"/api/newsletter": (401, {"ok": False, "error": "unauthorized"})}, "HQ answered 401", True),
+    ({"/api/newsletter": (302, None)}, "HQ answered 302", True),
+    ({"/api/newsletter": (200, "<html>a login page</html>")}, "HQ answered 200 (not JSON)", False),
+    ({"/api/newsletter": (200, HQ_TOWNS)}, "HQ answered 404", False),
+    ({"/api/newsletter": (200, HQ_TOWNS),
+      "/api/newsletter/vic/newsletter/preview": (200, {"ok": True, "subject": "no html"})},
+     "HQ's preview had no email in it", False),
+    ({"/api/newsletter": (200, {"ok": True, "towns": [{"slug": "lincoln", "site": "https://www.thestar402.com"}]})},
+     "HQ has no newsletter at thevic361.com", False),
+    ({"/api/newsletter": (200, {"ok": True, "towns": [{"slug": "../admin", "site": "https://www.thevic361.com"},
+                                                       *HQ_TOWNS["towns"][1:]]})},
+     "HQ has no newsletter at thevic361.com", False),
+])
+def test_without_hqs_issue_there_is_a_reason_and_a_refusal_is_not_asked_again(hq_env, answers, why, down):
+    hq = _HQ(answers)
+    assert render.newsletter_preview(towns.town("victoria"), session=hq) == (None, why)
+    n = len(hq.calls)
+    assert render.newsletter_preview(towns.town("lincoln"), session=hq)[0] is None
+    # A refused key or a redirect stops HQ being asked for the rest of the run.
+    assert (len(hq.calls) == n) == down
+
+
+def test_no_answer_from_hq_or_a_bad_hq_url_leaves_the_issue_out(hq_env, monkeypatch):
+    import requests
+    hq = _HQ({"/api/newsletter": requests.ConnectionError("offline")})
+    assert render.newsletter_preview(towns.town("victoria"), session=hq) == (None, "HQ didn't answer (ConnectionError)")
+    assert render.newsletter_preview(towns.town("lincoln"), session=hq)[0] is None and len(hq.calls) == 1
+    monkeypatch.setattr(render, "_HQ", {})
+    monkeypatch.setenv("HQ_URL", "http://hq.example.com")
+    hq = _HQ({})
+    html, why = render.newsletter_preview(towns.town("victoria"), session=hq)
+    assert html is None and "https://" in why and hq.calls == []
+
+
+def test_the_phone_shows_the_issue_once_a_day_else_the_weekend_page(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_EDIT_CACHE", str(tmp_path))
+    monkeypatch.setattr(render, "chrome_path", lambda: "/usr/bin/chromium")
+    town = towns.town("victoria")
+    asked, shots = [], []
+    monkeypatch.setattr(render, "newsletter_preview", lambda t, edition="week": asked.append(t["slug"]) or (
+        "<html><head><title>x</title></head><body><script>alert(1)</script>issue</body></html>", None))
+
+    def capture(url, path, timeout=45):
+        page = url[len("file://"):] if url.startswith("file://") else None
+        shots.append((url, open(page).read() if page else None))
+        _screen().save(path)
+        return True
+
+    monkeypatch.setattr(render, "capture_site", capture)
+    shot, note = render.phone_screen(town, today="2031-02-02")
+    assert shot == str(tmp_path / "screens" / "victoria-email-2031-02-02.png") and note is None
+    url, html = shots[0]
+    assert url == (tmp_path / "screens" / "victoria-email-2031-02-02.html").as_uri()
+    # Opened with scripts, frames and requests other than images and fonts turned off.
+    assert html.startswith("<html><head>" + render.EMAIL_CSP + "<title>")
+    assert "script-src" not in render.EMAIL_CSP and "default-src 'none'" in render.EMAIL_CSP
+    assert not os.path.exists(url[len("file://"):])  # the page itself isn't kept
+    assert render.phone_screen(town, today="2031-02-02") == (shot, None) and len(asked) == 1  # cached
+
+    # The next day HQ has no issue to give: the site's weekend page, with a note why.
+    monkeypatch.setattr(render, "newsletter_preview", lambda t, edition="week": asked.append(t["slug"]) or
+                        (None, "HQ answered 401"))
+    page, note = render.phone_screen(town, today="2031-02-03")
+    assert page == str(tmp_path / "screens" / "victoria-2031-02-03.png")
+    assert shots[-1][0] == "https://www.thevic361.com/this-weekend"
+    assert note == "the phone shows the site's /this-weekend page, not the issue: HQ answered 401"
+    # Not asked again that run, and an older issue never stands in for today's.
+    assert render.phone_screen(town, today="2031-02-03")[0] == page and len(asked) == 2
+    assert render.email_screenshot(town, today="2031-02-04", capture=False) == (None, "none taken today")
+    assert len(asked) == 2
+
+
+def test_no_browser_means_no_issue_and_hq_is_not_asked(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_EDIT_CACHE", str(tmp_path))
+    monkeypatch.setattr(render, "chrome_path", lambda: None)
+    monkeypatch.setattr(render, "newsletter_preview", lambda *a, **k: pytest.fail("HQ asked with no browser"))
+    assert render.email_screenshot(towns.town("lincoln"), today="2031-02-05") == (
+        None, "no Chrome or Chromium to take it with")
 
 
 def test_chrome_is_found_by_env_or_playwright(tmp_path, monkeypatch):
