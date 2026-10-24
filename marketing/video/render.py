@@ -67,7 +67,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # alongside), made with fontTools' instancer (wght 600/700, wdth 100,
 # updateFontNames=True). The fonts.googleapis.com statics have the very same
 # outlines and advances but name every weight "Fredoka Light", which is the
-# family libass would then have to be asked for.
+# family libass would then have to be asked for. Nunito ExtraBold (the site's
+# body face, the venue lines, tagline and address) is server/fonts' copy,
+# with its OFL-Nunito.txt.
 FONTS_DIR = os.path.join(HERE, "fonts")
 
 FPS = 30
@@ -79,15 +81,15 @@ SAMPLES_PER_FRAME = RATE // FPS
 LAYOUTS = {
     # The feed ad, and the main output. Nothing of the app covers a feed
     # video, so the overlays sit where Tristen put them in his own ad: the
-    # badge 30 px from the top, the captions near the bottom edge.
+    # badge 30 px from the top, the captions near the bottom edge. The
+    # cards go where his face isn't (place_card).
     "4x5": {"size": (1080, 1350), "safe": (24, 24, 1056, 1326), "file": "feed-4x5.mp4",
-            "badge_top": 30, "card_y": 753, "phone_y": 615, "caption_y": 1256, "caption_em": 63},
+            "badge_top": 30, "phone_y": 615, "caption_y": 1256, "caption_em": 63},
     # Reels: the app's own UI covers the top ~13% and the bottom ~23%, so
-    # everything stays between y 250 and 1480. The card sits on the same
-    # part of the picture as on 4:5 (a 4:5 cut of a portrait take starts
-    # 171 px down it).
+    # everything stays between y 250 and 1480 (and the captions clear of
+    # the buttons down the right).
     "9x16": {"size": (1080, 1920), "safe": (60, 250, 1020, 1480), "file": "reel-9x16.mp4",
-             "badge_top": 256, "card_y": 924, "phone_y": 905, "caption_y": 1402, "caption_em": 66},
+             "badge_top": 256, "phone_y": 905, "caption_y": 1402, "caption_em": 66},
 }
 
 LOUDNESS = {"I": -14.0, "TP": -1.5, "LRA": 11.0}
@@ -123,7 +125,7 @@ LINE = 6                  # ink outline of the badge, its pills and the end card
 DROP = 8                  # the hard ink shadow under them, offset right and down
 BADGE = {"radius": 24, "pad_l": 25, "gap": 27, "pad_r": 34, "pad_y": 20,
          "hook_em": 59, "hook_pitch": 75, "hook_logo": 114,
-         "sub_em": 68, "sub_pitch": 79, "sub_logo": 132, "domain_em": 61, "min_em": 40}
+         "sub_em": 68, "sub_pitch": 79, "sub_logo": 132, "domain_em": 61, "min_em": 40, "max_w": 900}
 CARD = {"width": 774, "radius": 26, "line": 7, "drop": 10, "icon": 110, "icon_x": 98, "text_x": 178,
         "pad_r": 40, "pad_t": 31, "pad_b": 40, "title_em": 50, "title_min": 38, "title_pitch": 1.08,
         "tag_em": 29, "tag_h": 41, "venue_em": 30}
@@ -807,6 +809,14 @@ def emoji_font_path():
 
 
 _EMOJI = {}
+_EMOJI_CMAPS = {}
+
+
+def _emoji_has(path, ch):
+    """Whether the emoji font at `path` has a glyph for ch (its cmap, read once)."""
+    if path not in _EMOJI_CMAPS:
+        _EMOJI_CMAPS[path] = Font(path, "emoji", False)
+    return _EMOJI_CMAPS[path].has(ch)
 
 
 def emoji_image(icon):
@@ -822,7 +832,7 @@ def emoji_image(icon):
         try:
             # A bitmap (CBDT) emoji font comes in one size: Noto's is 109.
             font = ImageFont.truetype(path, 109)
-            ok = Font(path, "emoji", False).has(icon[0])
+            ok = _emoji_has(path, icon[0])
         except (OSError, struct.error, KeyError, RenderError):
             font, ok = None, False
         if font is not None and ok:
@@ -872,7 +882,9 @@ def capture_site(url, path, timeout=45):
         return False
     try:
         with Image.open(tmp) as im:
-            ok = im.width >= vw and im.height >= vh and len(set(im.convert("L").resize((24, 48)).getdata())) > 8
+            # A blank page (an error, or nothing loaded) is a single grey or two.
+            ok = im.width >= vw and im.height >= vh and sum(
+                1 for n in im.convert("L").resize((24, 48)).histogram() if n) > 8
     except (OSError, ValueError):
         ok = False
     if ok:
@@ -968,7 +980,7 @@ def _break_bonus(left, right):
         b *= 2.0  # an article never ends a line
     elif left[-1].lower() in _SOFT:
         b *= 1.2
-    elif right[0].lower() in _LEADS or right[0].lower() in ("after", "before", "until", "every"):
+    elif right[0].lower() in _LEADS or right[0].lower() in ("after", "before", "until"):
         b *= 0.9
     elif right[0].lower() == "to":
         b *= 1.15  # "things / to do"
@@ -1123,7 +1135,6 @@ def hook_badge(text, town, pal, logo=None, max_w=960):
                           [(n, BADGE["hook_em"], BADGE["min_em"]), (n + 1, BADGE["min_em"], 30)],
                           text=lambda it: it["word"])
     pitch = BADGE["hook_pitch"] * em / BADGE["hook_em"]
-    cap = _cap("bold", em)
     pad, pill_h, pill_r, pill_line = _pill_metrics(em)
     lift = 0.28 * em  # a pill's centre above the baseline
     # The block's top and bottom, relative to the first baseline.
@@ -1193,7 +1204,7 @@ def subscribe_badge(town, pal, logo=None, max_w=960):
         em1, em2 = em1 - 1, em2 - 1
     pitch = BADGE["sub_pitch"] * em1 / BADGE["sub_em"]
     pill_h = 85 * em2 / BADGE["domain_em"]
-    cap1, cap2 = _cap("bold", em1), _cap("bold", em2)
+    cap2 = _cap("bold", em2)
     top = _pfont("bold", em1).getbbox("Subscribe free", anchor="ls")[1] / SS
     bottom = pitch - cap2 / 2 + pill_h / 2
     dw = text_width(domain, "bold", em2)
@@ -1384,8 +1395,8 @@ def end_card_picture(plan, town, pal, layout):
 
     def mark_w(em):
         k = em / END["mark_em"]
-        return (text_width(mark_text, "bold", em) + (28 * k + text_width(mark_badge, "bold", em) + 2 * (30 * k + bl)
-                if mark_badge else 0) + bd)
+        badge = 28 * k + text_width(mark_badge, "bold", em) + 2 * (30 * k + bl) if mark_badge else 0
+        return text_width(mark_text, "bold", em) + badge + bd
 
     while me > 40 and mark_w(me) > room:
         me -= 2
@@ -1448,7 +1459,6 @@ def end_card_picture(plan, town, pal, layout):
         s.panel(bx, yc - box_h / 2, bx + bx_w, yc + box_h / 2, 22 * k, hl, ink, line=bl, drop=bd)
         s.text(bx + bx_w / 2, base, mark_badge, "bold", me, ink, anchor="ms")
     # Tagline, each line centred, the town's name on a highlighter stroke.
-    names = [w for w in [re.sub(r"(?i)^the\s+", "", city)] + TOWN_ALIASES.get(town["slug"], [])]
     for i, ln in enumerate(tlines):
         text = " ".join(ln).replace(NBSP, " ")
         lw = text_width(text, "body", te)
@@ -1469,9 +1479,8 @@ def end_card_picture(plan, town, pal, layout):
     s.text(cx, by + bh / 2 + _cap("bold", be) / 2, button, "bold", be, WHITE, anchor="ms")
     s.text(cx, top + parts["url_base"], url, "body", ue, _mix(ink, WHITE, 0.15), anchor="ms")
     img = s.image().convert("RGB").convert("RGBA")
-    return img, {"tagline": [" ".join(ln) for ln in tlines], "button": button, "url": url,
-                 "wordmark": [mark_text, mark_badge], "top": round(top), "bottom": round(top + total),
-                 "names": names}
+    return img, {"tagline": [" ".join(ln).replace(NBSP, " ") for ln in tlines], "button": button, "url": url,
+                 "wordmark": [mark_text, mark_badge], "top": round(top), "bottom": round(top + total)}
 
 
 # ------------------------------------------------------------------ the face
@@ -1605,39 +1614,48 @@ def face_during(faces, start, end):
     return (min(b[0] for b in near), min(b[1] for b in near), max(b[2] for b in near), max(b[3] for b in near))
 
 
-def place_card(h, face, lo, hi, *, margin=CARD_MARGIN):
-    """Where a card h px tall (with its shadow) goes, between lo (under the
-    badge) and hi (over the captions): (y, scale, slot), off the eye band
-    (the top EYE_BAND of the face box) whatever happens.
+def card_slots(h, face, lo, hi, *, margin=CARD_MARGIN):
+    """Where a card h px tall (with its shadow) can go, between lo (under
+    the badge) and hi (over the captions), never on the eye band (the top
+    EYE_BAND of the face box): [(slot, y, scale)], best first.
 
-    1. just under the chin, pulled up to clear the captions as long as it
-       stays under the mouth;
-    2. above the head, under the badge;
-    3. over the chest: the space between the eyes and the captions, the
-       card shrunk (to CARD_MIN_SCALE) if it must be.
-    With no face, the fixed slot over the captions."""
+    1. "below-chin": just under the chin, pulled up to clear the captions as
+       long as it stays under the mouth;
+    2. "above-head": under the badge, clear of the face;
+    3. "lower-third": over the chest, between the eyes and the captions,
+       shrunk (to CARD_MIN_SCALE) if it must be.
+    With no face, "fixed": over the captions. When nothing fits (an extreme
+    close-up), the bigger of the two gaps with the card shrunk to fit it."""
     if face is None:
-        return hi - h, 1.0, "fixed"
+        return [("fixed", hi - h, 1.0)]
     fy0, fy1 = face[1], face[3]
     fh = max(1.0, fy1 - fy0)
     eye_bottom = fy0 + EYE_BAND * fh
+    out = []
     y = min(fy1 + margin, hi - h)
     if y >= lo and y >= fy1 - 0.08 * fh:
-        return y, 1.0, "below-chin"
+        out.append(("below-chin", y, 1.0))
     if lo + h <= fy0 - 8:
-        return lo, 1.0, "above-head"
-    top = max(lo, eye_bottom + margin)
-    room_low, room_high = hi - top, (fy0 - 8) - lo
+        out.append(("above-head", lo, 1.0))
+    room_low = hi - max(lo, eye_bottom + margin)
     s = min(1.0, room_low / h)
     if s >= CARD_MIN_SCALE:
-        return hi - h * s, s, "lower-third"
-    # Nowhere it fits at the smallest size: the bigger gap, the card as
-    # small as the gap needs (an extreme close-up).
-    if room_high > room_low:
-        s = max(0.5, room_high / h)
-        return lo, s, "above-head-small"
-    s = max(0.5, room_low / h)
-    return hi - h * s, s, "lower-third-small"
+        out.append(("lower-third", hi - h * s, s))
+    if not out:
+        room_high = (fy0 - 8) - lo
+        if room_high > room_low:
+            s = max(0.5, room_high / h)
+            out.append(("above-head-small", lo, s))
+        else:
+            s = max(0.5, room_low / h)
+            out.append(("lower-third-small", hi - h * s, s))
+    return out
+
+
+def place_card(h, face, lo, hi, *, margin=CARD_MARGIN):
+    """The best of card_slots: (y, scale, slot)."""
+    slot, y, s = card_slots(h, face, lo, hi, margin=margin)[0]
+    return y, s, slot
 
 
 def _caption_top(spec):
@@ -1763,7 +1781,8 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
     hook = plan.get("hook") or {}
     h_end = min(float(hook.get("end") or 0.0), es)
     sub_from = 0.0
-    made = hook_badge(hook.get("text") or "", town, pal, logo, max_w=R - L) if h_end > 0 else None
+    badge_w = min(R - L, BADGE["max_w"])
+    made = hook_badge(hook.get("text") or "", town, pal, logo, max_w=badge_w) if h_end > 0 else None
     if made:
         img, info = made
         x = (W - img.width) / 2
@@ -1773,7 +1792,7 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
         if sp:
             sub_from = sp["end"]
     if es - sub_from >= 0.1:
-        img, info = subscribe_badge(town, pal, logo, max_w=R - L)
+        img, info = subscribe_badge(town, pal, logo, max_w=badge_w)
         x = (W - img.width) / 2
         add(_sprite("badge-subscribe", _enter(img, "fade", FADE_FRAMES) if sub_from > 0 else [img],
                     x, spec["badge_top"], sub_from, es,
@@ -1783,17 +1802,28 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
     no_icon = []
     badge_bottom = max([b["box"][3] for b in geo.get("badge", [])] or [T])
     lo, hi = badge_bottom + 20, min(B, _caption_top(spec)) - 16
-    for n, (chip, start, end) in enumerate(card_spans(plan, es)):
+    cards = []
+    for chip, start, end in card_spans(plan, es):
         img, info = event_card(chip, pal)
         if chip.get("icon") and not info["icon"]:
             no_icon.append(chip["icon"])
         face = face_during(faces or [], start, end)
-        y, scale, slot = place_card(img.height, face, lo, hi)
+        cards.append((start, end, img, info, face, card_slots(img.height, face, lo, hi)))
+    # One place for every card of the video, the best that suits them all,
+    # so they don't jump between the top and the bottom; each its own best
+    # only when no place suits them all (he moves a lot).
+    names = [name for name, _, _ in cards[0][5]] if cards else []
+    common = next((name for name in names if all(any(o[0] == name for o in c[5]) for c in cards)), None)
+    for n, (start, end, img, info, face, opts) in enumerate(cards):
+        slot, y, scale = next((o for o in opts if o[0] == common), opts[0])
         if scale < 1:
             img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
         x = (W - img.width) / 2
         info.update({"y": round(y), "slot": slot, "scale": round(scale, 3),
                      "face": [round(v) for v in face] if face else None})
+        if slot.endswith("-small"):
+            geo["notes"].append(f"card {n + 1}: the face fills the frame, so the card shrank to "
+                                f"{scale:.0%} and may still touch the eyes; check it")
         add(_sprite(f"card{n + 1}", _enter(img, "slide", SLIDE_FRAMES), x, y, start, end,
                     box=(round(x), round(y), round(x) + img.width, round(y) + img.height), info=info), "cards")
     if no_icon:
@@ -2284,7 +2314,10 @@ def render(plan, out_dir, layout="4x5", *, info=None, screen=None):
     if plan.get("phone") and screen is None:
         screen = site_screenshot(town)
     ec = plan.get("end_card") or {}
-    face_meta, faces = detect_faces(src, cut, float(ec["start"]) if ec else float(plan["duration"]))
+    face_meta, faces = {"detector": None, "samples": 0, "why": "no cards"}, []
+    if plan.get("chips"):
+        # Where his face is, so the cards keep off his eyes.
+        face_meta, faces = detect_faces(src, cut, float(ec["start"]) if ec else float(plan["duration"]))
     canvas_faces = [(t, canvas_box(b, src, layout)) for t, b in faces]
     sprites, sgeo = build_sprites(plan, layout, screen=screen, faces=canvas_faces)
     mode = hdr_mode(src, filters)

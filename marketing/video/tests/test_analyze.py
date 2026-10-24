@@ -63,7 +63,7 @@ def find_word(words, text, nth=0):
 
 
 KEYS = ["video_id", "town", "source", "similarity", "takes", "take", "segments", "speed",
-        "duration", "speech_end", "words", "hook", "chips", "cta_start", "end_card", "diff",
+        "duration", "speech_end", "words", "hook", "chips", "cta_start", "phone", "end_card", "diff",
         "warnings"]
 
 
@@ -101,6 +101,14 @@ def check_contract(p):
         assert c["start"] < c["end"]
     if p["chips"]:
         assert p["chips"][-1]["end"] == p["cta_start"]
+    ph = p["phone"]
+    if ph is not None:
+        assert set(ph) == {"start", "end"}
+        assert p["hook"]["end"] - 1e-9 <= ph["start"] < ph["end"] <= p["end_card"]["start"] + 1e-9
+        assert ph["end"] - ph["start"] <= analyze.PHONE_SECONDS + 1e-9
+        assert ph["end"] - ph["start"] >= analyze.PHONE_MIN - 1e-9
+    for c in p["chips"]:
+        assert set(c) <= {"text", "start", "end"} | set(analyze.CARD_FIELDS)
     ec = p["end_card"]
     assert ec["end"] - ec["start"] >= analyze.END_MIN - 1e-3
     assert ec["end"] >= p["speech_end"] + analyze.END_TAIL - 1e-3
@@ -706,6 +714,77 @@ def test_later_cue_word_used_when_the_first_is_missing():
     say = SAY["victoria-1"].replace("Thursday, spooky", "spooky")
     p = one(words_of(say))
     assert p["chips"][1]["start"] == find_word(p["words"], "spooky")["start"]
+
+
+# --- the card, phone and end-card fields (scripts.json passes them through) --------------
+
+def _with_fields(**top):
+    """The frozen scripts, with the new look's fields on victoria-1 and the
+    shared ones given (phone_cue, end_card)."""
+    data = json.loads(json.dumps(DATA))
+    v = next(v for v in data["videos"] if v["id"] == "victoria-1")
+    v["chips"][0].update({"icon": "🎬", "tag": "Mon, Oct 26", "title": "A Nightmare on Elm Street",
+                          "venue": "Moonshine Drive-In"})
+    v["chips"][1].update({"icon": "⛳", "tag": "Thu, Oct 29", "title": "Spooky mini golf",
+                          "venue": "Victoria Public Library", "free": True})
+    data.update(top)
+    return data
+
+
+def test_card_fields_pass_through_to_the_plan():
+    p = one(words_of(SAY["victoria-1"]), scripts=_with_fields())
+    a, b = p["chips"]
+    assert (a["icon"], a["tag"], a["title"], a["venue"]) == ("🎬", "Mon, Oct 26", "A Nightmare on Elm Street",
+                                                             "Moonshine Drive-In")
+    assert "free" not in a and b["free"] is True and b["title"] == "Spooky mini golf"
+    assert a["text"] == VIDEOS["victoria-1"]["chips"][0]["text"]  # the fallback rides along
+    assert list(a)[:3] == ["text", "start", "end"]
+    # The frozen scripts have none of them: chips stay text, start, end.
+    plain = one(words_of(SAY["victoria-1"]))
+    assert all(set(c) == {"text", "start", "end"} for c in plain["chips"])
+    assert plain["phone"] is None
+
+
+def test_end_card_fields_fill_in_the_city_and_domain():
+    ec = dict(DATA["end_card"], tagline="Everything to do in {city}, in your inbox every Monday and Thursday",
+              button="Sign up free", url="{domain}/subscribe")
+    p = one(words_of(SAY["shoals-2"]), scripts=_with_fields(end_card=ec))
+    e = p["end_card"]
+    assert e["tagline"] == "Everything to do in the Shoals, in your inbox every Monday and Thursday"
+    assert e["button"] == "Sign up free" and e["url"] == "shoalssetlist.com/subscribe"
+    assert e["line1"] == DATA["end_card"]["line1"] and e["line2"] == "shoalssetlist.com"
+    # Without them (the frozen scripts), only line1 and line2.
+    assert set(one(words_of(SAY["shoals-2"]))["end_card"]) == {"start", "end", "line1", "line2"}
+
+
+def test_phone_shows_from_its_cue_after_the_cards():
+    p = one(words_of(SAY["victoria-1"]), scripts=_with_fields(phone_cue=["email", "inbox"]))
+    inbox = next(w for w in p["words"] if "inbox" in w["text"].lower())
+    assert p["phone"]["start"] == inbox["start"]
+    assert p["phone"]["end"] == pytest.approx(min(inbox["start"] + analyze.PHONE_SECONDS,
+                                                  p["end_card"]["start"]), abs=2e-3)
+    assert p["phone"]["start"] > p["chips"][-1]["start"]
+    assert not any("phone" in w for w in p["warnings"])
+
+
+def test_phone_cue_before_the_cards_waits_for_one_after_them():
+    # "inbox" said in the opening line is not the phone's moment; the one
+    # after the cards is.
+    say = "Your inbox, " + SAY["victoria-1"]
+    p = one(words_of(say), scripts=_with_fields(phone_cue=["inbox"]), video_id="victoria-1")
+    later = [w for w in p["words"] if "inbox" in w["text"].lower()][-1]
+    assert p["phone"]["start"] == later["start"]
+
+
+def test_no_phone_when_its_cue_is_not_said_or_too_late():
+    p = one(words_of(SAY["victoria-1"]), scripts=_with_fields(phone_cue=["newsletter"]))
+    assert p["phone"] is None
+    assert any(w.startswith("no phone: none of its cue words (newsletter)") for w in p["warnings"])
+    # "Free." comes about a second before the address: too short for the phone.
+    p = one(words_of(SAY["victoria-1"]), scripts=_with_fields(phone_cue=["free"]))
+    free = next(w for w in p["words"] if w["text"].lower().startswith("free"))
+    assert p["end_card"]["start"] - free["start"] < analyze.PHONE_MIN
+    assert p["phone"] is None
 
 
 def test_hook_lasts_at_least_16():

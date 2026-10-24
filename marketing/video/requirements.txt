@@ -6,3 +6,9 @@
 faster-whisper>=1.1,<2
 requests>=2.31,<3
 pytest>=8.0,<10
+# render.py draws the badge, the event cards, the phone and the end card
+# (the same floor and cap as the site's own Pillow).
+pillow>=10,<13
+# render.py finds the face so the cards keep off the eyes: YuNet (setup.sh
+# fetches its model), with the Haar cascade inside the wheel as a fallback.
+opencv-python-headless>=4.8,<5

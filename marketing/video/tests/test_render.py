@@ -267,13 +267,15 @@ def test_fonts_are_fredoka_semibold_and_bold_with_licence():
     bold, semi = render.fonts()
     assert (bold.family, bold.bold) == ("Fredoka", True)
     assert (semi.family, semi.bold) == ("Fredoka SemiBold", False)
-    for f in ("Fredoka-Bold.ttf", "Fredoka-SemiBold.ttf", "OFL.txt"):
+    for f in ("Fredoka-Bold.ttf", "Fredoka-SemiBold.ttf", "OFL.txt", "Nunito-ExtraBold.ttf", "OFL-Nunito.txt"):
         assert os.path.getsize(os.path.join(render.FONTS_DIR, f)) > 1000
-    with open(os.path.join(render.FONTS_DIR, "OFL.txt"), encoding="utf-8") as f:
-        assert "SIL Open Font License" in f.read()
+    for lic in ("OFL.txt", "OFL-Nunito.txt"):
+        with open(os.path.join(render.FONTS_DIR, lic), encoding="utf-8") as f:
+            assert "SIL Open Font License" in f.read()
     # Fredoka's own names, which is what libass matches on.
     for path, family, weight in (("Fredoka-Bold.ttf", "Fredoka", 700),
-                                 ("Fredoka-SemiBold.ttf", "Fredoka SemiBold", 600)):
+                                 ("Fredoka-SemiBold.ttf", "Fredoka SemiBold", 600),
+                                 ("Nunito-ExtraBold.ttf", "Nunito", 800)):
         with open(os.path.join(render.FONTS_DIR, path), "rb") as fh:
             data = fh.read()
         assert family.encode("utf-16-be") in data
@@ -282,7 +284,7 @@ def test_fonts_are_fredoka_semibold_and_bold_with_licence():
                    if data[12 + 16 * i:16 + 16 * i] == b"OS/2")
         assert struct.unpack_from(">H", data, os2 + 4)[0] == weight
     for ch in "·’$@&,!?é–":
-        assert bold.has(ch) and semi.has(ch)
+        assert bold.has(ch) and semi.has(ch) and render.body_font().has(ch)
     assert not bold.has("🎃")
 
 
@@ -315,16 +317,22 @@ def test_hostile_copy_cannot_reach_the_ass_markup():
     plan = script_plan("victoria-1")
     plan["hook"]["text"] = "{\\fs300\\c&H0000FF&}HUGE\\N🎃 & $1,000"
     plan["chips"][0]["text"] = "MON · {\\pos(0,0)}Moved @ Moonshine"
+    plan["words"][3]["text"] = "{\\fs300}big"
     ass, _ = render.build_ass(plan, "9x16")
-    assert "🎃" not in ass
-    for _, _, _, _, text in events(ass, "hook") + events(ass, "chip1"):
+    # The badge and the cards are pictures: none of their copy is in the ASS at all.
+    assert "HUGE" not in ass and "Moved" not in ass and "🎃" not in ass
+    assert {e[3] for e in events(ass)} == {"caption", "caption-shadow"}
+    for _, _, _, _, text in events(ass):
         # Only render.py's own override blocks; the copy's are escaped text.
         for block in re.findall(r"(?<!\\)\{([^}]*)\}", text):
-            assert "fs300" not in block.lower() and "pos(0,0)" not in block
-    hook = " ".join(plain(e[4]) for e in events(ass, "hook") if e[0] == 21)
-    assert "{\\FS300\\C&H0000FF&}HUGE/N & $1,000" in hook
-    chip = "".join(plain(e[4]) for e in events(ass, "chip1") if e[0] == 11)
-    assert "{\\pos(0,0)}Moved" in chip
+            assert "fs300" not in block.lower()
+    assert any("{\\fs300}big" in plain(e[4]) for e in events(ass, "caption"))
+    # The pictures draw the copy as plain text (emoji dropped) and don't choke on it.
+    _, geo = render.build_sprites(plan, "9x16")
+    hook = next(g for g in geo["badge"] if g["name"] == "badge-hook")
+    drawn = " ".join(hook["info"]["lines"])
+    assert "HUGE" in drawn and "🎃" not in drawn and "$1,000" in drawn
+    assert "{\\pos(0,0)}Moved" in " ".join(geo["cards"][0]["info"]["title"])
 
 
 def test_a_trailing_backslash_cannot_turn_the_next_tag_into_text():
@@ -410,18 +418,11 @@ def test_fit_text_shrinks_then_wraps_then_squeezes():
 # ---------------------------------------------------------------- the overlay
 
 @pytest.mark.parametrize("layout", ["9x16", "4x5"])
-def test_ass_carries_the_plans_times(layout):
+def test_captions_carry_the_plans_times(layout):
     plan = script_plan("victoria-2")
     ass, geo = render.build_ass(plan, layout)
     W, H = render.LAYOUTS[layout]["size"]
     assert f"PlayResX: {W}" in ass and f"PlayResY: {H}" in ass
-    hook = events(ass, "hook")
-    assert hook and all(abs(e[1] - plan["hook"]["start"]) < 0.006 and abs(e[2] - plan["hook"]["end"]) < 0.006
-                        for e in hook)
-    for n, chip in enumerate(plan["chips"], 1):
-        evs = events(ass, f"chip{n}")
-        assert evs, chip
-        assert all(abs(e[1] - chip["start"]) < 0.006 and abs(e[2] - chip["end"]) < 0.006 for e in evs)
     es = plan["end_card"]["start"]
     caps = events(ass, "caption")
     shadows = events(ass, "caption-shadow")
@@ -430,10 +431,55 @@ def test_ass_carries_the_plans_times(layout):
     assert all(min(abs(e[1] - t) for t in starts) < 0.006 for e in caps)
     assert abs(caps[0][1] - plan["words"][0]["start"]) < 0.006
     assert max(e[2] for e in caps) <= es + 0.006, "no captions during the end card"
-    for name in ("end-line1", "end-line2"):
-        evs = events(ass, name)
-        assert evs and all(e[1] >= es - 0.006 and abs(e[2] - plan["end_card"]["end"]) < 0.006 for e in evs)
-    assert geo["end_card"]["start"] == es
+
+
+def _near(a, b):
+    return abs(a - b) <= 1 / 60 + 1e-9  # on the frame grid
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
+def test_pictures_carry_the_plans_times(layout):
+    plan = script_plan("victoria-2")
+    sprites, geo = render.build_sprites(plan, layout)
+    by = {sp["name"]: sp for sp in sprites}
+    es = plan["end_card"]["start"]
+    assert _near(by["badge-hook"]["start"], 0) and _near(by["badge-hook"]["end"], plan["hook"]["end"])
+    # The badge turns into "Subscribe free" as the hook ends, and stays to the end card.
+    assert by["badge-subscribe"]["start"] == by["badge-hook"]["end"]
+    assert _near(by["badge-subscribe"]["end"], es)
+    for n, chip in enumerate(plan["chips"], 1):
+        assert _near(by[f"card{n}"]["start"], chip["start"]) and _near(by[f"card{n}"]["end"], chip["end"])
+    assert _near(by["end-card"]["start"], es) and _near(by["end-card"]["end"], plan["duration"])
+    assert "phone" not in by  # the frozen scripts have no phone cue
+    for sp in sprites:
+        assert len({fr.size for fr in sp["frames"]}) == 1, sp["name"]
+        assert all(fr.mode == "RGBA" for fr in sp["frames"])
+        assert abs(sp["start"] * 30 - round(sp["start"] * 30)) < 1e-6
+
+
+def test_the_badge_fades_from_the_hook_to_subscribe_free():
+    plan = script_plan("lincoln-2")
+    sprites, geo = render.build_sprites(plan, "4x5")
+    hook, sub = (next(sp for sp in sprites if sp["name"] == n) for n in ("badge-hook", "badge-subscribe"))
+    assert hook["fade_out"] == render.BADGE_OUT_FRAMES and len(hook["frames"]) == 1
+    # Subscribe free fades in: its entrance frames grow more opaque, then rest.
+    alpha = [sum(i * n for i, n in enumerate(fr.getchannel("A").histogram())) for fr in sub["frames"]]
+    assert len(alpha) == render.FADE_FRAMES + 1 and alpha == sorted(alpha) and alpha[0] < alpha[-1] / 2
+    info = next(g for g in geo["badge"] if g["name"] == "badge-subscribe")["info"]
+    assert info["em"] == render.BADGE["sub_em"]
+    # Both sit centred at the top.
+    for sp in (hook, sub):
+        x0, y0, x1, _ = sp["box"]
+        assert y0 == render.LAYOUTS["4x5"]["badge_top"] and abs((x0 + x1) / 2 - 540) <= 1
+
+
+def test_a_hook_that_runs_into_the_end_card_leaves_no_subscribe_badge():
+    plan = short_plan("/x.mov")
+    plan["hook"]["end"] = plan["end_card"]["start"] + 1.0
+    sprites, _ = render.build_sprites(plan, "4x5")
+    names = [sp["name"] for sp in sprites]
+    assert "badge-hook" in names and "badge-subscribe" not in names
+    assert _near(sprites[0]["end"], plan["end_card"]["start"])
 
 
 def test_every_spoken_word_before_the_end_card_is_captioned_once():
@@ -483,57 +529,437 @@ def test_a_pause_always_starts_a_new_caption():
     assert [len(g) for g in groups] == [2, 1]
 
 
-def test_chips_never_overlap_even_in_a_hand_edited_plan():
+def test_cards_never_overlap_even_in_a_hand_edited_plan():
     plan = script_plan("medford-2")
     plan["chips"][0]["end"] = plan["chips"][2]["start"] + 1.0  # overlaps the next two
-    ass, _ = render.build_ass(plan, "9x16")
-    spans = sorted({(e[1], e[2]) for e in events(ass, "chip*")})
+    sprites, _ = render.build_sprites(plan, "9x16")
+    spans = sorted((sp["start"], sp["end"]) for sp in sprites if sp["name"].startswith("card"))
+    assert len(spans) == len(plan["chips"])
     for (a0, a1), (b0, b1) in zip(spans, spans[1:]):
-        assert a1 <= b0 + 0.006
+        assert a1 <= b0 + 1e-9
 
 
-def test_chips_take_the_top_slot_once_the_hook_is_gone_and_sit_under_it_otherwise():
+# ---------------------------------------------------------------- the cards and the face
+
+LO, HI = 282, render._caption_top(render.LAYOUTS["4x5"]) - 16  # under the badge, over the captions (4:5)
+
+
+def _eye_band(face):
+    return face[1], face[1] + render.EYE_BAND * (face[3] - face[1])
+
+
+def test_a_card_goes_just_under_the_chin_when_there_is_room():
+    face = (362, 249, 708, 742)  # a face sitting high
+    y, s, slot = render.place_card(238, face, LO, HI)
+    assert (slot, s) == ("below-chin", 1.0) and y == 742 + render.CARD_MARGIN
+    # A lower chin: pulled up to clear the captions, still under the mouth.
+    y, s, slot = render.place_card(238, (362, 330, 708, 960), LO, HI)
+    assert slot == "below-chin" and y + 238 == HI and y >= 960 - 0.08 * 630
+
+
+def test_a_close_selfie_puts_the_cards_over_the_chest_or_above_the_head():
+    face = (174, 541, 676, 1228)  # Tristen's own 4:5 ad, as YuNet sees it
+    y, s, slot = render.place_card(238, face, LO, HI)
+    assert (slot, y, s) == ("above-head", LO, 1.0)
+    # A two-line card is too tall for over his head: over the chest, a little smaller.
+    y, s, slot = render.place_card(292, face, LO, HI)
+    assert slot == "lower-third" and render.CARD_MIN_SCALE <= s < 1
+    assert y >= _eye_band(face)[1] and abs(y + 292 * s - HI) < 1e-6
+
+
+def test_with_no_face_the_card_takes_the_fixed_slot_over_the_captions():
+    assert render.place_card(238, None, LO, HI) == (HI - 238, 1.0, "fixed")
+
+
+def test_no_card_ever_covers_the_eyes():
+    for top in range(0, 900, 37):
+        for size in range(200, 1000, 61):
+            face = (300, top, 300 + size * 0.8, top + size)
+            for h in (190, 238, 292, 340):
+                for slot, y, s in render.card_slots(h, face, LO, HI):
+                    if slot.endswith("small"):
+                        continue  # nowhere fits even at CARD_MIN_SCALE: an extreme close-up
+                    e0, e1 = _eye_band(face)
+                    assert y >= e1 or y + h * s <= e0, (face, h, slot, y, s)
+                    assert y >= LO - 1e-6 and y + h * s <= HI + 1e-6, (face, h, slot, y, s)
+                    assert s >= render.CARD_MIN_SCALE
+
+
+def test_a_face_that_fills_the_frame_shrinks_the_card_and_says_so():
     plan = script_plan("victoria-1")
-    _, geo = render.build_ass(plan, "9x16")
-    T = geo["safe"][1]
-    assert all(abs(c["box"][1] - (T + 22)) < 1 for c in geo["chips"])
-    plan["chips"][0]["start"] = 1.0  # cued while the hook is still up
-    _, geo = render.build_ass(plan, "9x16")
-    assert all(c["box"][1] >= geo["hook"][3] for c in geo["chips"])
+    face = (40, 300, 1040, 1700)  # eyes down to y 1070, forehead at 300
+    assert render.card_slots(292, face, LO, HI)[0][0].endswith("-small")
+    _, geo = render.build_sprites(plan, "4x5", faces=_faces(face))
+    assert all(c["info"]["slot"].endswith("-small") and c["info"]["scale"] < 1 for c in geo["cards"])
+    assert any("fills the frame" in n for n in geo["notes"])
 
 
-def test_a_chip_cued_as_the_hook_fades_out_still_takes_the_top_slot():
-    # analyze.py ends the hook at 1.6 s at the earliest, so a chip cued at
-    # 1.593 s (lincoln-2's fixture) overlapped it by one invisible frame, and
-    # that sent all four chips down to eye level for ten seconds.
-    plan = script_plan("victoria-1")
-    plan["hook"]["end"] = 1.6
-    plan["chips"][0]["start"] = 1.593
-    _, geo = render.build_ass(plan, "9x16")
-    T = geo["safe"][1]
-    assert all(abs(c["box"][1] - (T + 22)) < 1 for c in geo["chips"]), [c["box"] for c in geo["chips"]]
+def _faces(box, until=16.0, every=0.5):
+    return [(round(i * every, 3), box) for i in range(int(until / every) + 1)]
 
 
-@pytest.mark.parametrize("layout", ["9x16", "4x5"])
+def test_every_card_of_a_video_takes_the_same_place():
+    # One-line cards would fit over his head, two-line ones only over his
+    # chest: all of them go over his chest, not some up and some down.
+    plan = script_plan("victoria-2")
+    for chip in plan["chips"]:
+        chip.update(tag="Sat, Oct 31", venue="Victoria", title="Malloween")
+    plan["chips"][0]["title"] = "Zoo Boo"
+    plan["chips"][1]["title"] = "Calaveras and Cocktails at The Nave, the big one"
+    face = (174, 541, 676, 1228)
+    assert render.place_card(238, face, LO, HI)[2] == "above-head"  # alone, a one-liner would go up
+    sprites, geo = render.build_sprites(plan, "4x5", faces=_faces(face))
+    cards = geo["cards"]
+    assert [len(c["info"]["title"]) for c in cards[:2]] == [1, 2]
+    assert {c["info"]["slot"] for c in cards} == {"lower-third"}
+    for c in cards:
+        e0, e1 = _eye_band(c["info"]["face"])
+        assert c["box"][1] >= e1, c
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
+def test_cards_follow_the_face_in_both_layouts(layout):
+    plan = script_plan("lincoln-2")
+    spec = render.LAYOUTS[layout]
+    W, H = spec["size"]
+    high = (360, spec["safe"][1] + 230, 720, spec["safe"][1] + 700)
+    _, geo = render.build_sprites(plan, layout, faces=_faces(high))
+    L, T, R, B = spec["safe"]
+    assert geo["cards"]
+    for c in geo["cards"]:
+        assert c["info"]["slot"] == "below-chin" and c["box"][1] == high[3] + render.CARD_MARGIN
+        x0, y0, x1, y1 = c["box"]
+        assert L <= x0 and x1 <= R and T <= y0 and y1 <= render._caption_top(spec) - 16 + 1
+
+
+def test_a_card_follows_the_face_while_it_is_up():
+    plan = script_plan("victoria-2")
+    c0, c1 = plan["chips"][0], plan["chips"][1]
+    # He leans in during the second card: that card keeps off the face he has
+    # then (and the one he had as it came up); the first card never sees it.
+    lean = (c1["start"] + 0.5, c1["end"] - 0.3)
+    times = [x / 4 for x in range(64)]
+    faces = [(t, (200, 420, 860, 1210) if lean[0] <= t <= lean[1] else (360, 250, 700, 740)) for t in times]
+    box = render.face_during(faces, c1["start"], c1["end"])
+    assert box[3] == 1210 and box[1] == 250
+    assert render.face_during(faces, c0["start"], c0["end"]) == (360, 250, 700, 740)
+    # A stray detection far from the face is ignored.
+    stray = faces + [(c0["start"], (900, 10, 960, 60))]
+    assert render.face_during(stray, c0["start"], c0["end"]) == render.face_during(faces, c0["start"], c0["end"])
+    assert render.face_during([], 0, 1) is None
+
+
+def test_face_boxes_map_onto_each_canvas():
+    portrait = {"width": 1080, "height": 1920}
+    # 4:5 is cut from the portrait take 171 px down (TOP_BIAS); 9:16 is the take itself.
+    assert render.canvas_box((0.25, 0.5, 0.75, 0.75), portrait, "4x5") == (270, 960 - 171, 810, 1440 - 171)
+    assert render.canvas_box((0.25, 0.5, 0.75, 0.75), portrait, "9x16") == (270, 960, 810, 1440)
+    # A landscape take sits across the middle of the safe zone.
+    landscape = {"width": 1920, "height": 1080}
+    x0, y0, x1, y1 = render.canvas_box((0.0, 0.0, 1.0, 1.0), landscape, "9x16")
+    assert (x0, x1) == (0, 1080) and abs((y0 + y1) / 2 - (250 + 1480) / 2) <= 1
+
+
+def test_without_opencv_there_is_no_face_and_the_render_says_so(monkeypatch):
+    monkeypatch.setitem(sys.modules, "cv2", None)
+    meta, faces = render.detect_faces({"path": "/x.mov", "width": 1080, "height": 1920, "video_index": 0},
+                                      {"frames": [(0, 90)], "speed": 1.0, "base": 0.0, "length": 3.0}, 3.0)
+    assert faces == [] and meta["detector"] is None and "OpenCV" in meta["why"]
+
+
+def _drawn_face(w=720, h=1280, top=330):
+    """A flat cartoon face a detector can find (the shading is what does it)."""
+    from PIL import Image as PImage, ImageDraw as PDraw, ImageFilter as PFilter
+    im = PImage.new("RGB", (w, h), (226, 222, 210))
+    d = PDraw.Draw(im)
+    cx, k = w // 2, (h - top) / 950
+    def Y(v):
+        return top + (v - 330) * k
+    d.ellipse([cx - 330, Y(1060), cx + 330, h + 400], fill=(64, 98, 140))
+    d.rectangle([cx - 70, Y(860), cx + 70, Y(1110)], fill=(214, 166, 136))
+    d.ellipse([cx - 185, Y(330), cx + 185, Y(940)], fill=(232, 190, 160))
+    d.chord([cx - 200, Y(250), cx + 210, Y(640)], 180, 360, fill=(40, 30, 26))
+    shade = PImage.new("L", im.size, 0)
+    sd = PDraw.Draw(shade)
+    for x0 in (cx - 185, cx + 95):
+        sd.ellipse([x0, Y(330), x0 + 90, Y(940)], fill=110)
+    for ex in (cx - 75, cx + 75):
+        sd.ellipse([ex - 52, Y(560), ex + 52, Y(640)], fill=150)
+    im.paste((150, 100, 80), (0, 0), shade.filter(PFilter.GaussianBlur(18)))
+    d = PDraw.Draw(im)
+    for ex in (cx - 75, cx + 75):
+        d.rounded_rectangle([ex - 45, Y(535), ex + 45, Y(552)], radius=7, fill=(40, 30, 26))
+        d.ellipse([ex - 32, Y(583), ex + 32, Y(617)], fill=(250, 250, 250))
+        d.ellipse([ex - 14, Y(584), ex + 14, Y(616)], fill=(80, 110, 140))
+        d.ellipse([ex - 7, Y(593), ex + 7, Y(607)], fill=(20, 20, 20))
+    d.polygon([(cx, Y(610)), (cx - 30, Y(738)), (cx + 26, Y(742))], fill=(214, 166, 136))
+    d.ellipse([cx - 58, Y(800), cx + 58, Y(830)], fill=(120, 50, 50))
+    return im
+
+
+@needs_ffmpeg
+def test_detect_faces_finds_the_face_in_the_kept_footage(tmp_path):
+    pytest.importorskip("cv2")
+    still = tmp_path / "face.png"
+    _drawn_face().save(still)
+    src = str(tmp_path / "face.mp4")
+    ff("-loop", "1", "-framerate", "30", "-t", "4", "-i", str(still), "-vf", "format=yuv420p",
+       "-c:v", "libx264", "-preset", "ultrafast", src)
+    plan = short_plan(src, segments=((0.5, 3.5),))
+    info = render.probe(src)
+    cut = render.cut_plan(plan, info)
+    meta, faces = render.detect_faces(info, cut, 2.0)
+    assert meta["samples"] == 5 and faces, meta
+    for t, (x0, y0, x1, y1) in faces:
+        # The drawn head spans x 175..545 and y 330..940 of 720x1280.
+        assert 0.15 < x0 < 0.35 and 0.65 < x1 < 0.85 and 0.2 < y0 < 0.42 and 0.62 < y1 < 0.8, (x0, y0, x1, y1)
+    # Asked again for the same cut: the cached answer, no second look.
+    assert render.detect_faces(info, cut, 2.0) == (meta, faces)
+
+
+def _screen():
+    """A stand-in for the site's screenshot (390 px wide at 2x)."""
+    from PIL import Image as PImage, ImageDraw as PDraw
+    im = PImage.new("RGB", (780, 1688), (255, 244, 214))
+    d = PDraw.Draw(im)
+    d.rectangle([0, 0, 780, 120], fill=(75, 63, 209))
+    for y in range(200, 1688, 120):
+        d.rounded_rectangle([40, y, 740, y + 90], radius=20, fill=(255, 255, 255), outline=(31, 26, 61), width=4)
+    return im
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
 @pytest.mark.parametrize("video_id", sorted(VIDEOS))
 def test_every_script_lays_out_inside_the_safe_zone(video_id, layout):
-    """Geometry check for all 15 real hooks, chips and domains."""
-    _, geo = render.build_ass(script_plan(video_id), layout)
+    """Geometry check for all 15 real hooks, cards and domains, with a phone."""
+    plan = script_plan(video_id)
+    es = plan["end_card"]["start"]
+    plan["phone"] = {"start": round(es - 2.2, 3), "end": round(es - 0.2, 3)}
+    sprites, geo = render.build_sprites(plan, layout, screen=_screen())
     L, T, R, B = geo["safe"]
-    boxes = [geo["hook"]] + [c["box"] for c in geo["chips"]] + list(geo["end_card"]["bounds"])
-    lg = geo["end_card"]["logo"]
-    boxes.append((lg["x"], lg["y"], lg["x"] + lg["size"], lg["y"] + lg["size"]))
-    for x0, y0, x1, y1 in boxes:
-        assert L <= x0 and x1 <= R and T <= y0 and y1 <= B, (video_id, (x0, y0, x1, y1))
-    assert len(geo["chips"]) == len(script_plan(video_id)["chips"])
-    assert all(c["em"] >= render.CHIP_EM[1] * render.LAYOUTS[layout]["scale"] - 1 for c in geo["chips"])
+    for sp in sprites:
+        if sp["name"] == "end-card":
+            continue
+        for fr in sp["frames"]:
+            box = fr.getchannel("A").getbbox()
+            if box:
+                x0, y0, x1, y1 = box[0] + sp["x"], box[1] + sp["y"], box[2] + sp["x"], box[3] + sp["y"]
+                assert L <= x0 and x1 <= R and T <= y0 and y1 <= B, (video_id, sp["name"], (x0, y0, x1, y1))
+    info = geo["end_card_info"]
+    assert T <= info["top"] and info["bottom"] <= B
+    assert geo["cards"] and geo["phone"]
+    assert all(c["info"]["em"] >= render.CARD["title_min"] - 8 for c in geo["cards"])
 
 
-def test_end_card_line2_is_the_towns_domain():
+@pytest.mark.parametrize("slug,hook,pills,marks", [
+    ("victoria", "300+ things to do in Victoria, TX", ["300+"], ["Victoria, TX"]),
+    ("victoria", "8 trunk-or-treats this week", ["8"], []),
+    ("victoria", "HALLOWEEN'S OVER. VICTORIA'S NOT.", [], ["VICTORIA’S"]),
+    ("shoals", "Halloween weekend in the Shoals", [], ["Shoals"]),
+    ("medford", "Halloween weekend in the Rogue Valley", [], ["Rogue Valley"]),
+    ("virginiabeach", "Halloween weekend in Virginia Beach", [], ["Virginia Beach"]),
+    ("medford", "Final week after 16 seasons", ["16"], []),
+    ("lincoln", "Stapleton, a $1,000 prize & 21+ night", ["$1,000", "21+"], []),
+    ("lincoln", "Who's playing tonight?", [], []),
+])
+def test_hook_numbers_go_in_pills_and_the_town_is_underlined(slug, hook, pills, marks):
+    items = render._hook_items(hook, towns.town(slug))
+    assert [it["text"] for it in items if it["kind"] == "pill"] == pills
+    assert [it["text"] for it in items if it["kind"] == "mark"] == marks
+
+
+def _pixels(img):
+    return img.get_flattened_data() if hasattr(img, "get_flattened_data") else img.getdata()
+
+
+def _count(img, hexcolor, tol=12):
+    want = [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
+    return sum(1 for p in _pixels(img.convert("RGBA"))
+               if p[3] > 250 and all(abs(a - b) <= tol for a, b in zip(p, want)))
+
+
+def test_the_hook_badge_draws_the_pill_and_the_stroke_in_the_towns_colours():
+    for slug in ("victoria", "lincoln"):
+        town = towns.town(slug)
+        pal = town["palette"]
+        img, info = render.hook_badge(f"300+ things to do in {town['city']}", town, pal, render._logo(town))
+        assert info["lines"] == ["300+ things to do", f"in {town['city']}"]
+        assert _count(img, pal["accent"]) > 3000      # the number's pill
+        assert _count(img, pal["highlight"]) > 3000   # the stroke under the town's name
+        assert _count(img, pal["ink"]) > 10000        # outline, shadow and words
+        assert _count(img, "#FFFFFF") > 40000         # the card
+
+
+@pytest.mark.parametrize("slug,hook,lines", [
+    ("victoria", "300+ things to do in Victoria, TX", ["300+ things to do", "in Victoria, TX"]),
+    ("lincoln", "80+ things to do this week", ["80+ things to do", "this week"]),
+    ("medford", "Final week after 16 seasons", ["Final week", "after 16 seasons"]),
+    ("virginiabeach", "Halloween weekend in Virginia Beach", ["Halloween weekend", "in Virginia Beach"]),
+    ("medford", "Who's playing at the wineries?", ["Who’s playing", "at the wineries?"]),
+    ("shoals", "Live music", ["Live music"]),
+])
+def test_the_hook_breaks_like_tristens(slug, hook, lines):
+    town = towns.town(slug)
+    _, info = render.hook_badge(hook, town, town["palette"], render._logo(town))
+    assert info["lines"] == lines
+
+
+def test_break_lines_keeps_names_and_phrases_together():
+    def width(ln):
+        return render.text_width(" ".join(ln), "body", 58)
+    words = "Everything to do in Victoria, in your inbox every Monday and Thursday".split()
+    assert [" ".join(x) for x in render.break_lines(words, width, 3)] == [
+        "Everything to do in Victoria,", "in your inbox every", "Monday and Thursday"]
+    assert render.break_lines(["one"], width, 2) == [["one"]]
+    # Never "the" at the end of a line.
+    out = render.break_lines("Where's the live music?".split(), width, 2)
+    assert out[0][-1] != "the"
+
+
+@pytest.mark.parametrize("slug,want", [("victoria", ("The Vic", "361")), ("lincoln", ("The Star", "402")),
+                                       ("medford", ("The Rogue", "541")), ("shoals", ("Shoals", "Setlist")),
+                                       ("virginiabeach", ("The Tide", "757"))])
+def test_the_wordmark_is_the_sites_two_tone_name(slug, want):
+    assert render.wordmark(towns.town(slug)) == want
+
+
+def test_card_shows_its_fields_and_falls_back_to_the_text():
+    pal = towns.town("victoria")["palette"]
+    img, info = render.event_card({"icon": "🎃", "tag": "Pumpkin patch", "venue": "Victoria, TX",
+                                   "title": "Titan Factory Direct Pumpkin Patch", "text": "SAT · Pumpkins"}, pal)
+    assert info["title"] == ["Titan Factory Direct", "Pumpkin Patch"]
+    assert (info["tag"], info["venue"], info["em"]) == ("Pumpkin patch", "Victoria, TX", render.CARD["title_em"])
+    assert img.width == render.CARD["width"] + render.CARD["drop"]
+    assert _count(img, pal["highlight"]) > 2000  # the tag pill
+    assert _count(img, "#FFFFFF") > 100000       # the card
+    # A chip from the older scripts: its one line of text is the title, nothing else.
+    img, info = render.event_card({"text": "MON · Nightmare on Elm Street @ Moonshine"}, pal)
+    assert " ".join(info["title"]) == "MON · Nightmare on Elm Street @ Moonshine"
+    assert (info["tag"], info["venue"], info["icon"]) == ("", "", False)
+    assert _count(img, pal["highlight"]) < 50
+    # FREE: a green pill after the title.
+    img, info = render.event_card({"title": "Spooky mini golf", "free": True, "text": "x"}, pal)
+    assert _count(img, render.GREEN, tol=10) > 800
+
+
+@pytest.mark.skipif(not render.emoji_font_path(), reason="no colour emoji font (setup.sh fetches one)")
+def test_the_cards_icon_is_the_colour_emoji():
+    pal = towns.town("victoria")["palette"]
+    img, info = render.event_card({"icon": "🎃", "title": "Pumpkins", "text": "x"}, pal)
+    assert info["icon"]
+    icon = img.crop((40, 0, 160, img.height))
+    orange = sum(1 for p in _pixels(icon) if p[3] > 200 and p[0] > 200 and 80 < p[1] < 170 and p[2] < 80)
+    assert orange > 2000, orange
+    # A variation selector after the emoji (🛍️, 🎞️ in the live scripts) is fine.
+    assert render.emoji_image("🛍️") is not None
+
+
+def test_without_an_emoji_font_the_card_has_no_icon_and_the_render_says_so(monkeypatch):
+    monkeypatch.setattr(render, "emoji_font_path", lambda: None)
+    plan = script_plan("victoria-1")
+    plan["chips"][0]["icon"] = "🎃"
+    _, geo = render.build_sprites(plan, "4x5")
+    assert not geo["cards"][0]["info"]["icon"]
+    assert any("emoji font" in n and "setup.sh" in n for n in geo["notes"])
+
+
+def test_the_phone_shows_the_site_and_no_card_is_up_meanwhile():
+    plan = script_plan("victoria-2")
+    last = plan["chips"][-1]
+    plan["phone"] = {"start": round(last["start"] + 0.6, 3), "end": round(last["start"] + 2.6, 3)}
+    assert plan["phone"]["end"] < plan["end_card"]["start"]
+    sprites, geo = render.build_sprites(plan, "4x5", screen=_screen())
+    phone = next(sp for sp in sprites if sp["name"] == "phone")
+    assert _near(phone["start"], plan["phone"]["start"]) and _near(phone["end"], plan["phone"]["end"])
+    assert phone["fade_out"] == render.PHONE_OUT_FRAMES
+    # It pops: smaller and fainter first, then the resting picture.
+    a = [fr.getchannel("A").getbbox() for fr in phone["frames"]]
+    assert len(a) == render.POP_FRAMES + 1 and (a[0][2] - a[0][0]) < (a[-1][2] - a[-1][0])
+    for sp in sprites:
+        if sp["name"].startswith("card"):
+            assert sp["end"] <= phone["start"] + 1e-9 or sp["start"] >= phone["end"] - 1e-9, sp["name"]
+    assert geo["phone"][0]["box"] == phone["box"]
+    # The screenshot is what's on its screen: the site's colours show.
+    rest = phone["frames"][-1]
+    assert _count(rest, "#4B3FD1", tol=6) > 3000
+
+
+def test_no_screenshot_means_no_phone_and_a_note():
+    plan = script_plan("victoria-2")
+    plan["phone"] = {"start": 10.0, "end": 12.0}
+    sprites, geo = render.build_sprites(plan, "4x5", screen=None)
+    assert "phone" not in [sp["name"] for sp in sprites]
+    assert any("no screenshot of the site" in n for n in geo["notes"])
+
+
+def test_the_site_screenshot_is_cached_for_the_day_and_old_ones_stand_in(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIDEO_EDIT_CACHE", str(tmp_path))
+    town = towns.town("lincoln")
+    calls = []
+
+    def capture(url, path, timeout=45):
+        calls.append(url)
+        _screen().save(path)
+        return True
+
+    monkeypatch.setattr(render, "capture_site", capture)
+    first = render.site_screenshot(town, today="2031-01-05")
+    assert first == str(tmp_path / "screens" / "lincoln-2031-01-05.png")
+    assert calls == ["https://www.thestar402.com/this-weekend"]
+    assert render.site_screenshot(town, today="2031-01-05") == first and len(calls) == 1  # cached
+    monkeypatch.setattr(render, "capture_site", lambda url, path, timeout=45: calls.append(url) or False)
+    # Offline (or no Chrome) the next day: yesterday's will do, and it isn't retried all run.
+    assert render.site_screenshot(town, today="2031-01-06") == first
+    assert render.site_screenshot(town, today="2031-01-06") == first and len(calls) == 2
+    assert render.site_screenshot(towns.town("medford"), today="2031-01-06") is None
+    assert len(calls) == 3
+    assert render.site_screenshot(town, today="2031-01-07", capture=False) == first and len(calls) == 3
+
+
+def test_chrome_is_found_by_env_or_playwright(tmp_path, monkeypatch):
+    fake = tmp_path / "pw" / "chromium-1234" / "chrome-linux64" / "chrome"
+    fake.parent.mkdir(parents=True)
+    fake.write_text("#!/bin/sh\n")
+    fake.chmod(0o755)
+    monkeypatch.delenv("VIDEO_CHROME", raising=False)
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(tmp_path / "pw"))
+    monkeypatch.setattr(render.shutil, "which", lambda name: None)
+    assert render.chrome_path() == str(fake)
+    monkeypatch.setenv("VIDEO_CHROME", str(fake))
+    assert render.chrome_path() == str(fake)
+
+
+def test_the_end_card_has_the_tagline_button_and_address():
+    town = towns.town("virginiabeach")
+    plan = script_plan("virginiabeach-1")
+    plan["end_card"].update(tagline="Everything to do in {city}, in your inbox every Monday and Thursday",
+                            button="Sign up free", url="{domain}/subscribe")
+    img, info = render.end_card_picture(plan, town, town["palette"], "4x5")
+    assert img.size == (1080, 1350)
+    assert " ".join(info["tagline"]) == "Everything to do in Virginia Beach, in your inbox every Monday and Thursday"
+    # The town's name never breaks over two lines.
+    assert any("Virginia Beach" in line for line in info["tagline"])
+    assert (info["button"], info["url"], info["wordmark"]) == ("Sign up free", "thetide757.com/subscribe",
+                                                               ["The Tide", "757"])
+    pal = town["palette"]
+    assert _count(img, pal["primary"], tol=4) > 20000      # the button
+    assert _count(img, pal["highlight"], tol=4) > 10000    # the 757 badge and the stroke under the name
+    top = img.getpixel((540, 4))[:3]
+    bottom = img.getpixel((540, 1345))[:3]
+    assert all(abs(a - b) <= 4 for a, b in zip(top, [int(render.SKY[i:i + 2], 16) for i in (1, 3, 5)]))
+    assert all(abs(a - b) <= 4 for a, b in zip(bottom, [int(pal["paper"][i:i + 2], 16) for i in (1, 3, 5)]))
+
+
+def test_an_older_plans_line1_and_line2_still_make_an_end_card():
+    town = towns.town("shoals")
     plan = script_plan("shoals-1")
     plan["end_card"]["line2"] = "{domain}"
-    ass, geo = render.build_ass(plan, "9x16")
-    assert [x["text"] for x in geo["end_card"]["lines"]] == ["FREE every Mon & Thu", "shoalssetlist.com"]
+    for layout in ("4x5", "9x16"):
+        img, info = render.end_card_picture(plan, town, town["palette"], layout)
+        assert info["tagline"] == ["FREE every Mon & Thu"]
+        assert (info["button"], info["url"]) == ("Sign up free", "shoalssetlist.com")
+        L, T, R, B = render.LAYOUTS[layout]["safe"]
+        assert T <= info["top"] and info["bottom"] <= B
 
 
 # ---------------------------------------------------------------- the cut
@@ -708,7 +1134,6 @@ def test_libass_draws_with_fredoka_not_a_fallback(tmp_path):
     assert r.returncode == 0, r.stderr[-1500:]
     picks = re.findall(r"fontselect: \(([^,]+), (\d+), \d+\) -> ([^,]+),", r.stderr)
     assert ("Fredoka", "700", "Fredoka-Bold") in picks
-    assert ("Fredoka SemiBold", "400", "Fredoka-SemiBold") in picks
     assert all(face.startswith("Fredoka-") for _, _, face in picks), picks
     assert "selecting one more font" not in r.stderr and "fallback" not in r.stderr.lower()
 
@@ -767,23 +1192,18 @@ def test_text_widths_and_anchors_match_what_libass_draws(tmp_path):
 
 @needs_ffmpeg
 @pytest.mark.parametrize("layout", ["9x16", "4x5"])
-def test_no_text_leaves_the_safe_zone(tmp_path, layout):
-    """Rendered pixels, not geometry: the longest copy in the scripts, over grey."""
+def test_no_caption_leaves_the_safe_zone(tmp_path, layout):
+    """Rendered pixels, not geometry: the longest words in the scripts, over grey."""
     plan = script_plan("shoals-2")
-    plan["hook"]["text"] = VIDEOS["medford-1"]["hook"]
-    plan["chips"] = [
-        {"text": "THU · 1926 silent film + live score @ the Ross", "start": 3.0, "end": 4.2},
-        {"text": "Live music in a cave @ Rattlesnake Saloon 🎸", "start": 4.2, "end": 5.4},
-        {"text": "FRI · Corrosion of Conformity + The Sword", "start": 5.4, "end": 6.6},
-    ]
     plan["words"][10:13] = [{"text": "trunk-or-treats-hootenanny", "start": 6.7, "end": 7.3},
                             {"text": "Craterian", "start": 7.32, "end": 7.7},
                             {"text": "Washington,", "start": 7.72, "end": 8.1}]
     ass, geo = render.build_ass(plan, layout)
     W, H = render.LAYOUTS[layout]["size"]
     L, T, R, B = geo["safe"]
-    es = plan["end_card"]["start"]
-    times = [0.13, 0.9, 3.08, 3.6, 4.8, 6.0, 6.9, 7.5, es + 0.3, es + 1.0]
+    # Midway through every caption up to 8 s, the long words among them.
+    times = [round((c["start"] + c["end"]) / 2, 3) for c in geo["captions"] if c["end"] < 8.2]
+    assert any("hootenanny" in c["text"] for c in geo["captions"])
     grey = bytes([128]) * (W * 3)
     for t, rgb in zip(times, _ass_frames(tmp_path, ass, (W, H), times)):
         drawn = False
@@ -811,13 +1231,14 @@ def test_a_word_ending_in_a_backslash_draws_as_the_word(tmp_path):
     plan["words"] = [{"text": "back\\", "start": 0.1, "end": 0.5}, {"text": "slash", "start": 0.52, "end": 0.9}]
     ass, geo = render.build_ass(plan, "9x16")
     L, _, R, _ = geo["safe"]
+    spec = render.LAYOUTS["9x16"]
     rgb = _ass_frames(tmp_path, ass, (1080, 1920), [0.3], bg=(128, 128, 128))[0]
-    cy = round(1920 * render.CAPTION_Y)
+    cy = spec["caption_y"]
     xs = [x for y in range(cy - 60, cy + 60, 4) for x in range(1080)
           if max(abs(v - 128) for v in rgb[(y * 1080 + x) * 3:(y * 1080 + x) * 3 + 3]) > 40]
-    want = bold.width("back/ slash", render.CAPTION_EM)
+    want = bold.width("back/ slash", spec["caption_em"])
     assert L <= min(xs) and max(xs) < R, (min(xs), max(xs))
-    assert max(xs) - min(xs) < want + 2 * 7 + 30, (max(xs) - min(xs), want)
+    assert max(xs) - min(xs) < want + 2 * 8 + 30, (max(xs) - min(xs), want)
 
 
 # ---------------------------------------------------------------- renders
@@ -869,22 +1290,30 @@ def test_portrait_render_draws_the_brand_colours(portrait_render):
         want = [int(hexcolor[i:i + 2], 16) for i in (1, 3, 5)]
         return all(abs(a - b) <= tol for a, b in zip(rgb, want))
 
-    x0, y0, x1, y1 = (int(v) for v in info["overlay"]["hook"])
+    # The hook badge: a white card with the "8" in the accent pill.
+    x0, y0, x1, y1 = info["overlay"]["badge"][0]["box"]
     rgb = frame_rgb(path, 0.9, 1080, 1920)
-    want = [int(pal["highlight"][i:i + 2], 16) for i in (1, 3, 5)]
-    yellow = [rgb[(y * 1080 + x) * 3:(y * 1080 + x) * 3 + 3] for y in range(y0, y1, 3) for x in range(x0, x1, 3)]
-    yellow = [p for p in yellow if all(abs(a - b) <= 24 for a, b in zip(p, want))]
-    assert len(yellow) > 2000, "the sticker is there"
-    # On YUV frames libass blends through BT.601 and this lands 5-7 levels
-    # off in a BT.709 file; composited on RGB it is the brand colour.
-    median = [sorted(p[c] for p in yellow)[len(yellow) // 2] for c in range(3)]
+    px = [rgb[(y * 1080 + x) * 3:(y * 1080 + x) * 3 + 3] for y in range(y0, y1, 2) for x in range(x0, x1, 2)]
+    want = [int(pal["accent"][i:i + 2], 16) for i in (1, 3, 5)]
+    accent = [p for p in px if all(abs(a - b) <= 24 for a, b in zip(p, want))]
+    assert len(accent) > 400, "the number's pill is there"
+    # Blended on RGB frames, the brand colour comes out as itself in a BT.709 file.
+    median = [sorted(p[c] for p in accent)[len(accent) // 2] for c in range(3)]
     assert all(abs(a - b) <= 3 for a, b in zip(median, want)), (median, want)
+    assert sum(1 for p in px if min(p) > 245) > 15000, "the white card"
+    # The end card: sky at the top, paper at the bottom, the logo and the button.
     end = frame_rgb(path, plan["duration"] - 0.1, 1080, 1920)
-    assert near(mean_rgb(end, 1080, (80, 1600, 200, 1700)), pal["paper"], 4)
-    lg = info["overlay"]["end_card"]["logo"]
-    logo = mean_rgb(end, 1080, (lg["x"] + lg["size"] // 2 - 20, lg["y"] + lg["size"] // 2 - 20,
-                                lg["x"] + lg["size"] // 2 + 20, lg["y"] + lg["size"] // 2 + 20))
-    assert not near(logo, pal["paper"], 30), "the logo is on the card"
+    assert near(mean_rgb(end, 1080, (80, 20, 200, 60)), render.SKY, 6)
+    assert near(mean_rgb(end, 1080, (80, 1860, 200, 1900)), pal["paper"], 6)
+    top = info["overlay"]["end_card"]["info"]["top"]
+    logo = mean_rgb(end, 1080, (520, top + 80, 560, top + 120))
+    assert not near(logo, render.SKY, 30) and not near(logo, pal["paper"], 30), "the logo is on the card"
+    row = [end[(y * 1080 + 540) * 3:(y * 1080 + 540) * 3 + 3] for y in range(top, 1480)]
+    assert sum(1 for p in row if near(p, pal["primary"], 8)) > 60, "the Sign up free button"
+    # The picture has no face, so the card took the fixed slot over the captions, and said so.
+    card = info["overlay"]["cards"][0]["info"]
+    assert card["slot"] == "fixed" and info["face"].get("found", 0) == 0
+    assert any("no face found" in n for n in info["notes"])
 
 
 @needs_ffmpeg

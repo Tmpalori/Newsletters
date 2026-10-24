@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # One-time (and safe to re-run) setup for the subscribe-video toolkit:
-# a virtualenv with faster-whisper, the default whisper model on disk, and a
-# check that this ffmpeg can burn captions.
+# a virtualenv with faster-whisper, Pillow and OpenCV, the default whisper
+# model on disk, a colour emoji font and the face detector's model in the
+# toolkit's cache, and a check that this ffmpeg can burn captions.
 #
 # Its own venv because the system pip is externally managed on the cloud
 # containers, and because whisper's runtimes must stay out of the site's
@@ -10,12 +11,25 @@
 #
 #   VIDEO_VENV=~/.venvs/video        where the venv lives
 #   VIDEO_WHISPER_MODEL=small.en     the model analyze.py uses by default
+#   VIDEO_EDIT_CACHE=~/.cache/video-edit   the cache (transcripts, the emoji
+#                                    font, the face model, site screenshots)
 #   PYTHON=python3.13                the interpreter to build the venv from
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="${VIDEO_VENV:-$HOME/.venvs/video}"
 MODEL="${VIDEO_WHISPER_MODEL:-small.en}"
+CACHE="${VIDEO_EDIT_CACHE:-$HOME/.cache/video-edit}"
+
+# The event cards' icons: Noto Color Emoji (Apache 2.0), a release pinned by
+# its checksum. Not in the repo: it's 10 MB, and render.py finds it here.
+EMOJI_URL="https://raw.githubusercontent.com/googlefonts/noto-emoji/v2.051/fonts/NotoColorEmoji.ttf"
+EMOJI_SHA256="72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b"
+# The face detector that keeps the cards off the eyes: OpenCV Zoo's YuNet
+# (MIT), 230 KB, pinned to a commit. Without it render.py falls back to the
+# Haar cascade inside OpenCV.
+YUNET_URL="https://media.githubusercontent.com/media/opencv/opencv_zoo/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+YUNET_SHA256="8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
 
 say() { printf '==> %s\n' "$*"; }
 die() { printf 'setup.sh: %s\n' "$*" >&2; exit 1; }
@@ -68,6 +82,47 @@ except Exception:
     path = download_model(name)
     print(f"    downloaded: {path}")
 PY
+
+# A file the renderer wants, downloaded once and checked against its sha256.
+# A failed download is reported, not fatal: render.py does without (a system
+# emoji font or no icons; the Haar cascade for faces).
+fetch() {
+  local url="$1" sum="$2" dest="$3" what="$4" n
+  if [ -f "$dest" ] && "$VENV/bin/python" - "$dest" "$sum" <<'PY'
+import hashlib, sys
+sys.exit(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest() != sys.argv[2])
+PY
+  then
+    say "$what: already at $dest"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  for n in 1 2 3; do
+    # Big files through a proxy sometimes stop short (curl exit 18): retry.
+    if curl -fsSL -o "$dest.part" "$url" && "$VENV/bin/python" - "$dest.part" "$sum" <<'PY'
+import hashlib, sys
+sys.exit(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest() != sys.argv[2])
+PY
+    then
+      mv "$dest.part" "$dest"
+      say "$what: downloaded to $dest"
+      return 0
+    fi
+    sleep 2
+  done
+  rm -f "$dest.part"
+  say "$what: download FAILED (render.py will do without; re-run setup.sh to try again)"
+  return 0
+}
+fetch "$EMOJI_URL" "$EMOJI_SHA256" "$CACHE/fonts/NotoColorEmoji.ttf" "emoji font (the cards' icons)"
+fetch "$YUNET_URL" "$YUNET_SHA256" "$CACHE/models/face_detection_yunet_2023mar.onnx" "face model (YuNet)"
+
+# The phone shows a screenshot of the town's site, taken with headless
+# Chrome or Chromium (Playwright's counts) and cached for the day. Without
+# one the newest cached screenshot is used, and with none the video has no
+# phone: report, don't fail.
+CHROME="$("$VENV/bin/python" -c "import sys; sys.path.insert(0, '$HERE'); import render; print(render.chrome_path() or '')")"
+if [ -n "$CHROME" ]; then say "chrome (the phone's screenshot): $CHROME"; else say "chrome: NOT FOUND (no new site screenshots for the phone; set VIDEO_CHROME)"; fi
 
 # Captions are burned in with the subtitles filter, so libass is required.
 # zscale + tonemap only matter for iPhone HDR (HLG) takes; without them the

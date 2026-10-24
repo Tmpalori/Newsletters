@@ -2,15 +2,15 @@
 """Cut the subscribe videos: raw takes in, finished Reels out.
 
     python3 marketing/video/edit.py RAW [RAW...] [--video ID] [--transcript JSON]
-                                    [--out DIR] [--formats 9x16,4x5] [--model M]
+                                    [--out DIR] [--formats 4x5,9x16] [--model M]
 
 For each raw file, analyze.py finds the scripts in it and plans the cut, and
 render.py renders every plan in every format. Per video it writes, under
 <out>/<video_id>/ (default out/renders/, which git ignores):
 
+    feed-4x5.mp4    the feed ad (1080x1350), the main output: the videos run as ads
     reel-9x16.mp4   the Reel (1080x1920)
-    feed-4x5.mp4    the feed ad (1080x1350)
-    thumb.jpg       a frame 0.8 s in, hook up
+    thumb.jpg       a frame 0.8 s in, hook up, from the first format
     report.json     the plan, what each render did and an ffprobe summary
                     of each file; `python3 render.py report.json` re-renders
                     it after a hand fix to the plan
@@ -56,8 +56,8 @@ def cut(plan, out_root, formats, log=print, folder=None, notes=()):
                                      "probe": render.summarize(path),
                                      "loudness": render.loudness(path)}
     if report["renders"]:
-        # The Reel's frame if there is one: that's the thumbnail Facebook shows.
-        first = report["renders"].get("9x16") or next(iter(report["renders"].values()))
+        # From the first format asked for: the feed ad's, by default.
+        first = next(iter(report["renders"].values()))
         render.thumbnail(os.path.join(out_dir, first["file"]), os.path.join(out_dir, "thumb.jpg"))
         report["thumb"] = "thumb.jpg"
     tmp = os.path.join(out_dir, ".report.json.part")
@@ -125,7 +125,7 @@ def main(argv=None):
     ap.add_argument("--transcript", help="word-timestamp JSON to use instead of whisper (one RAW only)")
     ap.add_argument("--model", help="whisper model for analyze.py")
     ap.add_argument("--out", default=DEFAULT_OUT, help="output folder (default %(default)s)")
-    ap.add_argument("--formats", default="9x16,4x5", help="comma-separated: 9x16, 4x5 (default %(default)s)")
+    ap.add_argument("--formats", default="4x5,9x16", help="comma-separated: 4x5, 9x16 (default %(default)s)")
     args = ap.parse_args(argv)
 
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
