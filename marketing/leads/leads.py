@@ -393,7 +393,13 @@ def next_pages(plan):
 def cmd_search(a, args):
     plan = search_plan(a, args.category, args.per_query, args.nearby)
     if args.more:
-        todo = next_pages(plan)
+        # Round-robin over the categories, so a --max-spend stop cuts
+        # every category's second page short evenly, not the last ones.
+        todo, by_cat = [], {}
+        for item in next_pages(plan):
+            by_cat.setdefault(item[0], []).append(item)
+        while any(by_cat.values()):
+            todo += [q.pop(0) for q in by_cat.values() if q]
     else:
         todo = [p for p in plan if args.refresh or not os.path.exists(p[3])]
     rows = sum(p[2]["limit"] for p in todo)
