@@ -958,8 +958,12 @@ def newsletter_preview(town, edition=HQ_EDITION, *, session=None, timeout=30):
     a wrong key as a failed login)."""
     if "down" in _HQ:
         return None, _HQ["down"]
-    import requests
-    import hq_feedback
+    try:
+        import requests
+        import hq_feedback
+    except ImportError as e:
+        _HQ["down"] = f"can't ask HQ ({e.name} isn't installed: pip install -r requirements.txt)"
+        return None, _HQ["down"]
     try:
         cfg = hq_feedback.config()
     except hq_feedback.HQError as e:
@@ -1001,7 +1005,7 @@ def newsletter_preview(town, edition=HQ_EDITION, *, session=None, timeout=30):
     if body is None:
         return None, why
     html = body.get("html")
-    if not isinstance(html, str) or not re.search(r"<body[\s>]", html[:50000], re.I):
+    if not isinstance(html, str) or not re.search(r"<body[\s>]", html, re.I):
         return None, "HQ's preview had no email in it"
     return html, None
 
@@ -1932,6 +1936,63 @@ def place_phone(face, left, right, width, *, margin=PHONE_MARGIN):
     return x, scale, side, clear
 
 
+def fit_phone(face, cols, rows, size, centre_y, avoid=(), *, pads=(0, 0), must=False):
+    """Where the phone's body (size: (w, h) px, its hard shadow included)
+    goes: (x, y, scale, side, clear). Across as place_phone has it between
+    cols (left, right); down centred on centre_y inside rows (top, bottom),
+    with pads (the soft shadow above and below the body) inside them too,
+    and clear of any box in `avoid` it would meet side by side (a list
+    that is still up), shrunk to fit if it must, down to PHONE_MIN_SCALE.
+    None when it can't fit, unless `must`: then where place_phone puts it,
+    centred on centre_y."""
+    width, height = size
+    scale = 1.0
+    for _ in range(4):
+        x, s, side, clear = place_phone(face, cols[0], cols[1], width * scale)
+        k = scale * s
+        if k < PHONE_MIN_SCALE - 1e-9:
+            break
+        w, h = width * k, height * k
+        top, bottom = rows[0] + pads[0] * k, rows[1] - pads[1] * k
+        for x0, y0, x1, y1 in avoid:
+            if x0 < x + w and x < x1:
+                if (y0 + y1) / 2 >= centre_y:
+                    bottom = min(bottom, y0 - PHONE_MARGIN - pads[1] * k)
+                else:
+                    top = max(top, y1 + PHONE_MARGIN + pads[0] * k)
+        if h <= bottom - top + 0.5:
+            return x, min(max(centre_y - h / 2, top), bottom - h), k, side, clear
+        if bottom <= top:
+            break
+        scale *= (bottom - top) / h
+    if not must:
+        return None
+    x, s, side, clear = place_phone(face, cols[0], cols[1], width)
+    return x, centre_y - height * s / 2, s, side, clear
+
+
+def _make_room_for_phone(opts, size, canvas_w, place):
+    """A list's places (card_slots) narrowed to those that leave the phone
+    room beside it, each at the biggest size that does (down to
+    CARD_MIN_SCALE; a place under the face keeps its top, one over the
+    captions its bottom). place(box): fit_phone avoiding that box.
+    Returns (places, the phone's scale at the first), or (opts, 0.0) when
+    none does."""
+    w, h = size
+    out = []
+    for slot, y, scale in opts:
+        bottom = slot in ("lower-third", "lower-third-small", "fixed")
+        for s in [scale] + [v for v in (0.9, 0.8, CARD_MIN_SCALE) if v < scale and not slot.endswith("-small")]:
+            y1 = y + h * scale - h * s if bottom else y
+            placed = place(((canvas_w - w * s) / 2, y1, (canvas_w + w * s) / 2, y1 + h * s))
+            if placed:
+                out.append(((slot, y1, s), round(placed[2], 2)))
+                break
+    if not out:
+        return opts, 0.0
+    return [o for o, _ in out], out[0][1]
+
+
 def _caption_top(spec):
     """The top of the captions' ink (ascenders and outline) on this layout."""
     em = spec["caption_em"]
@@ -1989,8 +2050,10 @@ def _sprite(name, frames, x, y, start, end, *, fade_out=0, box=None, **extra):
 
 def card_spans(plan, es=None):
     """When each chip's card is up: the plan's times with its rules enforced
-    again (no two at once, gone by the sign-up line and the end card) and
-    none while the phone shows. [(chip, start, end)]"""
+    again (no two at once, gone by the sign-up line and the end card). A
+    card on its own makes way for the phone; a list (card_groups) stays up
+    through it, to the sign-up line, and the phone finds room beside it.
+    [(chip, start, end)]"""
     chips = [c for c in plan.get("chips") or [] if c.get("text") or c.get("title")]
     chips = sorted(chips, key=lambda c: float(c["start"]))
     if es is None:
@@ -2000,7 +2063,7 @@ def card_spans(plan, es=None):
     phone = plan.get("phone") or None
     p0 = float(phone["start"]) if phone else None
     p1 = min(float(phone["end"]), es) if phone else None
-    out = []
+    spans = []
     for n, chip in enumerate(chips):
         start = float(chip["start"])
         end = min(float(chip["end"]), es)
@@ -2008,13 +2071,17 @@ def card_spans(plan, es=None):
             end = min(end, float(chips[n + 1]["start"]))
         elif cta is not None and float(cta) > start:
             end = min(end, float(cta))
-        if phone and p1 > p0:
+        spans.append((chip, start, end))
+    out = []
+    for group in card_groups(spans):
+        if len(group) == 1 and phone and p1 > p0:
+            chip, start, end = group[0]
             if start < p0:
                 end = min(end, p0)
             elif start < p1:
                 start = p1
-        if end - start >= 0.1:
-            out.append((chip, start, end))
+            group = [(chip, start, end)]
+        out += [span for span in group if span[2] - span[1] >= 0.1]
     return out
 
 
@@ -2072,9 +2139,34 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
                     x, spec["badge_top"], sub_from, es,
                     box=(round(x), spec["badge_top"], round(x) + img.width, spec["badge_top"] + img.height),
                     info=info), "badge")
+    badge_bottom = max([b["box"][3] for b in geo.get("badge", [])] or [T])
+    # The phone, when a phone cue was said: its picture and the room it may
+    # take (the cards need to know: a list still up makes room for it).
+    phone = plan.get("phone") or None
+    p0 = p1 = None
+    if phone:
+        p0, p1 = float(phone["start"]), min(float(phone["end"]), es)
+        if screen is None:
+            geo["notes"].append("no screenshot of the site for the phone (no Chrome, or it failed, and none "
+                                "cached): the video has no phone")
+            phone = None
+        elif p1 - p0 < 0.3:
+            phone = None
+    if phone:
+        shot = Image.open(screen) if isinstance(screen, (str, os.PathLike)) else screen
+        phone_img, (ox, oy) = phone_picture(shot, pal)
+        dx, dy = PHONE["drop"]
+        body_w, body_h = PHONE["width"] + dx, PHONE["height"] + dy
+        # Its soft shadow counts too: nothing of it may leave the safe zone.
+        vis = phone_img.getchannel("A").getbbox()
+        pad_l, pad_r = ox - vis[0], vis[2] - (ox + body_w)
+        pad_t, pad_b = oy - vis[1], vis[3] - (oy + body_h)
+        phone_face = face_during(faces or [], p0, p1)
+        room = dict(cols=(L + pad_l, R - pad_r), size=(body_w, body_h), pads=(pad_t, pad_b),
+                    rows=(badge_bottom + PHONE_MARGIN, min(B, _caption_top(spec) - 16)),
+                    centre_y=spec["phone_y"])
     # The event cards, one at a time, kept off his eyes.
     no_icon = []
-    badge_bottom = max([b["box"][3] for b in geo.get("badge", [])] or [T])
     lo, hi = badge_bottom + 20, min(B, _caption_top(spec)) - 16
     units = []
     for group in card_groups(card_spans(plan, es)):
@@ -2089,12 +2181,20 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
             units.append({"group": group, "img": img, "info": info, "face": face,
                           "opts": card_slots(img.height, face, lo, hi)})
             continue
-        # A list: with the venue lines if it fits as well with them, else without.
+        # A list: with the venue lines if it fits as well with them, else
+        # without. When the phone comes in while it is up, only the places
+        # that leave the phone room count (the list a little smaller if
+        # that's what it takes), and the venue lines go if that leaves the
+        # phone more room.
         best = None
         for venues in (True, False):
             img, info = list_card(chips, pal, venues=venues)
             opts = card_slots(img.height, face, lo, hi)
-            score = (not opts[0][0].endswith("-small"), opts[0][2], venues)
+            phone_scale = 1.0
+            if phone and start < p1 and end > p0:
+                opts, phone_scale = _make_room_for_phone(opts, img.size, W, lambda box: fit_phone(
+                    phone_face, avoid=[box], **room))
+            score = (not opts[0][0].endswith("-small"), phone_scale > 0, phone_scale, opts[0][2], venues)
             if best is None or score > best[0]:
                 best = (score, img, info, opts)
         _, img, info, opts = best
@@ -2144,36 +2244,36 @@ def build_sprites(plan, layout="4x5", *, screen=None, faces=None):
         geo["notes"].append("no colour emoji font for the card icons (%s): run setup.sh, or set "
                             "VIDEO_EMOJI_FONT" % " ".join(no_icon) if not emoji_font_path() else
                             "the emoji font has no %s: those cards have no icon" % " ".join(no_icon))
-    # The phone, when a phone cue was said, beside his face or off to one side of it.
-    phone = plan.get("phone") or None
+    # The phone, beside his face or off to one side of it, and clear of a
+    # list that is still up (it stays to the sign-up line), smaller if it must.
     if phone:
-        p0, p1 = float(phone["start"]), min(float(phone["end"]), es)
-        if screen is None:
-            geo["notes"].append("no screenshot of the site for the phone (no Chrome, or it failed, and none "
-                                "cached): the video has no phone")
-        elif p1 - p0 >= 0.3:
-            shot = Image.open(screen) if isinstance(screen, (str, os.PathLike)) else screen
-            img, (ox, oy) = phone_picture(shot, pal)
-            dx, dy = PHONE["drop"]
-            body_w, body_h = PHONE["width"] + dx, PHONE["height"] + dy
-            # Its soft shadow counts too: nothing of it may leave the safe zone.
-            vis = img.getchannel("A").getbbox()
-            pad_l, pad_r = ox - vis[0], vis[2] - (ox + body_w)
-            face = face_during(faces or [], p0, p1)
-            bx, scale, side, clear = place_phone(face, L + pad_l, R - pad_r, body_w)
-            if scale < 1:
-                img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
-                ox, oy = ox * scale, oy * scale
-                body_w, body_h = body_w * scale, body_h * scale
-            x = bx - ox
-            y = spec["phone_y"] - body_h / 2 - oy
-            info = {"side": side, "x": round(bx), "scale": round(scale, 3), "clear": clear,
-                    "face": [round(v) for v in face] if face else None}
-            if clear == "none":
-                geo["notes"].append("the phone could not keep off both eyes (the face fills the frame); check it")
-            add(_sprite("phone", _enter(img, "pop", POP_FRAMES), x, y, p0, p1, fade_out=PHONE_OUT_FRAMES,
-                        box=(round(bx), round(y + oy), round(bx + body_w), round(y + oy + body_h)), info=info),
-                "phone")
+        f0, f1 = round(p0 * FPS) / FPS, round(p1 * FPS) / FPS
+        under = [sp for sp in sprites if sp["name"].startswith("card") and sp["start"] < f1 and sp["end"] > f0]
+        placed = fit_phone(phone_face, avoid=[sp["box"] for sp in under], **room) if under else None
+        if under and placed is None:
+            # No room for it beside the list: the list makes way, as a card does.
+            for sp in under:
+                sp["end"] = max(sp["start"], f0)
+                next(c for c in geo["cards"] if c["name"] == sp["name"])["end"] = sp["end"]
+            sprites[:] = [sp for sp in sprites if not sp["name"].startswith("card") or sp["end"] > sp["start"]]
+            geo["cards"] = [c for c in geo["cards"] if c["end"] > c["start"]]
+            geo["notes"].append("no room for the phone beside the list: the list ends when the phone comes in")
+            under = []
+        if placed is None:
+            placed = fit_phone(phone_face, must=True, **room)
+        bx, by, scale, side, clear = placed
+        img = phone_img
+        if scale < 1:
+            img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+            ox, oy = ox * scale, oy * scale
+            body_w, body_h = body_w * scale, body_h * scale
+        info = {"side": side, "x": round(bx), "y": round(by), "scale": round(scale, 3), "clear": clear,
+                "face": [round(v) for v in phone_face] if phone_face else None, "with_list": bool(under)}
+        if clear == "none":
+            geo["notes"].append("the phone could not keep off both eyes (the face fills the frame); check it")
+        add(_sprite("phone", _enter(img, "pop", POP_FRAMES), bx - ox, by - oy, p0, p1, fade_out=PHONE_OUT_FRAMES,
+                    box=(round(bx), round(by), round(bx + body_w), round(by + body_h)), info=info),
+            "phone")
     # The end card, up from black, to the last frame.
     if ec:
         img, info = end_card_picture(plan, town, pal, layout)

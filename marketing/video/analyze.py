@@ -37,13 +37,15 @@ The overlays, on the output timeline:
               word to the next card (the last to cta_start). The script's
               card fields ride along when it has them: icon (one emoji),
               tag, title, venue, and free (true: a FREE pill). A card
-              without a title shows text as its title.
+              without a title shows text as its title. The renderer makes
+              chips cued in quick succession one list card, a row each.
   cta_start   when the sign-up line (cta_cue) starts
-  phone       {start, end}: a phone showing the town's site, from the first
-              phone_cue word said after the cards (and after the hook) for
-              PHONE_SECONDS, cut short at the end card; null when
-              scripts.json has no phone_cue or none was said. The renderer
-              hides any card while the phone is up.
+  phone       {start, end}: a phone showing the town's next newsletter
+              issue (else its site), from the first phone_cue word said
+              after the cards (and after the hook) for PHONE_SECONDS, cut
+              short at the end card; null when scripts.json has no
+              phone_cue or none was said. The renderer hides a lone card
+              while the phone is up; a list stays, and the phone makes room.
   end_card    {start, end, line1, line2}, plus tagline, button and url when
               scripts.json's end_card has them, with {city} and {domain}
               filled in. Older plans with only line1/line2 still render.

@@ -1000,6 +1000,70 @@ def test_a_list_keeps_off_the_eyes_and_drops_its_venues_when_space_is_tight():
                for c in geo["cards"])
 
 
+def _boxes_meet(a, b):
+    return _overlaps(a[0], a[2], b[0], b[2]) and _overlaps(a[1], a[3], b[1], b[3])
+
+
+@pytest.mark.parametrize("layout", ["4x5", "9x16"])
+@pytest.mark.parametrize("pose", ["close", "high", "none"])
+def test_a_list_stays_up_through_the_phone_which_makes_room_beside_it(layout, pose):
+    # "Live music, family nights, markets, festivals. It's all in one free
+    # email...": the phone comes in between the last row and the sign-up line.
+    plan = _rapid_plan()
+    last = plan["chips"][-1]["start"]
+    plan["phone"] = {"start": round(last + 0.9, 3), "end": round(last + 2.9, 3)}
+    assert plan["phone"]["end"] < plan["cta_start"]
+    spec = render.LAYOUTS[layout]
+    L, T, R, B = spec["safe"]
+    face = {"close": (238, T + 160, 833, T + 1000), "high": (362, T + 20, 708, T + 500), "none": None}[pose]
+    sprites, geo = render.build_sprites(plan, layout, screen=_screen(), faces=_faces(face) if face else None)
+    phone = next(sp for sp in sprites if sp["name"] == "phone")
+    cards = [sp for sp in sprites if sp["name"].startswith("card")]
+    assert len(cards) == 4 and _near(cards[-1]["end"], plan["cta_start"]), "the list stays to the sign-up line"
+    info = geo["phone"][0]["info"]
+    assert info["with_list"] and info["scale"] >= render.PHONE_MIN_SCALE
+    assert (info["x"], info["y"]) == tuple(phone["box"][:2])
+    for sp in cards:
+        if sp["start"] < phone["end"] and sp["end"] > phone["start"]:
+            assert not _boxes_meet(sp["box"], phone["box"]), (sp["name"], sp["box"], phone["box"])
+    x0, y0, x1, y1 = phone["box"]
+    assert L <= x0 and x1 <= R
+    assert y0 >= max(b["box"][3] for b in geo["badge"]) and y1 <= render._caption_top(spec)
+    for fr in phone["frames"]:
+        a = fr.getchannel("A").getbbox()
+        assert L <= a[0] + phone["x"] and a[2] + phone["x"] <= R and T <= a[1] + phone["y"]
+    if face:
+        e0, e1 = _eye_band(face)
+        assert all(c["box"][1] >= e1 or c["box"][3] <= e0 for c in geo["cards"])
+        left_eye, right_eye = render.eye_zones(face)
+        assert not _overlaps(x0, x1, *(right_eye if info["side"] == "left" else left_eye))
+    assert not any("no room for the phone" in n for n in geo["notes"])
+
+
+def test_a_list_drops_its_venues_when_that_gives_the_phone_more_room():
+    plan = _rapid_plan()
+    last = plan["chips"][-1]["start"]
+    _, alone = render.build_sprites(plan, "4x5", screen=_screen())
+    assert alone["cards"][-1]["info"]["venues"]
+    plan["phone"] = {"start": round(last + 0.9, 3), "end": round(last + 2.9, 3)}
+    _, geo = render.build_sprites(plan, "4x5", screen=_screen())
+    assert not geo["cards"][-1]["info"]["venues"] and geo["phone"][0]["info"]["with_list"]
+
+
+def test_with_no_room_for_the_phone_beside_the_list_the_list_makes_way(monkeypatch):
+    monkeypatch.setattr(render, "PHONE_MIN_SCALE", 0.98)
+    plan = _rapid_plan()
+    last = plan["chips"][-1]["start"]
+    plan["phone"] = {"start": round(last + 0.9, 3), "end": round(last + 2.9, 3)}
+    sprites, geo = render.build_sprites(plan, "4x5", screen=_screen())
+    phone = next(sp for sp in sprites if sp["name"] == "phone")
+    cards = [sp for sp in sprites if sp["name"].startswith("card")]
+    assert len(cards) == 4 and _near(cards[-1]["end"], phone["start"])
+    assert [c["end"] for c in geo["cards"]] == [sp["end"] for sp in cards]
+    assert not geo["phone"][0]["info"]["with_list"] and geo["phone"][0]["info"]["scale"] == 1.0
+    assert any("no room for the phone beside the list" in n for n in geo["notes"])
+
+
 def test_spaced_cards_stay_single_cards():
     _, geo = render.build_sprites(script_plan("victoria-2"), "4x5")
     assert geo["cards"] and not any(c["info"].get("list") for c in geo["cards"])
