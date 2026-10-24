@@ -459,13 +459,16 @@ def score(lead):
     return s + (50 if lead.get("listed") else 0)
 
 
-def pick(rows, venues, target=TARGET):
+def pick(rows, venues, target=TARGET, prefer=()):
     """Up to target leads: no chains, one per domain, listed venues marked
-    and kept, each category's quota from its best, then the best of the rest."""
+    and kept, each category's quota from its best, then the best of the rest.
+    Ids in prefer (an earlier pick's, already paid for) win their domain
+    and their place, so a re-pick only adds."""
+    prefer = set(prefer)
     by_domain = {v["domain"]: v for v in venues if v["domain"]}
     by_name = {name_key(v["name"]): v for v in venues}
     seen, leads = set(), []
-    for r in sorted(rows, key=lambda r: -score(r)):
+    for r in sorted(rows, key=lambda r: (r["id"] not in prefer, -score(r))):
         c = r["content"]
         dom = domain_of(c.get("root_domain") or c.get("website_url") or "")
         if not dom or (c.get("num_stores") or 1) > MAX_STORES or dom in seen:
@@ -483,7 +486,7 @@ def pick(rows, venues, target=TARGET):
                           "content": {"business_name": v["name"], "website_url": "https://" + v["domain"]},
                           "domain": v["domain"], "listed": True, "source": "venues.json"})
     leads = [l for l in leads if not not_local(l, rules)]
-    leads.sort(key=lambda l: -score(l))
+    leads.sort(key=lambda l: (l["id"] not in prefer, -score(l)))
     # Listed venues first; each fills a slot of its own category, and the
     # quotas shrink in step to the room left, so the categories with few
     # reviews (law, insurance, real estate) keep their share.
@@ -512,9 +515,11 @@ def pick(rows, venues, target=TARGET):
 def cmd_pick(a, args):
     rows = searched(a["slug"])
     venues = listed_venues(a)
-    leads = pick(rows, venues, args.target)
-    # What an earlier pick had that isn't a local business, and why.
     path = os.path.join(OUT, a["slug"], "picked.json")
+    # Keep what an earlier pick had and what was already paid to look up.
+    prefer = {l["id"] for l in read_json(path, []) or []} | submitted(a["slug"], "people")
+    leads = pick(rows, venues, args.target, prefer=prefer)
+    # What an earlier pick had that isn't a local business, and why.
     ids, rules = {l["id"] for l in leads}, overrides()
     left = read_json(os.path.join(OUT, a["slug"], "left_out.json"), []) or []
     known = {l["id"] for l in left}

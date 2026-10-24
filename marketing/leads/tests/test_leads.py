@@ -396,3 +396,14 @@ def test_nearby_searches_cache_apart():
     assert plan and all(p[3].endswith("__nearby.json") for p in plan)
     assert plan[0][2]["location"][0]["zip_code"] == leads.NEARBY["victoria"]
     assert leads.search_plan(leads.area("lincoln"), ["dental"], nearby=True) == []
+
+
+def test_a_repick_keeps_what_was_already_picked():
+    """A bigger target only adds: an earlier pick's ids keep their domain
+    (over another location's record) and their place (over better reviews)."""
+    old = [row(f"d{i}", f"Dentist {i}", f"dent{i}.com", cat="dental", reviews=10) for i in range(20)]
+    rival = row("d0-other", "Dentist 0 North", "dent0.com", cat="dental", reviews=5000)
+    better = [row(f"n{i}", f"New {i}", f"new{i}.com", cat="dental", reviews=900) for i in range(20)]
+    prefer = [r["id"] for r in old]
+    got = {l["id"] for l in leads.pick(old + [rival] + better, [], target=300, prefer=prefer)}
+    assert set(prefer) <= got and "d0-other" not in got
