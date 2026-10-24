@@ -100,8 +100,31 @@ SHARED_HOSTS = {
     "booksy.com", "mindbodyonline.com", "statefarm.com", "allstate.com", "edwardjones.com",
     "farmers.com", "kw.com", "remax.com", "century21.com", "coldwellbanker.com",
     "coldwellbankerhomes.com", "exprealty.com", "bhhs.com", "compass.com", "realtor.com",
-    "zillow.com",
+    "zillow.com", "getbento.com", "squareup.com", "wix.com", "webflow.io", "netlify.app", "github.io",
+    "ueniweb.com",
 }
+# Zones whose subdomains belong to different owners: keep one label more.
+SUFFIXES = {"food.coop"}
+
+# Leads that aren't a business with a local owner (Tristen, Oct 2026: "we
+# want stuff where the owner lives in that town"): public bodies, churches,
+# chains. Ticket-selling arts groups and credit unions stay: they sell to
+# locals and buy local promotion. overrides.json holds the calls the rules
+# get wrong, by domain.
+PUBLIC = re.compile(
+    r"\blibrar|\buniversity\b|\bcollege\b|school district|public schools|parks? (and|&) rec|state park|"
+    r"national (park|wildlife|heritage|historic|monument)|wildlife refuge|tourism|^visit |"
+    r"convention (and|&) visitors|chamber of commerce|\bchamber\b|downtown \w+ association|"
+    r"main street program|business district|creative district|arts council|\bnavy\b|campus recreation|"
+    r"county fair|super fair|farmers market|growers|wine trail|wine country|^city of |county of |"
+    r"\bymca\b|\bywca\b|humane society|animal shelter|\btnr\b|parks foundation")
+RELIGIOUS = re.compile(r"church|cathedral|parish|chapel|ministr|synagogue|\btemple\b|mosque|episcopal|"
+                       r"baptist|methodist|catholic|lutheran|presbyterian")
+# A .org is taken for a nonprofit unless it sells tickets or is a credit union.
+TICKETED = re.compile(r"theat(er|re)|museum|symphony|orchestra|ballet|festival|\bzoo\b|aquarium|"
+                      r"performing arts|center for the arts|media arts|fine arts|art association|film|"
+                      r"music|hall of fame|sound studio|\bfair\b|birthplace|repertory")
+CREDIT_UNION = re.compile(r"credit union|\bfcu\b|federal credit")
 
 
 def pitch(cat):
@@ -156,7 +179,42 @@ def domain_of(url):
         return ""
     if s in SHARED_HOSTS or any(s.endswith("." + h) for h in SHARED_HOSTS):
         return ""
-    return s
+    return registrable(s)
+
+
+def registrable(host):
+    """The domain one owner holds: florence.singingriverdentistry.com is
+    singingriverdentistry.com, so a practice's locations count once."""
+    parts = host.split(".")
+    keep = 2
+    if ".".join(parts[-2:]) in SUFFIXES or (len(parts[-1]) == 2 and parts[-2] in ("co", "com", "org", "net", "gov", "ac", "edu")):
+        keep = 3
+    return ".".join(parts[-keep:])
+
+
+def overrides():
+    """overrides.json: {"drop": {domain: why}, "keep": {domain: why}}."""
+    return read_json(os.path.join(HERE, "overrides.json"), {}) or {}
+
+
+def not_local(lead, rules=None):
+    """Why a lead isn't a local business to sell to, or '' when it is."""
+    rules = overrides() if rules is None else rules
+    c, dom = lead["content"], lead["domain"]
+    if dom in (rules.get("keep") or {}):
+        return ""
+    if dom in (rules.get("drop") or {}):
+        return rules["drop"][dom]
+    name = (c.get("business_name") or c.get("store_name") or "").lower()
+    if dom.endswith((".gov", ".edu", ".mil")) or PUBLIC.search(name):
+        return "public body or civic group"
+    if RELIGIOUS.search(name):
+        return "church"
+    if c.get("ownership_type") == "CHAIN" and (c.get("num_stores") or 0) >= 3:
+        return "chain"
+    if dom.endswith(".org") and not (TICKETED.search(name) or CREDIT_UNION.search(name)):
+        return "nonprofit"
+    return ""
 
 
 def name_key(name):
@@ -375,6 +433,7 @@ def pick(rows, venues, target=TARGET):
         seen.add(dom)
         v = by_domain.get(dom) or by_name.get(name_key(c.get("business_name") or c.get("store_name")))
         leads.append(dict(r, domain=dom, listed=bool(v), source="openmart"))
+    rules = overrides()
     # Venues the newsletter follows that the searches didn't turn up.
     found = {name_key(l["content"].get("business_name") or l["content"].get("store_name")) for l in leads}
     for v in venues:
@@ -383,6 +442,7 @@ def pick(rows, venues, target=TARGET):
             leads.append({"id": "venue:" + v["domain"], "category": "listed", "match_score": 0,
                           "content": {"business_name": v["name"], "website_url": "https://" + v["domain"]},
                           "domain": v["domain"], "listed": True, "source": "venues.json"})
+    leads = [l for l in leads if not not_local(l, rules)]
     leads.sort(key=lambda l: -score(l))
     # Listed venues first; each fills a slot of its own category, and the
     # quotas shrink in step to the room left, so the categories with few
@@ -413,12 +473,22 @@ def cmd_pick(a, args):
     rows = searched(a["slug"])
     venues = listed_venues(a)
     leads = pick(rows, venues, args.target)
+    # What an earlier pick had that isn't a local business, and why.
+    path = os.path.join(OUT, a["slug"], "picked.json")
+    ids, rules = {l["id"] for l in leads}, overrides()
+    left = read_json(os.path.join(OUT, a["slug"], "left_out.json"), []) or []
+    known = {l["id"] for l in left}
+    for l in read_json(path, []) or []:
+        why = not_local(dict(l, domain=domain_of(l["domain"]) or l["domain"]), rules)
+        if l["id"] not in ids and l["id"] not in known and why:
+            left.append(dict(l, reason=why))
+    write_json(town_dir(a["slug"], "left_out.json"), left)
     write_json(town_dir(a["slug"], "picked.json"), leads)
     counts = {}
     for l in leads:
         counts[l["category"]] = counts.get(l["category"], 0) + 1
     print(f"{a['site_name']}: {len(rows)} searched, {len(leads)} picked "
-          f"({sum(l['listed'] for l in leads)} already listed): "
+          f"({sum(l['listed'] for l in leads)} already listed, {len(left)} left out as not local): "
           + ", ".join(f"{k} {v}" for k, v in sorted(counts.items(), key=lambda kv: -kv[1])))
 
 

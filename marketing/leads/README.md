@@ -37,7 +37,8 @@ The category partner ids match `server/town.js` `partnerCategories`, and a test 
 
 Picking rules:
 
-- **Kept out:** businesses with no website of their own (`find_people` needs a domain), brands with more than 10 locations (their marketing is decided at head office), and any second business on the same domain.
+- **Kept out:** businesses with no website of their own (`find_people` needs a domain), brands with more than 10 locations (their marketing is decided at head office), and any second business on the same domain. A practice's location subdomains (`florence.example.com`) count as one domain.
+- **Local owners only:** the leads are businesses whose owner lives in the town. `not_local()` leaves out public bodies (government, libraries, schools and universities, parks, tourism boards, chambers, downtown associations, YMCAs, farmers markets), churches, chains (Openmart's `CHAIN` with 3 or more locations), and `.org` nonprofits. Two kinds of nonprofit stay: ticket-selling arts groups (theaters, symphonies, festivals, museums, zoos) and credit unions, because both sell to locals and pay for local promotion. `overrides.json` corrects the rules by domain: `drop` takes out national chains and out-of-town companies the rules can't see (Texas Roadhouse, a Houston dealer group, a national lender's loan officers), and `keep` saves real businesses on a `.org` site (a vet, a bar, a plumber). `pick` writes what it left out, with the reason, to `out/<town>/left_out.json`.
 - **Ranking:** businesses with more Google reviews come first.
 - **Already in the newsletter:** venues from the town's `venues.json` are always kept and marked `already_listed`. That includes ones the searches missed, when they have a website of their own. They're the warmest leads, because their events already run in the newsletter.
 - **Short categories:** when a category comes up short, its slots go to the best of the rest.

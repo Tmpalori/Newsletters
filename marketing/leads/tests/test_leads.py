@@ -76,7 +76,10 @@ def test_search_plan_asks_for_enough_per_query():
 @pytest.mark.parametrize("url,want", [
     ("https://www.Example.com/menu?x=1", "example.com"),
     ("example.com", "example.com"),
-    ("http://shop.example.co.uk:8080/", "shop.example.co.uk"),
+    ("http://shop.example.co.uk:8080/", "example.co.uk"),
+    ("https://florence.singingriverdentistry.com/", "singingriverdentistry.com"),
+    ("https://ashland.food.coop", "ashland.food.coop"),
+    ("https://fiestamexonline.getbento.com/", ""),
     ("mailto:owner@bakery.com", "bakery.com"),
     ("https://www.facebook.com/aerocrafters", ""),
     ("https://joes.wixsite.com/joes", ""),
@@ -85,6 +88,49 @@ def test_search_plan_asks_for_enough_per_query():
 ])
 def test_domain_of(url, want):
     assert leads.domain_of(url) == want
+
+
+def local(name, domain, **content):
+    return {"id": domain, "domain": domain, "content": dict(content, business_name=name)}
+
+
+@pytest.mark.parametrize("name,domain,content,why", [
+    ("Joe's Tacos", "joestacos.com", {}, ""),
+    ("Victoria Public Library", "victoriapubliclibrary.org", {}, "public body or civic group"),
+    ("Back Bay National Wildlife Refuge", "fws.gov", {}, "public body or civic group"),
+    ("University of Houston Victoria", "uhv.edu", {}, "public body or civic group"),
+    ("Trinity Episcopal Church & School", "trinityvictoria.org", {}, "church"),
+    ("YMCA of Lincoln", "ymcalincoln.org", {}, "public body or civic group"),
+    ("Eagle Point Chamber of Commerce", "eaglepointchamber.org", {}, "public body or civic group"),
+    ("The Growler Guys", "thegrowlerguys.com", {"ownership_type": "CHAIN", "num_stores": 7}, "chain"),
+    ("Leo J. Welder Center", "weldercenter.org", {"ownership_type": "CHAIN", "num_stores": 1}, "nonprofit"),
+    ("Cornhusker Council, BSA", "cornhuskercouncil.org", {}, "nonprofit"),
+    ("Camelot Theatre", "camelottheatre.org", {}, ""),
+    ("Lincoln Children's Zoo", "lincolnzoo.org", {}, ""),
+    ("LincOne Federal Credit Union", "linconefcu.org", {}, ""),
+])
+def test_not_local_rules(name, domain, content, why):
+    assert leads.not_local(local(name, domain, **content), {}) == why
+
+
+def test_overrides_win_over_the_rules():
+    rules = {"drop": {"texasroadhouse.com": "national chain"}, "keep": {"weldercenter.org": "sells tickets"}}
+    assert leads.not_local(local("Texas Roadhouse", "texasroadhouse.com"), rules) == "national chain"
+    assert leads.not_local(local("Leo J. Welder Center", "weldercenter.org"), rules) == ""
+
+
+def test_the_overrides_file_reads():
+    rules = leads.overrides()
+    assert "texasroadhouse.com" in rules["drop"] and "cinemacafe.com" in rules["keep"]
+    assert not set(rules["drop"]) & set(rules["keep"])
+    assert all(leads.domain_of(d) == d for d in [*rules["drop"], *rules["keep"]]), "base domains only"
+
+
+def test_pick_leaves_out_what_isnt_a_local_business():
+    rows = [row("c", "First Baptist Church", "fbc.org", reviews=900), row("j", "Joe's", "joes.com"),
+            row("l", "Lincoln City Libraries", "lincolnlibraries.org", reviews=900)]
+    venues = [{"name": "Texas Roadhouse", "domain": "texasroadhouse.com", "category": "Restaurant"}]
+    assert [l["id"] for l in leads.pick(rows, venues)] == ["j"]
 
 
 def test_name_key_is_loose():

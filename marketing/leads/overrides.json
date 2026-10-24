@@ -1,0 +1,39 @@
+{
+  "drop": {
+    "texasroadhouse.com": "national chain",
+    "hopcat.com": "chain",
+    "brccva.com": "national chain (Black Rifle Coffee)",
+    "champyschicken.com": "chain",
+    "apexentertainment.com": "chain owned out of town",
+    "newrealmbrewing.com": "chain based in Atlanta",
+    "lithiahondamedford.com": "Lithia Motors, a public company",
+    "machaikfordofvictoria.com": "Mac Haik dealer group, Houston",
+    "detar.com": "hospital system owned out of town",
+    "firstcarolinabank.com": "bank based in North Carolina",
+    "capcenter.com": "mortgage company based in Richmond",
+    "kristinboucher.com": "loan officer at a national lender (Fairway)",
+    "ginasturdevant.com": "loan officer at a national lender (Fairway)",
+    "pinnaclebankarena.com": "city-owned arena",
+    "towncentervb.com": "shopping district, not one business",
+    "discovervictoriatexas.com": "tourism office",
+    "beacheventsvb.com": "the city's events program"
+  },
+  "keep": {
+    "cinemacafe.com": "locally owned, started in Virginia Beach in 1986",
+    "nufcu.org": "credit union",
+    "weldercenter.org": "performing arts venue that sells tickets",
+    "mainstanimalhospital.org": "veterinary clinic",
+    "liquidlounge.org": "bar",
+    "riselawgroup.org": "law firm",
+    "shanecunningham.org": "insurance agency",
+    "ashlandaerialarts.org": "fitness studio",
+    "uncoveryourvoice.org": "music lessons",
+    "callpros.org": "plumber",
+    "dormeleven.org": "live music venue and studio",
+    "justfurpetsgrooming.org": "pet groomer",
+    "tpycc.org": "private country club",
+    "lincolnkarate.org": "martial arts school",
+    "sugarplumbakery.org": "bakery",
+    "saviormartialartsvirginiabeach.org": "martial arts school"
+  }
+}
