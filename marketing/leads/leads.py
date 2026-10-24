@@ -49,6 +49,9 @@ BASE = os.environ.get("OPENMART_BASE", "https://api.openmart.ai").rstrip("/")
 OUT = os.environ.get("LEADS_OUT") or os.path.join(HERE, "out")
 
 TOWNS = ("victoria", "medford", "shoals", "lincoln", "virginiabeach")
+# Towns near enough that their people read the newsletter, searched with
+# --nearby. Victoria's own ZIPs are only Victoria County.
+NEARBY = {"victoria": ["77954", "77979", "77957", "77963", "77995"]}   # Cuero, Port Lavaca, Edna, Goliad, Yoakum
 TARGET = 300
 # Candidates fetched per slot: dedupe, chains and empty domains eat some.
 OVERFETCH = 2
@@ -353,25 +356,50 @@ def per_query(cat, override=None):
     return max(10, min(100, math.ceil(quota * OVERFETCH / len(queries))))
 
 
-def search_plan(a, cats=None, override=None):
-    """[(category, query, request body, cache path)] for a town."""
+def search_plan(a, cats=None, override=None, nearby=False):
+    """[(category, query, request body, cache path)] for a town: its own
+    ZIPs, or with nearby its NEARBY towns' ZIPs (cached apart)."""
     plan = []
+    loc, suffix = location(a), ""
+    if nearby:
+        loc, suffix = [{"country": "US", "state": a["state"], "zip_code": NEARBY.get(a["slug"], [])}], "__nearby"
+        if not NEARBY.get(a["slug"]):
+            return []
     for cat, *_rest in CATEGORIES:
         if cats and cat not in cats:
             continue
         for q in CATEGORY[cat][4]:
-            body = {"query": q, "location": location(a), "has_website": True,
+            body = {"query": q, "location": loc, "has_website": True,
                     "max_locations": MAX_STORES, "limit": per_query(cat, override)}
-            plan.append((cat, q, body, os.path.join(OUT, a["slug"], "search", f"{cat}__{slugify(q)}.json")))
+            plan.append((cat, q, body, os.path.join(OUT, a["slug"], "search", f"{cat}__{slugify(q)}{suffix}.json")))
     return plan
 
 
+def next_pages(plan):
+    """The cached searches whose last page came back full, with the body
+    for the page after it: [(category, query, body, path)]."""
+    out = []
+    for cat, q, _body, path in plan:
+        page = read_json(path)
+        if not page or not page.get("results"):
+            continue
+        req, last = page["request"], page["results"][-1]
+        if len(page["results"]) < req["limit"] * page.get("pages", 1) or not last.get("cursor"):
+            continue   # the search ran out
+        out.append((cat, q, dict(req, cursor=last["cursor"]), path))
+    return out
+
+
 def cmd_search(a, args):
-    plan = search_plan(a, args.category, args.per_query)
-    todo = [p for p in plan if args.refresh or not os.path.exists(p[3])]
+    plan = search_plan(a, args.category, args.per_query, args.nearby)
+    if args.more:
+        todo = next_pages(plan)
+    else:
+        todo = [p for p in plan if args.refresh or not os.path.exists(p[3])]
     rows = sum(p[2]["limit"] for p in todo)
-    print(f"{a['site_name']}: {len(plan)} queries over {len(a['zips'])} ZIPs, {len(todo)} not cached, "
-          f"up to {rows} records")
+    zips = NEARBY.get(a["slug"], []) if args.nearby else a["zips"]
+    what = "with another page" if args.more else "not cached"
+    print(f"{a['site_name']}: {len(plan)} queries over {len(zips)} ZIPs, {len(todo)} {what}, up to {rows} records")
     if not args.go:
         for cat, q, body, _ in todo:
             print(f"  would search {cat:13} {q!r} limit {body['limit']}")
@@ -383,7 +411,13 @@ def cmd_search(a, args):
             res = call("POST", "/api/v1/search", body)
             res = res.get("data", []) if isinstance(res, dict) else (res or [])
             town_dir(a["slug"], "search")
-            write_json(path, {"category": cat, "query": q, "request": body, "results": res})
+            if args.more:   # the next page: add it to the cached ones
+                page = read_json(path)
+                page["results"] += res
+                page["pages"] = page.get("pages", 1) + 1
+                write_json(path, page)
+            else:
+                write_json(path, {"category": cat, "query": q, "request": body, "results": res})
             print(f"  {cat:13} {q!r}: {len(res)}")
             meter.check()
     finally:
@@ -448,7 +482,7 @@ def pick(rows, venues, target=TARGET):
     # quotas shrink in step to the room left, so the categories with few
     # reviews (law, insurance, real estate) keep their share.
     chosen = [l for l in leads if l["listed"]][:target]
-    quota = {c[0]: c[3] for c in CATEGORIES}
+    quota = {c[0]: c[3] * target // TARGET for c in CATEGORIES}
     for l in chosen:
         if quota.get(l["category"], 0) > 0:
             quota[l["category"]] -= 1
@@ -588,21 +622,115 @@ def task_results(slug, kind):
     return out
 
 
+DEFAULT_TITLE = "Owner or decision maker"
+AGAIN_TITLE = "General Manager or Marketing Manager"
+
+
+def people_found(slug):
+    """Everyone find_people returned for each pick, both rounds, once each."""
+    out = {}
+    for kind in ("people", "people_more", "people_named"):
+        for tid, ppl in task_results(slug, kind).items():
+            seen = {((p.get("email") or {}).get("email") or "", p.get("first_name"), p.get("last_name")) for p in out.get(tid, [])}
+            for p in ppl:
+                k = ((p.get("email") or {}).get("email") or "", p.get("first_name"), p.get("last_name"))
+                if k not in seen:
+                    seen.add(k)
+                    out.setdefault(tid, []).append(p)
+    return out
+
+
 def cmd_contacts(a, args):
     leads = picked(a["slug"])
-    sent = submitted(a["slug"], "people")
-    tasks = [find_people_task(l, a, args.title, args.max_k, args.phone) for l in leads if l["id"] not in sent]
+    if args.again:
+        # A second round, for the picks with no one's email yet: another
+        # role, a few people, in its own folder so round one's record stands.
+        kind, title = "people_more", (AGAIN_TITLE if args.title == DEFAULT_TITLE else args.title)
+        found = people_found(a["slug"])
+        sent = submitted(a["slug"], kind)
+        todo = [l for l in leads if l["id"] not in sent and not best_email(found.get(l["id"], []))]
+    else:
+        kind, title = "people", args.title
+        sent = submitted(a["slug"], kind)
+        todo = [l for l in leads if l["id"] not in sent]
+    tasks = [find_people_task(l, a, title, args.max_k, args.phone) for l in todo]
     if args.limit is not None:
         tasks = tasks[:args.limit]   # picks are best-first
     print(f"{a['site_name']}: {len(leads)} picked, {len(sent)} already sent, {len(tasks)} to send "
-          f"(max {args.max_k} per business, {'email + phone' if args.phone else 'email only'})")
+          f"({title!r}, max {args.max_k} per business, {'email + phone' if args.phone else 'email only'})")
     if not args.go:
         print("dry run: nothing sent (add --go)")
         return
     meter = Meter(args.max_spend)
     try:
-        submit(a["slug"], "people", "/api/v1/task/batch/find_people", tasks, meter)
-        collect(a["slug"], "people")
+        submit(a["slug"], kind, "/api/v1/task/batch/find_people", tasks, meter)
+        collect(a["slug"], kind)
+    finally:
+        meter.done()
+
+
+SUFFIX_WORDS = {"DDS", "DMD", "MD", "DVM", "JR", "SR", "II", "III", "PHD", "CPA", "ESQ", "RN", "NP", "PA", "DC",
+                "OD", "MS", "MBA", "LMT", "FNP", "APRN", "PT", "DPT", "CFP"}
+
+
+# Words that make "Front Desk" or "Our Team" a role, not a person.
+NOT_NAMES = {"front", "desk", "office", "team", "staff", "manager", "reception", "receptionist", "admin",
+             "sales", "service", "services", "support", "customer", "owner", "the", "and", "our", "info"}
+
+
+def person_name(full):
+    """{'first_name', 'last_name'} from 'Dr. Leslie K. Frels, DDS'; None
+    for a single word or nothing."""
+    s = re.sub(r"^(dr|mr|mrs|ms|miss)\.?\s+", "", (full or "").strip(), flags=re.I)
+    s = re.split(r"[,(|/]", s)[0]
+    words = [w for w in s.split() if not re.fullmatch(r"[A-Za-z]\.?", w)
+             and w.upper().strip(".") not in SUFFIX_WORDS]
+    if len(words) < 2 or not all(re.fullmatch(r"[A-Za-z'’.-]+", w) for w in words) \
+            or {w.lower() for w in words} & NOT_NAMES:
+        return None
+    return {"first_name": words[0], "last_name": words[-1]}
+
+
+def known_people(lead, found, most=3):
+    """People we have a name for but no email: the staff on the business's
+    own site first, then whoever find_people returned without one."""
+    out, seen = [], set()
+    names = [person_name(st.get("name")) for st in lead["content"].get("staffs") or [] if isinstance(st, dict)]
+    names += [dict({"first_name": p["first_name"], "last_name": p["last_name"]},
+                   **({"linkedin_url": p["linkedin_url"]} if p.get("linkedin_url") else {}))
+              for p in found if p.get("first_name") and p.get("last_name")]
+    for n in names:
+        if n and (n["first_name"].lower(), n["last_name"].lower()) not in seen:
+            seen.add((n["first_name"].lower(), n["last_name"].lower()))
+            out.append(n)
+    return out[:most]
+
+
+def cmd_named(a, args):
+    """lookup_people: the email of a person we already have a name for, at
+    the picks with no one's email yet."""
+    leads = picked(a["slug"])
+    found = people_found(a["slug"])
+    sent = submitted(a["slug"], "people_named")
+    tasks = []
+    for l in leads:
+        if l["id"] in sent or best_email(found.get(l["id"], [])):
+            continue
+        ppl = known_people(l, found.get(l["id"], []))
+        if ppl:
+            t = business_email_task(l, a)
+            tasks.append(dict(t, people=ppl, info_access=["EMAIL"]))
+    if args.limit is not None:
+        tasks = tasks[:args.limit]
+    print(f"{a['site_name']}: {len(tasks)} picks with a known name and no email to look up "
+          f"({sum(len(t['people']) for t in tasks)} people)")
+    if not args.go:
+        print("dry run: nothing sent (add --go)")
+        return
+    meter = Meter(args.max_spend)
+    try:
+        submit(a["slug"], "people_named", "/api/v1/task/batch/lookup_people", tasks, meter)
+        collect(a["slug"], "people_named")
     finally:
         meter.done()
 
@@ -616,7 +744,7 @@ def best_email(people):
 
 def cmd_emails(a, args):
     leads = picked(a["slug"])
-    people = task_results(a["slug"], "people")
+    people = people_found(a["slug"])
     sent = submitted(a["slug"], "business_emails")
     need = [l for l in leads if l["id"] not in sent and not free_emails(l["content"])
             and not any((p.get("email") or {}).get("verified") for p in people.get(l["id"], []))]
@@ -704,7 +832,7 @@ def cmd_export(towns):
         if not os.path.exists(path):
             print(f"{slug}: nothing picked yet")
             continue
-        rows = rows_for(a, read_json(path, []), task_results(slug, "people"), task_results(slug, "business_emails"))
+        rows = rows_for(a, read_json(path, []), people_found(slug), task_results(slug, "business_emails"))
         write_csv(os.path.join(OUT, slug, f"leads-{slug}.csv"), rows)
         every += rows
         named = sum(1 for r in rows if r["contact_email"])
@@ -728,16 +856,20 @@ def write_csv(path, rows):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("stage", choices=("balance", "search", "pick", "contacts", "emails", "export"))
+    p.add_argument("stage", choices=("balance", "search", "pick", "contacts", "named", "emails", "export"))
     p.add_argument("--town", action="append", choices=TOWNS, help="repeatable; default every town")
     p.add_argument("--category", action="append", choices=[c[0] for c in CATEGORIES],
                    help="search only these (repeatable)")
     p.add_argument("--per-query", type=int, help="results per search query (default: from the quota)")
     p.add_argument("--target", type=int, default=TARGET, help=f"leads per town (default {TARGET})")
-    p.add_argument("--title", default="Owner or decision maker", help="the role find_people looks for")
+    p.add_argument("--title", default=DEFAULT_TITLE, help="the role find_people looks for")
+    p.add_argument("--again", action="store_true",
+                   help=f"contacts: a second round for picks with no one's email yet (default role {AGAIN_TITLE!r})")
+    p.add_argument("--more", action="store_true", help="search: the next page of every search whose last page was full")
+    p.add_argument("--nearby", action="store_true", help="search: the town's NEARBY towns' ZIPs instead of its own")
     p.add_argument("--max-k", type=int, default=1, help="contacts per business, 1-8 (default 1)")
     p.add_argument("--phone", action="store_true", help="ask for phones too (costs more)")
-    p.add_argument("--limit", type=int, help="contacts, emails: send at most this many new lookups (best picks first)")
+    p.add_argument("--limit", type=int, help="contacts, named, emails: send at most this many new lookups (best picks first)")
     p.add_argument("--max-spend", type=float, help="stop a stage once this many credits are spent")
     p.add_argument("--refresh", action="store_true", help="search again even when cached")
     p.add_argument("--go", action="store_true", help="really send (spends credits)")
@@ -745,7 +877,7 @@ def main(argv=None):
     towns = args.town or list(TOWNS)
     if not 1 <= args.max_k <= 8:
         p.error("--max-k must be 1 to 8")
-    sends = args.stage == "balance" or (args.go and args.stage in ("search", "contacts", "emails"))
+    sends = args.stage == "balance" or (args.go and args.stage in ("search", "contacts", "named", "emails"))
     if sends and not os.environ.get("OPENMART_API_KEY"):
         print("note: OPENMART_API_KEY isn't set; sending without a key (an environment network "
               "secret for api.openmart.ai adds it)", file=sys.stderr)
@@ -757,7 +889,7 @@ def main(argv=None):
             cmd_export(towns)
         else:
             for slug in towns:
-                {"search": cmd_search, "pick": cmd_pick, "contacts": cmd_contacts,
+                {"search": cmd_search, "pick": cmd_pick, "contacts": cmd_contacts, "named": cmd_named,
                  "emails": cmd_emails}[args.stage](area(slug), args)
     except ApiError as e:
         print(f"error: {e}", file=sys.stderr)

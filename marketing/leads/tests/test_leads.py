@@ -324,3 +324,75 @@ def test_export_writes_the_csv():
     assert aero["category"] == "Already in the newsletter" and aero["openmart_id"] == ""
     assert aero["pitch"] == "Featured events (already listed)"
     assert os.path.exists(os.path.join(leads.OUT, "leads-all.csv"))
+
+
+# --- second rounds -------------------------------------------------------------
+
+@pytest.mark.parametrize("full,want", [
+    ("Dr. Leslie K. Frels", ("Leslie", "Frels")),
+    ("Tim Rainey, DDS, FAGD", ("Tim", "Rainey")),
+    ("Dr. James Omecinski", ("James", "Omecinski")),
+    ("Megan O'Neil DVM", ("Megan", "O'Neil")),
+    ("Sam", None), ("", None), ("Team @ Joe's", None),
+])
+def test_person_name(full, want):
+    got = leads.person_name(full)
+    assert (got and (got["first_name"], got["last_name"])) == (want or None)
+
+
+def test_known_people_puts_the_website_staff_first_and_dedupes():
+    lead = {"id": "x", "domain": "x.com", "content": {"staffs": [
+        {"name": "Dr. Kim Lee", "role": "Owner"}, {"name": "Front Desk"}, {"name": "Kim Lee"}]}}
+    found = [{"first_name": "Kim", "last_name": "Lee"},
+             {"first_name": "Ann", "last_name": "Ray", "linkedin_url": "https://linkedin.com/in/ann"}]
+    assert leads.known_people(lead, found) == [
+        {"first_name": "Kim", "last_name": "Lee"},
+        {"first_name": "Ann", "last_name": "Ray", "linkedin_url": "https://linkedin.com/in/ann"}]
+
+
+def test_people_found_merges_every_round_once():
+    for kind, data in (("people", [{"first_name": "Bob", "email": None}]),
+                       ("people_more", [{"first_name": "Bob", "email": None},
+                                        {"first_name": "Cy", "email": {"email": "cy@x.com", "verified": True}}]),
+                       ("people_named", [{"first_name": "Di", "email": {"email": "di@x.com", "verified": True}}])):
+        d = os.path.join(leads.OUT, "victoria", kind, "tasks")
+        os.makedirs(d)
+        leads.write_json(os.path.join(d, "t.json"), {"tracking_id": "p1", "data": data})
+    got = leads.people_found("victoria")["p1"]
+    assert [p["first_name"] for p in got] == ["Bob", "Cy", "Di"]
+
+
+def test_again_and_named_only_ask_about_picks_with_no_email(capsys):
+    items = [dict(row(f"p{i}", f"Shop {i}", f"shop{i}.com"), domain=f"shop{i}.com", listed=False) for i in range(3)]
+    items[2]["content"]["staffs"] = [{"name": "Kim Lee", "role": "Owner"}]
+    picked_file("victoria", items)
+    d = os.path.join(leads.OUT, "victoria", "people", "tasks")
+    os.makedirs(d)
+    leads.write_json(os.path.join(d, "a.json"), {"tracking_id": "p0", "data": [
+        {"first_name": "Al", "last_name": "Ng", "email": {"email": "al@shop0.com", "verified": True}}]})
+    leads.write_json(os.path.join(d, "b.json"), {"tracking_id": "p1", "data": [
+        {"first_name": "Bo", "last_name": "Fox", "email": None}]})
+    assert leads.main(["contacts", "--town", "victoria", "--again"]) == 0
+    assert "2 to send ('General Manager or Marketing Manager'" in capsys.readouterr().out
+    assert leads.main(["named", "--town", "victoria"]) == 0
+    assert "2 picks with a known name and no email to look up (2 people)" in capsys.readouterr().out
+
+
+def test_next_pages_only_for_full_pages():
+    a = leads.area("victoria")
+    plan = leads.search_plan(a, ["legal"], 2)
+    full, short = plan
+    os.makedirs(os.path.dirname(full[3]))
+    leads.write_json(full[3], {"category": "legal", "query": full[1], "request": full[2],
+                               "results": [{"id": "a", "cursor": [3, "a"]}, {"id": "b", "cursor": [2, "b"]}]})
+    leads.write_json(short[3], {"category": "legal", "query": short[1], "request": short[2],
+                                "results": [{"id": "c", "cursor": [1, "c"]}]})
+    nxt = leads.next_pages(plan)
+    assert len(nxt) == 1 and nxt[0][2]["cursor"] == [2, "b"] and nxt[0][3] == full[3]
+
+
+def test_nearby_searches_cache_apart():
+    plan = leads.search_plan(leads.area("victoria"), ["dental"], nearby=True)
+    assert plan and all(p[3].endswith("__nearby.json") for p in plan)
+    assert plan[0][2]["location"][0]["zip_code"] == leads.NEARBY["victoria"]
+    assert leads.search_plan(leads.area("lincoln"), ["dental"], nearby=True) == []

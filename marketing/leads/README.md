@@ -56,7 +56,13 @@ $L search --town victoria --go --max-spend 500
 $L pick --town victoria                      # offline: picked.json, counts per category
 $L contacts --town victoria --go             # find_people: 1 owner/decision maker per pick, email only
 $L contacts --town victoria --limit 100 --go # only the 100 best picks not yet sent (spend in measured steps)
+$L contacts --again --max-k 2 --go           # second round: a general or marketing manager where no one's email came back
+$L named --go                                # lookup_people: emails for people we have a name for (staff on the
+                                             # business's own site, or find_people results without an email)
 $L emails --town victoria --go               # info@-type emails for picks with no verified person email
+$L search --more --go                        # the next page of every search whose last page came back full
+$L search --nearby --town victoria --go      # the town's NEARBY towns (Victoria: Cuero, Port Lavaca, Edna, Goliad, Yoakum)
+$L pick --target 380                         # more than 300 per town; each category's quota scales with it
 $L export                                    # offline: out/<town>/leads-<town>.csv + out/leads-all.csv
 ```
 
