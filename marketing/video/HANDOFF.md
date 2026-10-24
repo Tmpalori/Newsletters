@@ -57,7 +57,7 @@ All of these are network secrets in the cloud environment (environment menu → 
 
 ## Pending decisions (ask Tristen, one at a time)
 
-1. **The evergreen ads have no end date.** Each would spend its campaign's daily budget ($55, or $68 for Victoria) until stopped. Should they run until he says stop, with a weekly results check from `ads.py status`, or end on a date? Set `run_until_local` to match before uploading.
+1. ~~The evergreen ads' end date.~~ Decided Oct 24: they run **until he says stop** (`run_until_local` stays `null`). Show him `ads.py status` results when he checks in. He didn't want automatic check-ins, so don't schedule any unless he asks.
 2. **Pausing the old ads:** assumed yes unless he objects. `go` pauses each campaign's other ads, including Victoria's "Halloween Ad".
 3. **Budgets (just so he knows):** every campaign is over `scripts/meta_ads.py`'s $50/day cap. ads.py never changes a budget.
 4. **A separate problem, not this campaign:** the site's `scripts/meta_ads.py` defaults to Marketing API v23.0, which Meta retired on June 9, 2026. No jobs service sets `GRAPH_API_VERSION`. Its daily report still reads, but its pause/resume/budget commands may fail. He was told; it's his call when to fix.
